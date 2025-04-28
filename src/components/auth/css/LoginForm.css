@@ -1,0 +1,252 @@
+/* LoginForm.css - Enhanced styling specifically for the LoginForm component with improved focus handling */
+
+/* Form container */
+.loginform__container {
+  margin-top: 1rem;
+}
+
+/* Input group spacing */
+.loginform__input-group {
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+/* SR-only class for accessibility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Input wrapper for visual effects */
+.loginform__input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+/* Input styling */
+.loginform__input {
+  appearance: none;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background-color: #f7fafc;
+  color: #2d3748;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.loginform__input:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+  background-color: white;
+}
+
+/* Input highlight effect when focused */
+.loginform__input-highlight {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  background-color: #4f46e5;
+  transform-origin: bottom left;
+  animation: highlightEnter 0.3s ease forwards;
+  z-index: 0;
+}
+
+@keyframes highlightEnter {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.loginform__input::placeholder {
+  color: #a0aec0;
+}
+
+/* Error state for inputs */
+.loginform__input.input-error {
+  border-color: #e53e3e;
+  background-color: #fff5f5;
+}
+
+.loginform__input.input-error:focus {
+  box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.15);
+}
+
+/* Remember me checkbox styling */
+.loginform__checkbox-container {
+  display: flex;
+  align-items: center;
+}
+
+.loginform__checkbox {
+  height: 1rem;
+  width: 1rem;
+  color: #4f46e5;
+  border: 1px solid #cbd5e0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.loginform__checkbox:checked {
+  background-color: #4f46e5;
+  border-color: #4f46e5;
+}
+
+.loginform__checkbox:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.3);
+}
+
+.loginform__checkbox-label {
+  margin-left: 0.5rem;
+  font-size: 0.875rem;
+  color: #4a5568;
+  cursor: pointer;
+}
+
+/* Options row styling */
+.loginform__options-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+/* Forgot password link */
+.loginform__forgot-link {
+  font-size: 0.875rem;
+  color: #4f46e5;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.loginform__forgot-link:hover {
+  color: #4338ca;
+  text-decoration: underline;
+}
+
+.loginform__forgot-link:focus {
+  outline: none;
+  text-decoration: underline;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+  border-radius: 2px;
+}
+
+/* Submit button styling */
+.loginform__submit-btn {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background-color: #4f46e5;
+  color: white;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.95rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.loginform__submit-btn:hover {
+  background-color: #4338ca;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.loginform__submit-btn:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+/* Improved focus states for submit button */
+.loginform__submit-btn:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+}
+
+.loginform__submit-btn:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+.loginform__submit-btn--loading {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Spinner styling inside button */
+.loginform__spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loginform__spinner svg {
+  margin-right: 0.5rem;
+}
+
+/* Animation for form with error */
+.loginform__container.has-error {
+  animation: gentleShake 0.4s ease;
+}
+
+@keyframes gentleShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-2px);
+  }
+  40%,
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+/* Focus trap for accessibility */
+.loginform__container:focus-within {
+  outline: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .loginform__input {
+    padding: 0.7rem 0.875rem;
+    font-size: 0.875rem;
+  }
+
+  .loginform__options-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .loginform__submit-btn {
+    padding: 0.7rem 0.875rem;
+    font-size: 0.875rem;
+  }
+}

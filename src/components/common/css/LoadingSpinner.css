@@ -1,0 +1,198 @@
+/* Base Spinner Styles */
+.loading-spinner {
+  display: inline-block;
+  border-style: solid;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+}
+
+/* Screen reader only text */
+.loading-spinner__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Size Variations */
+.loading-spinner--xs {
+  width: 1rem;
+  height: 1rem;
+  border-width: 2px;
+}
+
+.loading-spinner--sm {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-width: 3px;
+}
+
+.loading-spinner--md {
+  width: 2rem;
+  height: 2rem;
+  border-width: 4px;
+}
+
+.loading-spinner--lg {
+  width: 3rem;
+  height: 3rem;
+  border-width: 5px;
+}
+
+.loading-spinner--xl {
+  width: 4rem;
+  height: 4rem;
+  border-width: 6px;
+}
+
+/* Color Variations */
+.loading-spinner--primary {
+  border-color: #3b82f6;
+}
+
+.loading-spinner--secondary {
+  border-color: #6b7280;
+}
+
+.loading-spinner--success {
+  border-color: #10b981;
+}
+
+.loading-spinner--danger {
+  border-color: #ef4444;
+}
+
+.loading-spinner--light {
+  border-color: #f3f4f6;
+}
+
+.loading-spinner--dark {
+  border-color: #1f2937;
+}
+
+/* Variant Styles */
+.loading-spinner--dots {
+  border-radius: 0;
+  border: none;
+  position: relative;
+  background: transparent;
+  animation: dots 1.4s linear infinite;
+}
+
+.loading-spinner--dots::before,
+.loading-spinner--dots::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  opacity: 0.6;
+  animation: dots 1.4s ease-in-out infinite;
+}
+
+.loading-spinner--dots::before {
+  left: -150%;
+  animation-delay: -0.32s;
+}
+
+.loading-spinner--dots::after {
+  left: 150%;
+  animation-delay: -0.16s;
+}
+
+.loading-spinner--bars {
+  border-radius: 0;
+  border: none;
+  position: relative;
+  animation: bars 1s linear infinite;
+}
+
+.loading-spinner--bars::before,
+.loading-spinner--bars::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0.6;
+  animation: bars 1s ease-in-out infinite;
+}
+
+.loading-spinner--bars::before {
+  left: -150%;
+  animation-delay: -0.32s;
+}
+
+.loading-spinner--bars::after {
+  left: 150%;
+  animation-delay: -0.16s;
+}
+
+.loading-spinner--pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+  border: none;
+  border-radius: 50%;
+}
+
+/* Full Page Overlay */
+.loading-spinner__overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* Animations */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dots {
+  0%,
+  80%,
+  100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+@keyframes bars {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}

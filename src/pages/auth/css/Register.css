@@ -1,0 +1,179 @@
+/* Register.css - Comprehensive styles for the registration page */
+.register-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f9fafb;
+  padding: 1.5rem;
+}
+
+.register-page__container {
+  width: 100%;
+  max-width: 28rem;
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding: 2rem;
+  transition: transform 0.3s ease;
+}
+
+@media (min-width: 640px) {
+  .register-page__container {
+    padding: 2.5rem;
+  }
+}
+
+.register-page__container:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.register-page__header {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.register-page__title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #111827;
+  margin-bottom: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .register-page__title {
+    font-size: 1.875rem;
+  }
+}
+
+.register-page__subtitle {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.register-page__error {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+  text-align: center;
+  border-left: 4px solid #ef4444;
+}
+
+.register-page__social-buttons {
+  margin-top: 1.5rem;
+}
+
+.register-page__divider {
+  position: relative;
+  margin: 1.5rem 0;
+  text-align: center;
+}
+
+.register-page__divider-line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background-color: #e5e7eb;
+}
+
+.register-page__divider-text {
+  position: relative;
+  display: inline-block;
+  padding: 0 0.75rem;
+  background-color: white;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.register-page__google-button {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background-color: white;
+  color: #374151;
+  font-weight: 500;
+  font-size: 0.875rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+  height: 2.75rem;
+}
+
+.register-page__google-button:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.register-page__google-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(209, 213, 219, 0.5);
+}
+
+.register-page__google-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.register-page__google-icon {
+  height: 1.25rem;
+  width: 1.25rem;
+  margin-right: 0.75rem;
+}
+
+.register-page__footer {
+  margin-top: 2rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.register-page__link {
+  color: #2563eb;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.register-page__link:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .register-page__container {
+    padding: 1.5rem;
+  }
+
+  .register-page__title {
+    font-size: 1.25rem;
+  }
+}
+
+/* Animation for loading states */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.register-page__loading {
+  animation: pulse 1.5s infinite;
+}

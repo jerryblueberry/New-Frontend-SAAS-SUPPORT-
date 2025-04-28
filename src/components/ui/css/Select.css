@@ -1,0 +1,216 @@
+/* WrkrSelect.css */
+:root {
+  --wrkr-select-primary: #3a7bd5;
+  --wrkr-select-primary-light: #e3f2fd;
+  --wrkr-select-error: #f55a4e;
+  --wrkr-select-success: #32b697;
+  --wrkr-select-text: #333333;
+  --wrkr-select-text-muted: #6c757d;
+  --wrkr-select-border: #e9ecef;
+  --wrkr-select-border-focus: #90caf9;
+  --wrkr-select-bg: #ffffff;
+  --wrkr-select-bg-hover: #f8f9fa;
+  --wrkr-select-radius: 10px;
+  --wrkr-select-shadow-focus: 0 0 0 3px rgba(58, 123, 213, 0.15);
+  --wrkr-select-transition: all 0.2s ease-in-out;
+}
+
+/* Base Styles */
+.wrkr-select-group {
+  margin-bottom: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, sans-serif;
+}
+
+.wrkr-select-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--wrkr-select-text);
+  font-size: 16px;
+}
+
+.wrkr-select-required-mark {
+  color: var(--wrkr-select-error);
+}
+
+/* Custom Select Wrapper */
+.wrkr-select-wrapper {
+  position: relative;
+  display: block;
+}
+
+/* Custom Select Styling */
+.wrkr-select-control {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 100%;
+  padding: 12px 40px 12px 16px;
+  border: 1px solid var(--wrkr-select-border);
+  border-radius: var(--wrkr-select-radius);
+  background-color: var(--wrkr-select-bg);
+  color: var(--wrkr-select-text);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+  transition: var(--wrkr-select-transition);
+  cursor: pointer;
+}
+
+.wrkr-select-control:hover {
+  background-color: var(--wrkr-select-bg-hover);
+}
+
+.wrkr-select-control:focus {
+  outline: none;
+  border-color: var(--wrkr-select-primary);
+  box-shadow: var(--wrkr-select-shadow-focus);
+}
+
+/* Custom Arrow */
+.wrkr-select-arrow {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--wrkr-select-text-muted);
+  border-bottom: 2px solid var(--wrkr-select-text-muted);
+  pointer-events: none;
+  transform-origin: 50% 50%;
+  transform: translateY(-50%) rotate(45deg);
+  transition: var(--wrkr-select-transition);
+}
+
+.wrkr-select-wrapper:hover .wrkr-select-arrow {
+  border-color: var(--wrkr-select-text);
+}
+
+.wrkr-select-control:focus + .wrkr-select-arrow {
+  border-color: var(--wrkr-select-primary);
+}
+
+/* Error State */
+.wrkr-select-error {
+  border-color: var(--wrkr-select-error);
+}
+
+.wrkr-select-error:focus {
+  box-shadow: 0 0 0 3px rgba(245, 90, 78, 0.15);
+  border-color: var(--wrkr-select-error);
+}
+
+.wrkr-select-error-message {
+  color: var(--wrkr-select-error);
+  font-size: 0.875rem;
+  margin-top: 0.375rem;
+  font-weight: 500;
+}
+
+/* Helper Text */
+.wrkr-select-helper-text {
+  color: var(--wrkr-select-text-muted);
+  font-size: 0.875rem;
+  margin-top: 0.375rem;
+}
+
+/* Size Variations */
+.wrkr-select-sm .wrkr-select-label {
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.wrkr-select-sm .wrkr-select-control {
+  padding: 8px 36px 8px 12px;
+  font-size: 14px;
+  border-radius: 8px;
+}
+
+.wrkr-select-sm .wrkr-select-arrow {
+  right: 12px;
+  width: 8px;
+  height: 8px;
+}
+
+.wrkr-select-lg .wrkr-select-label {
+  font-size: 17px;
+  margin-bottom: 10px;
+}
+
+.wrkr-select-lg .wrkr-select-control {
+  padding: 14px 44px 14px 18px;
+  font-size: 16px;
+  border-radius: 12px;
+}
+
+.wrkr-select-lg .wrkr-select-arrow {
+  right: 18px;
+  width: 12px;
+  height: 12px;
+}
+
+/* Disabled State */
+.wrkr-select-control:disabled {
+  background-color: #f5f5f5;
+  color: #aaaaaa;
+  cursor: not-allowed;
+  border-color: #e0e0e0;
+}
+
+.wrkr-select-control:disabled + .wrkr-select-arrow {
+  border-color: #aaaaaa;
+}
+
+/* Option Styling */
+.wrkr-select-control option {
+  padding: 12px;
+  background-color: var(--wrkr-select-bg);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .wrkr-select-control {
+    padding: 12px 38px 12px 14px;
+  }
+
+  .wrkr-select-label {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .wrkr-select-control {
+    padding: 10px 36px 10px 12px;
+    font-size: 14px;
+  }
+
+  .wrkr-select-arrow {
+    right: 14px;
+  }
+
+  .wrkr-select-label {
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+
+  .wrkr-select-error-message,
+  .wrkr-select-helper-text {
+    font-size: 0.8125rem;
+  }
+}
+
+/* For browsers that still show native arrow */
+@-moz-document url-prefix() {
+  .wrkr-select-control {
+    text-indent: 0.01px;
+    text-overflow: '';
+    padding-right: 16px;
+  }
+}
+
+/* Ensure consistent appearance in IE */
+select::-ms-expand {
+  display: none;
+}

@@ -1,0 +1,309 @@
+/* Login.css - Enhanced responsive design with improved error handling and focus management */
+
+/* Base container styling */
+.login__container {
+  min-height: 100vh;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+
+/* Card styling with refined animations */
+.login__card {
+  max-width: 440px;
+  width: 100%;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  padding: 2rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  position: relative;
+  overflow: hidden;
+}
+
+.login__card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.07),
+    0 4px 6px -2px rgba(0, 0, 0, 0.03);
+}
+
+/* Header styling */
+.login__header {
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.login__title {
+  color: #1a202c;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+  margin-bottom: 0.25rem;
+}
+
+.login__subtitle {
+  color: #4a5568;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+/* Enhanced error message styling */
+.login__error-message {
+  background-color: #fff5f5;
+  color: #9b2c2c;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: flex-start;
+  border: 1px solid #fed7d7;
+  position: relative;
+  transition: all 0.3s ease;
+  opacity: 1;
+}
+
+.login__error-message.fade-out {
+  opacity: 0;
+  transform: translateY(-5px);
+}
+
+.login__error-icon {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  margin-right: 0.75rem;
+  color: #e53e3e;
+  margin-top: 0.5rem;
+}
+
+.login__error-dismiss {
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  margin-left: 0.75rem;
+  cursor: pointer;
+  color: #c53030;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+  flex-shrink: 0;
+}
+
+.login__error-dismiss:hover {
+  opacity: 1;
+}
+
+.login__error-dismiss:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+  opacity: 1;
+}
+
+.login__error-dismiss svg {
+  display: block;
+}
+
+/* Form container adjustments */
+.login__form-container {
+  margin-bottom: 1.5rem;
+}
+
+.login__form-container.has-error {
+  animation: gentleShake 0.4s ease;
+}
+
+@keyframes gentleShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-2px);
+  }
+  40%,
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+/* Divider styling */
+.login__divider {
+  margin: 1.5rem 0;
+  position: relative;
+}
+
+.login__divider-line {
+  position: relative;
+}
+
+.login__divider-line::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: #e2e8f0;
+  transform: translateY(-50%);
+}
+
+.login__divider-text {
+  background-color: white;
+  color: #718096;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 1rem;
+  position: relative;
+  display: inline-block;
+}
+
+/* Google button styling */
+.login__google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.75rem;
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-weight: 500;
+  color: #4a5568;
+  transition: all 0.2s ease;
+  font-size: 0.9375rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.login__google-btn:hover {
+  background-color: #f8fafc;
+  border-color: #cbd5e0;
+  transform: translateY(-1px);
+}
+
+.login__google-btn:active {
+  transform: translateY(0);
+}
+
+.login__google-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Improved focus states for Google button */
+.login__google-btn:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+}
+
+.login__google-btn:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+.login__google-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-right: 0.75rem;
+}
+
+/* Spinner animation */
+.login__spinner {
+  display: inline-flex;
+  align-items: center;
+}
+
+.login__spinner svg {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Footer styling */
+.login__footer {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.login__footer-text {
+  color: #718096;
+  font-size: 0.9375rem;
+}
+
+.login__signup-link {
+  color: #4f46e5;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.login__signup-link:hover {
+  color: #4338ca;
+  text-decoration: underline;
+}
+
+.login__signup-link:focus {
+  outline: none;
+  text-decoration: underline;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+  border-radius: 2px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .login__card {
+    padding: 1.5rem;
+    border-radius: 10px;
+  }
+
+  .login__title {
+    font-size: 1.5rem;
+  }
+
+  .login__subtitle {
+    font-size: 0.875rem;
+  }
+
+  .login__error-message {
+    padding: 0.625rem 0.875rem;
+    font-size: 0.8125rem;
+  }
+}
+
+/* Card subtle highlight effect */
+.login__card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(to right, #4f46e5, #7c3aed);
+  opacity: 0.8;
+}
