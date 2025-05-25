@@ -176,29 +176,103 @@ export const verifyEmail = async(token) => {
  * @param {string} accessToken - Google OAuth access token
  * @returns {Promise<Object>} Auth response with user data
  */
+// Enhanced Google Auth function with better debugging
 export const googleAuth = async (accessToken) => {
   try {
-    const response = await api.post('/auth/google', { access_token: accessToken });
+    console.log('Starting Google authentication process');
+    console.log('Access token present:', !!accessToken);
     
-    if (response.data?.data?.accessToken) {
-      setAccessToken(response.data.data.accessToken, response.data.data.expiresIn);
-      setRefreshToken(response.data.data.refreshToken);
+    // Test direct API call to Google first to verify token is valid
+    try {
+      console.log('Testing Google token directly with Google API...');
+      const googleResponse = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`);
       
-      // Store Google token for potential revocation
-      localStorage.setItem('google_token', accessToken);
-      setAuthProvider('google');
+      if (!googleResponse.ok) {
+        console.error('Google API direct test failed:', googleResponse.status, googleResponse.statusText);
+        const errorText = await googleResponse.text();
+        console.error('Google error response:', errorText);
+        throw new Error(`Google token validation failed: ${googleResponse.statusText}`);
+      }
       
-      // Dispatch login event
-      window.dispatchEvent(new Event('auth:login'));
+      const userData = await googleResponse.json();
+      console.log('Google token is valid. User data received:', {
+        email: userData.email,
+        name: userData.name,
+        verified: userData.email_verified
+      });
+    } catch (directTestError) {
+      console.error('Direct Google API test failed:', directTestError);
+      throw new Error('Invalid Google token. Please try logging in again.');
     }
     
-    return {
-      ...response.data,
-      isGoogleUser: true
-    };
+    // Now try your backend API
+    console.log('Sending token to backend...');
+    try {
+      const response = await api.post('/auth/google', { 
+        access_token: accessToken 
+      });
+      
+      console.log('Backend response received:', response.status);
+      
+      if (response.data?.data?.accessToken) {
+        console.log('Authentication successful, storing tokens');
+        setAccessToken(response.data.data.accessToken, response.data.data.expiresIn);
+        setRefreshToken(response.data.data.refreshToken);
+        
+        // Store Google token for potential revocation
+        localStorage.setItem('google_token', accessToken);
+        setAuthProvider('google');
+        
+        // Dispatch login event
+        window.dispatchEvent(new Event('auth:login'));
+        
+        console.log('Google authentication completed successfully');
+      } else {
+        console.warn('Missing tokens in successful response:', response.data);
+      }
+      
+      return {
+        ...response.data,
+        isGoogleUser: true
+      };
+    } catch (backendError) {
+      console.error('Backend API error:', backendError);
+      console.error('Response data:', backendError.response?.data);
+      console.error('Status code:', backendError.response?.status);
+      
+      // Try to extract the error message from the HTML response if it's a 500 error
+      if (backendError.response?.status === 500 && backendError.response?.data) {
+        try {
+          const htmlError = backendError.response.data;
+          
+          // Check if it's HTML and try to extract the error message
+          if (typeof htmlError === 'string' && htmlError.includes('<!DOCTYPE html>')) {
+            // Try to extract error from HTML
+            const errorMatch = htmlError.match(/<pre>([\s\S]*?)<\/pre>/);
+            if (errorMatch && errorMatch[1]) {
+              console.error('Server error details:', errorMatch[1].trim());
+            }
+          }
+        } catch (parseError) {
+          console.error('Error parsing error response:', parseError);
+        }
+      }
+      
+      throw backendError;
+    }
   } catch (error) {
     console.error('Google auth error:', error);
-    throw error;
+    
+    // Format error for user display
+    const errorMessage = error.response?.data?.message || 
+                        'Failed to authenticate with Google. Please try again.';
+    
+    // Create a enhanced error object with more details
+    const enhancedError = new Error(errorMessage);
+    enhancedError.originalError = error;
+    enhancedError.statusCode = error.response?.status;
+    
+    throw enhancedError;
   }
 };
 

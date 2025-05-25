@@ -18,6 +18,9 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import PageNotFound from './components/common/PageNotFound';
 import Profile from './pages/Workers/Profile';
+import CertificationManagement from './pages/CertificateCheck/CertificationManagement';
+import CertificateSecond from './pages/CertificateCheck/CertificateSecond';
+import CertificateThird from './pages/CertificateCheck/CertificateThird';
 
 // Create React Query client with optimized settings
 const queryClient = new QueryClient({
@@ -63,7 +66,9 @@ function AppRoutes() {
       <Routes>
         {/* Public routes - accessible to anyone */}
         <Route index path="/" element={<Home />} />
-
+        <Route path='/certificate' element  = {<CertificationManagement/>}/>
+        <Route path='/certificate-2' element = {<CertificateSecond/>}/>
+        <Route path='/certificate-3' element = {<CertificateThird/>}/>
         {/* Auth routes - only accessible when NOT logged in */}
         <Route path="/login" element={
           <PublicRoute>

@@ -165,8 +165,8 @@ const CertificationsForm = () => {
       );
   
       if (response.status === 200) {
-        toast.success(  'Image deleted successfully ')
-        console.log('Image deleted successfully from Cloudinary');
+        toast.success(  'Document deleted successfully ')
+        console.log('Document deleted successfully ');
       } else {
         throw new Error('Failed to delete image from Cloudinary');
       }

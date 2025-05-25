@@ -1,14 +1,16 @@
+/* eslint-disable no-unused-vars */
+/* eslint-disable no-undef */
 // src/stores/useOnboardingStore.js
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { 
-  useQuery, 
-  useMutation, 
+import {
+  useQuery,
+  useMutation,
   useQueryClient,
-  QueryClient
+  QueryClient,
 } from '@tanstack/react-query';
 import api from '../api/axios';
-import{daysOfWeek} from  '../utils/constants'
+import { daysOfWeek } from '../utils/constants';
 // Create QueryClient to be exported and used in your App provider
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,63 +33,75 @@ export const onboardingApi = {
     const response = await api.get(`${API_URL}/resume`);
     return response.data;
   },
-  
+
   saveProfileStep: async (profileData) => {
     const response = await api.post(`${API_URL}/step/profile`, profileData);
     return response.data;
   },
-  
+
   saveAvailabilityStep: async (availabilityData) => {
-    const response = await api.post(`${API_URL}/step/availability`, availabilityData);
+    const response = await api.post(
+      `${API_URL}/step/availability`,
+      availabilityData
+    );
     return response.data;
   },
-  
+
   saveCertificationsStep: async (certificationsData) => {
-    const response = await api.post(`${API_URL}/step/certifications`, certificationsData);
+    // Updated to match the controller requirements
+    const response = await api.post(
+      `${API_URL}/step/certifications`,
+      certificationsData
+    );
     return response.data;
   },
-  
+
   saveWorkHistoryStep: async (workHistoryData) => {
     try {
-      const response = await api.post(`${API_URL}/step/work-history`, workHistoryData);
+      const response = await api.post(
+        `${API_URL}/step/work-history`,
+        workHistoryData
+      );
       return response.data;
     } catch (error) {
       // Extract meaningful error message from response
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.error ||
-                          'Failed to save Profile , Please check your data.';
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        'Failed to save Profile , Please check your data.';
       throw new Error(errorMessage);
     }
   },
-  
+
   completeOnboarding: async () => {
     try {
       const response = await api.post(`${API_URL}/complete`);
-    return response.data;
+      return response.data;
     } catch (error) {
-            // Extract meaningful error message from response
-            const errorMessage = error.response?.data?.message || 
-            error.response?.data?.error ||
-            'Failed to save work history. Please check your data.';
-throw new Error(errorMessage);
-
+      // Extract meaningful error message from response
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        'Failed to save work history. Please check your data.';
+      throw new Error(errorMessage);
     }
-    
-  }
+  },
 };
 
 // Initial state object for reuse
 const initialState = {
   // Current step state
   currentStep: 1,
-  
+  completedSteps: [],
+
   // Form data sections
   profile: {
     biography: '',
     skillTags: [],
     expectedHourlyRate: 0,
+    languages: [],
   },
-  
+
   availability: {
     weeklySchedule: [
       { day: 'Monday', slots: [] },
@@ -101,16 +115,20 @@ const initialState = {
     customTimeSlots: [],
     notes: '',
   },
-  
+
   certifications: [],
-  
+
+  // Added nationality and residencyStatus fields for certifications
+  // nationality: '',
+  residencyStatus: '',
+
   workHistory: {
     jobs: [],
     noWorkHistory: false,
     hasReferences: 'no',
     references: [],
   },
-  
+
   // Profile completeness
   profileCompleteness: {
     percentage: 0,
@@ -130,7 +148,7 @@ const useOnboardingStore = create(
       ...initialState,
       isLoading: false,
       error: null,
-      
+
       // Navigation actions
       nextStep: () => {
         const currentStep = get().currentStep;
@@ -139,7 +157,7 @@ const useOnboardingStore = create(
           window.scrollTo(0, 0);
         }
       },
-      
+
       prevStep: () => {
         const currentStep = get().currentStep;
         if (currentStep > 1) {
@@ -147,20 +165,69 @@ const useOnboardingStore = create(
           window.scrollTo(0, 0);
         }
       },
-      
+
       setStep: (step) => {
         if (step >= 1 && step <= 4) {
           set({ currentStep: step });
           window.scrollTo(0, 0);
         }
       },
-      
+
+      //  Helper function to store the langugage
+      // Update the language-related actions in the store:
+
+      // Add language with proper structure
+      addLanguage: (languageObj) =>
+        set((state) => ({
+          profile: {
+            ...state.profile,
+            languages: [
+              ...(state.profile.languages || []),
+              {
+                language: { language: languageObj.language }, // Nested structure
+                proficiency: languageObj.proficiency,
+              },
+            ],
+          },
+        })),
+
+      // Remove language
+      removeLanguage: (languageToRemove) => {
+        set((state) => ({
+          profile: {
+            ...state.profile,
+            languages: state.profile.languages.filter(
+              (lang) =>
+                lang.language.language !== languageToRemove.language.language
+            ),
+          },
+        }));
+      },
+
+      // Update language proficiency
+      updateLanguageProficiency: (languageName, proficiency) => {
+        set((state) => {
+          const updatedLanguages = state.profile.languages.map((lang) => {
+            if (lang.language.language === languageName) {
+              return { ...lang, proficiency };
+            }
+            return lang;
+          });
+          return {
+            profile: {
+              ...state.profile,
+              languages: updatedLanguages,
+            },
+          };
+        });
+      },
       // Update form data sections
       updateProfile: (profileData) => {
         set((state) => ({
           profile: { ...state.profile, ...profileData },
         }));
       },
+
       checkPersistence: async () => {
         const { fetchOnboardingProgress, hydrateFromApi, resetStore } = get();
         try {
@@ -175,119 +242,132 @@ const useOnboardingStore = create(
           resetStore();
         }
       },
+
       availability: {
-        weeklySchedule: daysOfWeek.map(day => ({
+        weeklySchedule: daysOfWeek.map((day) => ({
           day,
-          slots: []
+          slots: [],
         })),
         customTimeSlots: [],
-        notes: ''
+        notes: '',
       },
+
       updateAvailability: (availabilityData) => {
         set((state) => ({
           availability: { ...state.availability, ...availabilityData },
         }));
       },
-      
+
       toggleTimeSlot: (dayIndex, slotValue) => {
         set((state) => {
           const updatedSchedule = [...state.availability.weeklySchedule];
           const daySlots = updatedSchedule[dayIndex].slots;
-          
+
           if (daySlots.includes(slotValue)) {
-            updatedSchedule[dayIndex].slots = daySlots.filter(slot => slot !== slotValue);
+            updatedSchedule[dayIndex].slots = daySlots.filter(
+              (slot) => slot !== slotValue
+            );
           } else {
             updatedSchedule[dayIndex].slots = [...daySlots, slotValue];
           }
-          
+
           return {
             availability: {
               ...state.availability,
-              weeklySchedule: updatedSchedule
-            }
+              weeklySchedule: updatedSchedule,
+            },
           };
         });
       },
-      
 
-      //  Add Custom Timeslot
+      // Add Custom Timeslot
       addCustomTimeSlot: (slot) => {
-        set(state => ({
+        set((state) => ({
           availability: {
             ...state.availability,
-            customTimeSlots: [...state.availability.customTimeSlots, slot]
-          }
+            customTimeSlots: [...state.availability.customTimeSlots, slot],
+          },
         }));
       },
 
       removeCustomTimeSlot: (index) => {
-        set(state => {
+        set((state) => {
           const newSlots = [...state.availability.customTimeSlots];
           newSlots.splice(index, 1);
           return {
             availability: {
               ...state.availability,
-              customTimeSlots: newSlots
-            }
+              customTimeSlots: newSlots,
+            },
           };
         });
-      }, 
-      
+      },
+
+      // Updated certification methods
       updateCertifications: (certificationsData) => {
         set({ certifications: certificationsData });
       },
-      
+
+      // Update nationality and residency status
+      // updateNationality: (nationality) => {
+      //   set({ nationality });
+      // },
+
+      updateResidencyStatus: (residencyStatus) => {
+        set({ residencyStatus });
+      },
+
       addCertification: (certification) => {
         set((state) => ({
-          certifications: [...state.certifications, certification]
+          certifications: [...state.certifications, certification],
         }));
       },
-      
+
       removeCertification: async (index) => {
         const state = get();
         const certToRemove = state.certifications[index];
 
         try {
           // Delete all associated documents from Cloudinary
-          if (certToRemove.documents?.length > 0) {
-            await Promise.all(
-              certToRemove.documents.map((doc) =>
-                cloudinaryService.deleteFile(doc.publicId)
-              )
-            );
-          }
+          // if (certToRemove.documents?.length > 0) {
+          //   await Promise.all(
+          //     certToRemove.documents.map((doc) =>
+          //       cloudinaryService.deleteFile(doc.publicId)
+          //     )
+          //   );
+          // }
 
           // Update local state
           set((state) => ({
             certifications: state.certifications.filter((_, i) => i !== index),
           }));
 
-          toast.success('Certification removed');
+          // toast.success('Certification removed');
           return true;
         } catch (error) {
-          toast.error('Failed to remove certification');
+          // toast.error('Failed to remove certification');
           console.error('Error removing certification:', error);
           return false;
         }
       },
-      
 
       removeCertificationDocument: (certIndex, docIndex) => {
         set((state) => {
           const cert = state.certifications[certIndex];
           if (!cert?.documents) return state;
-      
-          const updatedDocuments = cert.documents.filter((_, i) => i !== docIndex);
+
+          const updatedDocuments = cert.documents.filter(
+            (_, i) => i !== docIndex
+          );
           const updatedCertifications = [...state.certifications];
-          updatedCertifications[certIndex] = { 
-            ...updatedCertifications[certIndex], 
-            documents: updatedDocuments 
+          updatedCertifications[certIndex] = {
+            ...updatedCertifications[certIndex],
+            documents: updatedDocuments,
           };
-          
+
           return { certifications: updatedCertifications };
         });
       },
-
 
       // Update the certification
       updateCertificationAtIndex: (index, field, value) => {
@@ -297,13 +377,13 @@ const useOnboardingStore = create(
           return { certifications: updatedCerts };
         });
       },
-      
+
       updateWorkHistory: (workHistoryData) => {
         set((state) => ({
           workHistory: { ...state.workHistory, ...workHistoryData },
         }));
       },
-      
+
       addJob: (job) => {
         set((state) => ({
           workHistory: {
@@ -312,7 +392,7 @@ const useOnboardingStore = create(
           },
         }));
       },
-      
+
       removeJob: (index) => {
         set((state) => ({
           workHistory: {
@@ -321,37 +401,56 @@ const useOnboardingStore = create(
           },
         }));
       },
-      
+
       // States for handling API operations
       setLoading: (isLoading) => set({ isLoading }),
       setError: (error) => set({ error }),
       updateProfileCompleteness: (data) => {
         if (data?.profileCompletion) {
-          set({ 
-            profileCompleteness: data.profileCompletion
+          set({
+            profileCompleteness: data.profileCompletion,
           });
         }
       },
-      
+
       // Data hydration from API
       hydrateFromApi: (data) => {
         if (!data) return;
-        
+
         const { profile, profileCompletion, currentStep } = data;
-        
+        // Determine completed steps based on profileCompletion
+        const completedSteps = [];
+        if (profileCompletion?.completedSections?.basicInfo)
+          completedSteps.push(1);
+        if (profileCompletion?.completedSections?.availability)
+          completedSteps.push(2);
+        if (profileCompletion?.completedSections?.certifications)
+          completedSteps.push(3);
+        if (profileCompletion?.completedSections?.workHistory)
+          completedSteps.push(4);
         set({
           currentStep: currentStep || 1,
+          completedSteps,
           profile: {
             biography: profile?.biography || '',
             skillTags: profile?.skillTags || [],
             expectedHourlyRate: profile?.expectedHourlyRate || 0,
+            languages:
+              data.profile?.languages?.map((lang) => ({
+                language: { language: lang.language },
+                proficiency: lang.proficiency,
+              })) || [],
           },
           availability: {
-            weeklySchedule: profile?.availability?.weeklySchedule || get().availability.weeklySchedule,
+            weeklySchedule:
+              profile?.availability?.weeklySchedule ||
+              get().availability.weeklySchedule,
             customTimeSlots: profile?.availability?.customTimeSlots || [],
             notes: profile?.availability?.notes || '',
           },
           certifications: profile?.certifications || [],
+          // nationality: profile?.nationality || '',
+          residencyStatus: profile?.residencyStatus || '',
           workHistory: {
             jobs: profile?.workHistory || [],
             noWorkHistory: profile?.noWorkHistory || false,
@@ -361,43 +460,48 @@ const useOnboardingStore = create(
           profileCompleteness: profileCompletion || get().profileCompleteness,
         });
       },
-      
+
       // Reset store to initial state
       resetStore: () => {
         set(initialState);
       },
-      
+
       // Legacy methods that integrate with TanStack Query
       // These methods remain for backward compatibility but now use queryClient internally
       fetchOnboardingProgress: async () => {
         try {
           set({ isLoading: true, error: null });
           const data = await onboardingApi.fetchOnboardingProgress();
-          
+
           if (data.success) {
             get().hydrateFromApi(data.data);
           }
           return data;
         } catch (error) {
-          set({ error: error.response?.data?.message || 'Failed to fetch onboarding progress' });
+          set({
+            error:
+              error.response?.data?.message ||
+              'Failed to fetch onboarding progress',
+          });
           console.error(error);
           throw error;
         } finally {
           set({ isLoading: false });
         }
       },
-      
+
       saveProfileStep: async () => {
         try {
           set({ isLoading: true, error: null });
           const { biography, skillTags, expectedHourlyRate } = get().profile;
-          
+
           const data = await onboardingApi.saveProfileStep({
             biography,
             skillTags,
-            expectedHourlyRate
+            expectedHourlyRate,
+            languages,
           });
-          
+
           if (data.success) {
             get().updateProfileCompleteness(data.data);
             queryClient.invalidateQueries({ queryKey: ['onboarding'] });
@@ -405,27 +509,30 @@ const useOnboardingStore = create(
           }
           return data;
         } catch (error) {
-          set({ error: error.response?.data?.message || 'Failed to save profile data' });
+          set({
+            error:
+              error.response?.data?.message || 'Failed to save profile data',
+          });
           console.error(error);
           throw error;
         } finally {
           set({ isLoading: false });
         }
       },
-      
+
       saveAvailabilityStep: async () => {
         try {
           set({ isLoading: true, error: null });
           const { weeklySchedule, customTimeSlots, notes } = get().availability;
-          
+
           const data = await onboardingApi.saveAvailabilityStep({
             availability: {
               weeklySchedule,
               customTimeSlots,
             },
-            availabilityNotes: notes
+            availabilityNotes: notes,
           });
-          
+
           if (data.success) {
             get().updateProfileCompleteness(data.data);
             queryClient.invalidateQueries({ queryKey: ['onboarding'] });
@@ -433,23 +540,41 @@ const useOnboardingStore = create(
           }
           return data;
         } catch (error) {
-          set({ error: error.response?.data?.message || 'Failed to save availability data' });
+          set({
+            error:
+              error.response?.data?.message ||
+              'Failed to save availability data',
+          });
           console.error(error);
           throw error;
         } finally {
           set({ isLoading: false });
         }
       },
-      
+
+      // Updated to match the controller requirements
       saveCertificationsStep: async () => {
         try {
           set({ isLoading: true, error: null });
           const certifications = get().certifications;
-          
+          // const nationality = get().nationality;
+          const residencyStatus = get().residencyStatus;
+
+          // Validate required fields before sending to API
+          if (
+            // !nationality
+            // ||
+            !residencyStatus
+          ) {
+            throw new Error('Nationality and residency status are required');
+          }
+
           const data = await onboardingApi.saveCertificationsStep({
-            certifications
+            certifications,
+            // nationality,
+            residencyStatus,
           });
-          
+
           if (data.success) {
             get().updateProfileCompleteness(data.data);
             queryClient.invalidateQueries({ queryKey: ['onboarding'] });
@@ -457,26 +582,31 @@ const useOnboardingStore = create(
           }
           return data;
         } catch (error) {
-          set({ error: error.response?.data?.message || 'Failed to save certifications data' });
+          set({
+            error:
+              error.response?.data?.message ||
+              'Failed to save certifications data',
+          });
           console.error(error);
           throw error;
         } finally {
           set({ isLoading: false });
         }
       },
-      
+
       saveWorkHistoryStep: async () => {
         try {
           set({ isLoading: true, error: null });
-          const { jobs, noWorkHistory, hasReferences, references } = get().workHistory;
-          
+          const { jobs, noWorkHistory, hasReferences, references } =
+            get().workHistory;
+
           const data = await onboardingApi.saveWorkHistoryStep({
             workHistory: jobs,
             noWorkHistory,
             hasReferences,
-            references: hasReferences === 'yes' ? references : []
+            references: hasReferences === 'yes' ? references : [],
           });
-          
+
           if (data.success) {
             get().updateProfileCompleteness(data.data);
             queryClient.invalidateQueries({ queryKey: ['onboarding'] });
@@ -484,19 +614,23 @@ const useOnboardingStore = create(
           }
           return data;
         } catch (error) {
-          set({ error: error.response?.data?.message || 'Failed to save work history data' });
+          set({
+            error:
+              error.response?.data?.message ||
+              'Failed to save work history data',
+          });
           console.error(error);
           throw error;
         } finally {
           set({ isLoading: false });
         }
       },
-      
+
       completeOnboarding: async () => {
         try {
           set({ isLoading: true, error: null });
           const data = await onboardingApi.completeOnboarding();
-          
+
           if (data.success) {
             // Clear the persisted state after successful completion
             queryClient.invalidateQueries({ queryKey: ['onboarding'] });
@@ -504,7 +638,10 @@ const useOnboardingStore = create(
           }
           return data;
         } catch (error) {
-          set({ error: error.response?.data?.message || 'Failed to complete onboarding' });
+          set({
+            error:
+              error.response?.data?.message || 'Failed to complete onboarding',
+          });
           console.error(error);
           throw error;
         } finally {
@@ -520,6 +657,8 @@ const useOnboardingStore = create(
         profile: state.profile,
         availability: state.availability,
         certifications: state.certifications,
+        // nationality: state.nationality,
+        residencyStatus: state.residencyStatus,
         workHistory: state.workHistory,
         profileCompleteness: state.profileCompleteness,
       }),
@@ -535,7 +674,10 @@ export const useOnboardingQuery = () => {
     queryFn: async () => {
       try {
         const response = await onboardingApi.fetchOnboardingProgress();
-        if (!response.success && response.message === 'Worker profile not found') {
+        if (
+          !response.success &&
+          response.message === 'Worker profile not found'
+        ) {
           return { success: true, data: null, isNewUser: true };
         }
         return response;
@@ -561,17 +703,25 @@ export const useOnboardingQuery = () => {
 // Custom mutation hooks for form submissions
 export const useProfileMutation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (profileData) => {
-      // Get state directly when needed, don't use a hook
       const { profile } = useOnboardingStore.getState();
-      return onboardingApi.saveProfileStep(profileData || profile);
+      const dataToSend = profileData || profile;
+      return onboardingApi.saveProfileStep({
+        biography: dataToSend.biography,
+        skillTags: dataToSend.skillTags,
+        expectedHourlyRate: dataToSend.expectedHourlyRate,
+        languages: dataToSend.languages.map((lang) => ({
+          language: lang.language.language, // Send just the string
+          proficiency: lang.proficiency,
+        })),
+      });
     },
     onSuccess: (data) => {
       if (data.success) {
-        // Get state and actions directly to avoid render loops
-        const { updateProfileCompleteness, nextStep } = useOnboardingStore.getState();
+        const { updateProfileCompleteness, nextStep } =
+          useOnboardingStore.getState();
         updateProfileCompleteness(data.data);
         queryClient.invalidateQueries({ queryKey: ['onboarding'] });
         nextStep();
@@ -580,28 +730,29 @@ export const useProfileMutation = () => {
   });
 };
 
-
 export const useAvailabilityMutation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (availabilityData) => {
       // Direct state access
       const { availability } = useOnboardingStore.getState();
-      const { weeklySchedule, customTimeSlots, notes } = availabilityData || availability;
-      
+      const { weeklySchedule, customTimeSlots, notes } =
+        availabilityData || availability;
+
       return onboardingApi.saveAvailabilityStep({
         availability: {
           weeklySchedule,
           customTimeSlots,
         },
-        availabilityNotes: notes
+        availabilityNotes: notes,
       });
     },
     onSuccess: (data) => {
       if (data.success) {
         // Direct access to actions
-        const { updateProfileCompleteness, nextStep } = useOnboardingStore.getState();
+        const { updateProfileCompleteness, nextStep } =
+          useOnboardingStore.getState();
         updateProfileCompleteness(data.data);
         queryClient.invalidateQueries({ queryKey: ['onboarding'] });
         nextStep();
@@ -610,33 +761,62 @@ export const useAvailabilityMutation = () => {
   });
 };
 
+// Updated to match controller requirements
 export const useCertificationsMutation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async (certifications) => {
+    mutationFn: async (data) => {
       try {
-        const { certifications: storeCertifications } = useOnboardingStore.getState();
-        const certsToSave = certifications || storeCertifications;
-        
+        const {
+          certifications: storeCertifications,
+          //  nationality,
+          residencyStatus,
+        } = useOnboardingStore.getState();
+
+        // Use provided data or get from state
+        const certsToSave = data?.certifications || storeCertifications;
+        // const nationalityToSave = data?.nationality || nationality;
+        const residencyStatusToSave = data?.residencyStatus || residencyStatus;
+
+        // Check required fields
+        if (
+          // !nationalityToSave ||
+          !residencyStatusToSave
+        ) {
+          throw new Error(
+            'Nationality and residency status are required fields'
+          );
+        }
+
+        // Ensure all certifications have certificationType
+        for (const cert of certsToSave) {
+          if (!cert.certificationType) {
+            throw new Error('All certifications must have a certificationType');
+          }
+        }
+
         const response = await onboardingApi.saveCertificationsStep({
-          certifications: certsToSave.map(cert => ({
+          certifications: certsToSave.map((cert) => ({
             ...cert,
-            documents: cert.documents || [] // Ensure documents array exists
-          }))
+            documents: cert.documents || [], // Ensure documents array exists
+          })),
+          // nationality: nationalityToSave,
+          residencyStatus: residencyStatusToSave,
         });
 
         if (!response.success) {
-          throw new Error(response.message || "Failed to save certifications");
+          throw new Error(response.message || 'Failed to save certifications');
         }
         return response;
       } catch (error) {
-        throw new Error(error.message || "Failed to save certifications");
+        throw new Error(error.message || 'Failed to save certifications');
       }
     },
     onSuccess: (data) => {
       if (data.success) {
-        const { updateProfileCompleteness, nextStep } = useOnboardingStore.getState();
+        const { updateProfileCompleteness, nextStep } =
+          useOnboardingStore.getState();
         updateProfileCompleteness(data.data);
         queryClient.invalidateQueries({ queryKey: ['onboarding'] });
         nextStep();
@@ -645,34 +825,34 @@ export const useCertificationsMutation = () => {
     onError: (error) => {
       toast.error(error.message, {
         position: 'top-right',
-        duration: 4000
+        duration: 4000,
       });
-    }
+    },
   });
 };
 
 export const useWorkHistoryMutation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (workHistoryData) => {
       try {
         const { workHistory } = useOnboardingStore.getState();
         const dataToUse = workHistoryData || workHistory;
-        
+
         const response = await onboardingApi.saveWorkHistoryStep({
           workHistory: dataToUse.jobs || dataToUse.workHistory || [],
           noWorkHistory: dataToUse.noWorkHistory || false,
           hasReferences: dataToUse.hasReferences || 'no',
-          references: formatReferences(dataToUse)
+          references: formatReferences(dataToUse),
         });
 
         if (!response.success) {
-          throw new Error(response.message || "Profile is not complete yet");
+          throw new Error(response.message || 'Profile is not complete yet');
         }
         return response;
       } catch (error) {
-        throw new Error(error.message || "Failed to save work history");
+        throw new Error(error.message || 'Failed to save work history');
       }
     },
     onSuccess: (data) => {
@@ -683,43 +863,43 @@ export const useWorkHistoryMutation = () => {
     onError: (error) => {
       toast.error(error.message, {
         position: 'top-right',
-        duration: 4000
+        duration: 4000,
       });
-    }
+    },
   });
 };
 // Helper function to format references from form data
 function formatReferences(formData) {
   if (formData.hasReferences !== 'yes') return [];
-  
+
   const references = [];
-  
+
   // Add reference 1 if it has a name
   if (formData.reference1Name) {
     references.push({
       name: formData.reference1Name,
       company: formData.reference1Company || '',
       phone: formData.reference1Phone || '',
-      email: formData.reference1Email || ''
+      email: formData.reference1Email || '',
     });
   }
-  
+
   // Add reference 2 if it has a name
   if (formData.reference2Name) {
     references.push({
       name: formData.reference2Name,
       company: formData.reference2Company || '',
       phone: formData.reference2Phone || '',
-      email: formData.reference2Email || ''
+      email: formData.reference2Email || '',
     });
   }
-  
+
   return references;
 }
 
 export const useCompleteOnboardingMutation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: onboardingApi.completeOnboarding,
     onSuccess: (data) => {
@@ -730,7 +910,7 @@ export const useCompleteOnboardingMutation = () => {
         useOnboardingStore.setState({ onboardingCompleted: true });
       } else {
         // Throw the error to trigger onError handler
-        throw new Error(data.message || "Profile is not complete yet");
+        throw new Error(data.message || 'Profile is not complete yet');
       }
     },
     onError: (error) => {
@@ -739,7 +919,7 @@ export const useCompleteOnboardingMutation = () => {
         duration: 4000,
         position: 'top-right',
       });
-    }
+    },
   });
 };
 export default useOnboardingStore;

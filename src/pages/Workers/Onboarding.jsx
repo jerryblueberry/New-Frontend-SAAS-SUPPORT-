@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import WorkerProfileForm from '../../components/workerForm/WorkerProfileForm';
 import AvailabilityForm from '../../components/workerForm/AvailabilityForm';
@@ -9,24 +9,25 @@ import useOnboardingStore, {
   useOnboardingQuery,
   useCompleteOnboardingMutation
 } from '../../stores/useOnboardingStore';
-import { shallow } from 'zustand/shallow';
 import { Toaster, toast } from 'react-hot-toast';
+import CertificateSecond from '../CertificateCheck/CertificateSecond';
 
 const Onboarding = () => {
   const navigate = useNavigate();
   
-
-   // Get state directly to avoid re-renders
-   const currentStep = useOnboardingStore(state => state.currentStep);
-   const profileCompleteness = useOnboardingStore(state => state.profileCompleteness);
-   const resetStore = useOnboardingStore(state => state.resetStore);
+  // Get state directly to avoid re-renders
+  const currentStep = useOnboardingStore(state => state.currentStep);
+  const profileCompleteness = useOnboardingStore(state => state.profileCompleteness);
+  const resetStore = useOnboardingStore(state => state.resetStore);
+  const nextStep = useOnboardingStore(state => state.nextStep);
+  const prevStep = useOnboardingStore(state => state.prevStep);
+  const setStep = useOnboardingStore(state => state.setStep);
 
   // Use TanStack Query for initial data fetching
   const { 
     data: onboardingData,
     isLoading: isQueryLoading, 
     error: queryError,
-    // refetch: refetchOnboarding
   } = useOnboardingQuery();
 
   useEffect(() => {
@@ -34,7 +35,17 @@ const Onboarding = () => {
     store.checkPersistence();
   }, []);
 
-  // Error 
+  // Determine completed steps based on profile completeness
+  const completedSteps = useMemo(() => {
+    const steps = [];
+    if (profileCompleteness.completedSections.basicInfo) steps.push(1);
+    if (profileCompleteness.completedSections.availability) steps.push(2);
+    if (profileCompleteness.completedSections.certifications) steps.push(3);
+    if (profileCompleteness.completedSections.workHistory) steps.push(4);
+    return steps;
+  }, [profileCompleteness]);
+
+  // Error handling
   const handleWorkHistoryError = useCallback((msg) => {
     toast.error(msg || "Failed to save work history. Please check your data and try again.", {
       duration: 5000,
@@ -55,12 +66,14 @@ const Onboarding = () => {
       onError: (error) => handleWorkHistoryError(error.message)
     });
   }, [completeOnboarding, navigate, handleWorkHistoryError]);
+
   // Auth redirect effect
   useEffect(() => {
     if (queryError?.response?.status === 401) {
       navigate('/login');
     }
   }, [queryError, navigate]);
+
   // Handle new user state - runs once
   useEffect(() => {
     if (!isQueryLoading && onboardingData?.isNewUser) {
@@ -68,19 +81,16 @@ const Onboarding = () => {
     }
   }, [isQueryLoading, onboardingData, resetStore]);
   
- 
-
   // Define components once outside render to prevent recreation
-
-const stepComponents = React.useMemo(() => ({
-  1: <WorkerProfileForm />,
-  2: <AvailabilityForm />,
-  3: <CertificationsForm />,
-  4: <WorkHistoryForm 
-        onComplete={handleSubmitProfile}
-        onError={handleWorkHistoryError}
-     />
-}), [handleSubmitProfile, handleWorkHistoryError]);
+  const stepComponents = useMemo(() => ({
+    1: <WorkerProfileForm />,
+    2: <AvailabilityForm />,
+    3: <CertificateSecond />,
+    4: <WorkHistoryForm 
+          onComplete={handleSubmitProfile}
+          onError={handleWorkHistoryError}
+       />
+  }), [handleSubmitProfile, handleWorkHistoryError]);
 
   // Get the component for the current step
   const currentStepComponent = stepComponents[currentStep] || <div>Unknown Step</div>;
@@ -96,13 +106,22 @@ const stepComponents = React.useMemo(() => ({
       <div className="error-container">
         <h3>Error loading profile</h3>
         <p>{queryError.response?.data?.message || "Failed to load your profile"}</p>
-        {/* <button onClick={}>Try Again</button> */}
       </div>
     );
   }
   
+  // Handle step click from progress bar
+  const handleStepClick = (stepNumber) => {
+    // Only allow navigation to completed steps or the current step
+    if (completedSteps.includes(stepNumber) || stepNumber === currentStep) {
+      setStep(stepNumber);
+    }
+    // The modal for incomplete steps will be handled by the ProgressBar component
+  };
+
   return (
     <div className="onboarding-container">
+      <Toaster position="top-right" />
       <div className="onboarding-header">
         <h1>Complete Your Worker Profile</h1>
         <p>Tell us about yourself so we can help you find the right jobs.</p>
@@ -117,11 +136,33 @@ const stepComponents = React.useMemo(() => ({
           ]}
           variant="primary"
           animated={true}
+          onStepClick={handleStepClick}
+          completedSteps={completedSteps}
         />
       </div>
       <div className="onboarding-content">
         {currentStepComponent}
       </div>
+      {/* <div className="onboarding-navigation">
+        {currentStep > 1 && (
+          <button className="btn btn-secondary" onClick={prevStep}>
+            Previous
+          </button>
+        )}
+        {currentStep < 4 ? (
+          <button className="btn btn-primary" onClick={nextStep}>
+            Next
+          </button>
+        ) : (
+          <button 
+            className="btn btn-success" 
+            onClick={handleSubmitProfile}
+            disabled={isCompleting}
+          >
+            {isCompleting ? 'Completing...' : 'Complete Profile'}
+          </button>
+        )}
+      </div> */}
     </div>
   );
 };

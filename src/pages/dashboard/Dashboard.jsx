@@ -75,6 +75,8 @@ const Dashboard = () => {
   const { data: onboardingData, isLoading: isOnboardingLoading } =
     useOnboardingQuery();
 
+    // GET DATA
+    console.log("ONBORDING DATA",onboardingData?.data?.profile?.certifications)
   const handleSignOut = async () => {
     await signOut(false, isGoogleUser);
     navigate('/login', { replace: true });
@@ -210,12 +212,12 @@ const Dashboard = () => {
         <aside className="wrk-dashboard-sidebar">
           {needsOnboarding && (
             <div className="wrk-dashboard-sidebar-progress">
-              <div className="wrk-dashboard-sidebar-progress-header">
+              {/* <div className="wrk-dashboard-sidebar-progress-header">
                 <span>Profile Completion</span>
                 <span>
                   {profileStatus?.profileCompleteness?.percentage || 0}%
                 </span>
-              </div>
+              </div> */}
               <div className="wrk-dashboard-sidebar-progress-track">
                 <div
                   className="wrk-dashboard-sidebar-progress-bar"
@@ -224,12 +226,12 @@ const Dashboard = () => {
                   }}
                 ></div>
               </div>
-              <button
+              {/* <button
                 onClick={continueOnboarding}
                 className="wrk-dashboard-sidebar-progress-button"
               >
                 Complete Now
-              </button>
+              </button> */}
             </div>
           )}
           <nav className="wrk-dashboard-nav">
@@ -373,8 +375,9 @@ const Dashboard = () => {
                         >
                           <div>
                             <p className="wrk-dashboard-certification-name">
-                              {cert.type}
+                              {cert.certificationType?.name}
                             </p>
+                          
                             <p className="wrk-dashboard-certification-meta">
                               Expires:{' '}
                               {cert.expiryDate
@@ -604,6 +607,7 @@ const Dashboard = () => {
                   <div className="wrk-dashboard-certifications-list-detailed">
                     {onboardingData.data.profile.certifications.map(
                       (cert, index) => (
+
                         <div
                           key={index}
                           className="wrk-dashboard-certification-item-detailed"
@@ -611,7 +615,7 @@ const Dashboard = () => {
                           <div className="wrk-dashboard-certification-header">
                             <div>
                               <h3 className="wrk-dashboard-certification-name-detailed">
-                                {cert.type}
+                                 {cert.certificationType.name}
                               </h3>
                               <p className="wrk-dashboard-certification-number">
                                 Number: {cert.number}

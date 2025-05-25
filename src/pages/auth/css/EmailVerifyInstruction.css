@@ -1,0 +1,123 @@
+.verify-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 20px;
+}
+
+.verify-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  padding: 40px;
+  max-width: 500px;
+  width: 100%;
+  text-align: center;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.verify-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e3f2fd;
+  border-radius: 50%;
+}
+
+.verify-icon svg {
+  width: 40px;
+  height: 40px;
+  color: #1976d2;
+}
+
+.verify-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 16px;
+}
+
+.verify-message {
+  color: #555;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.verify-note {
+  color: #777;
+  font-size: 14px;
+  margin-bottom: 24px;
+  font-style: italic;
+}
+
+.resend-button {
+  background: #1976d2;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.resend-button:hover:not(.disabled) {
+  background: #1565c0;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+}
+
+.resend-button.disabled {
+  background: #b0bec5;
+  cursor: not-allowed;
+}
+
+.back-to-login {
+  background: transparent;
+  color: #1976d2;
+  border: 1px solid #1976d2;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.back-to-login:hover {
+  background: rgba(25, 118, 210, 0.1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 600px) {
+  .verify-card {
+    padding: 30px 20px;
+  }
+
+  .verify-title {
+    font-size: 20px;
+  }
+
+  .verify-message {
+    font-size: 14px;
+  }
+}

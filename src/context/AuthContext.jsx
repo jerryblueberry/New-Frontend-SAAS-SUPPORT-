@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { createContext, useReducer, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import { 

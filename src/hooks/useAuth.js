@@ -51,6 +51,7 @@ export const useAuth = () => {
           });
           
           return true;
+        // eslint-disable-next-line no-unused-vars
         } catch (refreshError) {
           // If refresh fails, clear auth state
           context.dispatch({ type: 'AUTH_LOGOUT' });
