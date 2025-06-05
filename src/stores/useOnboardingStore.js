@@ -56,6 +56,13 @@ export const onboardingApi = {
     return response.data;
   },
 
+  //  save for the health Info
+  // In your onboardingApi object
+  // In your onboardingApi object
+  saveHealthInfoStep: async (healthData) => {
+    const response = await api.post(`${API_URL}/step/health-info`, healthData);
+    return response.data;
+  },
   saveWorkHistoryStep: async (workHistoryData) => {
     try {
       const response = await api.post(
@@ -122,11 +129,31 @@ const initialState = {
   // nationality: '',
   residencyStatus: '',
 
+  healthInformation: {
+    hasWorkersCompensation: false,
+    workersCompensationDetails: null,
+    hasMedicalConditions: false,
+    medicalConditionsDescription: null,
+    conditionsAffectingWork: null,
+    covidVaccinated: false,
+    fluVaccinated: false,
+    otherVaccinations: [],
+    hasHealthClearance: false,
+    healthClearanceDate: null,
+    clearanceNotes: null,
+    canLiftPatients: true,
+    hasMobilityIssues: false,
+    requiresSpecialAccommodation: false,
+    hasMentalHealthConcerns: false,
+    mentalHealthImpactOnWork: null,
+  },
+
   workHistory: {
     jobs: [],
     noWorkHistory: false,
     hasReferences: 'no',
     references: [],
+    CV: '',
   },
 
   // Profile completeness
@@ -136,6 +163,7 @@ const initialState = {
       basicInfo: false,
       availability: false,
       certifications: false,
+      healthInformation: false,
       workHistory: false,
     },
   },
@@ -152,7 +180,7 @@ const useOnboardingStore = create(
       // Navigation actions
       nextStep: () => {
         const currentStep = get().currentStep;
-        if (currentStep < 4) {
+        if (currentStep < 5) {
           set({ currentStep: currentStep + 1 });
           window.scrollTo(0, 0);
         }
@@ -167,7 +195,7 @@ const useOnboardingStore = create(
       },
 
       setStep: (step) => {
-        if (step >= 1 && step <= 4) {
+        if (step >= 1 && step <= 5) {
           set({ currentStep: step });
           window.scrollTo(0, 0);
         }
@@ -378,7 +406,45 @@ const useOnboardingStore = create(
         });
       },
 
+      //  FOr the health Information
+      addVaccination: (vaccination) => {
+        set((state) => ({
+          healthInformation: {
+            ...state.healthInformation,
+            otherVaccinations: [
+              ...(state.healthInformation?.otherVaccinations || []),
+              vaccination,
+            ],
+          },
+        }));
+      },
+
+      removeVaccination: (index) => {
+        set((state) => {
+          const newVaccinations = [
+            ...(state.healthInformation?.otherVaccinations || []),
+          ];
+          newVaccinations.splice(index, 1);
+          return {
+            healthInformation: {
+              ...state.healthInformation,
+              otherVaccinations: newVaccinations,
+            },
+          };
+        });
+      },
+
+      updateHealthInformation: (data) => {
+        set((state) => ({
+          healthInformation: {
+            ...state.healthInformation,
+            ...data,
+          },
+        }));
+      },
+
       updateWorkHistory: (workHistoryData) => {
+        console.log('Updating work history:', workHistoryData); // Debug log
         set((state) => ({
           workHistory: { ...state.workHistory, ...workHistoryData },
         }));
@@ -398,6 +464,76 @@ const useOnboardingStore = create(
           workHistory: {
             ...state.workHistory,
             jobs: state.workHistory.jobs.filter((_, i) => i !== index),
+          },
+        }));
+      },
+
+      addReference: () => {
+        set((state) => {
+          const currentRefs = state.workHistory.references || [];
+          if (currentRefs.length >= 2) {
+            console.warn('Maximum 2 references allowed');
+            return state; // Don't add more than 2 references
+          }
+
+          const newReference = {
+            name: '',
+            position: '',
+            company: '',
+            phone: '',
+            email: '',
+          };
+
+          return {
+            workHistory: {
+              ...state.workHistory,
+              references: [...currentRefs, newReference],
+            },
+          };
+        });
+      },
+
+      removeReference: (index) => {
+        set((state) => {
+          const currentRefs = state.workHistory.references || [];
+          const updatedRefs = currentRefs.filter((_, i) => i !== index);
+
+          return {
+            workHistory: {
+              ...state.workHistory,
+              references: updatedRefs,
+              // If we removed all references, set hasReferences to 'no'
+              hasReferences:
+                updatedRefs.length === 0
+                  ? 'no'
+                  : state.workHistory.hasReferences,
+            },
+          };
+        });
+      },
+      updateReference: (index, referenceData) => {
+        set((state) => {
+          const currentRefs = [...(state.workHistory.references || [])];
+          if (currentRefs[index]) {
+            currentRefs[index] = { ...currentRefs[index], ...referenceData };
+          }
+
+          return {
+            workHistory: {
+              ...state.workHistory,
+              references: currentRefs,
+            
+            },
+          };
+        });
+      },
+      // Add this new method
+      updateCV: (cvUrl) => {
+        console.log('Updating CV in store:', cvUrl);
+        set((state) => ({
+          workHistory: {
+            ...state.workHistory,
+            CV: cvUrl,
           },
         }));
       },
@@ -426,8 +562,10 @@ const useOnboardingStore = create(
           completedSteps.push(2);
         if (profileCompletion?.completedSections?.certifications)
           completedSteps.push(3);
-        if (profileCompletion?.completedSections?.workHistory)
+        if (profileCompletion?.completedSections?.healthInformation)
           completedSteps.push(4);
+        if (profileCompletion?.completedSections?.workHistory)
+          completedSteps.push(5);
         set({
           currentStep: currentStep || 1,
           completedSteps,
@@ -451,11 +589,13 @@ const useOnboardingStore = create(
           certifications: profile?.certifications || [],
           // nationality: profile?.nationality || '',
           residencyStatus: profile?.residencyStatus || '',
+          healthInformation: profile?.healthInformation || {},
           workHistory: {
             jobs: profile?.workHistory || [],
             noWorkHistory: profile?.noWorkHistory || false,
             hasReferences: profile?.references?.length > 0 ? 'yes' : 'no',
             references: profile?.references || [],
+            CV: profile?.CV || null,
           },
           profileCompleteness: profileCompletion || get().profileCompleteness,
         });
@@ -594,10 +734,62 @@ const useOnboardingStore = create(
         }
       },
 
+      // saveHealthInfoStep Action
+      saveHealthInfoStep: async () => {
+        try {
+          set({ isLoading: true, error: null });
+          const healthInfo = get().healthInformation;
+
+          // Ensure all required boolean fields have explicit values
+          const sanitizedHealthInfo = {
+            hasWorkersCompensation: healthInfo.hasWorkersCompensation ?? false,
+            workersCompensationDetails:
+              healthInfo.workersCompensationDetails || null,
+            hasMedicalConditions: healthInfo.hasMedicalConditions ?? false,
+            medicalConditionsDescription:
+              healthInfo.medicalConditionsDescription || null,
+            conditionsAffectingWork: healthInfo.conditionsAffectingWork || null,
+            covidVaccinated: healthInfo.covidVaccinated ?? false,
+            fluVaccinated: healthInfo.fluVaccinated ?? false,
+            otherVaccinations: healthInfo.otherVaccinations || [],
+            hasHealthClearance: healthInfo.hasHealthClearance ?? false,
+            healthClearanceDate: healthInfo.healthClearanceDate || null,
+            clearanceNotes: healthInfo.clearanceNotes || null,
+            canLiftPatients: healthInfo.canLiftPatients ?? true,
+            hasMobilityIssues: healthInfo.hasMobilityIssues ?? false,
+            requiresSpecialAccommodation:
+              healthInfo.requiresSpecialAccommodation ?? false,
+            hasMentalHealthConcerns:
+              healthInfo.hasMentalHealthConcerns ?? false,
+            mentalHealthImpactOnWork:
+              healthInfo.mentalHealthImpactOnWork || null,
+          };
+
+          const data =
+            await onboardingApi.saveHealthInfoStep(sanitizedHealthInfo);
+
+          if (data.success) {
+            get().updateProfileCompleteness(data.data);
+            queryClient.invalidateQueries({ queryKey: ['onboarding'] });
+            get().nextStep();
+          }
+          return data;
+        } catch (error) {
+          set({
+            error:
+              error.response?.data?.message ||
+              'Failed to save health information',
+          });
+          throw error; // Re-throw to let mutation handle it
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
       saveWorkHistoryStep: async () => {
         try {
           set({ isLoading: true, error: null });
-          const { jobs, noWorkHistory, hasReferences, references } =
+          const { jobs, noWorkHistory, hasReferences, references, CV } =
             get().workHistory;
 
           const data = await onboardingApi.saveWorkHistoryStep({
@@ -605,9 +797,17 @@ const useOnboardingStore = create(
             noWorkHistory,
             hasReferences,
             references: hasReferences === 'yes' ? references : [],
+            CV: CV || null,
           });
 
           if (data.success) {
+            // Update the store with the returned data including CV
+            set((state) => ({
+              workHistory: {
+                ...state.workHistory,
+                CV: data.data.CV || CV, // Use returned CV or keep existing
+              },
+            }));
             get().updateProfileCompleteness(data.data);
             queryClient.invalidateQueries({ queryKey: ['onboarding'] });
             return data;
@@ -657,6 +857,7 @@ const useOnboardingStore = create(
         profile: state.profile,
         availability: state.availability,
         certifications: state.certifications,
+        healthInformation: state.healthInformation,
         // nationality: state.nationality,
         residencyStatus: state.residencyStatus,
         workHistory: state.workHistory,
@@ -831,6 +1032,111 @@ export const useCertificationsMutation = () => {
   });
 };
 
+//  for the health information
+
+// Add this mutation hook after the useCertificationsMutation function in your useOnboardingStore.js file
+
+export const useHealthInfoMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (healthData) => {
+      try {
+        // Create a properly formatted payload
+        const payload = {
+          healthInformation: {
+            hasWorkersCompensation:
+              healthData.hasWorkersCompensation !== undefined
+                ? healthData.hasWorkersCompensation
+                : false,
+            workersCompensationDetails: healthData.hasWorkersCompensation
+              ? healthData.workersCompensationDetails
+              : null,
+            hasMedicalConditions:
+              healthData.hasMedicalConditions !== undefined
+                ? healthData.hasMedicalConditions
+                : false,
+            medicalConditionsDescription: healthData.hasMedicalConditions
+              ? healthData.medicalConditionsDescription
+              : null,
+            conditionsAffectingWork: healthData.requiresSpecialAccommodation
+              ? healthData.conditionsAffectingWork
+              : null,
+            covidVaccinated:
+              healthData.covidVaccinated !== undefined
+                ? healthData.covidVaccinated
+                : false,
+            fluVaccinated:
+              healthData.fluVaccinated !== undefined
+                ? healthData.fluVaccinated
+                : false,
+            otherVaccinations: healthData.otherVaccinations || [],
+            hasHealthClearance:
+              healthData.hasHealthClearance !== undefined
+                ? healthData.hasHealthClearance
+                : false,
+            healthClearanceDate: healthData.hasHealthClearance
+              ? healthData.healthClearanceDate
+              : null,
+            clearanceNotes: healthData.clearanceNotes || null,
+            canLiftPatients:
+              healthData.canLiftPatients !== undefined
+                ? healthData.canLiftPatients
+                : true,
+            hasMobilityIssues:
+              healthData.hasMobilityIssues !== undefined
+                ? healthData.hasMobilityIssues
+                : false,
+            requiresSpecialAccommodation:
+              healthData.requiresSpecialAccommodation !== undefined
+                ? healthData.requiresSpecialAccommodation
+                : false,
+            hasMentalHealthConcerns:
+              healthData.hasMentalHealthConcerns !== undefined
+                ? healthData.hasMentalHealthConcerns
+                : false,
+            mentalHealthImpactOnWork: healthData.hasMentalHealthConcerns
+              ? healthData.mentalHealthImpactOnWork
+              : null,
+          },
+        };
+
+        const response = await onboardingApi.saveHealthInfoStep(payload);
+
+        if (!response.success) {
+          throw new Error(
+            response.message || 'Failed to save health information'
+          );
+        }
+        return response;
+      } catch (error) {
+        let errorMessage = 'Failed to save health information';
+        if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        throw new Error(errorMessage);
+      }
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        const { updateProfileCompleteness, nextStep } =
+          useOnboardingStore.getState();
+        updateProfileCompleteness(data.data);
+        queryClient.invalidateQueries({ queryKey: ['onboarding'] });
+        nextStep();
+      }
+    },
+    onError: (error) => {
+      toast.error(error.message, {
+        position: 'top-right',
+        duration: 4000,
+      });
+    },
+  });
+};
+
 export const useWorkHistoryMutation = () => {
   const queryClient = useQueryClient();
 
@@ -840,18 +1146,45 @@ export const useWorkHistoryMutation = () => {
         const { workHistory } = useOnboardingStore.getState();
         const dataToUse = workHistoryData || workHistory;
 
-        const response = await onboardingApi.saveWorkHistoryStep({
-          workHistory: dataToUse.jobs || dataToUse.workHistory || [],
+        // Enhanced validation and formatting
+        const formattedPayload = {
+          workHistory: dataToUse.jobs || [],
           noWorkHistory: dataToUse.noWorkHistory || false,
           hasReferences: dataToUse.hasReferences || 'no',
-          references: formatReferences(dataToUse),
-        });
+          references: formatReferences(dataToUse), // Use the helper function
+          CV: dataToUse.CV || null,
+        };
+
+        console.log('Sending payload:', formattedPayload); // Debug log
+
+        // Additional validation before sending
+        if (
+          formattedPayload.hasReferences === 'yes' &&
+          formattedPayload.references.length === 0
+        ) {
+          throw new Error(
+            'References are required when "Has References" is set to Yes'
+          );
+        }
+
+        if (
+          !formattedPayload.noWorkHistory &&
+          formattedPayload.workHistory.length === 0
+        ) {
+          throw new Error(
+            'Work history is required unless "No Work History" is selected'
+          );
+        }
+
+        const response =
+          await onboardingApi.saveWorkHistoryStep(formattedPayload);
 
         if (!response.success) {
-          throw new Error(response.message || 'Profile is not complete yet');
+          throw new Error(response.message || 'Failed to save work history');
         }
         return response;
       } catch (error) {
+        console.error('Work history mutation error:', error);
         throw new Error(error.message || 'Failed to save work history');
       }
     },
@@ -868,32 +1201,71 @@ export const useWorkHistoryMutation = () => {
     },
   });
 };
+
 // Helper function to format references from form data
 function formatReferences(formData) {
-  if (formData.hasReferences !== 'yes') return [];
+  console.log('Formatting references from:', formData); // Debug log
+
+  if (formData.hasReferences !== 'yes') {
+    return [];
+  }
 
   const references = [];
 
-  // Add reference 1 if it has a name
-  if (formData.reference1Name) {
-    references.push({
-      name: formData.reference1Name,
-      company: formData.reference1Company || '',
-      phone: formData.reference1Phone || '',
-      email: formData.reference1Email || '',
+  // Handle references array directly if it exists
+  if (formData.references && Array.isArray(formData.references)) {
+    formData.references.forEach((ref, index) => {
+      if (ref.name && ref.name.trim()) {
+        // Only add if name exists
+        references.push({
+          name: ref.name.trim(),
+          company: ref.company ? ref.company.trim() : '',
+          position: ref.position ? ref.position.trim() : '',
+          phone: ref.phone ? ref.phone.trim() : '',
+          email: ref.email ? ref.email.trim().toLowerCase() : '',
+        });
+      }
     });
   }
 
-  // Add reference 2 if it has a name
-  if (formData.reference2Name) {
-    references.push({
-      name: formData.reference2Name,
-      company: formData.reference2Company || '',
-      phone: formData.reference2Phone || '',
-      email: formData.reference2Email || '',
-    });
+  // Fallback: Handle individual reference fields (reference1Name, reference2Name, etc.)
+  if (references.length === 0) {
+    // Add reference 1 if it has a name
+    if (formData.reference1Name && formData.reference1Name.trim()) {
+      references.push({
+        name: formData.reference1Name.trim(),
+        company: formData.reference1Company
+          ? formData.reference1Company.trim()
+          : '',
+        position: formData.reference1Position
+          ? formData.reference1Position.trim()
+          : '',
+        phone: formData.reference1Phone ? formData.reference1Phone.trim() : '',
+        email: formData.reference1Email
+          ? formData.reference1Email.trim().toLowerCase()
+          : '',
+      });
+    }
+
+    // Add reference 2 if it has a name
+    if (formData.reference2Name && formData.reference2Name.trim()) {
+      references.push({
+        name: formData.reference2Name.trim(),
+        company: formData.reference2Company
+          ? formData.reference2Company.trim()
+          : '',
+        position: formData.reference2Position
+          ? formData.reference2Position.trim()
+          : '',
+        phone: formData.reference2Phone ? formData.reference2Phone.trim() : '',
+        email: formData.reference2Email
+          ? formData.reference2Email.trim().toLowerCase()
+          : '',
+      });
+    }
   }
 
+  console.log('Formatted references:', references); // Debug log
   return references;
 }
 

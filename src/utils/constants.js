@@ -9,6 +9,7 @@ export const ONBOARDING_STEPS = {
   AVAILABILITY: 'availability',
   CERTIFICATIONS: 'certifications',
   WORK_HISTORY: 'work-history',
+  
   COMPLETE: 'complete'
 };
 

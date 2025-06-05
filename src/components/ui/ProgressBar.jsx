@@ -35,7 +35,7 @@ const StepModal = ({ isOpen, onClose, message }) => {
 
 const ProgressBar = ({
   currentStep = 1,
-  totalSteps = 4,
+  totalSteps = 5,
   steps = [],
   variant = 'primary',
   animated = true,
@@ -64,6 +64,8 @@ const ProgressBar = ({
     return {
       number: stepNumber,
       label: steps[index]?.label || `Step ${stepNumber}`,
+         // Only mark as completed if the step is <= currentStep AND in completedSteps
+      completed: stepNumber <= currentStep && completedSteps.includes(stepNumber),
       ...(steps[index] || {})
     };
   });

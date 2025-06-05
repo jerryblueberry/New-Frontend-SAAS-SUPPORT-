@@ -394,7 +394,7 @@ useEffect(() => {
         updateProfileCompleteness(data.data);
         
         // Use the store's nextStep function instead of onboardingNextStep
-        const { nextStep } = useOnboardingStore.getState();
+        // const { nextStep } = useOnboardingStore.getState();
         nextStep();
         
         message.success('Certifications submitted successfully!');

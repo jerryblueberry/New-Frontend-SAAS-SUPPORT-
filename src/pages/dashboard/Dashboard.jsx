@@ -75,8 +75,9 @@ const Dashboard = () => {
   const { data: onboardingData, isLoading: isOnboardingLoading } =
     useOnboardingQuery();
 
-    // GET DATA
-    console.log("ONBORDING DATA",onboardingData?.data?.profile?.certifications)
+  // GET DATA
+  console.log('ONBORDING DATA', onboardingData?.data?.profile);
+  console.log('ONBORDING DATA 2', onboardingData?.data?.profile);
   const handleSignOut = async () => {
     await signOut(false, isGoogleUser);
     navigate('/login', { replace: true });
@@ -95,6 +96,18 @@ const Dashboard = () => {
 
   console.log('Needs onboarding:', needsOnboarding);
 
+  const formatDateForInput = (dateValue) => {
+    if (!dateValue) return '';
+    if (
+      typeof dateValue === 'string' &&
+      dateValue.match(/^\d{4}-\d{2}-\d{2}$/)
+    ) {
+      return dateValue;
+    }
+    const date = new Date(dateValue);
+    return isNaN(date.getTime()) ? '' : date.toISOString().split('T')[0];
+  };
+
   // Determine next step
   const getNextOnboardingStep = () => {
     if (!profileStatus || !profileStatus.profileCompleteness) return 1;
@@ -104,7 +117,8 @@ const Dashboard = () => {
     if (!completedSections.basicInfo) return 1;
     if (!completedSections.availability) return 2;
     if (!completedSections.certifications) return 3;
-    if (!completedSections.workHistory) return 4;
+    if (!completedSections.healthInformation) return 4;
+    if (!completedSections.workHistory) return 5;
 
     return null;
   };
@@ -118,7 +132,12 @@ const Dashboard = () => {
         title: 'Certifications',
         description: 'Add your qualifications',
       },
-      { id: 4, title: 'Work History', description: 'Share your experience' },
+      {
+        id: 4,
+        title: 'Health Info',
+        description: 'Complete few questionnaire related to your health',
+      },
+      { id: 5, title: 'Work History', description: 'Share your experience' },
     ];
 
     return (
@@ -142,12 +161,13 @@ const Dashboard = () => {
           {steps.map((step) => (
             <div
               key={step.id}
-              className={`wrk-onboarding-step ${nextStep === step.id ? 'wrk-current-step' : ''} ${(percentage || 0) >= step.id * 25 ? 'wrk-completed-step' : ''}`}
+              className={`wrk-onboarding-step ${nextStep === step.id ? 'wrk-current-step' : ''} ${(percentage || 0) >= step.id * 20 ? 'wrk-completed-step' : ''}`}
             >
               <div className="wrk-step-number">{step.id}</div>
               <div className="wrk-step-content">
                 <h3>{step.title}</h3>
                 <p>{step.description}</p>
+                <p>{nextStep}</p>
               </div>
               {nextStep === step.id && (
                 <button
@@ -270,6 +290,14 @@ const Dashboard = () => {
               <span className="wrk-dashboard-nav-icon">◉</span>
               <span>Certifications</span>
             </button>
+            {/* For the workHistory */}
+            <button
+              onClick={() => setActiveTab('workHistory')}
+              className={`wrk-dashboard-nav-item ${activeTab === 'workHistory' ? 'wrk-dashboard-nav-item-active' : ''}`}
+            >
+              <span className="wrk-dashboard-nav-icon">◉</span>
+              <span>Work History</span>
+            </button>
             <button
               onClick={handleSignOut}
               className="wrk-dashboard-nav-item wrk-dashboard-nav-item-signout"
@@ -377,7 +405,7 @@ const Dashboard = () => {
                             <p className="wrk-dashboard-certification-name">
                               {cert.certificationType?.name}
                             </p>
-                          
+
                             <p className="wrk-dashboard-certification-meta">
                               Expires:{' '}
                               {cert.expiryDate
@@ -607,7 +635,6 @@ const Dashboard = () => {
                   <div className="wrk-dashboard-certifications-list-detailed">
                     {onboardingData.data.profile.certifications.map(
                       (cert, index) => (
-
                         <div
                           key={index}
                           className="wrk-dashboard-certification-item-detailed"
@@ -615,7 +642,7 @@ const Dashboard = () => {
                           <div className="wrk-dashboard-certification-header">
                             <div>
                               <h3 className="wrk-dashboard-certification-name-detailed">
-                                 {cert.certificationType.name}
+                                {cert.certificationType.name}
                               </h3>
                               <p className="wrk-dashboard-certification-number">
                                 Number: {cert.number}
@@ -696,6 +723,87 @@ const Dashboard = () => {
                       : 'Add Certifications'}
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'workHistory' && (
+            <div className="wrk-dashboard-wrk-history">
+              {/* Work History Section */}
+              <h2>Work History</h2>
+              <div className="work-section">
+              
+                {onboardingData?.data?.profile?.workHistory?.length > 0 ? (
+                  onboardingData?.data?.profile?.workHistory?.map(
+                    (history, index) => (
+                      <div className="work-card" key={index}>
+                        <div className="work-item">
+                          <p className="label">Company</p>
+                          <p className="value">{history.company}</p>
+                        </div>
+                        <div className="work-item">
+                          <p className="label">Title</p>
+                          <p className="value">{history.title}</p>
+                        </div>
+                        <div className="work-item">
+                          <p className="label">Start Date</p>
+                          <p className="value">
+                            {formatDateForInput(history.startDate)}
+                          </p>
+                        </div>
+                        <div className="work-item">
+                          <p className="label">End Date</p>
+                          <p className="value">
+                            {formatDateForInput(history.endDate)}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  )
+                ) : (
+                  <p>Not Found</p>
+                )}
+              </div>
+
+              {/* References Section */}
+              <div className="reference-section">
+                {onboardingData?.data?.profile?.references?.length > 0 ? (
+                  onboardingData?.data?.profile?.references?.map(
+                    (reference, index) => (
+                      <div className="reference-card" key={index}>
+                        <h2>References</h2>
+                        <div className="reference-item">
+                          <p className="label">Name</p>
+                          <p className="value">{reference.name}</p>
+                        </div>
+                        <div className="reference-item">
+                          <p className="label">Company</p>
+                          <p className="value">{reference.company}</p>
+                        </div>
+                        <div className="reference-item">
+                          <p className="label">Position</p>
+                          <p className="value">{reference.position}</p>
+                        </div>
+                        <div className="reference-item">
+                          <p className="label">Email</p>
+                          <p className="value">{reference.email}</p>
+                        </div>
+                        <div className="reference-item">
+                          <p className="label">Phone</p>
+                          <p className="value">{reference.phone}</p>
+                        </div>
+                        <div className="reference-item">
+                          <p className="label">Verified</p>
+                          <p className="value">
+                            {reference.verified === 'true' ? 'Yes' : 'No'}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  )
+                ) : (
+                  <p>Not Found</p>
+                )}
               </div>
             </div>
           )}

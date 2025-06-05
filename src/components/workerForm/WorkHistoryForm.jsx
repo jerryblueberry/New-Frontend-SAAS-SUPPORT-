@@ -4,13 +4,18 @@ import useOnboardingStore from '../../stores/useOnboardingStore';
 import { shallow } from 'zustand/shallow';
 import './css/WorkHistoryForm.css';
 import { Toaster, toast } from 'react-hot-toast';
-const WorkHistoryForm = ({ onComplete,onError }) => {
+const WorkHistoryForm = ({ onComplete, onError }) => {
   // Access store state with selectors for targeted re-renders
-  const workHistory = useOnboardingStore(state => state.workHistory, shallow);
-  const prevStep = useOnboardingStore(state => state.prevStep);
-  const updateWorkHistory = useOnboardingStore(state => state.updateWorkHistory);
-  const addJob = useOnboardingStore(state => state.addJob);
-  const removeJob = useOnboardingStore(state => state.removeJob);
+  const workHistory = useOnboardingStore((state) => state.workHistory, shallow);
+  const prevStep = useOnboardingStore((state) => state.prevStep);
+  const updateCV = useOnboardingStore((state) => state.updateCV);
+  const CV = useOnboardingStore((state) => state.workHistory?.CV, shallow);
+
+  const updateWorkHistory = useOnboardingStore(
+    (state) => state.updateWorkHistory
+  );
+  const addJob = useOnboardingStore((state) => state.addJob);
+  const removeJob = useOnboardingStore((state) => state.removeJob);
 
   // Setup mutation for API interaction
   const { mutate: saveWorkHistory, isPending } = useWorkHistoryMutation();
@@ -20,11 +25,13 @@ const WorkHistoryForm = ({ onComplete,onError }) => {
     jobs: [],
     noWorkHistory: false,
     hasReferences: 'no',
-    references: []
+    references: [],
+    CV: '',
   });
   const [expandedJob, setExpandedJob] = useState(null);
   const [expandedReference, setExpandedReference] = useState(null);
   const [formErrors, setFormErrors] = useState({});
+  const [isUploading, setIsUploading] = useState(false);
 
   // Initialize local state from store
   useEffect(() => {
@@ -33,10 +40,11 @@ const WorkHistoryForm = ({ onComplete,onError }) => {
         jobs: workHistory.jobs || [],
         noWorkHistory: workHistory.noWorkHistory || false,
         hasReferences: workHistory.references?.length > 0 ? 'yes' : 'no',
-        references: workHistory.references || []
+        references: workHistory.references || [],
+        CV: CV || workHistory.CV || null,
       });
     }
-  }, [workHistory]);
+  }, [workHistory, CV]);
 
   // Job management functions
   const addNewJob = useCallback(() => {
@@ -46,289 +54,678 @@ const WorkHistoryForm = ({ onComplete,onError }) => {
       startDate: '',
       endDate: '',
       currentlyWorking: false,
-      description: ''
+      description: '',
     };
-    
+
     addJob(newJob);
-    setLocalWorkHistory(prev => ({
+    setLocalWorkHistory((prev) => ({
       ...prev,
-      jobs: [...prev.jobs, newJob]
+      jobs: [...prev.jobs, newJob],
     }));
-    
+
     // Auto-expand the new job
     setTimeout(() => {
       setExpandedJob(localWorkHistory.jobs.length);
-      document.getElementById(`wh-job-card-${localWorkHistory.jobs.length}`)?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
-      });
+      document
+        .getElementById(`wh-job-card-${localWorkHistory.jobs.length}`)
+        ?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
     }, 100);
   }, [addJob, localWorkHistory.jobs.length]);
 
-  const handleRemoveJob = useCallback((index) => {
-    removeJob(index);
-    setLocalWorkHistory(prev => ({
-      ...prev,
-      jobs: prev.jobs.filter((_, i) => i !== index)
-    }));
-    setExpandedJob(null);
-    setFormErrors({});
-  }, [removeJob]);
-
-  const handleUpdateJob = useCallback((index, field, value) => {
-    const updatedJobs = [...localWorkHistory.jobs];
-    updatedJobs[index] = { ...updatedJobs[index], [field]: value };
-    
-    updateWorkHistory({ 
-      ...localWorkHistory, 
-      jobs: updatedJobs 
-    });
-    
-    setLocalWorkHistory(prev => ({
-      ...prev,
-      jobs: updatedJobs
-    }));
-    
-    // Clear any error for this field
-    if (formErrors[`job${index}_${field}`]) {
-      setFormErrors(prev => ({
+  const handleRemoveJob = useCallback(
+    (index) => {
+      removeJob(index);
+      setLocalWorkHistory((prev) => ({
         ...prev,
-        [`job${index}_${field}`]: null
+        jobs: prev.jobs.filter((_, i) => i !== index),
       }));
-    }
-  }, [updateWorkHistory, localWorkHistory, formErrors]);
+      setExpandedJob(null);
+      setFormErrors({});
+    },
+    [removeJob]
+  );
+
+  const handleUpdateJob = useCallback(
+    (index, field, value) => {
+      const updatedJobs = [...localWorkHistory.jobs];
+      updatedJobs[index] = { ...updatedJobs[index], [field]: value };
+
+      updateWorkHistory({
+        ...localWorkHistory,
+        jobs: updatedJobs,
+      });
+
+      setLocalWorkHistory((prev) => ({
+        ...prev,
+        jobs: updatedJobs,
+      }));
+
+      // Clear any error for this field
+      if (formErrors[`job${index}_${field}`]) {
+        setFormErrors((prev) => ({
+          ...prev,
+          [`job${index}_${field}`]: null,
+        }));
+      }
+    },
+    [updateWorkHistory, localWorkHistory, formErrors]
+  );
 
   // Work history checkbox handler
-  const handleNoWorkHistoryChange = useCallback((e) => {
-    const value = e.target.checked;
-    
-    updateWorkHistory({
-      ...localWorkHistory,
-      noWorkHistory: value
-    });
-    
-    setLocalWorkHistory(prev => ({
-      ...prev,
-      noWorkHistory: value
-    }));
-  }, [updateWorkHistory, localWorkHistory]);
+  const handleNoWorkHistoryChange = useCallback(
+    (e) => {
+      const value = e.target.checked;
+
+      updateWorkHistory({
+        ...localWorkHistory,
+        noWorkHistory: value,
+      });
+
+      setLocalWorkHistory((prev) => ({
+        ...prev,
+        noWorkHistory: value,
+      }));
+    },
+    [updateWorkHistory, localWorkHistory]
+  );
 
   // References management
-  const handleHasReferencesChange = useCallback((value) => {
-    // Create a copy of the current state to modify
-    const updatedWorkHistory = {...localWorkHistory};
-    updatedWorkHistory.hasReferences = value;
-    
-    // If toggling to "yes" and no references exist, create an empty one
-    if (value === 'yes' && (!updatedWorkHistory.references || updatedWorkHistory.references.length === 0)) {
-      updatedWorkHistory.references = [{
-        name: '',
-        company: '',
-        phone: '',
-        email: ''
-      }];
-    }
-    
-    // If toggling to "no", clear any references but keep the array
-    if (value === 'no') {
-      updatedWorkHistory.references = [];
-    }
-    
-    // Update both the global store and local state
-    updateWorkHistory(updatedWorkHistory);
-    setLocalWorkHistory(updatedWorkHistory);
-    
-    // Auto-expand the first reference when adding and choosing "yes"
-    if (value === 'yes' && updatedWorkHistory.references.length > 0) {
-      setTimeout(() => {
-        setExpandedReference(0);
-      }, 100);
-    } else {
-      // Clear expanded reference when choosing "no"
-      setExpandedReference(null);
-    }
-  }, [updateWorkHistory, localWorkHistory]);
+  const handleHasReferencesChange = useCallback(
+    (value) => {
+      // Create a copy of the current state to modify
+      const updatedWorkHistory = { ...localWorkHistory };
+      updatedWorkHistory.hasReferences = value;
 
-  const handleUpdateReference = useCallback((index, field, value) => {
-    const updatedReferences = [...localWorkHistory.references];
-    updatedReferences[index] = { ...updatedReferences[index], [field]: value };
-    
-    updateWorkHistory({
-      ...localWorkHistory,
-      references: updatedReferences
-    });
-    
-    setLocalWorkHistory(prev => ({
-      ...prev,
-      references: updatedReferences
-    }));
-    
-    // Clear any error for this field
-    if (formErrors[`ref${index}_${field}`]) {
-      setFormErrors(prev => ({
+      // If toggling to "yes" and no references exist, create an empty one
+      if (
+        value === 'yes' &&
+        (!updatedWorkHistory.references ||
+          updatedWorkHistory.references.length === 0)
+      ) {
+        updatedWorkHistory.references = [
+          {
+            name: '',
+            company: '',
+            phone: '',
+            email: '',
+          },
+        ];
+      }
+
+      // If toggling to "no", clear any references but keep the array
+      if (value === 'no') {
+        updatedWorkHistory.references = [];
+      }
+
+      // Update both the global store and local state
+      updateWorkHistory(updatedWorkHistory);
+      setLocalWorkHistory(updatedWorkHistory);
+
+      // Auto-expand the first reference when adding and choosing "yes"
+      if (value === 'yes' && updatedWorkHistory.references.length > 0) {
+        setTimeout(() => {
+          setExpandedReference(0);
+        }, 100);
+      } else {
+        // Clear expanded reference when choosing "no"
+        setExpandedReference(null);
+      }
+    },
+    [updateWorkHistory, localWorkHistory]
+  );
+
+  const handleUpdateReference = useCallback(
+    (index, field, value) => {
+      const updatedReferences = [...localWorkHistory.references];
+      updatedReferences[index] = {
+        ...updatedReferences[index],
+        [field]: value,
+      };
+
+      updateWorkHistory({
+        ...localWorkHistory,
+        references: updatedReferences,
+      });
+
+      setLocalWorkHistory((prev) => ({
         ...prev,
-        [`ref${index}_${field}`]: null
+        references: updatedReferences,
       }));
-    }
-  }, [updateWorkHistory, localWorkHistory, formErrors]);
+
+      // Clear any error for this field
+      if (formErrors[`ref${index}_${field}`]) {
+        setFormErrors((prev) => ({
+          ...prev,
+          [`ref${index}_${field}`]: null,
+        }));
+      }
+    },
+    [updateWorkHistory, localWorkHistory, formErrors]
+  );
 
   const addReference = useCallback(() => {
     if (localWorkHistory.references.length >= 2) {
-      setFormErrors(prev => ({
+      setFormErrors((prev) => ({
         ...prev,
-        refLimit: 'Maximum 2 references allowed'
+        refLimit: 'Maximum 2 references allowed',
       }));
+      toast.error('Maximum 2 references allowed', {
+        position: 'top-right',
+      });
       return;
     }
-    
+
     const newReference = {
       name: '',
+      position: '',
       company: '',
       phone: '',
-      email: ''
+      email: '',
     };
-    
+
     const updatedReferences = [...localWorkHistory.references, newReference];
-    
-    updateWorkHistory({
+    const updatedWorkHistory = {
       ...localWorkHistory,
-      references: updatedReferences
-    });
-    
-    setLocalWorkHistory(prev => ({
+      references: updatedReferences,
+      hasReferences: 'yes', // Automatically set to yes when adding reference
+    };
+
+    updateWorkHistory(updatedWorkHistory);
+    setLocalWorkHistory(updatedWorkHistory);
+
+    // Clear any existing reference limit error
+    setFormErrors((prev) => ({
       ...prev,
-      references: updatedReferences
+      refLimit: null,
     }));
-    
+
     // Auto-expand the new reference
     setTimeout(() => {
       setExpandedReference(localWorkHistory.references.length);
-      document.getElementById(`wh-ref-card-${localWorkHistory.references.length}`)?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
-      });
+      document
+        .getElementById(`wh-ref-card-${localWorkHistory.references.length}`)
+        ?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
     }, 100);
   }, [updateWorkHistory, localWorkHistory]);
 
-  const removeReference = useCallback((index) => {
-    const updatedReferences = localWorkHistory.references.filter((_, i) => i !== index);
-    
-    updateWorkHistory({
-      ...localWorkHistory,
-      references: updatedReferences
-    });
-    
-    setLocalWorkHistory(prev => ({
-      ...prev,
-      references: updatedReferences
-    }));
-    
-    setExpandedReference(null);
-    setFormErrors(prev => ({
-      ...prev,
-      refLimit: null
-    }));
-  }, [updateWorkHistory, localWorkHistory]);
+  const removeReference = useCallback(
+    (index) => {
+      const updatedReferences = localWorkHistory.references.filter(
+        (_, i) => i !== index
+      );
+
+      const updatedWorkHistory = {
+        ...localWorkHistory,
+        references: updatedReferences,
+        // If no references left, set hasReferences to 'no'
+        hasReferences:
+          updatedReferences.length === 0
+            ? 'no'
+            : localWorkHistory.hasReferences,
+      };
+
+      updateWorkHistory(updatedWorkHistory);
+      setLocalWorkHistory(updatedWorkHistory);
+
+      setExpandedReference(null);
+      setFormErrors((prev) => ({
+        ...prev,
+        refLimit: null,
+      }));
+
+      toast.success('Reference removed successfully', {
+        position: 'top-right',
+      });
+    },
+    [updateWorkHistory, localWorkHistory]
+  );
+
+  const updateReference = useCallback(
+    (index, field, value) => {
+      const updatedReferences = [...localWorkHistory.references];
+      updatedReferences[index] = {
+        ...updatedReferences[index],
+        [field]: value,
+      };
+
+      const updatedWorkHistory = {
+        ...localWorkHistory,
+        references: updatedReferences,
+      };
+
+      updateWorkHistory(updatedWorkHistory);
+      setLocalWorkHistory(updatedWorkHistory);
+    },
+    [updateWorkHistory, localWorkHistory]
+  );
 
   // UI toggle functions
-  const toggleExpandJob = useCallback((index) => {
-    setExpandedJob(expandedJob === index ? null : index);
-  }, [expandedJob]);
+  const toggleExpandJob = useCallback(
+    (index) => {
+      setExpandedJob(expandedJob === index ? null : index);
+    },
+    [expandedJob]
+  );
 
-  const toggleExpandReference = useCallback((index) => {
-    setExpandedReference(expandedReference === index ? null : index);
-  }, [expandedReference]);
+  const toggleExpandReference = useCallback(
+    (index) => {
+      setExpandedReference(expandedReference === index ? null : index);
+    },
+    [expandedReference]
+  );
 
   // Form validation
   const validateForm = useCallback(() => {
     const errors = {};
-    
-    if (!localWorkHistory.noWorkHistory && localWorkHistory.jobs.length === 0) {
-      errors.jobs = 'Please add at least one job or select "No work history"';
-    }
-    
-    // Validate each job
-    localWorkHistory.jobs.forEach((job, index) => {
-      if (!job.company) errors[`job${index}_company`] = 'Company name is required';
-      if (!job.position) errors[`job${index}_position`] = 'Position is required';
-      if (!job.startDate) errors[`job${index}_startDate`] = 'Start date is required';
-      if (!job.currentlyWorking && !job.endDate) errors[`job${index}_endDate`] = 'End date is required';
-    });
-    
-    // Validate references if they're present
-    if (localWorkHistory.hasReferences === 'yes') {
-      localWorkHistory.references.forEach((ref, index) => {
-        if (!ref.name) errors[`ref${index}_name`] = 'Name is required';
-        if (!ref.phone) errors[`ref${index}_phone`] = 'Phone is required';
-        if (!ref.email) errors[`ref${index}_email`] = 'Email is required';
-        if (ref.email && !/\S+@\S+\.\S+/.test(ref.email)) {
-          errors[`ref${index}_email`] = 'Valid email is required';
-        }
-      });
-    }
-    
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  }, [localWorkHistory]);
+    let isValid = true;
 
-  const handleSubmit = useCallback((e) => {
-    e.preventDefault();
-  
-    if (!validateForm()) {
-      const firstErrorField = document.querySelector('.wh-error-field');
-      if (firstErrorField) {
-        firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        firstErrorField.focus();
+    // Validate work history
+    if (!localWorkHistory.noWorkHistory) {
+      if (!localWorkHistory.jobs || localWorkHistory.jobs.length === 0) {
+        errors.jobs =
+          'At least one job is required unless "No Work History" is selected';
+        isValid = false;
+      } else {
+        localWorkHistory.jobs.forEach((job, index) => {
+          if (!job.title || !job.title.trim()) {
+            errors[`job${index}_position`] = 'Job title is required';
+            isValid = false;
+          }
+
+          if (!job.company || !job.company.trim()) {
+            errors[`job${index}_company`] = 'Company name is required';
+            isValid = false;
+          }
+
+          if (!job.startDate) {
+            errors[`job${index}_startDate`] = 'Start date is required';
+            isValid = false;
+          }
+
+          const isCurrentJob = job.currentlyWorking || job.current || false;
+
+          if (!isCurrentJob && !job.endDate) {
+            errors[`job${index}_endDate`] =
+              'End date is required for past jobs';
+            isValid = false;
+          }
+
+          if (job.startDate && job.endDate) {
+            const startDate = new Date(job.startDate);
+            const endDate = new Date(job.endDate);
+
+            if (endDate < startDate) {
+              errors[`job${index}_endDate`] =
+                'End date must be after start date';
+              isValid = false;
+            }
+          }
+        });
       }
-      toast.error('Please fix all validation errors before submitting', {
-        position: 'top-right'
-      });
-      return;
     }
-  
-    const formattedData = {
-      jobs: localWorkHistory.jobs.map(job => ({
-        title: job.position,
-        company: job.company,
-        startDate: job.startDate,
-        endDate: job.endDate,
-        current: job.currentlyWorking,
-        description: job.description
-      })),
-      noWorkHistory: localWorkHistory.noWorkHistory,
-      hasReferences: localWorkHistory.hasReferences,
-      references: localWorkHistory.hasReferences === 'yes' ? localWorkHistory.references : []
-    };
-  
-    saveWorkHistory(formattedData, {
-      onSuccess: (data) => {
-        if (data.success) {
-          onComplete?.();
-        } else {
-          const errorMsg = data.message || "Please complete all required sections of your profile";
-          toast.error(errorMsg, { 
+
+    // Validate CV field - check both local and global state
+    const hasCV = localWorkHistory.CV || CV;
+    if (!hasCV) {
+      errors.CV = 'CV is required';
+      isValid = false;
+    }
+
+    // Validate references
+    if (localWorkHistory.hasReferences === 'yes') {
+      if (
+        !localWorkHistory.references ||
+        localWorkHistory.references.length === 0
+      ) {
+        errors.references =
+          'At least one reference is required when "Has References" is set to Yes';
+        isValid = false;
+      } else {
+        // Check if there's at least one complete reference
+        const validReferences = localWorkHistory.references.filter(
+          (ref) =>
+            ref.name &&
+            ref.name.trim() &&
+            ref.position &&
+            ref.position.trim() &&
+            ref.phone &&
+            ref.phone.trim() &&
+            ref.email &&
+            ref.email.trim() &&
+            /\S+@\S+\.\S+/.test(ref.email.trim())
+        );
+
+        if (validReferences.length === 0) {
+          errors.references =
+            'At least one complete reference is required when "Has References" is set to Yes';
+          isValid = false;
+        }
+
+        // Validate individual reference fields
+        localWorkHistory.references.forEach((ref, index) => {
+          if (!ref.name || !ref.name.trim()) {
+            errors[`ref${index}_name`] = 'Reference name is required';
+            isValid = false;
+          }
+
+          if (!ref.position || !ref.position.trim()) {
+            errors[`ref${index}_position`] = 'Reference position is required';
+            isValid = false;
+          }
+
+          if (!ref.phone || !ref.phone.trim()) {
+            errors[`ref${index}_phone`] = 'Reference phone is required';
+            isValid = false;
+          }
+
+          if (!ref.email || !ref.email.trim()) {
+            errors[`ref${index}_email`] = 'Reference email is required';
+            isValid = false;
+          } else if (!/\S+@\S+\.\S+/.test(ref.email.trim())) {
+            errors[`ref${index}_email`] =
+              'Please provide a valid email address';
+            isValid = false;
+          }
+        });
+      }
+    }
+
+    setFormErrors(errors);
+    return isValid;
+  }, [localWorkHistory, CV]);
+  //  for the CV upload
+  const handleCVUpload = async (file) => {
+    try {
+      setIsUploading(true);
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', 'Certificate(Saas)');
+      formData.append('folder', 'SAAS(Support Worker)');
+
+      const cloudName = 'dgsphdhns';
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/upload`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+      if (data.secure_url) {
+        // Update both local and global state
+        updateCV(data.secure_url);
+        setLocalWorkHistory((prev) => ({ ...prev, CV: data.secure_url }));
+        toast.success('CV uploaded successfully!');
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (error) {
+      console.error('CV upload error:', error);
+      toast.error('Failed to upload CV. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleSubmit = useCallback(
+    (e) => {
+      e.preventDefault();
+
+      if (!validateForm()) {
+        // const firstErrorField = document.querySelector('.wh-error-field');
+        // if (firstErrorField) {
+        //   firstErrorField.scrollIntoView({
+        //     behavior: 'smooth',
+        //     block: 'center',
+        //   });
+        //   firstErrorField.focus();
+        // }
+        toast.error('Please fix all validation errors before submitting', {
+          position: 'top-right',
+        });
+        return;
+      }
+
+      // Enhanced validation for references
+      if (localWorkHistory.hasReferences === 'yes') {
+        const validReferences = localWorkHistory.references.filter(
+          (ref) =>
+            ref.name &&
+            ref.name.trim() &&
+            ref.position &&
+            ref.position.trim() &&
+            ref.phone &&
+            ref.phone.trim() &&
+            ref.email &&
+            ref.email.trim()
+        );
+
+        if (validReferences.length === 0) {
+          toast.error(
+            'At least one complete reference is required when "Has References" is set to Yes',
+            {
+              position: 'top-right',
+            }
+          );
+          return;
+        }
+
+        // Update the local state with only valid references
+        setLocalWorkHistory((prev) => ({
+          ...prev,
+          references: validReferences,
+        }));
+      }
+
+      const formattedData = {
+        jobs: localWorkHistory.jobs.map((job) => ({
+          title: job.title, // Handle both field names
+          company: job.company,
+          startDate: job.startDate,
+          endDate: job.endDate,
+          current: job.currentlyWorking || job.current || false,
+          description: job.description || '',
+        })),
+        noWorkHistory: localWorkHistory.noWorkHistory,
+        hasReferences: localWorkHistory.hasReferences,
+        references:
+          localWorkHistory.hasReferences === 'yes'
+            ? localWorkHistory.references
+                .filter(
+                  (ref) =>
+                    ref.name &&
+                    ref.name.trim() &&
+                    ref.position &&
+                    ref.position.trim()
+                )
+                .map((ref) => ({
+                  name: ref.name.trim(),
+                  position: ref.position.trim(),
+                  company: ref.company ? ref.company.trim() : '',
+                  phone: ref.phone ? ref.phone.trim() : '',
+                  email: ref.email ? ref.email.trim().toLowerCase() : '',
+                }))
+            : [],
+        // ADD THIS LINE - Include CV from either local state or global store
+        CV: localWorkHistory.CV || CV,
+      };
+
+      console.log('Submitting work history data:', formattedData); // Debug log
+
+      // Update the store before submission
+      updateWorkHistory(formattedData);
+
+      saveWorkHistory(formattedData, {
+        onSuccess: (data) => {
+          if (data.success) {
+            toast.success('Work history saved successfully!', {
+              position: 'top-right',
+            });
+            onComplete?.();
+          } else {
+            const errorMsg =
+              data.message ||
+              'Please complete all required sections of your profile';
+            toast.error(errorMsg, {
+              position: 'top-right',
+              duration: 5000,
+            });
+            onError?.(errorMsg);
+          }
+        },
+        onError: (error) => {
+          const errorMsg =
+            error.message || 'Failed to save work history. Please try again.';
+          toast.error(errorMsg, {
             position: 'top-right',
-            duration: 5000
+            duration: 5000,
           });
           onError?.(errorMsg);
-        }
-      },
-      onError: (error) => {
-        const errorMsg = error.message || "Failed to save work history. Please try again.";
-        toast.error(errorMsg, { 
-          position: 'top-right',
-          duration: 5000
-        });
-        onError?.(errorMsg);
-      }
-    });
-  }, [localWorkHistory, validateForm, saveWorkHistory, onComplete, onError]);
+        },
+      });
+    },
+    [
+      localWorkHistory,
+      validateForm,
+      saveWorkHistory,
+      updateWorkHistory,
+      onComplete,
+      onError,
+      CV, // Add CV to dependencies
+    ]
+  );
+
+  const formatDateForInput = (dateValue) => {
+    if (!dateValue) return '';
+    if (
+      typeof dateValue === 'string' &&
+      dateValue.match(/^\d{4}-\d{2}-\d{2}$/)
+    ) {
+      return dateValue;
+    }
+    const date = new Date(dateValue);
+    return isNaN(date.getTime()) ? '' : date.toISOString().split('T')[0];
+  };
+
+  console.log('ONBORDING DTA', workHistory);
+
   return (
     <form onSubmit={handleSubmit} className="wh-form">
-    <Toaster position='top-right'/>
+      <Toaster position="top-right" />
       <div className="wh-section wh-header-section">
         <h2>Work History & References</h2>
-        <p>Share your professional background and references to help employers get to know you better</p>
+        <p>
+          Share your professional background and references to help employers
+          get to know you better
+        </p>
+      </div>
+
+      {/* For the CV */}
+      <div className="wh-section wh-cv-section">
+        <div className="wh-section-header">
+          <h3>Upload Your CV (Optional)</h3>
+          <p>Upload your resume or CV in PDF or image format</p>
+        </div>
+
+        <div className="wh-cv-upload-container">
+          {localWorkHistory.CV || CV ? (
+            <div className="wh-cv-preview">
+              <div className="wh-cv-preview-content">
+                {(localWorkHistory.CV || CV).endsWith('.pdf') ? (
+                  <div className="wh-cv-pdf-preview">
+                    <svg
+                      width="48"
+                      height="48"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                    >
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <path d="M10 9H8v6h2a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2z"></path>
+                      <line x1="16" y1="13" x2="16" y2="15"></line>
+                    </svg>
+                    <span>PDF Document</span>
+                  </div>
+                ) : (
+                  <img
+                    src={localWorkHistory.CV || CV}
+                    alt="CV Preview"
+                    className="wh-cv-image-preview"
+                  />
+                )}
+                <a
+                  href={localWorkHistory.CV || CV}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="wh-cv-download"
+                >
+                  View/Download
+                </a>
+              </div>
+              <button
+                type="button"
+                className="wh-btn wh-btn-danger wh-cv-remove"
+                onClick={() => {
+                  updateCV(null);
+                  setLocalWorkHistory((prev) => ({ ...prev, CV: null }));
+                }}
+                disabled={isUploading}
+              >
+                Remove CV
+              </button>
+            </div>
+          ) : (
+            <div className="wh-cv-upload-area">
+              <input
+                type="file"
+                id="cv-upload"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleCVUpload(e.target.files[0]);
+                  }
+                }}
+                disabled={isUploading}
+                style={{ display: 'none' }}
+              />
+              <label htmlFor="cv-upload" className="wh-cv-upload-label">
+                {isUploading ? (
+                  <>
+                    <span className="wh-spinner"></span>
+                    <span>Uploading...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      width="48"
+                      height="48"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="17 8 12 3 7 8"></polyline>
+                      <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <span>Click to upload or drag and drop</span>
+                    <span className="wh-cv-upload-hint">
+                      PDF, JPG, or PNG (Max 5MB)
+                    </span>
+                  </>
+                )}
+              </label>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Work History Section */}
@@ -360,9 +757,9 @@ const WorkHistoryForm = ({ onComplete,onError }) => {
                 <div className="wh-empty-state">
                   <div className="wh-empty-icon">💼</div>
                   <p>You haven't added any work experience yet</p>
-                  <button 
-                    type="button" 
-                    className="wh-btn wh-btn-secondary" 
+                  <button
+                    type="button"
+                    className="wh-btn wh-btn-secondary"
                     onClick={addNewJob}
                   >
                     Add Your First Job
@@ -370,33 +767,54 @@ const WorkHistoryForm = ({ onComplete,onError }) => {
                 </div>
               ) : (
                 localWorkHistory.jobs.map((job, index) => (
-                  <div 
+                  <div
                     key={index}
                     id={`wh-job-card-${index}`}
                     className={`wh-card wh-job-card ${expandedJob === index ? 'wh-expanded' : ''}`}
                   >
-                    <div 
+                    <div
                       className="wh-card-header"
                       onClick={() => toggleExpandJob(index)}
                     >
                       <div className="wh-card-title">
                         <h4>{job.company || 'New Job'}</h4>
-                        {job.position && <span>{job.position}</span>}
+                        {job.title && <span>{job.title}</span>}
                       </div>
                       <div className="wh-card-dates">
                         {job.startDate && (
                           <span>
-                            {new Date(job.startDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })}
-                            {job.currentlyWorking ? 
-                              ' - Present' : 
-                              job.endDate ? ` - ${new Date(job.endDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })}` : ''
-                            }
+                            {new Date(job.startDate).toLocaleDateString(
+                              undefined,
+                              { year: 'numeric', month: 'short' }
+                            )}
+                            {job.currentlyWorking
+                              ? ' - Present'
+                              : job.endDate
+                                ? ` - ${new Date(job.endDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })}`
+                                : ''}
                           </span>
                         )}
                       </div>
-                      <button type="button" className="wh-expand-toggle" aria-label="Toggle details">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points={expandedJob === index ? "18 15 12 9 6 15" : "6 9 12 15 18 9"}></polyline>
+                      <button
+                        type="button"
+                        className="wh-expand-toggle"
+                        aria-label="Toggle details"
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <polyline
+                            points={
+                              expandedJob === index
+                                ? '18 15 12 9 6 15'
+                                : '6 9 12 15 18 9'
+                            }
+                          ></polyline>
                         </svg>
                       </button>
                     </div>
@@ -406,37 +824,58 @@ const WorkHistoryForm = ({ onComplete,onError }) => {
                         <div className="wh-form-row">
                           <div className="wh-form-group">
                             <label htmlFor={`company-${index}`}>
-                              Company Name <span className="wh-required">*</span>
+                              Company Name{' '}
+                              <span className="wh-required">*</span>
                             </label>
                             <input
                               id={`company-${index}`}
                               type="text"
                               value={job.company}
-                              onChange={(e) => handleUpdateJob(index, 'company', e.target.value)}
+                              onChange={(e) =>
+                                handleUpdateJob(
+                                  index,
+                                  'company',
+                                  e.target.value
+                                )
+                              }
                               placeholder="Enter company name"
-                              className={formErrors[`job${index}_company`] ? 'wh-error-field' : ''}
+                              className={
+                                formErrors[`job${index}_company`]
+                                  ? 'wh-error-field'
+                                  : ''
+                              }
                               required
                             />
                             {formErrors[`job${index}_company`] && (
-                              <div className="wh-field-error">{formErrors[`job${index}_company`]}</div>
+                              <div className="wh-field-error">
+                                {formErrors[`job${index}_company`]}
+                              </div>
                             )}
                           </div>
 
                           <div className="wh-form-group">
-                            <label htmlFor={`position-${index}`}>
-                              Position <span className="wh-required">*</span>
+                            <label htmlFor={`title-${index}`}>
+                              Title<span className="wh-required">*</span>
                             </label>
                             <input
-                              id={`position-${index}`}
+                              id={`title-${index}`}
                               type="text"
-                              value={job.position}
-                              onChange={(e) => handleUpdateJob(index, 'position', e.target.value)}
+                              value={job.title}
+                              onChange={(e) =>
+                                handleUpdateJob(index, 'title', e.target.value)
+                              }
                               placeholder="Your job title"
-                              className={formErrors[`job${index}_position`] ? 'wh-error-field' : ''}
+                              className={
+                                formErrors[`job${index}_title`]
+                                  ? 'wh-error-field'
+                                  : ''
+                              }
                               required
                             />
-                            {formErrors[`job${index}_position`] && (
-                              <div className="wh-field-error">{formErrors[`job${index}_position`]}</div>
+                            {formErrors[`job${index}_title`] && (
+                              <div className="wh-field-error">
+                                {formErrors[`job${index}_title`]}
+                              </div>
                             )}
                           </div>
                         </div>
@@ -449,38 +888,72 @@ const WorkHistoryForm = ({ onComplete,onError }) => {
                             <input
                               id={`startDate-${index}`}
                               type="date"
-                              value={job.startDate}
-                              onChange={(e) => handleUpdateJob(index, 'startDate', e.target.value)}
-                              className={formErrors[`job${index}_startDate`] ? 'wh-error-field' : ''}
+                              value={formatDateForInput(job.startDate)}
+                              onChange={(e) =>
+                                handleUpdateJob(
+                                  index,
+                                  'startDate',
+                                  e.target.value
+                                )
+                              }
+                              className={
+                                formErrors[`job${index}_startDate`]
+                                  ? 'wh-error-field'
+                                  : ''
+                              }
                               required
                             />
+                            <p>{job.startDate}</p>{' '}
+                            {/* This shows the raw value for debugging */}
                             {formErrors[`job${index}_startDate`] && (
-                              <div className="wh-field-error">{formErrors[`job${index}_startDate`]}</div>
+                              <div className="wh-field-error">
+                                {formErrors[`job${index}_startDate`]}
+                              </div>
                             )}
                           </div>
-
                           <div className="wh-form-group">
                             <label htmlFor={`endDate-${index}`}>
-                              End Date {!job.currentlyWorking && <span className="wh-required">*</span>}
+                              End Date{' '}
+                              {!job.currentlyWorking && (
+                                <span className="wh-required">*</span>
+                              )}
                             </label>
                             <input
                               id={`endDate-${index}`}
                               type="date"
-                              value={job.endDate}
-                              onChange={(e) => handleUpdateJob(index, 'endDate', e.target.value)}
+                              value={formatDateForInput(job.endDate)}
+                              onChange={(e) =>
+                                handleUpdateJob(
+                                  index,
+                                  'endDate',
+                                  e.target.value
+                                )
+                              }
                               disabled={job.currentlyWorking}
-                              className={formErrors[`job${index}_endDate`] ? 'wh-error-field' : ''}
+                              className={
+                                formErrors[`job${index}_endDate`]
+                                  ? 'wh-error-field'
+                                  : ''
+                              }
                               required={!job.currentlyWorking}
                             />
                             {formErrors[`job${index}_endDate`] && (
-                              <div className="wh-field-error">{formErrors[`job${index}_endDate`]}</div>
+                              <div className="wh-field-error">
+                                {formErrors[`job${index}_endDate`]}
+                              </div>
                             )}
-                            
+
                             <label className="wh-checkbox-container wh-current-job">
                               <input
                                 type="checkbox"
                                 checked={job.currentlyWorking}
-                                onChange={(e) => handleUpdateJob(index, 'currentlyWorking', e.target.checked)}
+                                onChange={(e) =>
+                                  handleUpdateJob(
+                                    index,
+                                    'currentlyWorking',
+                                    e.target.checked
+                                  )
+                                }
                                 className="wh-checkbox"
                               />
                               <span className="wh-checkmark"></span>
@@ -490,11 +963,19 @@ const WorkHistoryForm = ({ onComplete,onError }) => {
                         </div>
 
                         <div className="wh-form-group">
-                          <label htmlFor={`description-${index}`}>Job Description</label>
+                          <label htmlFor={`description-${index}`}>
+                            Job Description
+                          </label>
                           <textarea
                             id={`description-${index}`}
                             value={job.description || ''}
-                            onChange={(e) => handleUpdateJob(index, 'description', e.target.value)}
+                            onChange={(e) =>
+                              handleUpdateJob(
+                                index,
+                                'description',
+                                e.target.value
+                              )
+                            }
                             placeholder="Describe your responsibilities and achievements at this job"
                             rows={4}
                           />
@@ -506,7 +987,14 @@ const WorkHistoryForm = ({ onComplete,onError }) => {
                             className="wh-btn wh-btn-danger"
                             onClick={() => handleRemoveJob(index)}
                           >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
                               <polyline points="3 6 5 6 21 6"></polyline>
                               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                             </svg>
@@ -526,7 +1014,14 @@ const WorkHistoryForm = ({ onComplete,onError }) => {
                 className="wh-btn wh-btn-secondary wh-add-btn"
                 onClick={addNewJob}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <circle cx="12" cy="12" r="10"></circle>
                   <line x1="12" y1="8" x2="12" y2="16"></line>
                   <line x1="8" y1="12" x2="16" y2="12"></line>
@@ -578,28 +1073,28 @@ const WorkHistoryForm = ({ onComplete,onError }) => {
             {formErrors.refLimit && (
               <div className="wh-error-message">{formErrors.refLimit}</div>
             )}
-            
+
             {localWorkHistory.references.length === 0 ? (
               <div className="wh-empty-state">
                 <div className="wh-empty-icon">👤</div>
                 <p>You haven't added any references yet</p>
-                <button 
-                  type="button" 
-                  className="wh-btn wh-btn-secondary" 
+                <button
+                  type="button"
+                  className="wh-btn wh-btn-secondary"
                   onClick={addReference}
                 >
                   Add Your First Reference
                 </button>
               </div>
             ) : (
-              <>                
+              <>
                 {localWorkHistory.references.map((ref, index) => (
-                  <div 
+                  <div
                     key={index}
                     id={`wh-ref-card-${index}`}
                     className={`wh-card wh-reference-card ${expandedReference === index ? 'wh-expanded' : ''}`}
                   >
-                    <div 
+                    <div
                       className="wh-card-header"
                       onClick={() => toggleExpandReference(index)}
                     >
@@ -607,9 +1102,26 @@ const WorkHistoryForm = ({ onComplete,onError }) => {
                         <h4>{ref.name || `Reference ${index + 1}`}</h4>
                         {ref.company && <span>{ref.company}</span>}
                       </div>
-                      <button type="button" className="wh-expand-toggle" aria-label="Toggle details">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points={expandedReference === index ? "18 15 12 9 6 15" : "6 9 12 15 18 9"}></polyline>
+                      <button
+                        type="button"
+                        className="wh-expand-toggle"
+                        aria-label="Toggle details"
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <polyline
+                            points={
+                              expandedReference === index
+                                ? '18 15 12 9 6 15'
+                                : '6 9 12 15 18 9'
+                            }
+                          ></polyline>
                         </svg>
                       </button>
                     </div>
@@ -625,23 +1137,72 @@ const WorkHistoryForm = ({ onComplete,onError }) => {
                               id={`ref-name-${index}`}
                               type="text"
                               value={ref.name}
-                              onChange={(e) => handleUpdateReference(index, 'name', e.target.value)}
+                              onChange={(e) =>
+                                handleUpdateReference(
+                                  index,
+                                  'name',
+                                  e.target.value
+                                )
+                              }
                               placeholder="Enter reference's name"
-                              className={formErrors[`ref${index}_name`] ? 'wh-error-field' : ''}
+                              className={
+                                formErrors[`ref${index}_name`]
+                                  ? 'wh-error-field'
+                                  : ''
+                              }
                               required
                             />
                             {formErrors[`ref${index}_name`] && (
-                              <div className="wh-field-error">{formErrors[`ref${index}_name`]}</div>
+                              <div className="wh-field-error">
+                                {formErrors[`ref${index}_name`]}
+                              </div>
+                            )}
+                          </div>
+                          <div className="wh-form-group">
+                            <label htmlFor={`ref-position-${index}`}>
+                              Position <span className="wh-required">*</span>
+                            </label>
+                            <input
+                              id={`ref-position-${index}`}
+                              type="text"
+                              value={ref.position || ''}
+                              onChange={(e) =>
+                                handleUpdateReference(
+                                  index,
+                                  'position',
+                                  e.target.value
+                                )
+                              }
+                              placeholder="Reference's position"
+                              className={
+                                formErrors[`ref${index}_position`]
+                                  ? 'wh-error-field'
+                                  : ''
+                              }
+                              required
+                            />
+                            {formErrors[`ref${index}_position`] && (
+                              <div className="wh-field-error">
+                                {formErrors[`ref${index}_position`]}
+                              </div>
                             )}
                           </div>
 
                           <div className="wh-form-group">
-                            <label htmlFor={`ref-company-${index}`}>Company</label>
+                            <label htmlFor={`ref-company-${index}`}>
+                              Company
+                            </label>
                             <input
                               id={`ref-company-${index}`}
                               type="text"
                               value={ref.company || ''}
-                              onChange={(e) => handleUpdateReference(index, 'company', e.target.value)}
+                              onChange={(e) =>
+                                handleUpdateReference(
+                                  index,
+                                  'company',
+                                  e.target.value
+                                )
+                              }
                               placeholder="Enter company name"
                             />
                           </div>
@@ -650,19 +1211,32 @@ const WorkHistoryForm = ({ onComplete,onError }) => {
                         <div className="wh-form-row">
                           <div className="wh-form-group">
                             <label htmlFor={`ref-phone-${index}`}>
-                              Phone Number <span className="wh-required">*</span>
+                              Phone Number{' '}
+                              <span className="wh-required">*</span>
                             </label>
                             <input
                               id={`ref-phone-${index}`}
                               type="tel"
                               value={ref.phone || ''}
-                              onChange={(e) => handleUpdateReference(index, 'phone', e.target.value)}
+                              onChange={(e) =>
+                                handleUpdateReference(
+                                  index,
+                                  'phone',
+                                  e.target.value
+                                )
+                              }
                               placeholder="Enter phone number"
-                              className={formErrors[`ref${index}_phone`] ? 'wh-error-field' : ''}
+                              className={
+                                formErrors[`ref${index}_phone`]
+                                  ? 'wh-error-field'
+                                  : ''
+                              }
                               required
                             />
                             {formErrors[`ref${index}_phone`] && (
-                              <div className="wh-field-error">{formErrors[`ref${index}_phone`]}</div>
+                              <div className="wh-field-error">
+                                {formErrors[`ref${index}_phone`]}
+                              </div>
                             )}
                           </div>
 
@@ -674,13 +1248,25 @@ const WorkHistoryForm = ({ onComplete,onError }) => {
                               id={`ref-email-${index}`}
                               type="email"
                               value={ref.email || ''}
-                              onChange={(e) => handleUpdateReference(index, 'email', e.target.value)}
+                              onChange={(e) =>
+                                handleUpdateReference(
+                                  index,
+                                  'email',
+                                  e.target.value
+                                )
+                              }
                               placeholder="Enter email address"
-                              className={formErrors[`ref${index}_email`] ? 'wh-error-field' : ''}
+                              className={
+                                formErrors[`ref${index}_email`]
+                                  ? 'wh-error-field'
+                                  : ''
+                              }
                               required
                             />
                             {formErrors[`ref${index}_email`] && (
-                              <div className="wh-field-error">{formErrors[`ref${index}_email`]}</div>
+                              <div className="wh-field-error">
+                                {formErrors[`ref${index}_email`]}
+                              </div>
                             )}
                           </div>
                         </div>
@@ -691,7 +1277,14 @@ const WorkHistoryForm = ({ onComplete,onError }) => {
                             className="wh-btn wh-btn-danger"
                             onClick={() => removeReference(index)}
                           >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
                               <polyline points="3 6 5 6 21 6"></polyline>
                               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                             </svg>
@@ -709,7 +1302,14 @@ const WorkHistoryForm = ({ onComplete,onError }) => {
                     className="wh-btn wh-btn-secondary wh-add-btn"
                     onClick={addReference}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
                       <circle cx="12" cy="12" r="10"></circle>
                       <line x1="12" y1="8" x2="12" y2="16"></line>
                       <line x1="8" y1="12" x2="16" y2="12"></line>
@@ -725,21 +1325,28 @@ const WorkHistoryForm = ({ onComplete,onError }) => {
 
       {/* Form Controls */}
       <div className="wh-form-actions">
-        <button 
-          type="button" 
-          className="wh-btn wh-btn-outline" 
+        <button
+          type="button"
+          className="wh-btn wh-btn-outline"
           onClick={prevStep}
           disabled={isPending}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <line x1="19" y1="12" x2="5" y2="12"></line>
             <polyline points="12 19 5 12 12 5"></polyline>
           </svg>
           Back
         </button>
-        
-        <button 
-          type="submit" 
+
+        <button
+          type="submit"
           className="wh-btn wh-btn-primary"
           disabled={isPending}
         >
@@ -751,7 +1358,14 @@ const WorkHistoryForm = ({ onComplete,onError }) => {
           ) : (
             <>
               Complete Profile
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <line x1="5" y1="12" x2="19" y2="12"></line>
                 <polyline points="12 5 19 12 12 19"></polyline>
               </svg>
