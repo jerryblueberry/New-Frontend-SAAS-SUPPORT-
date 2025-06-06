@@ -188,6 +188,7 @@ const CertificateSecond = () => {
       try {
         setLoading(true);
         // const response = await fetch('https://backend-for-the-saas-short-job-finder.vercel.app/api/v1/certification/worker');
+        // const response = await fetch('https://backend-for-the-saas-short-git-fbdf2e-jerryblueberrys-projects.vercel.app/api/v1/certification/worker');
         const response = await fetch('http://localhost:8000/api/v1/certification/worker');
         if (response.ok) {
           const data = await response.json();
