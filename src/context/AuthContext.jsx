@@ -14,6 +14,7 @@ import {
   isTokenValid
 } from '../utils/storage';
 import { refreshAuthToken } from '../api/auth';
+import React from 'react';
 
 // Initial state
 const initialState = {
@@ -63,6 +64,15 @@ function authReducer(state, action) {
 }
 // Create context
 const AuthContext = createContext();
+
+// Custom hook to use the auth context
+export const useAuth = () => {
+  const context = React.useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
 
 // AuthProvider component
 const AuthProvider = ({ children }) => {

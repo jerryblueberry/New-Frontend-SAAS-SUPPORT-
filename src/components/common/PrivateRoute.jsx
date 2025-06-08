@@ -1,8 +1,7 @@
 // src/components/common/PrivateRoute.jsx
-import { useEffect, useState } from 'react';
+import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
-import { hasValidAuth } from '../../utils/storage';
+import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 
 /**
@@ -10,79 +9,32 @@ import LoadingSpinner from './LoadingSpinner';
  * Redirects to login if user is not authenticated
  */
 const PrivateRoute = ({ children }) => {
-  const { isAuthenticated, loading, verifyAuth } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
-  const [authStatus, setAuthStatus] = useState({
-    checked: false,
-    isAllowed: false,
-    isLoading: true
-  });
 
-  useEffect(() => {
-    // Quick check using token first
-    const hasToken = hasValidAuth();
-    
-    // If context says we're authenticated or we have a valid token
-    if (isAuthenticated || hasToken) {
-      setAuthStatus({
-        checked: true,
-        isAllowed: true,
-        isLoading: false
-      });
-    } 
-    // If loading finished and we're not authenticated
-    else if (!loading) {
-      setAuthStatus({
-        checked: true,
-        isAllowed: false,
-        isLoading: false
-      });
-    }
-    
-    // Verify auth with the server if needed
-    if (hasToken && !isAuthenticated && !loading) {
-      verifyAuth()
-        .then(isValid => {
-          setAuthStatus({
-            checked: true,
-            isAllowed: isValid,
-            isLoading: false
-          });
-        })
-        .catch(() => {
-          setAuthStatus({
-            checked: true,
-            isAllowed: false,
-            isLoading: false
-          });
-        });
-    }
-    
-    // Listen for logout events
-    const handleLogout = () => {
-      setAuthStatus({
-        checked: true,
-        isAllowed: false,
-        isLoading: false
-      });
-    };
-    
-    window.addEventListener('auth:logout', handleLogout);
-    
-    return () => {
-      window.removeEventListener('auth:logout', handleLogout);
-    };
-  }, [isAuthenticated, loading, verifyAuth]);
-
-  // Display loading spinner while checking authentication
-  if (authStatus.isLoading || loading) {
-    return <LoadingSpinner fullPage />;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <LoadingSpinner
+          fullPage
+          size="lg"
+          color="primary"
+          variant="gradient"
+          showLogo
+          logoSize="lg"
+          text="Verifying authentication..."
+          overlayOpacity={0.8}
+          gradientColors={['#3b82f6', '#10b981', '#ef4444']}
+        />
+      </div>
+    );
   }
 
-  // If not authenticated, redirect to login and remember the attempted URL
-  return authStatus.isAllowed ? 
-    children : 
-    <Navigate to="/login" state={{ from: location }} replace />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return children;
 };
 
 export default PrivateRoute;

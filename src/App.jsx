@@ -21,6 +21,7 @@ import Profile from './pages/Workers/Profile';
 import CertificationManagement from './pages/CertificateCheck/CertificationManagement';
 import CertificateSecond from './pages/CertificateCheck/CertificateSecond';
 import CertificateThird from './pages/CertificateCheck/CertificateThird';
+import ForgotPassword from './pages/auth/ForgotPassword';
 
 // Create React Query client with optimized settings
 const queryClient = new QueryClient({
@@ -66,6 +67,8 @@ function AppRoutes() {
       <Routes>
         {/* Public routes - accessible to anyone */}
         <Route index path="/" element={<Home />} />
+        {/*  For the Forgot Password */}
+        <Route path='/forgot-password' element = {<ForgotPassword/>}/>
         <Route path='/certificate' element  = {<CertificationManagement/>}/>
         <Route path='/certificate-2' element = {<CertificateSecond/>}/>
         <Route path='/certificate-3' element = {<CertificateThird/>}/>

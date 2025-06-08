@@ -1,131 +1,103 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { FaGoogle } from 'react-icons/fa';
+import LoadingSpinner from '../common/LoadingSpinner';
+import { useAuth } from '../../context/AuthContext';
 import './css/LoginForm.css';
 
 const LoginForm = ({ onSubmit, setEmailInputRef, loading, error, onInputChange }) => {
+  const { signIn, signInWithGoogle } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    rememberMe: false,
   });
-  
-  const [formFocus, setFormFocus] = useState({
-    email: false,
-    password: false
-  });
-  
-  const [touched, setTouched] = useState({
-    email: false,
-    password: false
-  });
-  
-  // Ref to store previous values for comparison
-  const prevErrorRef = useRef(error);
-  const formRef = useRef(null);
-  const emailRef = useRef(null);
-  const passwordRef = useRef(null);
-  const submitButtonRef = useRef(null);
-  
-  // Track if this is the first error after a submission
-  const [isNewError, setIsNewError] = useState(false);
-  
-  // Reset the new error flag when error changes
-  useEffect(() => {
-    if (error !== prevErrorRef.current) {
-      setIsNewError(true);
-      prevErrorRef.current = error;
-      
-      // When error appears, keep focus within the form
-      if (error && submitButtonRef.current) {
-        // Delay focus to ensure it happens after any other focus events
-        setTimeout(() => {
-          submitButtonRef.current.focus();
-        }, 50);
-      }
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
+
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.email) {
+      errors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      errors.email = 'Please enter a valid email address';
     }
-  }, [error]);
-  
-  // Set email input ref when component mounts
-  useEffect(() => {
-    if (setEmailInputRef && emailRef.current) {
-      setEmailInputRef(emailRef.current);
+    if (!formData.password) {
+      errors.password = 'Password is required';
     }
-  }, [setEmailInputRef]);
-  
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    // Prevent event propagation to avoid focus issues
-    e.stopPropagation();
-    
-    // Mark all fields as touched on submit
-    setTouched({
-      email: true,
-      password: true
-    });
-    
-    // Save active element to restore focus later if needed
-    const activeElement = document.activeElement;
-    
-    onSubmit(formData);
-    
-    // Keep focus on submit button to prevent it from jumping to other elements
-    if (submitButtonRef.current) {
-      submitButtonRef.current.focus();
-    }
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value,
+      [name]: type === 'checkbox' ? checked : value
     }));
-    
-    // Mark field as touched
-    setTouched(prev => ({
-      ...prev,
-      [name]: true
-    }));
-    
-    // Clear errors only when user starts typing after seeing an error
-    if (error && isNewError) {
-      setIsNewError(false);
-      if (onInputChange) {
-        onInputChange();
-      }
+    if (onInputChange) onInputChange();
+    // Clear validation error when user starts typing
+    if (validationErrors[name]) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [name]: undefined
+      }));
     }
   };
-  
-  const handleFocus = (e) => {
-    const { name } = e.target;
-    setFormFocus(prev => ({
-      ...prev,
-      [name]: true
-    }));
-  };
-  
-  const handleBlur = (e) => {
-    const { name } = e.target;
-    setFormFocus(prev => ({
-      ...prev,
-      [name]: false
-    }));
-    
-    // Mark as touched when field loses focus
-    setTouched(prev => ({
-      ...prev,
-      [name]: true
-    }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    try {
+      await signIn(formData);
+      if (onSubmit) onSubmit(formData);
+    } catch (err) {
+      console.error('Login error:', err);
+      if (onSubmit) onSubmit(formData, err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
+  const handleGoogleLogin = async () => {
+    setIsGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      console.error('Google login error:', err);
+      if (onSubmit) onSubmit(null, err);
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  // Show loading state
+  if (loading || isSubmitting || isGoogleLoading) {
+    return (
+      <div className="loginform__loading-container">
+        <div className="loginform__loading-content">
+          <LoadingSpinner
+            size="lg"
+            color="primary"
+            variant="gradient"
+            showLogo
+            logoSize="lg"
+            text={isSubmitting ? "Signing in..." : "Connecting to Google..."}
+            overlayOpacity={0.8}
+            gradientColors={['#3b82f6', '#10b981', '#ef4444']}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <form 
-      className={`loginform__container ${error ? 'has-error' : ''}`} 
-      onSubmit={handleSubmit}
-      ref={formRef}
-    >
-      <div className="loginform__input-group">
-        <label htmlFor="email" className="sr-only">
+    <form className="loginform__container" onSubmit={handleSubmit}>
+      <div className="loginform__form-group">
+        <label htmlFor="email" className="loginform__label">
           Email address
         </label>
         <div className="loginform__input-wrapper">
@@ -135,23 +107,34 @@ const LoginForm = ({ onSubmit, setEmailInputRef, loading, error, onInputChange }
             type="email"
             autoComplete="email"
             required
-            className={`loginform__input ${touched.email && !formData.email ? 'input-error' : ''}`}
-            placeholder="Email address"
             value={formData.email}
             onChange={handleChange}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            aria-invalid={touched.email && !formData.email}
-            ref={emailRef}
+            ref={setEmailInputRef}
+            className={`loginform__input ${validationErrors.email ? 'input-error' : ''}`}
+            placeholder="Enter your email"
+            disabled={loading || isSubmitting}
           />
-          {formFocus.email && (
-            <div className="loginform__input-highlight"></div>
+          {validationErrors.email && (
+            <div className="loginform__error-message">
+              <svg
+                className="loginform__error-icon"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              {validationErrors.email}
+            </div>
           )}
         </div>
       </div>
-      
-      <div className="loginform__input-group">
-        <label htmlFor="password" className="sr-only">
+
+      <div className="loginform__form-group">
+        <label htmlFor="password" className="loginform__label">
           Password
         </label>
         <div className="loginform__input-wrapper">
@@ -161,60 +144,70 @@ const LoginForm = ({ onSubmit, setEmailInputRef, loading, error, onInputChange }
             type="password"
             autoComplete="current-password"
             required
-            className={`loginform__input ${touched.password && !formData.password ? 'input-error' : ''}`}
-            placeholder="Password"
             value={formData.password}
             onChange={handleChange}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            aria-invalid={touched.password && !formData.password}
-            ref={passwordRef}
+            className={`loginform__input ${validationErrors.password ? 'input-error' : ''}`}
+            placeholder="Enter your password"
+            disabled={loading || isSubmitting}
           />
-          {formFocus.password && (
-            <div className="loginform__input-highlight"></div>
+          {validationErrors.password && (
+            <div className="loginform__error-message">
+              <svg
+                className="loginform__error-icon"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              {validationErrors.password}
+            </div>
           )}
         </div>
       </div>
 
-      <div className="loginform__options-row">
-        <div className="loginform__checkbox-container">
-          <input
-            id="remember-me"
-            name="remember-me"
-            type="checkbox"
-            className="loginform__checkbox"
-          />
-          <label htmlFor="remember-me" className="loginform__checkbox-label">
-            Remember me
-          </label>
-        </div>
-
-        <div>
-          <Link to="/forgot-password" className="loginform__forgot-link">
-            Forgot your password?
-          </Link>
-        </div>
+      <div className="loginform__checkbox-container">
+        <input
+          id="remember-me"
+          name="rememberMe"
+          type="checkbox"
+          checked={formData.rememberMe}
+          onChange={handleChange}
+          className="loginform__checkbox"
+          disabled={loading || isSubmitting}
+        />
+        <label htmlFor="remember-me" className="loginform__checkbox-label">
+          Remember me
+        </label>
       </div>
 
-      <div>
+      <div className="loginform__form-group">
         <button
           type="submit"
-          disabled={loading}
-          className={`loginform__submit-btn ${loading ? 'loginform__submit-btn--loading' : ''}`}
-          ref={submitButtonRef}
+          disabled={loading || isSubmitting || isGoogleLoading}
+          className={`loginform__submit-btn ${isSubmitting ? 'loginform__submit-btn--loading' : ''}`}
         >
-          {loading ? (
-            <div className="loginform__spinner">
-              <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
+          {isSubmitting ? (
+            <>
+              <span className="loginform__spinner" />
               Signing in...
-            </div>
+            </>
           ) : (
             'Sign in'
           )}
         </button>
+      </div>
+
+      <div className="loginform__form-group">
+        <Link
+          to="/forgot-password"
+          className="loginform__forgot-password"
+        >
+          Forgot your password?
+        </Link>
       </div>
     </form>
   );

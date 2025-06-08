@@ -1,252 +1,486 @@
-/* LoginForm.css - Enhanced styling specifically for the LoginForm component with improved focus handling */
+/* LoginForm.css - Production-ready styling for support worker onboarding */
+
+/* CSS Custom Properties */
+:root {
+  --primary: #4f46e5;
+  --primary-dark: #4338ca;
+  --primary-light: rgba(79, 70, 229, 0.15);
+  --secondary: #10b981;
+  --secondary-dark: #059669;
+  --error: #ef4444;
+  --error-light: rgba(239, 68, 68, 0.1);
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+  --border-color: #e5e7eb;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
 
 /* Form container */
 .loginform__container {
-  margin-top: 1rem;
+  width: 100%;
 }
 
-/* Input group spacing */
-.loginform__input-group {
-  margin-bottom: 1.5rem;
-  position: relative;
+/* Form header */
+.loginform__header {
+  text-align: center;
+  margin-bottom: 2rem;
 }
 
-/* SR-only class for accessibility */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border-width: 0;
+.loginform__title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
 }
 
-/* Input wrapper for visual effects */
+.loginform__subtitle {
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+}
+
+/* Form group */
+.loginform__form-group {
+  margin-bottom: 1.25rem;
+}
+
+.loginform__label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 0.375rem;
+}
+
 .loginform__input-wrapper {
   position: relative;
-  width: 100%;
 }
 
-/* Input styling */
+/* Input fields */
 .loginform__input {
-  appearance: none;
   width: 100%;
   padding: 0.75rem 1rem;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  background-color: #f7fafc;
-  color: #2d3748;
-  font-size: 0.95rem;
-  transition: all 0.2s ease;
-  position: relative;
-  z-index: 1;
+  font-size: 0.9375rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: all var(--transition-base);
+  cursor: text;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  will-change: transform, border-color, box-shadow;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.loginform__input:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
 }
 
 .loginform__input:focus {
   outline: none;
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
-  background-color: white;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+  transform: translateY(-1px);
 }
 
-/* Input highlight effect when focused */
-.loginform__input-highlight {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  height: 2px;
-  width: 100%;
-  background-color: #4f46e5;
-  transform-origin: bottom left;
-  animation: highlightEnter 0.3s ease forwards;
-  z-index: 0;
-}
-
-@keyframes highlightEnter {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
+.loginform__input:active {
+  transform: translateY(0);
 }
 
 .loginform__input::placeholder {
-  color: #a0aec0;
+  color: var(--text-muted);
+  transition: opacity var(--transition-base);
 }
 
-/* Error state for inputs */
+.loginform__input:focus::placeholder {
+  opacity: 0.7;
+}
+
+/* Error states */
 .loginform__input.input-error {
-  border-color: #e53e3e;
-  background-color: #fff5f5;
+  border-color: var(--error);
+  background-color: var(--error-light);
+  animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
 .loginform__input.input-error:focus {
-  box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.15);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
-/* Remember me checkbox styling */
+@keyframes shake {
+  10%, 90% {
+    transform: translate3d(-1px, 0, 0);
+  }
+  20%, 80% {
+    transform: translate3d(2px, 0, 0);
+  }
+  30%, 50%, 70% {
+    transform: translate3d(-2px, 0, 0);
+  }
+  40%, 60% {
+    transform: translate3d(2px, 0, 0);
+  }
+}
+
+/* Add touch device optimizations */
+@media (hover: none) {
+  .loginform__input:hover {
+    transform: none;
+  }
+  
+  .loginform__input:focus {
+    transform: none;
+  }
+}
+
+/* Add reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .loginform__input {
+    transition: none;
+  }
+  
+  .loginform__input:hover,
+  .loginform__input:focus {
+    transform: none;
+  }
+  
+  .loginform__input.input-error {
+    animation: none;
+  }
+}
+
+.loginform__error-message {
+  color: var(--error);
+  font-size: 0.8125rem;
+  margin-top: 0.375rem;
+  display: flex;
+  align-items: center;
+  animation: slideIn 0.3s ease-out;
+}
+
+.loginform__error-message::before {
+  content: '!';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  background: var(--error);
+  color: white;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+/* Remember me checkbox */
 .loginform__checkbox-container {
   display: flex;
   align-items: center;
+  margin-bottom: 1.25rem;
 }
 
 .loginform__checkbox {
-  height: 1rem;
-  width: 1rem;
-  color: #4f46e5;
-  border: 1px solid #cbd5e0;
-  border-radius: 4px;
+  position: relative;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-right: 0.75rem;
   cursor: pointer;
+  appearance: none;
+  border: 2px solid var(--border-color);
+  border-radius: 0.375rem;
+  transition: all var(--transition-base);
 }
 
 .loginform__checkbox:checked {
-  background-color: #4f46e5;
-  border-color: #4f46e5;
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.loginform__checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 0.25rem;
+  top: 0.125rem;
+  width: 0.375rem;
+  height: 0.625rem;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
 
 .loginform__checkbox:focus {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.3);
+  box-shadow: 0 0 0 3px var(--primary-light);
 }
 
 .loginform__checkbox-label {
-  margin-left: 0.5rem;
   font-size: 0.875rem;
-  color: #4a5568;
+  color: var(--text-secondary);
   cursor: pointer;
 }
 
-/* Options row styling */
-.loginform__options-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
-}
-
-/* Forgot password link */
-.loginform__forgot-link {
-  font-size: 0.875rem;
-  color: #4f46e5;
-  font-weight: 500;
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-.loginform__forgot-link:hover {
-  color: #4338ca;
-  text-decoration: underline;
-}
-
-.loginform__forgot-link:focus {
-  outline: none;
-  text-decoration: underline;
-  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
-  border-radius: 2px;
-}
-
-/* Submit button styling */
+/* Submit button */
 .loginform__submit-btn {
   width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  background-color: #4f46e5;
+  padding: 0.75rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
   color: white;
-  font-weight: 600;
-  border-radius: 8px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
   border: none;
+  border-radius: 0.75rem;
   cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.95rem;
+  transition: all var(--transition-base);
   position: relative;
   overflow: hidden;
 }
 
 .loginform__submit-btn:hover {
-  background-color: #4338ca;
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .loginform__submit-btn:active {
-  transform: translateY(1px);
-  box-shadow: none;
+  transform: translateY(0);
 }
 
-/* Improved focus states for submit button */
-.loginform__submit-btn:focus-visible {
-  outline: 2px solid #4f46e5;
-  outline-offset: 2px;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
-}
-
-.loginform__submit-btn:focus:not(:focus-visible) {
-  outline: none;
-  box-shadow: none;
-}
-
-.loginform__submit-btn--loading {
+.loginform__submit-btn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+  transform: none;
 }
 
-/* Spinner styling inside button */
+/* Forgot password link */
+.loginform__forgot-password {
+  display: block;
+  text-align: center;
+  color: var(--primary);
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: color var(--transition-base);
+  margin-top: 0.5rem;
+}
+
+.loginform__forgot-password:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+}
+
+/* Loading spinner */
 .loginform__spinner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
-.loginform__spinner svg {
-  margin-right: 0.5rem;
+@keyframes spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
 
-/* Animation for form with error */
+/* Animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .loginform__container.has-error {
-  animation: gentleShake 0.4s ease;
+  animation: shake 0.4s ease-in-out;
 }
 
-@keyframes gentleShake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  20%,
-  60% {
-    transform: translateX(-2px);
-  }
-  40%,
-  80% {
-    transform: translateX(2px);
-  }
-}
-
-/* Focus trap for accessibility */
-.loginform__container:focus-within {
-  outline: none;
-}
-
-/* Responsive adjustments */
+/* Responsive design */
 @media (max-width: 640px) {
-  .loginform__input {
-    padding: 0.7rem 0.875rem;
+  .loginform__title {
+    font-size: 1.25rem;
+  }
+
+  .loginform__subtitle {
     font-size: 0.875rem;
   }
 
-  .loginform__options-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
+  .loginform__form-group {
+    margin-bottom: 1rem;
+  }
+
+  .loginform__input {
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
   }
 
   .loginform__submit-btn {
-    padding: 0.7rem 0.875rem;
+    padding: 0.625rem;
     font-size: 0.875rem;
+  }
+
+  .loginform__checkbox {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .loginform__checkbox-label {
+    font-size: 0.8125rem;
+  }
+
+  .loginform__forgot-password {
+    font-size: 0.8125rem;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text-primary: #f3f4f6;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+    --border-color: #374151;
+    --bg-primary: #1f2937;
+    --bg-secondary: #111827;
+  }
+
+  .loginform__input {
+    background-color: var(--bg-secondary);
+  }
+
+  .loginform__input:focus {
+    background-color: var(--bg-primary);
+  }
+}
+
+/* High contrast mode */
+@media (forced-colors: active) {
+  .loginform__input,
+  .loginform__submit-btn {
+    border: 2px solid CanvasText;
+  }
+
+  .loginform__checkbox {
+    border: 2px solid CanvasText;
+  }
+
+  .loginform__checkbox:checked {
+    background: CanvasText;
+  }
+}
+
+/* Loading state styles */
+.loginform__loading-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.loginform__loading-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 1rem;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+  max-width: 90%;
+  width: 300px;
+  animation: scaleIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Disabled state styles */
+.loginform__input:disabled,
+.loginform__checkbox:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background-color: var(--bg-secondary);
+}
+
+.loginform__submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Loading spinner in button */
+.loginform__submit-btn--loading {
+  position: relative;
+  color: transparent;
+}
+
+.loginform__submit-btn--loading .loginform__spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/* Dark mode support for loading state */
+@media (prefers-color-scheme: dark) {
+  .loginform__loading-container {
+    background: rgba(17, 24, 39, 0.9);
+  }
+
+  .loginform__loading-content {
+    background: var(--bg-primary);
   }
 }
