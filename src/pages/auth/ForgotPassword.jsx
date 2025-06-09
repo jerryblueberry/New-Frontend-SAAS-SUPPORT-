@@ -9,6 +9,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 // Configure axios defaults
 axios.defaults.baseURL = 'http://localhost:8000/api/v1';
+// axios.defaults.baseURL = 'https://backend-for-the-saas-short-job-finder.vercel.app/api/v1';
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 
 // Toast configuration
