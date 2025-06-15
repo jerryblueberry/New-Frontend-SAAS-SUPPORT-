@@ -1350,6 +1350,12 @@ const CertificateSecond = () => {
           form={certForm}
           layout="vertical"
           onFinish={updateCertification}
+          initialValues={{
+            ...cert,
+            issuedDate: cert.issuedDate ? dayjs(cert.issuedDate) : null,
+            expiryDate: cert.expiryDate ? dayjs(cert.expiryDate) : null,
+            degree: cert.degree // Ensure degree is included in initial values
+          }}
         >
           {renderEducationFields(certType, currentCertIndex)}
 
@@ -1409,18 +1415,18 @@ const CertificateSecond = () => {
                     <Option value="NT">Northern Territory</Option>
                   </Select>
                 ) : field === 'subclass' ? (
-  <Select
-    mode="tags"
-    placeholder="Select or enter visa subclass"
-    tokenSeparators={[',']}
-    defaultValue={cert[field] ? [cert[field]] : []}
-  >
-    {certType.visaSettings?.subclassOptions?.map(option => (
-      <Option key={option} value={option}>
-        {option}
-      </Option>
-    ))}
-  </Select>
+                  <Select
+                    mode="tags"
+                    placeholder="Select or enter visa subclass"
+                    tokenSeparators={[',']}
+                    defaultValue={cert[field] ? [cert[field]] : []}
+                  >
+                    {certType.visaSettings?.subclassOptions?.map(option => (
+                      <Option key={option} value={option}>
+                        {option}
+                      </Option>
+                    ))}
+                  </Select>
                 ) : (
                   <Input 
                     placeholder={`Enter ${fieldLabel}`}
