@@ -42,6 +42,7 @@ const ProgressBar = ({
   className = '',
   onStepClick,
   completedSteps = [],
+  nextAvailableStep = 1,
   ...props
 }) => {
   const [modalOpen, setModalOpen] = useState(false);
@@ -52,37 +53,50 @@ const ProgressBar = ({
   const percentage = ((normalizedStep - 1) / (totalSteps - 1)) * 100;
   
   useEffect(() => {
-    // Trigger animation when currentStep changes
     setAnimationActive(true);
     const timer = setTimeout(() => setAnimationActive(false), 1500);
     return () => clearTimeout(timer);
   }, [currentStep]);
 
-  // Normalize steps data
+  // Normalize steps data with completion status
   const stepsData = Array.from({ length: totalSteps }).map((_, index) => {
     const stepNumber = index + 1;
+    const isCompleted = completedSteps.includes(stepNumber);
+    const isAvailable = stepNumber <= nextAvailableStep;
+    
     return {
       number: stepNumber,
       label: steps[index]?.label || `Step ${stepNumber}`,
-         // Only mark as completed if the step is <= currentStep AND in completedSteps
-      completed: stepNumber <= currentStep && completedSteps.includes(stepNumber),
+      completed: isCompleted,
+      available: isAvailable,
       ...(steps[index] || {})
     };
   });
 
   const handleStepClick = (stepNumber) => {
-    // Allow navigation to completed steps or to the current step
-    if (completedSteps.includes(stepNumber) || stepNumber === currentStep) {
+    // Allow navigation to:
+    // 1. Completed steps
+    // 2. Current step
+    // 3. Next available step
+    if (
+      completedSteps.includes(stepNumber) || 
+      stepNumber === currentStep || 
+      stepNumber === nextAvailableStep
+    ) {
       if (onStepClick) {
         onStepClick(stepNumber);
       }
-    } else if (stepNumber > currentStep) {
-      // Show modal when trying to access a future uncompleted step
-      setModalMessage(`Please complete Step ${currentStep} before proceeding to Step ${stepNumber}.`);
+    } else if (stepNumber > nextAvailableStep) {
+      // Show modal when trying to access a future unavailable step
+      setModalMessage(
+        `Please complete Step ${currentStep} before proceeding to Step ${stepNumber}.`
+      );
       setModalOpen(true);
     } else {
-      // For past steps that aren't completed (shouldn't happen with proper state management)
-      setModalMessage(`Please complete Step ${stepNumber} before proceeding.`);
+      // For past steps that aren't completed
+      setModalMessage(
+        `Please complete Step ${stepNumber} before proceeding.`
+      );
       setModalOpen(true);
     }
   };
@@ -111,12 +125,17 @@ const ProgressBar = ({
           const stepNumber = step.number;
           const isActive = stepNumber <= normalizedStep;
           const isCurrent = stepNumber === normalizedStep;
-          const isCompleted = completedSteps.includes(stepNumber);
+          const isCompleted = step.completed;
+          const isAvailable = step.available;
           
           return (
             <div
               key={index}
-              className={`step-indicator ${isActive ? 'step-active' : ''} ${isCurrent ? 'step-current' : ''} ${isCompleted ? 'step-completed' : ''}`}
+              className={`step-indicator 
+                ${isActive ? 'step-active' : ''} 
+                ${isCurrent ? 'step-current' : ''} 
+                ${isCompleted ? 'step-completed' : ''}
+                ${isAvailable ? 'step-available' : 'step-unavailable'}`}
               onClick={() => handleStepClick(stepNumber)}
               style={{
                 left: `${(index / (totalSteps - 1)) * 100}%`
@@ -166,7 +185,6 @@ const ProgressBar = ({
         </div>
       )}
       
-      {/* Modal for incomplete steps */}
       <StepModal 
         isOpen={modalOpen} 
         onClose={() => setModalOpen(false)} 

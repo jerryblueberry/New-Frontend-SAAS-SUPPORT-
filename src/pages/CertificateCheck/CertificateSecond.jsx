@@ -56,6 +56,7 @@ import useOnboardingStore, { useCertificationsMutation } from '../../stores/useO
 import { useOnboardingQuery } from '../../stores/useOnboardingStore';
 import DocumentPreview from '../../components/workerForm/Modals/DocumentPreview';
 import { toast } from 'react-hot-toast';
+import api from '../../api/axios';
 
 const { Title, Text, Paragraph } = Typography;
 const { Step } = Steps;
@@ -100,16 +101,28 @@ const CATEGORY_ICONS = {
 
 // Helper function to normalize certification type (handles both object and string formats)
 const normalizeCertificationType = (certType) => {
-  if (!certType) return null;
-  if (typeof certType === 'object' && certType._id) {
-    return {
-      id: certType._id,
-      name: certType.name || certType.certTypeName || 'Unknown'
-    };
-  }
   return {
-    id: certType,
-    name: 'Unknown' // We'll fill this in later when we have the full certification types
+    _id: certType._id,
+    name: certType.name || certType.certTypeName || 'Unknown',
+    requiredFields: certType.requiredFields || [],
+    hasExpiryDate: certType.hasExpiryDate,
+    documentRequired: certType.documentRequired,
+    category: certType.category,
+    description: certType.description,
+    instructions: certType.instructions,
+    isEducation: certType.isEducation,
+    educationSetting: certType.isEducation ? {
+      degreeOptions: certType.educationSetting?.degreeOptions || []
+    } : undefined,
+    isVisa: certType.isVisa,
+    visaSettings: certType.isVisa ? {
+      subclassOptions: certType.visaSettings?.subclassOptions || [],
+      requiresWorkRights: certType.visaSettings?.requiresWorkRights !== false,
+      requiresConditions: certType.visaSettings?.requiresConditions !== false,
+      allowedCountries: certType.visaSettings?.allowedCountries || []
+    } : undefined,
+    isCitizenshipProof: certType.isCitizenshipProof,
+    acceptableFor: certType.acceptableFor
   };
 };
 
@@ -161,7 +174,7 @@ const CertificateSecond = () => {
       // Normalize the certifications data to ensure consistent format
       const normalizedCerts = initialCerts.map(cert => ({
         ...cert,
-        certificationType: normalizeCertificationType(cert.certificationType).id,
+        certificationType: normalizeCertificationType(cert.certificationType)._id,
         certTypeName: normalizeCertificationType(cert.certificationType).name
       }));
       
@@ -183,161 +196,167 @@ const CertificateSecond = () => {
   }, [onboardingData, isLoadingOnboardingData, updateCertifications, updateResidencyStatus]);
 
   // Fetch certification types from API
-  useEffect(() => {
-    const fetchCertTypes = async () => {
-      try {
-        setLoading(true);
-        // const response = await fetch('https://backend-for-the-saas-short-job-finder.vercel.app/api/v1/certification/worker');
-        // const response = await fetch('https://backend-for-the-saas-short-git-fbdf2e-jerryblueberrys-projects.vercel.app/api/v1/certification/worker');
-        const response = await fetch('http://localhost:8000/api/v1/certification/worker');
-        if (response.ok) {
-          const data = await response.json();
-          setCertificationTypes(data.data || []);
-          
-          // Update certTypeName for existing certifications if needed
-          setSelectedCerts(prevCerts => 
-            prevCerts.map(cert => {
-              const certType = data.data.find(t => t._id === cert.certificationType);
-              return {
-                ...cert,
-                certTypeName: certType?.name || cert.certTypeName || 'Unknown'
-              };
-            })
-          );
-        } else {
-          throw new Error('Failed to load certification requirements');
-        }
-      } catch (error) {
-        message.error(error.message);
-        console.error('Error fetching certification types:', error);
-      } finally {
-        setLoading(false);
+  const fetchCertTypes = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/certification/worker');
+      console.log('Raw certification types response:', response.data);
+      
+      if (response.data.success) {
+        const normalizedTypes = response.data.data.map(normalizeCertificationType);
+        console.log('Normalized certification types:', normalizedTypes);
+        
+        // Find the NDIS certification type
+        const ndisCert = normalizedTypes.find(t => t.name === 'NDIS Support Worker Qualification');
+        console.log('NDIS certification type:', ndisCert);
+        
+        setCertificationTypes(normalizedTypes);
+        
+        // Update certTypeName for existing certifications if needed
+        setSelectedCerts(prevCerts => 
+          prevCerts.map(cert => {
+            const certType = normalizedTypes.find(t => t._id === cert.certificationType);
+            return {
+              ...cert,
+              certTypeName: certType?.name || cert.certTypeName || 'Unknown'
+            };
+          })
+        );
+      } else {
+        throw new Error('Failed to load certification requirements');
       }
-    };
+    } catch (error) {
+      message.error(error.message);
+      console.error('Error fetching certification types:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchCertTypes();
   }, []);
 
   // Determine required certifications based on residency status
-useEffect(() => {
-  if (!residencyStatus || !certificationTypes.length) {
-    setRequiredCerts([]);
-    return;
-  }
-
-  const required = [];
-  const requiredCertIds = new Set();
-
-  // First, add residency-specific certifications
-  switch (residencyStatus) {
-    case 'Citizen':
-      // Australian Citizenship Certificate
-      certificationTypes.forEach(cert => {
-        if (cert.isCitizenshipProof && cert.acceptableFor === 'Citizens' && !requiredCertIds.has(cert._id)) {
-          required.push(cert);
-          requiredCertIds.add(cert._id);
-        }
-      });
-      break;
-      
-    case 'NZCitizen':
-      // New Zealand citizenship + Special Category Visa
-      certificationTypes.forEach(cert => {
-        if ((cert.isCitizenshipProof && cert.acceptableFor === 'NZCitizens') && 
-            !requiredCertIds.has(cert._id)) {
-          required.push(cert);
-          requiredCertIds.add(cert._id);
-        }
-      });
-      // Look for Special Category Visa if available in the system
-      addSpecificVisaType('Special Category Visa (Subclass 444)');
-      break;
-      
-    case 'PermanentResident':
-      // Permanent resident documentation
-      certificationTypes.forEach(cert => {
-        if (cert.acceptableFor === 'PermanentResidents' && !requiredCertIds.has(cert._id)) {
-          required.push(cert);
-          requiredCertIds.add(cert._id);
-        }
-      });
-      break;
-      
-    case 'StudentVisa':
-      addSpecificVisaType('Student Visa (Subclass 500)');
-      break;
-      
-    case 'TemporaryGraduateVisa':
-      addSpecificVisaType('Temporary Graduate Visa (Subclass 485)');
-      break;
-      
-    case 'TSS':
-      addSpecificVisaType('Temporary Skill Shortage Visa (Subclass 482)');
-      break;
-      
-    case 'BridgingVisa':
-      addSpecificVisaType('Bridging Visa');
-      break;
-      
-    case 'OtherTemporaryVisa':
-      // For other visa types, show all visa options that might be applicable
-      certificationTypes.forEach(cert => {
-        if (cert.isVisa && 
-            !['Student Visa (Subclass 500)', 
-              'Temporary Graduate Visa (Subclass 485)', 
-              'Temporary Skill Shortage Visa (Subclass 482)',
-              'Bridging Visa'].includes(cert.name) && 
-            !requiredCertIds.has(cert._id)) {
-          required.push(cert);
-          requiredCertIds.add(cert._id);
-        }
-      });
-      break;
-  }
-
-  // Add appropriate identity documents based on residency status
-  certificationTypes.forEach(cert => {
-    if (cert.category === 'Identity') {
-      // Check if the cert is acceptable for this residency status
-      const isAcceptable = 
-        cert.acceptableFor === 'AllResidents' || 
-        (residencyStatus === 'Citizen' && cert.acceptableFor === 'Citizens') ||
-        (residencyStatus === 'NZCitizen' && cert.acceptableFor === 'NZCitizens') ||
-        (residencyStatus === 'PermanentResident' && cert.acceptableFor === 'PermanentResidents') ||
-        (['StudentVisa', 'TemporaryGraduateVisa', 'TSS', 'BridgingVisa', 'OtherTemporaryVisa'].includes(residencyStatus) && 
-         cert.acceptableFor === 'Foreigners');
-      
-      if (isAcceptable && !requiredCertIds.has(cert._id)) {
-        required.push(cert);
-        requiredCertIds.add(cert._id);
-      }
+  useEffect(() => {
+    if (!residencyStatus || !certificationTypes.length) {
+      setRequiredCerts([]);
+      return;
     }
-  });
-  
-  // Add standard certifications required for all applicants regardless of residency
-  certificationTypes.forEach(cert => {
-    if ((cert.category === 'Professional' || 
-         cert.category === 'Training' || 
-         cert.category === 'Background Check' || 
-         cert.category === 'Insurance') && 
-        cert.acceptableFor === 'AllResidents' && 
-        !requiredCertIds.has(cert._id)) {
-      required.push(cert);
-      requiredCertIds.add(cert._id);
-    }
-  });
-  
-  setRequiredCerts(required);
-  
-  function addSpecificVisaType(visaName) {
+
+    const required = [];
+    const requiredCertIds = new Set();
+
+    // Add education certifications first
     certificationTypes.forEach(cert => {
-      if (cert.name === visaName && !requiredCertIds.has(cert._id)) {
+      if (cert.isEducation && !requiredCertIds.has(cert._id)) {
         required.push(cert);
         requiredCertIds.add(cert._id);
       }
     });
-  }
-}, [residencyStatus, certificationTypes]);
+
+    // First, add residency-specific certifications
+    switch (residencyStatus) {
+      case 'Citizen':
+        // Australian Citizenship Certificate
+        certificationTypes.forEach(cert => {
+          if (cert.isCitizenshipProof && cert.acceptableFor === 'Citizens' && !requiredCertIds.has(cert._id)) {
+            required.push(cert);
+            requiredCertIds.add(cert._id);
+          }
+        });
+        break;
+        
+      case 'NZCitizen':
+        // New Zealand citizenship + Special Category Visa
+        certificationTypes.forEach(cert => {
+          if ((cert.isCitizenshipProof && cert.acceptableFor === 'NZCitizens') && 
+              !requiredCertIds.has(cert._id)) {
+            required.push(cert);
+            requiredCertIds.add(cert._id);
+          }
+        });
+        // Look for Special Category Visa if available in the system
+        addSpecificVisaType('Special Category Visa (Subclass 444)');
+        break;
+        
+      case 'PermanentResident':
+        // Permanent resident documentation
+        certificationTypes.forEach(cert => {
+          if (cert.acceptableFor === 'PermanentResidents' && !requiredCertIds.has(cert._id)) {
+            required.push(cert);
+            requiredCertIds.add(cert._id);
+          }
+        });
+        break;
+        
+      case 'StudentVisa':
+        addSpecificVisaType('Student Visa (Subclass 500)');
+        break;
+        
+      case 'TemporaryGraduateVisa':
+        addSpecificVisaType('Temporary Graduate Visa (Subclass 485)');
+        break;
+        
+      case 'TSS':
+        addSpecificVisaType('Temporary Skill Shortage Visa (Subclass 482)');
+        break;
+        
+      case 'BridgingVisa':
+        addSpecificVisaType('Bridging Visa');
+        break;
+        
+      case 'OtherTemporaryVisa':
+        // For other visa types, show all visa options that might be applicable
+        certificationTypes.forEach(cert => {
+          if (cert.isVisa && 
+              !['Student Visa (Subclass 500)', 
+                'Temporary Graduate Visa (Subclass 485)', 
+                'Temporary Skill Shortage Visa (Subclass 482)',
+                'Bridging Visa'].includes(cert.name) && 
+              !requiredCertIds.has(cert._id)) {
+            required.push(cert);
+            requiredCertIds.add(cert._id);
+          }
+        });
+        break;
+    }
+
+    // Add appropriate identity documents based on residency status
+    certificationTypes.forEach(cert => {
+      if (cert.category === 'Identity') {
+        // Check if the cert is acceptable for this residency status
+        const isAcceptable = 
+          cert.acceptableFor === 'AllResidents' || 
+          (residencyStatus === 'Citizen' && cert.acceptableFor === 'Citizens') ||
+          (residencyStatus === 'NZCitizen' && cert.acceptableFor === 'NZCitizens') ||
+          (residencyStatus === 'PermanentResident' && cert.acceptableFor === 'PermanentResidents') ||
+          (['StudentVisa', 'TemporaryGraduateVisa', 'TSS', 'BridgingVisa', 'OtherTemporaryVisa'].includes(residencyStatus) && 
+           cert.acceptableFor === 'Foreigners');
+        
+        if (isAcceptable && !requiredCertIds.has(cert._id)) {
+          required.push(cert);
+          requiredCertIds.add(cert._id);
+        }
+      }
+    });
+    
+    // Add standard certifications required for all applicants regardless of residency
+    certificationTypes.forEach(cert => {
+      if ((cert.category === 'Professional' || 
+           cert.category === 'Training' || 
+           cert.category === 'Background Check' || 
+           cert.category === 'Insurance') && 
+          cert.acceptableFor === 'AllResidents' && 
+          !requiredCertIds.has(cert._id)) {
+        required.push(cert);
+        requiredCertIds.add(cert._id);
+      }
+    });
+    
+    console.log('Required certifications:', required); // Add logging
+    setRequiredCerts(required);
+  }, [residencyStatus, certificationTypes]);
 
 
   // Calculate completion progress
@@ -385,7 +404,8 @@ useEffect(() => {
     submitCertifications({
       certifications: certsToSubmit,
       // nationality,
-      residencyStatus
+      residencyStatus,
+      allCertificationTypes: certificationTypes, // Pass the full list of certification types
     }, {
   onSuccess: (data) => {
       // Update the profile completeness with the received data
@@ -1247,6 +1267,42 @@ useEffect(() => {
     handleSubmit
   ]);
 
+  const renderEducationFields = (certType, certIndex) => {
+    if (!certType.isEducation) return null;
+
+    const degreeOptions = certType.educationSetting?.degreeOptions || [];
+    
+    if (degreeOptions.length === 0) {
+      console.warn(`No degree options found for education certification: ${certType.name}`);
+      return null;
+    }
+
+    return (
+      <Form.Item
+        label="Degree"
+        name="degree"
+        rules={[{ required: true, message: 'Please select your degree' }]}
+        tooltip="Select your qualification from the list of accepted degrees"
+      >
+        <Select 
+          placeholder="Select your degree"
+          showSearch
+          optionFilterProp="children"
+          filterOption={(input, option) =>
+            option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+          }
+        >
+          {degreeOptions.map((degree) => (
+            <Select.Option key={degree} value={degree}>
+              {degree}
+            </Select.Option>
+          ))}
+        </Select>
+      </Form.Item>
+    );
+  };
+
+
   const renderCertificationForm = useMemo(() => {
     if (!certDetailsVisible || currentCertIndex < 0 || currentCertIndex >= selectedCerts.length) {
       return null;
@@ -1295,7 +1351,11 @@ useEffect(() => {
           layout="vertical"
           onFinish={updateCertification}
         >
+          {renderEducationFields(certType, currentCertIndex)}
+
           {certType.requiredFields.map(field => {
+            if (field === 'degree') return null; // Skip degree as it's handled separately
+            
             const isDateField = field.toLowerCase().includes('date');
             const fieldLabel = formatFieldLabel(field);
             const fieldTooltip = getFieldTooltip(field);
@@ -1414,20 +1474,6 @@ useEffect(() => {
               </Text>
             </Form.Item>
           )}
-
-          {/* {certType.visaSettings?.requiresConditions && (
-            <Form.Item
-              name="visaConditions"
-              label="Visa Conditions"
-              rules={[{ required: true, message: 'Please specify any visa conditions' }]}
-              tooltip="Any specific conditions attached to this visa"
-            >
-              <Input.TextArea 
-                rows={3} 
-                placeholder="Enter any conditions specified on your visa grant notice"
-              />
-            </Form.Item>
-          )} */}
         </Form>
       </Drawer>
     );

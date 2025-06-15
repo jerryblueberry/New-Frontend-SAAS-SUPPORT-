@@ -16,14 +16,10 @@ import HealthInformation from '../../components/workerForm/HealthInformation';
 const Onboarding = () => {
   const navigate = useNavigate();
 
-  // Get state directly to avoid re-renders
+  // Get state from store
   const currentStep = useOnboardingStore((state) => state.currentStep);
-  const profileCompleteness = useOnboardingStore(
-    (state) => state.profileCompleteness
-  );
+  const profileCompleteness = useOnboardingStore((state) => state.profileCompleteness);
   const resetStore = useOnboardingStore((state) => state.resetStore);
-  const nextStep = useOnboardingStore((state) => state.nextStep);
-  const prevStep = useOnboardingStore((state) => state.prevStep);
   const setStep = useOnboardingStore((state) => state.setStep);
 
   // Use TanStack Query for initial data fetching
@@ -71,26 +67,34 @@ const Onboarding = () => {
 
     return hasAllFields && conditionsMet;
   };
-  // Determine completed steps based on profile completeness
-  const completedSteps = useMemo(() => {
+  // Calculate completed steps and next available step
+  const { completedSteps, nextAvailableStep } = useMemo(() => {
     const steps = [];
-    if (profileCompleteness.completedSections.basicInfo) steps.push(1);
-    if (profileCompleteness.completedSections.availability) steps.push(2);
-    if (profileCompleteness.completedSections.certifications) steps.push(3);
+    let nextStep = 1;
 
-    // Only mark health info complete if we've reached that step or beyond
-    if (
-      currentStep >= 4 &&
-      profileCompleteness.completedSections.healthInformation
-    ) {
+    if (profileCompleteness.completedSections.basicInfo) {
+      steps.push(1);
+      nextStep = 2;
+    }
+    if (profileCompleteness.completedSections.availability) {
+      steps.push(2);
+      nextStep = 3;
+    }
+    if (profileCompleteness.completedSections.certifications) {
+      steps.push(3);
+      nextStep = 4;
+    }
+    if (profileCompleteness.completedSections.healthInformation) {
       steps.push(4);
+      nextStep = 5;
+    }
+    if (profileCompleteness.completedSections.workHistory) {
+      steps.push(5);
+      nextStep = 6; // Profile is complete
     }
 
-    if (currentStep >= 5 && profileCompleteness.completedSections.workHistory) {
-      steps.push(5);
-    }
-    return steps;
-  }, [profileCompleteness, currentStep]);
+    return { completedSteps: steps, nextAvailableStep: nextStep };
+  }, [profileCompleteness]);
 
   // Error handling
   const handleWorkHistoryError = useCallback((msg) => {
@@ -130,7 +134,22 @@ const Onboarding = () => {
     }
   }, [isQueryLoading, onboardingData, resetStore]);
 
-  // Define components once outside render to prevent recreation
+  // Handle step click from progress bar
+  const handleStepClick = useCallback((stepNumber) => {
+    // Only allow navigation to:
+    // 1. Completed steps
+    // 2. Current step
+    // 3. Next available step
+    if (
+      completedSteps.includes(stepNumber) ||
+      stepNumber === currentStep ||
+      stepNumber === nextAvailableStep
+    ) {
+      setStep(stepNumber);
+    }
+  }, [completedSteps, currentStep, nextAvailableStep, setStep]);
+
+  // Define components once outside render
   const stepComponents = useMemo(
     () => ({
       1: <WorkerProfileForm />,
@@ -145,11 +164,6 @@ const Onboarding = () => {
       ),
     }),
     [handleSubmitProfile, handleWorkHistoryError]
-  );
-
-  // Get the component for the current step
-  const currentStepComponent = stepComponents[currentStep] || (
-    <div>Unknown Step</div>
   );
 
   // Optional loading state
@@ -169,15 +183,6 @@ const Onboarding = () => {
     );
   }
 
-  // Handle step click from progress bar
-  const handleStepClick = (stepNumber) => {
-    // Only allow navigation to completed steps or the current step
-    if (completedSteps.includes(stepNumber) || stepNumber === currentStep) {
-      setStep(stepNumber);
-    }
-    // The modal for incomplete steps will be handled by the ProgressBar component
-  };
-
   return (
     <div className="onboarding-container">
       <Toaster position="top-right" />
@@ -190,62 +195,35 @@ const Onboarding = () => {
           steps={[
             {
               label: 'Profile',
-              completed:
-                currentStep >= 1 &&
-                profileCompleteness.completedSections.basicInfo,
+              completed: completedSteps.includes(1),
             },
             {
               label: 'Availability',
-              completed:
-                currentStep >= 2 &&
-                profileCompleteness.completedSections.availability,
+              completed: completedSteps.includes(2),
             },
             {
               label: 'Certifications',
-              completed:
-                currentStep >= 3 &&
-                profileCompleteness.completedSections.certifications,
+              completed: completedSteps.includes(3),
             },
             {
               label: 'Health Info',
-              completed:
-                currentStep >= 4 &&
-                profileCompleteness.completedSections.healthInformation,
+              completed: completedSteps.includes(4),
             },
             {
               label: 'Work History',
-              completed:
-                currentStep >= 5 &&
-                profileCompleteness.completedSections.workHistory,
+              completed: completedSteps.includes(5),
             },
           ]}
           variant="primary"
           animated={true}
           onStepClick={handleStepClick}
           completedSteps={completedSteps}
+          nextAvailableStep={nextAvailableStep}
         />
       </div>
-      <div className="onboarding-content">{currentStepComponent}</div>
-      {/* <div className="onboarding-navigation">
-        {currentStep > 1 && (
-          <button className="btn btn-secondary" onClick={prevStep}>
-            Previous
-          </button>
-        )}
-        {currentStep < 4 ? (
-          <button className="btn btn-primary" onClick={nextStep}>
-            Next
-          </button>
-        ) : (
-          <button 
-            className="btn btn-success" 
-            onClick={handleSubmitProfile}
-            disabled={isCompleting}
-          >
-            {isCompleting ? 'Completing...' : 'Complete Profile'}
-          </button>
-        )}
-      </div> */}
+      <div className="onboarding-content">
+        {stepComponents[currentStep] || <div>Unknown Step</div>}
+      </div>
     </div>
   );
 };

@@ -971,29 +971,49 @@ export const useCertificationsMutation = () => {
       try {
         const {
           certifications: storeCertifications,
-          //  nationality,
           residencyStatus,
         } = useOnboardingStore.getState();
 
         // Use provided data or get from state
         const certsToSave = data?.certifications || storeCertifications;
-        // const nationalityToSave = data?.nationality || nationality;
         const residencyStatusToSave = data?.residencyStatus || residencyStatus;
+        const allCertTypes = data?.allCertificationTypes; // NEW: Accept allCertificationTypes
 
         // Check required fields
-        if (
-          // !nationalityToSave ||
-          !residencyStatusToSave
-        ) {
-          throw new Error(
-            'Nationality and residency status are required fields'
-          );
+        if (!residencyStatusToSave) {
+          throw new Error('Residency status is required');
         }
 
-        // Ensure all certifications have certificationType
+        // Ensure all certifications have certificationType and required fields
         for (const cert of certsToSave) {
           if (!cert.certificationType) {
             throw new Error('All certifications must have a certificationType');
+          }
+
+          // Find certification type details from the provided allCertTypes
+          const certType = allCertTypes.find(t => t._id === cert.certificationType);
+          if (!certType) {
+            throw new Error(`Certification type not found for ID: ${cert.certificationType}`);
+          }
+
+          // Validate education-specific fields
+          if (certType.isEducation) {
+            if (!cert.degree) {
+              throw new Error(`Degree is required for ${certType.name}`);
+            }
+            if (certType.educationSetting?.degreeOptions && 
+                !certType.educationSetting.degreeOptions.includes(cert.degree)) {
+              throw new Error(`Invalid degree option for ${certType.name}`);
+            }
+          }
+
+          // Validate other required fields
+          if (certType.requiredFields) {
+            for (const field of certType.requiredFields) {
+              if (!cert[field]) {
+                throw new Error(`Missing required field '${field}' for ${certType.name}`);
+              }
+            }
           }
         }
 
@@ -1002,7 +1022,6 @@ export const useCertificationsMutation = () => {
             ...cert,
             documents: cert.documents || [], // Ensure documents array exists
           })),
-          // nationality: nationalityToSave,
           residencyStatus: residencyStatusToSave,
         });
 
@@ -1016,8 +1035,7 @@ export const useCertificationsMutation = () => {
     },
     onSuccess: (data) => {
       if (data.success) {
-        const { updateProfileCompleteness, nextStep } =
-          useOnboardingStore.getState();
+        const { updateProfileCompleteness, nextStep } = useOnboardingStore.getState();
         updateProfileCompleteness(data.data);
         queryClient.invalidateQueries({ queryKey: ['onboarding'] });
         nextStep();
