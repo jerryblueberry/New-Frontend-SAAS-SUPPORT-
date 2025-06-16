@@ -2,22 +2,21 @@
 import axios from 'axios';
 import { getAccessToken, removeTokens } from '../utils/storage';
 
-// Create API instance with environment variable for baseURL
+// Create API instance with optimized settings
 const api = axios.create({
-  // baseURL: import.meta.env.VITE_API_URL || 'https://backend-for-the-saas-short-job-finder.vercel.app/api/v1',
-  // baseURL: import.meta.env.VITE_API_URL || 'https://backend-for-the-saas-short-git-fbdf2e-jerryblueberrys-projects.vercel.app/api/v1',
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
   withCredentials: true,
-  timeout: 10000,
+  timeout: 5000, // Reduced timeout for faster failure
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   }
 });
 
-// Token refresh logic with proper closure to prevent memory leaks
+// Optimized token refresh logic
 let isRefreshing = false;
 let refreshSubscribers = [];
+let refreshPromise = null;
 
 // Helper to add new requesters to queue
 const addRefreshSubscriber = (callback) => {
@@ -34,6 +33,7 @@ const onRefreshSuccess = (token) => {
 const resetRefreshState = () => {
   refreshSubscribers = [];
   isRefreshing = false;
+  refreshPromise = null;
 };
 
 // Request interceptor - add auth token
@@ -78,19 +78,17 @@ api.interceptors.response.use(
     // Mark as retried to avoid infinite loops
     originalRequest._retry = true;
     
-    // Refresh token logic
+    // Use existing refresh promise if one is in progress
     if (!isRefreshing) {
       isRefreshing = true;
       
-      // Use dynamic import to avoid circular dependencies
       try {
         const authModule = await import('./auth');
-        const newAccessToken = await authModule.refreshAuthToken();
+        refreshPromise = authModule.refreshAuthToken();
+        const newAccessToken = await refreshPromise;
         
-        // Update request header for retry
         if (newAccessToken) {
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-          // Notify all pending requests
           onRefreshSuccess(newAccessToken);
           resetRefreshState();
           return api(originalRequest);
@@ -98,7 +96,6 @@ api.interceptors.response.use(
           throw new Error('Token refresh failed');
         }
       } catch (refreshError) {
-        // Clear tokens on refresh failure and broadcast event
         resetRefreshState();
         removeTokens();
         window.dispatchEvent(new Event('auth:expired'));

@@ -12,6 +12,7 @@ import useOnboardingStore, {
 import { Toaster, toast } from 'react-hot-toast';
 import CertificateSecond from '../CertificateCheck/CertificateSecond';
 import HealthInformation from '../../components/workerForm/HealthInformation';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 const Onboarding = () => {
   const navigate = useNavigate();
@@ -168,7 +169,17 @@ const Onboarding = () => {
 
   // Optional loading state
   if (isQueryLoading) {
-    return <div className="loading-container">Loading your profile...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <LoadingSpinner
+          size="lg"
+          showLogo={true}
+          text="Loading your profile..."
+          fullPage={true}
+          variant="gradient"
+        />
+      </div>
+    );
   }
 
   // Optional error handling

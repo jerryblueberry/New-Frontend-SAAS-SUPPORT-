@@ -195,7 +195,17 @@ const Dashboard = () => {
     navigate('/onboarding');
   };
 
-  if (isLoading) return <LoadingSpinner fullPage />;
+  if (isLoading) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-900">
+      <LoadingSpinner
+        size="lg"
+        showLogo={true}
+        text="Loading dashboard..."
+        fullPage={true}
+        variant="light"
+      />
+    </div>
+  );
 
   return (
     <div className="wrk-dashboard-container">

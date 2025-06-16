@@ -20,52 +20,36 @@ export const useAuth = () => {
    * @returns {Promise<boolean>} Authentication status
    */
   const verifyAuth = useCallback(async () => {
-    // Don't attempt verification if we don't have valid tokens
-    if (!hasValidAuth()) {
-      return false;
-    }
-    
     try {
-      // Get user data from server
-      const userData = await authAPI.getCurrentUser();
-      
-      // Dispatch success to update context
-      context.dispatch({
-        type: 'AUTH_SUCCESS',
-        payload: userData
-      });
-      
+      // Check if we have valid tokens
+      if (!hasValidAuth()) {
+        return false;
+      }
+
+      // Verify token with backend
+      await authAPI.getCurrentUser();
       return true;
     } catch (error) {
       console.error('Auth verification failed:', error);
-      
-      // If error is due to token expiration, try refreshing once
-      if (error.response?.status === 401) {
-        try {
-          await authAPI.refreshAuthToken();
-          const userData = await authAPI.getCurrentUser();
-          
-          context.dispatch({
-            type: 'AUTH_SUCCESS',
-            payload: userData
-          });
-          
-          return true;
-        // eslint-disable-next-line no-unused-vars
-        } catch (refreshError) {
-          // If refresh fails, clear auth state
-          context.dispatch({ type: 'AUTH_LOGOUT' });
-          
-          // Dispatch event for routing components
-          // window.dispatchEvent(new Event('auth:expired'));
-          return false;
-        }
-      }
-      
       return false;
     }
-  }, [context]);
-  
+  }, []);
+
+  /**
+   * Handles token refresh and user data update
+   * @returns {Promise<boolean>} Success status
+   */
+  const refreshUserData = useCallback(async () => {
+    try {
+      await authAPI.refreshAuthToken();
+      const userData = await authAPI.getCurrentUser();
+      return true;
+    } catch (error) {
+      console.error('Failed to refresh user data:', error);
+      return false;
+    }
+  }, []);
+
   // Login with Google
   const googleLogin = useCallback(async (googleToken) => {
     try {
@@ -90,6 +74,7 @@ export const useAuth = () => {
   return {
     ...context,
     verifyAuth,
+    refreshUserData,
     googleLogin
   };
 };

@@ -58,6 +58,8 @@ function authReducer(state, action) {
       };
     case 'CLEAR_ERROR':
       return { ...state, authError: null };
+    case 'SET_LOADING':
+      return { ...state, loading: action.payload };
     default:
       return state;
   }
@@ -97,82 +99,72 @@ const AuthProvider = ({ children }) => {
     removeTokens();
   }, []);
   
-  // Verify auth state on app load and set up listeners
+  // Optimized auth verification
   useEffect(() => {
     const verifyAuth = async () => {
-      dispatch({ type: 'AUTH_START' });
-      
-      // Check if we have valid tokens using the enhanced token validation
-      if (!hasValidAuth()) {
+      try {
+        // Quick check for tokens first
+        const accessToken = getAccessToken();
         const refreshToken = getRefreshToken();
-        
-        // If we have a refresh token, try to use it
+
+        // If no tokens at all, fail fast
+        if (!accessToken && !refreshToken) {
+          dispatch({ type: 'AUTH_LOGOUT' });
+          dispatch({ type: 'SET_LOADING', payload: false });
+          return;
+        }
+
+        // If we have a valid access token, verify it immediately
+        if (accessToken && isTokenValid(accessToken)) {
+          try {
+            const userResponse = await api.get('/auth/me');
+            dispatch({ 
+              type: 'AUTH_SUCCESS', 
+              payload: userResponse.data.data.user 
+            });
+            dispatch({ type: 'SET_LOADING', payload: false });
+            return;
+          } catch (error) {
+            // If token is invalid, try refresh
+            console.error('Token validation failed:', error);
+          }
+        }
+
+        // Only try refresh if we have a refresh token
         if (refreshToken) {
           try {
             await refreshAuthToken();
-            
-            // After refresh, check if we have a valid token now
-            if (hasValidAuth()) {
-              // Token refresh worked, get user profile
-              try {
-                const userResponse = await api.get('/auth/me');
-                dispatch({ 
-                  type: 'AUTH_SUCCESS', 
-                  payload: userResponse.data.data.user 
-                });
-                return;
-              } catch (userError) {
-                console.error('User fetch failed after token refresh:', userError);
-                // Fall through to logout
-              }
-            }
-          } catch (refreshError) {
-            console.error('Token refresh failed during auth verification:', refreshError);
-            // Fall through to logout
+            const userResponse = await api.get('/auth/me');
+            dispatch({ 
+              type: 'AUTH_SUCCESS', 
+              payload: userResponse.data.data.user 
+            });
+          } catch (error) {
+            console.error('Token refresh failed:', error);
+            removeTokens();
+            dispatch({ type: 'AUTH_LOGOUT' });
           }
-          
-          // If we reach here with a refresh token, it means refresh failed
-          // Clear tokens to avoid future failed attempts
-          removeTokens();
+        } else {
+          dispatch({ type: 'AUTH_LOGOUT' });
         }
-        
-        // No valid tokens or refresh failed
-        dispatch({ type: 'AUTH_LOGOUT' });
-        return;
-      }
-      
-      // We have a valid access token, get user profile
-      try {
-        const response = await api.get('/auth/me');
-        
-        dispatch({ 
-          type: 'AUTH_SUCCESS', 
-          payload: response.data.data.user 
-        });
       } catch (error) {
-        console.error('Auth verification error:', error.response?.data || error.message);
-        
-        // If token is valid but request failed, something else is wrong
-        // Clear auth state and tokens
+        console.error('Auth verification error:', error);
         dispatch({ type: 'AUTH_LOGOUT' });
-        removeTokens();
+      } finally {
+        dispatch({ type: 'SET_LOADING', payload: false });
       }
     };
 
     // Execute auth verification
     verifyAuth();
     
-    // Set up auth expiration event listener
-    // window.addEventListener('auth:expired', handleAuthExpired);
-    
-    // Set up periodic token refresh check
-    const tokenCheckInterval = setInterval(checkAndRefreshToken, 3 * 60 * 1000); // Every 3 minutes
+    // Set up periodic token refresh check with longer interval
+    const tokenCheckInterval = setInterval(checkAndRefreshToken, 5 * 60 * 1000); // Every 5 minutes
     
     return () => {
-      window.removeEventListener('auth:expired', handleAuthExpired);
       clearInterval(tokenCheckInterval);
     };
-  }, [handleAuthExpired, checkAndRefreshToken]);
+  }, [checkAndRefreshToken]);
 
   /**
    * Sign in with credentials or token-based auth

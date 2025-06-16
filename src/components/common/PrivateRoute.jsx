@@ -1,40 +1,50 @@
 // src/components/common/PrivateRoute.jsx
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
+
+// Loading fallback component
+const LoadingFallback = () => (
+  <div 
+  
+  className="min-h-screen flex items-center justify-center bg-gray-900"
+  >
+    <LoadingSpinner
+      size="lg"
+      showLogo={true}
+      text="Loading"
+      fullPage={true}
+      variant="gradient"
+      // color='light'
+    />
+  </div>
+);
 
 /**
  * PrivateRoute component that protects routes from unauthenticated access
  * Redirects to login if user is not authenticated
  */
 const PrivateRoute = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <LoadingSpinner
-          fullPage
-          size="lg"
-          color="primary"
-          variant="gradient"
-          showLogo
-          logoSize="lg"
-          text="Verifying authentication..."
-          overlayOpacity={0.8}
-          gradientColors={['#3b82f6', '#10b981', '#ef4444']}
-        />
-      </div>
-    );
+  // Show minimal loading state during initial auth check
+  if (loading) {
+    return <LoadingFallback />;
   }
 
-  if (!isAuthenticated) {
+  // Only redirect if we're sure user is not authenticated
+  if (!isAuthenticated && !loading) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  return children;
+  // Wrap children in Suspense for better loading experience
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      {children}
+    </Suspense>
+  );
 };
 
 export default PrivateRoute;

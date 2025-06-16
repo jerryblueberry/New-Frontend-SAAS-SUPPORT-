@@ -4,10 +4,10 @@ import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 
 const PublicRoute = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <LoadingSpinner
@@ -25,8 +25,9 @@ const PublicRoute = ({ children }) => {
     );
   }
 
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" state={{ from: location }} replace />;
+  if (isAuthenticated && !loading) {
+    const from = location.state?.from?.pathname || '/dashboard';
+    return <Navigate to={from} replace />;
   }
 
   return children;

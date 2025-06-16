@@ -54,13 +54,13 @@ const VALIDATION_RULES = {
     required: true,
   },
   skillTags: {
-    minCount: 1,
-    maxCount: 20,
+    minCount: 5,
+    maxCount: 15,
     required: true,
   },
   languages: {
     minCount: 1,
-    maxCount: 10,
+    maxCount: 7,
     required: true,
   },
 };
@@ -611,9 +611,7 @@ const WorkerProfileForm = React.memo(() => {
               aria-describedby={formErrors.expectedHourlyRate ? 'rate-error' : 'rate-hint'}
             />
           </div>
-          <div id="rate-hint" className="profile_wrkr_basic_form_hint">
-            Suggested range: ${VALIDATION_RULES.expectedHourlyRate.min} - ${VALIDATION_RULES.expectedHourlyRate.max} per hour
-          </div>
+   
           {formErrors.expectedHourlyRate && (
             <div 
               id="rate-error" 
@@ -838,11 +836,11 @@ const WorkerProfileForm = React.memo(() => {
           </div>
         )}
         
-        {!isFormValid && !hasAttemptedSubmit && (
+        {/* {!isFormValid && !hasAttemptedSubmit && (
           <div id="submit-help" className="profile_wrkr_basic_form_help">
             Complete all required fields to proceed to the next step.
           </div>
-        )}
+        )} */}
       </div>
     </form>
   );
