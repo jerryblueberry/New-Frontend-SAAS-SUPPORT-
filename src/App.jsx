@@ -22,6 +22,8 @@ import CertificationManagement from './pages/CertificateCheck/CertificationManag
 import CertificateSecond from './pages/CertificateCheck/CertificateSecond';
 import CertificateThird from './pages/CertificateCheck/CertificateThird';
 import ForgotPassword from './pages/auth/ForgotPassword';
+import AdminDashboard from './pages/AdminPages/AdminDashboard/AdminDashboard';
+import AdminRoute from './components/common/AdminRoute';
 
 // Create React Query client with optimized settings
 const queryClient = new QueryClient({
@@ -120,6 +122,15 @@ function AppRoutes() {
             <PrivateRoute>
               <Onboarding />
             </PrivateRoute>
+          }
+        />
+        {/* Admin Related Routes */}
+        <Route
+          path="/admin-dashboard"
+          element={
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
           }
         />
 
