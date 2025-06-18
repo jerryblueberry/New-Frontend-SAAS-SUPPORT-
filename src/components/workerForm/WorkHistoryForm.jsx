@@ -24,7 +24,6 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
   const [localWorkHistory, setLocalWorkHistory] = useState({
     jobs: [],
     noWorkHistory: false,
-    hasReferences: 'no',
     references: [],
     CV: '',
   });
@@ -39,7 +38,6 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
       setLocalWorkHistory({
         jobs: workHistory.jobs || [],
         noWorkHistory: workHistory.noWorkHistory || false,
-        hasReferences: workHistory.references?.length > 0 ? 'yes' : 'no',
         references: workHistory.references || [],
         CV: CV || workHistory.CV || null,
       });
@@ -133,49 +131,49 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
   );
 
   // References management
-  const handleHasReferencesChange = useCallback(
-    (value) => {
-      // Create a copy of the current state to modify
-      const updatedWorkHistory = { ...localWorkHistory };
-      updatedWorkHistory.hasReferences = value;
+  // const handleHasReferencesChange = useCallback(
+  //   (value) => {
+  //     // Create a copy of the current state to modify
+  //     const updatedWorkHistory = { ...localWorkHistory };
+  //     updatedWorkHistory.hasReferences = value;
 
-      // If toggling to "yes" and no references exist, create an empty one
-      if (
-        value === 'yes' &&
-        (!updatedWorkHistory.references ||
-          updatedWorkHistory.references.length === 0)
-      ) {
-        updatedWorkHistory.references = [
-          {
-            name: '',
-            company: '',
-            phone: '',
-            email: '',
-          },
-        ];
-      }
+  //     // If toggling to "yes" and no references exist, create an empty one
+  //     if (
+  //       value === 'yes' &&
+  //       (!updatedWorkHistory.references ||
+  //         updatedWorkHistory.references.length === 0)
+  //     ) {
+  //       updatedWorkHistory.references = [
+  //         {
+  //           name: '',
+  //           company: '',
+  //           phone: '',
+  //           email: '',
+  //         },
+  //       ];
+  //     }
 
-      // If toggling to "no", clear any references but keep the array
-      if (value === 'no') {
-        updatedWorkHistory.references = [];
-      }
+  //     // If toggling to "no", clear any references but keep the array
+  //     if (value === 'no') {
+  //       updatedWorkHistory.references = [];
+  //     }
 
-      // Update both the global store and local state
-      updateWorkHistory(updatedWorkHistory);
-      setLocalWorkHistory(updatedWorkHistory);
+  //     // Update both the global store and local state
+  //     updateWorkHistory(updatedWorkHistory);
+  //     setLocalWorkHistory(updatedWorkHistory);
 
-      // Auto-expand the first reference when adding and choosing "yes"
-      if (value === 'yes' && updatedWorkHistory.references.length > 0) {
-        setTimeout(() => {
-          setExpandedReference(0);
-        }, 100);
-      } else {
-        // Clear expanded reference when choosing "no"
-        setExpandedReference(null);
-      }
-    },
-    [updateWorkHistory, localWorkHistory]
-  );
+  //     // Auto-expand the first reference when adding and choosing "yes"
+  //     if (value === 'yes' && updatedWorkHistory.references.length > 0) {
+  //       setTimeout(() => {
+  //         setExpandedReference(0);
+  //       }, 100);
+  //     } else {
+  //       // Clear expanded reference when choosing "no"
+  //       setExpandedReference(null);
+  //     }
+  //   },
+  //   [updateWorkHistory, localWorkHistory]
+  // );
 
   const handleUpdateReference = useCallback(
     (index, field, value) => {
@@ -377,63 +375,36 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
       isValid = false;
     }
 
-    // Validate references
-    if (localWorkHistory.hasReferences === 'yes') {
-      if (
-        !localWorkHistory.references ||
-        localWorkHistory.references.length === 0
-      ) {
-        errors.references =
-          'At least one reference is required when "Has References" is set to Yes';
-        isValid = false;
-      } else {
-        // Check if there's at least one complete reference
-        const validReferences = localWorkHistory.references.filter(
-          (ref) =>
-            ref.name &&
-            ref.name.trim() &&
-            ref.position &&
-            ref.position.trim() &&
-            ref.phone &&
-            ref.phone.trim() &&
-            ref.email &&
-            ref.email.trim() &&
-            /\S+@\S+\.\S+/.test(ref.email.trim())
-        );
-
-        if (validReferences.length === 0) {
-          errors.references =
-            'At least one complete reference is required when "Has References" is set to Yes';
+    // Validate references - now mandatory
+    if (!localWorkHistory.references || localWorkHistory.references.length !== 2) {
+      errors.references = 'Exactly two references are required';
+      isValid = false;
+    } else {
+      // Validate each reference
+      localWorkHistory.references.forEach((ref, index) => {
+        if (!ref.name || !ref.name.trim()) {
+          errors[`ref${index}_name`] = 'Reference name is required';
           isValid = false;
         }
 
-        // Validate individual reference fields
-        localWorkHistory.references.forEach((ref, index) => {
-          if (!ref.name || !ref.name.trim()) {
-            errors[`ref${index}_name`] = 'Reference name is required';
-            isValid = false;
-          }
+        if (!ref.position || !ref.position.trim()) {
+          errors[`ref${index}_position`] = 'Reference position is required';
+          isValid = false;
+        }
 
-          if (!ref.position || !ref.position.trim()) {
-            errors[`ref${index}_position`] = 'Reference position is required';
-            isValid = false;
-          }
+        if (!ref.phone || !ref.phone.trim()) {
+          errors[`ref${index}_phone`] = 'Reference phone is required';
+          isValid = false;
+        }
 
-          if (!ref.phone || !ref.phone.trim()) {
-            errors[`ref${index}_phone`] = 'Reference phone is required';
-            isValid = false;
-          }
-
-          if (!ref.email || !ref.email.trim()) {
-            errors[`ref${index}_email`] = 'Reference email is required';
-            isValid = false;
-          } else if (!/\S+@\S+\.\S+/.test(ref.email.trim())) {
-            errors[`ref${index}_email`] =
-              'Please provide a valid email address';
-            isValid = false;
-          }
-        });
-      }
+        if (!ref.email || !ref.email.trim()) {
+          errors[`ref${index}_email`] = 'Reference email is required';
+          isValid = false;
+        } else if (!/\S+@\S+\.\S+/.test(ref.email.trim())) {
+          errors[`ref${index}_email`] = 'Please provide a valid email address';
+          isValid = false;
+        }
+      });
     }
 
     setFormErrors(errors);
@@ -480,54 +451,15 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
       e.preventDefault();
 
       if (!validateForm()) {
-        // const firstErrorField = document.querySelector('.wh-error-field');
-        // if (firstErrorField) {
-        //   firstErrorField.scrollIntoView({
-        //     behavior: 'smooth',
-        //     block: 'center',
-        //   });
-        //   firstErrorField.focus();
-        // }
         toast.error('Please fix all validation errors before submitting', {
           position: 'top-right',
         });
         return;
       }
 
-      // Enhanced validation for references
-      if (localWorkHistory.hasReferences === 'yes') {
-        const validReferences = localWorkHistory.references.filter(
-          (ref) =>
-            ref.name &&
-            ref.name.trim() &&
-            ref.position &&
-            ref.position.trim() &&
-            ref.phone &&
-            ref.phone.trim() &&
-            ref.email &&
-            ref.email.trim()
-        );
-
-        if (validReferences.length === 0) {
-          toast.error(
-            'At least one complete reference is required when "Has References" is set to Yes',
-            {
-              position: 'top-right',
-            }
-          );
-          return;
-        }
-
-        // Update the local state with only valid references
-        setLocalWorkHistory((prev) => ({
-          ...prev,
-          references: validReferences,
-        }));
-      }
-
       const formattedData = {
         jobs: localWorkHistory.jobs.map((job) => ({
-          title: job.title, // Handle both field names
+          title: job.title,
           company: job.company,
           startDate: job.startDate,
           endDate: job.endDate,
@@ -535,32 +467,18 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
           description: job.description || '',
         })),
         noWorkHistory: localWorkHistory.noWorkHistory,
-        hasReferences: localWorkHistory.hasReferences,
-        references:
-          localWorkHistory.hasReferences === 'yes'
-            ? localWorkHistory.references
-                .filter(
-                  (ref) =>
-                    ref.name &&
-                    ref.name.trim() &&
-                    ref.position &&
-                    ref.position.trim()
-                )
-                .map((ref) => ({
-                  name: ref.name.trim(),
-                  position: ref.position.trim(),
-                  company: ref.company ? ref.company.trim() : '',
-                  phone: ref.phone ? ref.phone.trim() : '',
-                  email: ref.email ? ref.email.trim().toLowerCase() : '',
-                }))
-            : [],
-        // ADD THIS LINE - Include CV from either local state or global store
+        references: localWorkHistory.references.map((ref) => ({
+          name: ref.name.trim(),
+          position: ref.position.trim(),
+          company: ref.company ? ref.company.trim() : '',
+          phone: ref.phone ? ref.phone.trim() : '',
+          email: ref.email ? ref.email.trim().toLowerCase() : '',
+        })),
         CV: localWorkHistory.CV || CV,
       };
 
-      console.log('Submitting work history data:', formattedData); // Debug log
+      console.log('Submitting work history data:', formattedData);
 
-      // Update the store before submission
       updateWorkHistory(formattedData);
 
       saveWorkHistory(formattedData, {
@@ -592,15 +510,7 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
         },
       });
     },
-    [
-      localWorkHistory,
-      validateForm,
-      saveWorkHistory,
-      updateWorkHistory,
-      onComplete,
-      onError,
-      CV, // Add CV to dependencies
-    ]
+    [localWorkHistory, validateForm, saveWorkHistory, updateWorkHistory, onComplete, onError, CV]
   );
 
   const formatDateForInput = (dateValue) => {
@@ -1037,290 +947,260 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
       <div className="wh-section wh-references-section">
         <div className="wh-section-header">
           <h3>Professional References</h3>
-          <p>Add 1-2 people who can vouch for your skills and work ethic</p>
+          <p>Add two professional references who can vouch for your skills and work ethic</p>
         </div>
 
-        <div className="wh-form-group wh-radio-group-container">
-          <label>Do you have professional references?</label>
-          <div className="wh-radio-group">
-            <label className="wh-radio-container">
-              <input
-                type="radio"
-                name="hasReferences"
-                value="yes"
-                checked={localWorkHistory.hasReferences === 'yes'}
-                onChange={() => handleHasReferencesChange('yes')}
-              />
-              <span className="wh-radio-mark"></span>
-              <span>Yes</span>
-            </label>
-            <label className="wh-radio-container">
-              <input
-                type="radio"
-                name="hasReferences"
-                value="no"
-                checked={localWorkHistory.hasReferences === 'no'}
-                onChange={() => handleHasReferencesChange('no')}
-              />
-              <span className="wh-radio-mark"></span>
-              <span>No</span>
-            </label>
-          </div>
-        </div>
+        <div className="wh-references-list">
+          {formErrors.refLimit && (
+            <div className="wh-error-message">{formErrors.refLimit}</div>
+          )}
 
-        {localWorkHistory.hasReferences === 'yes' && (
-          <div className="wh-references-list">
-            {formErrors.refLimit && (
-              <div className="wh-error-message">{formErrors.refLimit}</div>
-            )}
+          {localWorkHistory.references.length === 0 ? (
+            <div className="wh-empty-state">
+              <div className="wh-empty-icon">👤</div>
+              <p>You haven't added any references yet</p>
+              <button
+                type="button"
+                className="wh-btn wh-btn-secondary"
+                onClick={addReference}
+              >
+                Add Your First Reference
+              </button>
+            </div>
+          ) : (
+            <>
+              {localWorkHistory.references.map((ref, index) => (
+                <div
+                  key={index}
+                  id={`wh-ref-card-${index}`}
+                  className={`wh-card wh-reference-card ${expandedReference === index ? 'wh-expanded' : ''}`}
+                >
+                  <div
+                    className="wh-card-header"
+                    onClick={() => toggleExpandReference(index)}
+                  >
+                    <div className="wh-card-title">
+                      <h4>{ref.name || `Reference ${index + 1}`}</h4>
+                      {ref.company && <span>{ref.company}</span>}
+                    </div>
+                    <button
+                      type="button"
+                      className="wh-expand-toggle"
+                      aria-label="Toggle details"
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <polyline
+                          points={
+                            expandedReference === index
+                              ? '18 15 12 9 6 15'
+                              : '6 9 12 15 18 9'
+                          }
+                        ></polyline>
+                      </svg>
+                    </button>
+                  </div>
 
-            {localWorkHistory.references.length === 0 ? (
-              <div className="wh-empty-state">
-                <div className="wh-empty-icon">👤</div>
-                <p>You haven't added any references yet</p>
+                  {expandedReference === index && (
+                    <div className="wh-card-content">
+                      <div className="wh-form-row">
+                        <div className="wh-form-group">
+                          <label htmlFor={`ref-name-${index}`}>
+                            Full Name <span className="wh-required">*</span>
+                          </label>
+                          <input
+                            id={`ref-name-${index}`}
+                            type="text"
+                            value={ref.name}
+                            onChange={(e) =>
+                              handleUpdateReference(
+                                index,
+                                'name',
+                                e.target.value
+                              )
+                            }
+                            placeholder="Enter reference's name"
+                            className={
+                              formErrors[`ref${index}_name`]
+                                ? 'wh-error-field'
+                                : ''
+                            }
+                            required
+                          />
+                          {formErrors[`ref${index}_name`] && (
+                            <div className="wh-field-error">
+                              {formErrors[`ref${index}_name`]}
+                            </div>
+                          )}
+                        </div>
+                        <div className="wh-form-group">
+                          <label htmlFor={`ref-position-${index}`}>
+                            Position <span className="wh-required">*</span>
+                          </label>
+                          <input
+                            id={`ref-position-${index}`}
+                            type="text"
+                            value={ref.position || ''}
+                            onChange={(e) =>
+                              handleUpdateReference(
+                                index,
+                                'position',
+                                e.target.value
+                              )
+                            }
+                            placeholder="Reference's position"
+                            className={
+                              formErrors[`ref${index}_position`]
+                                ? 'wh-error-field'
+                                : ''
+                            }
+                            required
+                          />
+                          {formErrors[`ref${index}_position`] && (
+                            <div className="wh-field-error">
+                              {formErrors[`ref${index}_position`]}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="wh-form-group">
+                          <label htmlFor={`ref-company-${index}`}>
+                            Company
+                          </label>
+                          <input
+                            id={`ref-company-${index}`}
+                            type="text"
+                            value={ref.company || ''}
+                            onChange={(e) =>
+                              handleUpdateReference(
+                                index,
+                                'company',
+                                e.target.value
+                              )
+                            }
+                            placeholder="Enter company name"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="wh-form-row">
+                        <div className="wh-form-group">
+                          <label htmlFor={`ref-phone-${index}`}>
+                            Phone Number{' '}
+                            <span className="wh-required">*</span>
+                          </label>
+                          <input
+                            id={`ref-phone-${index}`}
+                            type="tel"
+                            value={ref.phone || ''}
+                            onChange={(e) =>
+                              handleUpdateReference(
+                                index,
+                                'phone',
+                                e.target.value
+                              )
+                            }
+                            placeholder="Enter phone number"
+                            className={
+                              formErrors[`ref${index}_phone`]
+                                ? 'wh-error-field'
+                                : ''
+                            }
+                            required
+                          />
+                          {formErrors[`ref${index}_phone`] && (
+                            <div className="wh-field-error">
+                              {formErrors[`ref${index}_phone`]}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="wh-form-group">
+                          <label htmlFor={`ref-email-${index}`}>
+                            Email <span className="wh-required">*</span>
+                          </label>
+                          <input
+                            id={`ref-email-${index}`}
+                            type="email"
+                            value={ref.email || ''}
+                            onChange={(e) =>
+                              handleUpdateReference(
+                                index,
+                                'email',
+                                e.target.value
+                              )
+                            }
+                            placeholder="Enter email address"
+                            className={
+                              formErrors[`ref${index}_email`]
+                                ? 'wh-error-field'
+                                : ''
+                            }
+                            required
+                          />
+                          {formErrors[`ref${index}_email`] && (
+                            <div className="wh-field-error">
+                              {formErrors[`ref${index}_email`]}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="wh-card-actions">
+                        <button
+                          type="button"
+                          className="wh-btn wh-btn-danger"
+                          onClick={() => removeReference(index)}
+                        >
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                          </svg>
+                          Remove Reference
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {localWorkHistory.references.length < 2 && (
                 <button
                   type="button"
-                  className="wh-btn wh-btn-secondary"
+                  className="wh-btn wh-btn-secondary wh-add-btn"
                   onClick={addReference}
                 >
-                  Add Your First Reference
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="16"></line>
+                    <line x1="8" y1="12" x2="16" y2="12"></line>
+                  </svg>
+                  Add Another Reference
                 </button>
-              </div>
-            ) : (
-              <>
-                {localWorkHistory.references.map((ref, index) => (
-                  <div
-                    key={index}
-                    id={`wh-ref-card-${index}`}
-                    className={`wh-card wh-reference-card ${expandedReference === index ? 'wh-expanded' : ''}`}
-                  >
-                    <div
-                      className="wh-card-header"
-                      onClick={() => toggleExpandReference(index)}
-                    >
-                      <div className="wh-card-title">
-                        <h4>{ref.name || `Reference ${index + 1}`}</h4>
-                        {ref.company && <span>{ref.company}</span>}
-                      </div>
-                      <button
-                        type="button"
-                        className="wh-expand-toggle"
-                        aria-label="Toggle details"
-                      >
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <polyline
-                            points={
-                              expandedReference === index
-                                ? '18 15 12 9 6 15'
-                                : '6 9 12 15 18 9'
-                            }
-                          ></polyline>
-                        </svg>
-                      </button>
-                    </div>
-
-                    {expandedReference === index && (
-                      <div className="wh-card-content">
-                        <div className="wh-form-row">
-                          <div className="wh-form-group">
-                            <label htmlFor={`ref-name-${index}`}>
-                              Full Name <span className="wh-required">*</span>
-                            </label>
-                            <input
-                              id={`ref-name-${index}`}
-                              type="text"
-                              value={ref.name}
-                              onChange={(e) =>
-                                handleUpdateReference(
-                                  index,
-                                  'name',
-                                  e.target.value
-                                )
-                              }
-                              placeholder="Enter reference's name"
-                              className={
-                                formErrors[`ref${index}_name`]
-                                  ? 'wh-error-field'
-                                  : ''
-                              }
-                              required
-                            />
-                            {formErrors[`ref${index}_name`] && (
-                              <div className="wh-field-error">
-                                {formErrors[`ref${index}_name`]}
-                              </div>
-                            )}
-                          </div>
-                          <div className="wh-form-group">
-                            <label htmlFor={`ref-position-${index}`}>
-                              Position <span className="wh-required">*</span>
-                            </label>
-                            <input
-                              id={`ref-position-${index}`}
-                              type="text"
-                              value={ref.position || ''}
-                              onChange={(e) =>
-                                handleUpdateReference(
-                                  index,
-                                  'position',
-                                  e.target.value
-                                )
-                              }
-                              placeholder="Reference's position"
-                              className={
-                                formErrors[`ref${index}_position`]
-                                  ? 'wh-error-field'
-                                  : ''
-                              }
-                              required
-                            />
-                            {formErrors[`ref${index}_position`] && (
-                              <div className="wh-field-error">
-                                {formErrors[`ref${index}_position`]}
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="wh-form-group">
-                            <label htmlFor={`ref-company-${index}`}>
-                              Company
-                            </label>
-                            <input
-                              id={`ref-company-${index}`}
-                              type="text"
-                              value={ref.company || ''}
-                              onChange={(e) =>
-                                handleUpdateReference(
-                                  index,
-                                  'company',
-                                  e.target.value
-                                )
-                              }
-                              placeholder="Enter company name"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="wh-form-row">
-                          <div className="wh-form-group">
-                            <label htmlFor={`ref-phone-${index}`}>
-                              Phone Number{' '}
-                              <span className="wh-required">*</span>
-                            </label>
-                            <input
-                              id={`ref-phone-${index}`}
-                              type="tel"
-                              value={ref.phone || ''}
-                              onChange={(e) =>
-                                handleUpdateReference(
-                                  index,
-                                  'phone',
-                                  e.target.value
-                                )
-                              }
-                              placeholder="Enter phone number"
-                              className={
-                                formErrors[`ref${index}_phone`]
-                                  ? 'wh-error-field'
-                                  : ''
-                              }
-                              required
-                            />
-                            {formErrors[`ref${index}_phone`] && (
-                              <div className="wh-field-error">
-                                {formErrors[`ref${index}_phone`]}
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="wh-form-group">
-                            <label htmlFor={`ref-email-${index}`}>
-                              Email <span className="wh-required">*</span>
-                            </label>
-                            <input
-                              id={`ref-email-${index}`}
-                              type="email"
-                              value={ref.email || ''}
-                              onChange={(e) =>
-                                handleUpdateReference(
-                                  index,
-                                  'email',
-                                  e.target.value
-                                )
-                              }
-                              placeholder="Enter email address"
-                              className={
-                                formErrors[`ref${index}_email`]
-                                  ? 'wh-error-field'
-                                  : ''
-                              }
-                              required
-                            />
-                            {formErrors[`ref${index}_email`] && (
-                              <div className="wh-field-error">
-                                {formErrors[`ref${index}_email`]}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="wh-card-actions">
-                          <button
-                            type="button"
-                            className="wh-btn wh-btn-danger"
-                            onClick={() => removeReference(index)}
-                          >
-                            <svg
-                              width="16"
-                              height="16"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                            >
-                              <polyline points="3 6 5 6 21 6"></polyline>
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            </svg>
-                            Remove Reference
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {localWorkHistory.references.length < 2 && (
-                  <button
-                    type="button"
-                    className="wh-btn wh-btn-secondary wh-add-btn"
-                    onClick={addReference}
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <line x1="12" y1="8" x2="12" y2="16"></line>
-                      <line x1="8" y1="12" x2="16" y2="12"></line>
-                    </svg>
-                    Add Another Reference
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-        )}
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Form Controls */}

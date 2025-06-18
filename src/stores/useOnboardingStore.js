@@ -151,7 +151,6 @@ const initialState = {
   workHistory: {
     jobs: [],
     noWorkHistory: false,
-    hasReferences: 'no',
     references: [],
     CV: '',
   },
@@ -502,15 +501,11 @@ const useOnboardingStore = create(
             workHistory: {
               ...state.workHistory,
               references: updatedRefs,
-              // If we removed all references, set hasReferences to 'no'
-              hasReferences:
-                updatedRefs.length === 0
-                  ? 'no'
-                  : state.workHistory.hasReferences,
             },
           };
         });
       },
+
       updateReference: (index, referenceData) => {
         set((state) => {
           const currentRefs = [...(state.workHistory.references || [])];
@@ -522,11 +517,11 @@ const useOnboardingStore = create(
             workHistory: {
               ...state.workHistory,
               references: currentRefs,
-            
             },
           };
         });
       },
+
       // Add this new method
       updateCV: (cvUrl) => {
         console.log('Updating CV in store:', cvUrl);
@@ -587,13 +582,11 @@ const useOnboardingStore = create(
             notes: profile?.availability?.notes || '',
           },
           certifications: profile?.certifications || [],
-          // nationality: profile?.nationality || '',
           residencyStatus: profile?.residencyStatus || '',
           healthInformation: profile?.healthInformation || {},
           workHistory: {
             jobs: profile?.workHistory || [],
             noWorkHistory: profile?.noWorkHistory || false,
-            hasReferences: profile?.references?.length > 0 ? 'yes' : 'no',
             references: profile?.references || [],
             CV: profile?.CV || null,
           },
@@ -789,14 +782,12 @@ const useOnboardingStore = create(
       saveWorkHistoryStep: async () => {
         try {
           set({ isLoading: true, error: null });
-          const { jobs, noWorkHistory, hasReferences, references, CV } =
-            get().workHistory;
+          const { jobs, noWorkHistory, references, CV } = get().workHistory;
 
           const data = await onboardingApi.saveWorkHistoryStep({
             workHistory: jobs,
             noWorkHistory,
-            hasReferences,
-            references: hasReferences === 'yes' ? references : [],
+            references: references || [],
             CV: CV || null,
           });
 
@@ -1168,23 +1159,13 @@ export const useWorkHistoryMutation = () => {
         const formattedPayload = {
           workHistory: dataToUse.jobs || [],
           noWorkHistory: dataToUse.noWorkHistory || false,
-          hasReferences: dataToUse.hasReferences || 'no',
-          references: formatReferences(dataToUse), // Use the helper function
+          references: dataToUse.references || [],
           CV: dataToUse.CV || null,
         };
 
         console.log('Sending payload:', formattedPayload); // Debug log
 
         // Additional validation before sending
-        if (
-          formattedPayload.hasReferences === 'yes' &&
-          formattedPayload.references.length === 0
-        ) {
-          throw new Error(
-            'References are required when "Has References" is set to Yes'
-          );
-        }
-
         if (
           !formattedPayload.noWorkHistory &&
           formattedPayload.workHistory.length === 0

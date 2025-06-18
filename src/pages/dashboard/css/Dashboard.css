@@ -946,6 +946,7 @@ button {
   color: var(--gray-500);
   margin-bottom: 0.25rem;
 }
+
 /* Onboarding Prominent Prompt */
 .wrk-onboarding-prominent-prompt {
   background: linear-gradient(135deg, #f0f7ff 0%, #e1f0ff 100%);
@@ -1112,6 +1113,7 @@ button {
   background-color: #2980b9;
   transform: translateY(-2px) scale(1.05);
 }
+
 .wrk-dashboard-wrk-history {
   display: flex;
   flex-direction: column;
@@ -1192,5 +1194,117 @@ button {
   .wrk-fab-text {
     margin-left: 0.5rem;
     font-weight: 600;
+  }
+}
+
+/* CV Preview Styles */
+.cv-section {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background-color: red;
+  /* background-color: var(--doc-gray-50); */
+  border-radius: 12px;
+  box-shadow: var(--doc-shadow-sm);
+}
+
+.cv-section h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  /* color: var(--doc-gray-900); */
+  color: red;
+}
+
+.cv-preview-card {
+  background-color: white;
+  border-radius: 8px;
+  padding: 0.5rem;
+  box-shadow: var(--doc-shadow);
+}
+
+.cv-preview-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.cv-preview-icon {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.cv-preview-icon:hover {
+  background-color: var(--doc-gray-100);
+}
+
+.cv-preview-icon svg {
+  color: var(--doc-primary);
+}
+
+.cv-preview-icon span {
+  font-weight: 500;
+  color: var(--doc-gray-700);
+}
+
+.cv-thumbnail {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--doc-gray-200);
+}
+
+.cv-download-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--doc-primary);
+  color: white;
+  border-radius: 6px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.cv-download-btn:hover {
+  background-color: var(--doc-primary-dark);
+  transform: translateY(-1px);
+}
+
+.cv-download-btn:active {
+  transform: translateY(0);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .cv-section {
+    background-color: var(--doc-gray-800);
+  }
+
+  .cv-section h3 {
+    color: white;
+  }
+
+  .cv-preview-card {
+    background-color: var(--doc-gray-700);
+  }
+
+  .cv-preview-icon:hover {
+    background-color: var(--doc-gray-600);
+  }
+
+  .cv-preview-icon span {
+    color: var(--doc-gray-300);
+  }
+
+  .cv-thumbnail {
+    border-color: var(--doc-gray-600);
   }
 }

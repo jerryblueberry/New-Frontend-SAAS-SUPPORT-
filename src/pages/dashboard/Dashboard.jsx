@@ -6,12 +6,14 @@ import { getCurrentUser } from '../../api/auth';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import api from '../../api/axios';
 import { useOnboardingQuery } from '../../stores/useOnboardingStore';
+import DocumentPreview from '../../components/workerForm/Modals/DocumentPreview';
 import './css/Dashboard.css';
 const Dashboard = () => {
   const { signOut, isAuthenticated, user: authUser } = useAuth();
   const navigate = useNavigate();
   const isGoogleUser = localStorage.getItem('auth_provider') === 'google';
   const [activeTab, setActiveTab] = useState('overview');
+  const [previewDocument, setPreviewDocument] = useState(null);
   const formatTimeTo12Hour = (time) => {
     const [hour, minute] = time.split(':').map(Number);
     const ampm = hour >= 12 ? 'PM' : 'AM';
@@ -193,6 +195,16 @@ const Dashboard = () => {
 
   const continueOnboarding = () => {
     navigate('/onboarding');
+  };
+
+  // Handle document preview
+  const handleDocumentPreviewClick = (doc) => {
+    setPreviewDocument(doc);
+  };
+
+  // Close document preview
+  const closeDocumentPreview = () => {
+    setPreviewDocument(null);
   };
 
   if (isLoading) return (
@@ -741,8 +753,56 @@ const Dashboard = () => {
             <div className="wrk-dashboard-wrk-history">
               {/* Work History Section */}
               <h2>Work History</h2>
+
               <div className="work-section">
-              
+                {/* CV Section */}
+                {onboardingData?.data?.profile?.CV && (
+                  <div className="cv-section">
+                    <h3>CV/Resume</h3>
+                    <div className="cv-preview-card">
+                      <div className="cv-preview-content">
+                        <div 
+                          className="cv-preview-icon"
+                          onClick={() => handleDocumentPreviewClick({
+                            url: onboardingData.data.profile.CV,
+                            fileName: 'CV/Resume',
+                            fileType: onboardingData.data.profile.CV.endsWith('.pdf') ? 'application/pdf' : 'image'
+                          })}
+                        >
+                          {onboardingData.data.profile.CV.endsWith('.pdf') ? (
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                              <polyline points="14 2 14 8 20 8"></polyline>
+                              <path d="M10 9H8v6h2a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2z"></path>
+                              <line x1="16" y1="13" x2="16" y2="15"></line>
+                            </svg>
+                          ) : (
+                            <img 
+                              src={onboardingData.data.profile.CV} 
+                              alt="CV Preview" 
+                              className="cv-thumbnail"
+                            />
+                          )}
+                          <span>View CV/Resume</span>
+                        </div>
+                        <a
+                          href={onboardingData.data.profile.CV}
+                          download
+                          className="cv-download-btn"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                          </svg>
+                          Download
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Work History List */}
                 {onboardingData?.data?.profile?.workHistory?.length > 0 ? (
                   onboardingData?.data?.profile?.workHistory?.map(
                     (history, index) => (
@@ -771,7 +831,7 @@ const Dashboard = () => {
                     )
                   )
                 ) : (
-                  <p>Not Found</p>
+                  <p>No work history found</p>
                 )}
               </div>
 
@@ -781,7 +841,7 @@ const Dashboard = () => {
                   onboardingData?.data?.profile?.references?.map(
                     (reference, index) => (
                       <div className="reference-card" key={index}>
-                        <h2>References</h2>
+                        <h2>References {index+1}</h2>
                         <div className="reference-item">
                           <p className="label">Name</p>
                           <p className="value">{reference.name}</p>
@@ -812,10 +872,18 @@ const Dashboard = () => {
                     )
                   )
                 ) : (
-                  <p>Not Found</p>
+                  <p>No references found</p>
                 )}
               </div>
             </div>
+          )}
+
+          {/* Document Preview Modal */}
+          {previewDocument && (
+            <DocumentPreview
+              document={previewDocument}
+              onClose={closeDocumentPreview}
+            />
           )}
         </main>
       </div>
