@@ -24,6 +24,7 @@ import CertificateThird from './pages/CertificateCheck/CertificateThird';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import AdminDashboard from './pages/AdminPages/AdminDashboard/AdminDashboard';
 import AdminRoute from './components/common/AdminRoute';
+import WorkerDetails from './pages/AdminPages/WorkerDetails/WorkerDetails';
 
 // Create React Query client with optimized settings
 const queryClient = new QueryClient({
@@ -125,6 +126,7 @@ function AppRoutes() {
           }
         />
         {/* Admin Related Routes */}
+
         <Route
           path="/admin-dashboard"
           element={
@@ -132,6 +134,13 @@ function AppRoutes() {
               <AdminDashboard />
             </AdminRoute>
           }
+        />
+        {/*  For viewing worker details by admin*/}
+        <Route path='/worker-details/:workerId' element = {
+          <AdminRoute>
+            <WorkerDetails/>
+          </AdminRoute>
+        }
         />
 
         {/* 404 page */}

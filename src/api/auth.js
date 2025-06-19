@@ -6,8 +6,13 @@ import {
   setAccessToken, 
   setRefreshToken, 
   removeTokens,
-  setAuthProvider
+  setAuthProvider,
+  getAuthProvider
 } from '../utils/storage';
+
+// Constants
+const TOKEN_REFRESH_RETRY_DELAY = 1000; // 1 second
+const MAX_REFRESH_RETRIES = 3;
 
 /**
  * Register a new user
@@ -15,19 +20,21 @@ import {
  * @returns {Promise<Object>} Registration response
  */
 export const register = async(userData) => {
-  const response = await api.post('/auth/signup', userData);
-  
-  // Handle auto-login if tokens are returned upon registration
-  if (response.data?.data?.accessToken) {
-    setAccessToken(response.data.data.accessToken, response.data.data.expiresIn);
-    setRefreshToken(response.data.data.refreshToken);
-    setAuthProvider('email');
+  try {
+    const response = await api.post('/auth/signup', userData);
     
-    // Dispatch login event for components listening
-    window.dispatchEvent(new Event('auth:login'));
+    if (response.data?.data?.accessToken) {
+      setAccessToken(response.data.data.accessToken, response.data.data.expiresIn);
+      setRefreshToken(response.data.data.refreshToken);
+      setAuthProvider('email');
+      window.dispatchEvent(new Event('auth:login'));
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error('Registration error:', error);
+    throw error;
   }
-  
-  return response.data;
 };
 
 /**
@@ -40,54 +47,55 @@ export const login = async (credentials) => {
     const response = await api.post('/auth/login', credentials);
   
     if (response.data?.data?.accessToken) {
-      // Save tokens to storage
       setAccessToken(response.data.data.accessToken, response.data.data.expiresIn);
       setRefreshToken(response.data.data.refreshToken);
       setAuthProvider('email');
-      
-      // Dispatch login event
       window.dispatchEvent(new Event('auth:login'));
     }
       
-  return response.data;
+    return response.data;
   } catch (error) {
+    console.error('Login error:', error);
     if (error.response?.status === 401) {
       removeTokens();
     }
     throw error;
   }
-
-
 };
 
 /**
- * Refresh the authentication token
+ * Refresh the authentication token with retry logic
  * @returns {Promise<string>} New access token
  */
-export const refreshAuthToken = async () => {
+export const refreshAuthToken = async (retryCount = 0) => {
   const refreshToken = getRefreshToken();
   if (!refreshToken) {
     throw new Error('No refresh token available');
   }
   
   try {
-    // Use axios directly to avoid interceptors triggering infinitely
     const response = await api.post('/auth/refresh-token', { 
       refreshToken: refreshToken
     });
     
-    // Save new tokens
     if (response.data?.data?.accessToken) {
       setAccessToken(response.data.data.accessToken, response.data.data.expiresIn);
       if (response.data.data.refreshToken) {
         setRefreshToken(response.data.data.refreshToken);
       }
-      
       return response.data.data.accessToken;
     }
     
     throw new Error('Invalid token response');
   } catch (error) {
+    console.error('Token refresh error:', error);
+    
+    // Retry logic for network errors
+    if (error.message === 'Network Error' && retryCount < MAX_REFRESH_RETRIES) {
+      await new Promise(resolve => setTimeout(resolve, TOKEN_REFRESH_RETRY_DELAY));
+      return refreshAuthToken(retryCount + 1);
+    }
+    
     if (error.response?.status === 401) {
       removeTokens();
     }
@@ -96,51 +104,68 @@ export const refreshAuthToken = async () => {
 };
 
 /**
- * Log out the current user
+ * Log out the current user with cleanup
  * @param {boolean} allDevices - Whether to log out from all devices
  * @returns {Promise<void>}
  */
 export const logout = async (allDevices = false) => {
   const refreshToken = getRefreshToken();
+  const isGoogleUser = getAuthProvider() === 'google';
   
   try {
     if (refreshToken) {
-      // Send the refresh token in the request body
       await api.post('/auth/logout', { refreshToken, allDevices });
+    }
+    
+    // Handle Google logout
+    if (isGoogleUser) {
+      const googleToken = localStorage.getItem('google_token');
+      if (googleToken) {
+        try {
+          await fetch(`https://oauth2.googleapis.com/revoke?token=${googleToken}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            }
+          });
+        } catch (googleError) {
+          console.error('Google token revocation failed:', googleError);
+        }
+      }
     }
   } catch (error) {
     console.error('Logout error:', error);
   } finally {
-    // Always clean up local storage
+    // Always clean up
     removeTokens();
-    
-    // Clear auth provider data
     localStorage.removeItem('google_token');
-    
-    // Clear query cache if available
     if (window.queryClient) {
       window.queryClient.clear();
     }
-    
-    // Dispatch logout event
     window.dispatchEvent(new Event('auth:logout'));
   }
 };
 
 /**
- * Get the current user's profile
+ * Get the current user's profile with token validation
  * @returns {Promise<Object>} User data
  */
 export const getCurrentUser = async () => {
-  // Ensure we have a valid token before making the request
   const token = getAccessToken();
   
   if (!token) {
     throw new Error('No authentication token available');
   }
   
-  const response = await api.get('/auth/me');
-  return response.data.data.user;
+  try {
+    const response = await api.get('/auth/me');
+    return response.data.data.user;
+  } catch (error) {
+    if (error.response?.status === 401) {
+      removeTokens();
+    }
+    throw error;
+  }
 };
 
 /**
@@ -154,120 +179,59 @@ export const verifyEmail = async(token) => {
   try {
     const response = await api.get(`/auth/verify-email/${token}`);
     
-    // If login data is returned, store tokens
     if (response.data?.data?.accessToken) {
       setAccessToken(response.data.data.accessToken, response.data.data.expiresIn);
       setRefreshToken(response.data.data.refreshToken);
       setAuthProvider('email');
-      
-      // Dispatch login event
       window.dispatchEvent(new Event('auth:login'));
     }
     
     return response.data;
   } catch (error) {
-    console.error('Email verification error:', error.response?.data || error.message);
+    console.error('Email verification error:', error);
     throw error;
   }
 };
 
 /**
- * Authenticate with Google OAuth
+ * Authenticate with Google OAuth with enhanced error handling
  * @param {string} accessToken - Google OAuth access token
  * @returns {Promise<Object>} Auth response with user data
  */
-// Enhanced Google Auth function with better debugging
 export const googleAuth = async (accessToken) => {
   try {
-    console.log('Starting Google authentication process');
-    console.log('Access token present:', !!accessToken);
+    // Validate Google token
+    const googleResponse = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`);
     
-    // Test direct API call to Google first to verify token is valid
-    try {
-      console.log('Testing Google token directly with Google API...');
-      const googleResponse = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`);
-      
-      if (!googleResponse.ok) {
-        console.error('Google API direct test failed:', googleResponse.status, googleResponse.statusText);
-        const errorText = await googleResponse.text();
-        console.error('Google error response:', errorText);
-        throw new Error(`Google token validation failed: ${googleResponse.statusText}`);
-      }
-      
-      const userData = await googleResponse.json();
-      console.log('Google token is valid. User data received:', {
-        email: userData.email,
-        name: userData.name,
-        verified: userData.email_verified
-      });
-    } catch (directTestError) {
-      console.error('Direct Google API test failed:', directTestError);
-      throw new Error('Invalid Google token. Please try logging in again.');
+    if (!googleResponse.ok) {
+      throw new Error(`Google token validation failed: ${googleResponse.statusText}`);
     }
     
-    // Now try your backend API
-    console.log('Sending token to backend...');
-    try {
-      const response = await api.post('/auth/google', { 
-        access_token: accessToken 
-      });
-      
-      console.log('Backend response received:', response.status);
-      
-      if (response.data?.data?.accessToken) {
-        console.log('Authentication successful, storing tokens');
-        setAccessToken(response.data.data.accessToken, response.data.data.expiresIn);
-        setRefreshToken(response.data.data.refreshToken);
-        
-        // Store Google token for potential revocation
-        localStorage.setItem('google_token', accessToken);
-        setAuthProvider('google');
-        
-        // Dispatch login event
-        window.dispatchEvent(new Event('auth:login'));
-        
-        console.log('Google authentication completed successfully');
-      } else {
-        console.warn('Missing tokens in successful response:', response.data);
-      }
-      
-      return {
-        ...response.data,
-        isGoogleUser: true
-      };
-    } catch (backendError) {
-      console.error('Backend API error:', backendError);
-      console.error('Response data:', backendError.response?.data);
-      console.error('Status code:', backendError.response?.status);
-      
-      // Try to extract the error message from the HTML response if it's a 500 error
-      if (backendError.response?.status === 500 && backendError.response?.data) {
-        try {
-          const htmlError = backendError.response.data;
-          
-          // Check if it's HTML and try to extract the error message
-          if (typeof htmlError === 'string' && htmlError.includes('<!DOCTYPE html>')) {
-            // Try to extract error from HTML
-            const errorMatch = htmlError.match(/<pre>([\s\S]*?)<\/pre>/);
-            if (errorMatch && errorMatch[1]) {
-              console.error('Server error details:', errorMatch[1].trim());
-            }
-          }
-        } catch (parseError) {
-          console.error('Error parsing error response:', parseError);
-        }
-      }
-      
-      throw backendError;
+    const userData = await googleResponse.json();
+    
+    // Backend authentication
+    const response = await api.post('/auth/google', { 
+      access_token: accessToken 
+    });
+    
+    if (response.data?.data?.accessToken) {
+      setAccessToken(response.data.data.accessToken, response.data.data.expiresIn);
+      setRefreshToken(response.data.data.refreshToken);
+      localStorage.setItem('google_token', accessToken);
+      setAuthProvider('google');
+      window.dispatchEvent(new Event('auth:login'));
     }
+    
+    return {
+      ...response.data,
+      isGoogleUser: true
+    };
   } catch (error) {
     console.error('Google auth error:', error);
     
-    // Format error for user display
     const errorMessage = error.response?.data?.message || 
                         'Failed to authenticate with Google. Please try again.';
     
-    // Create a enhanced error object with more details
     const enhancedError = new Error(errorMessage);
     enhancedError.originalError = error;
     enhancedError.statusCode = error.response?.status;

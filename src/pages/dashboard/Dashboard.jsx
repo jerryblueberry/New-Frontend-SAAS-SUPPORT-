@@ -40,7 +40,9 @@ const Dashboard = () => {
     if (!isAuthenticated) {
       navigate('/login', { replace: true, state: { from: location } });
     }
+
   }, [isAuthenticated, navigate]);
+
 
   // User data fetching
   const { data: user, isLoading: isUserLoading } = useQuery({
@@ -55,6 +57,8 @@ const Dashboard = () => {
       return failureCount < 2;
     },
   });
+console.log("USer",user);
+
 
   // Worker profile status fetching
   const { data: profileStatus, isLoading: isProfileLoading } = useQuery({

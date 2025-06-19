@@ -16,12 +16,17 @@ import {
 import { refreshAuthToken } from '../api/auth';
 import React from 'react';
 
+// Constants for token management
+const TOKEN_REFRESH_INTERVAL = 4 * 60 * 1000; // 4 minutes
+const TOKEN_EXPIRY_BUFFER = 5 * 60; // 5 minutes in seconds
+
 // Initial state
 const initialState = {
   user: null,
   isAuthenticated: false,
   loading: true,
-  authError: null
+  authError: null,
+  tokenRefreshInProgress: false
 };
 
 // Auth reducer
@@ -35,26 +40,30 @@ function authReducer(state, action) {
         user: action.payload, 
         isAuthenticated: true, 
         loading: false, 
-        authError: null 
+        authError: null,
+        tokenRefreshInProgress: false
       };
     case 'AUTH_FAIL':
-      // Handle specific error cases
-      { let errorMessage = action.payload?.message || 'Authentication failed';
-      if (action.payload?.response?.status === 401) {
-        errorMessage = 'Incorrect email or password';
-      } else if (action.payload?.response?.status === 403) {
-        errorMessage = 'Account not verified. Please check your email.';
-      }
-      
       return { 
         ...state, 
         loading: false, 
-        authError: { message: errorMessage } 
-      }; }
+        authError: action.payload,
+        tokenRefreshInProgress: false
+      };
     case 'AUTH_LOGOUT':
       return { 
         ...initialState, 
         loading: false 
+      };
+    case 'TOKEN_REFRESH_START':
+      return {
+        ...state,
+        tokenRefreshInProgress: true
+      };
+    case 'TOKEN_REFRESH_END':
+      return {
+        ...state,
+        tokenRefreshInProgress: false
       };
     case 'CLEAR_ERROR':
       return { ...state, authError: null };
@@ -64,6 +73,7 @@ function authReducer(state, action) {
       return state;
   }
 }
+
 // Create context
 const AuthContext = createContext();
 
@@ -80,41 +90,62 @@ export const useAuth = () => {
 const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Proactive token refresh
+  // Proactive token refresh with debouncing
   const checkAndRefreshToken = useCallback(async () => {
+    if (state.tokenRefreshInProgress) return;
+
     try {
-      // If token expires soon (within 5 minutes), refresh it proactively
-      if (isTokenExpiringSoon(300)) {
+      dispatch({ type: 'TOKEN_REFRESH_START' });
+      
+      // Check if token is expiring soon
+      if (isTokenExpiringSoon(TOKEN_EXPIRY_BUFFER)) {
         await refreshAuthToken();
+        // Refresh user data after token refresh
+        const userResponse = await api.get('/auth/me');
+        dispatch({ 
+          type: 'AUTH_SUCCESS', 
+          payload: userResponse.data.data.user 
+        });
       }
     } catch (error) {
-      console.warn('Proactive token refresh failed:', error);
+      console.warn('Token refresh failed:', error);
+      // Only logout if it's an authentication error
+      if (error.response?.status === 401) {
+        handleAuthExpired();
+      }
+    } finally {
+      dispatch({ type: 'TOKEN_REFRESH_END' });
     }
-  }, []);
+  }, [state.tokenRefreshInProgress]);
 
   // Handle session expiry
   const handleAuthExpired = useCallback(() => {
-    // console.log('Auth expired event received');
     dispatch({ type: 'AUTH_LOGOUT' });
     removeTokens();
+    // Clear any sensitive data
+    localStorage.removeItem('google_token');
+    sessionStorage.clear();
+    // Clear query cache
+    if (window.queryClient) {
+      window.queryClient.clear();
+    }
+    // Dispatch logout event
+    window.dispatchEvent(new Event('auth:logout'));
   }, []);
-  
+
   // Optimized auth verification
   useEffect(() => {
     const verifyAuth = async () => {
       try {
-        // Quick check for tokens first
         const accessToken = getAccessToken();
         const refreshToken = getRefreshToken();
 
-        // If no tokens at all, fail fast
         if (!accessToken && !refreshToken) {
-          dispatch({ type: 'AUTH_LOGOUT' });
-          dispatch({ type: 'SET_LOADING', payload: false });
+          handleAuthExpired();
           return;
         }
 
-        // If we have a valid access token, verify it immediately
+        // Verify current token
         if (accessToken && isTokenValid(accessToken)) {
           try {
             const userResponse = await api.get('/auth/me');
@@ -122,70 +153,57 @@ const AuthProvider = ({ children }) => {
               type: 'AUTH_SUCCESS', 
               payload: userResponse.data.data.user 
             });
-            dispatch({ type: 'SET_LOADING', payload: false });
             return;
           } catch (error) {
-            // If token is invalid, try refresh
-            console.error('Token validation failed:', error);
+            if (error.response?.status === 401) {
+              // Token is invalid, try refresh
+              if (refreshToken) {
+                await refreshAuthToken();
+                const userResponse = await api.get('/auth/me');
+                dispatch({ 
+                  type: 'AUTH_SUCCESS', 
+                  payload: userResponse.data.data.user 
+                });
+                return;
+              }
+            }
+            throw error;
           }
         }
 
-        // Only try refresh if we have a refresh token
-        if (refreshToken) {
-          try {
-            await refreshAuthToken();
-            const userResponse = await api.get('/auth/me');
-            dispatch({ 
-              type: 'AUTH_SUCCESS', 
-              payload: userResponse.data.data.user 
-            });
-          } catch (error) {
-            console.error('Token refresh failed:', error);
-            removeTokens();
-            dispatch({ type: 'AUTH_LOGOUT' });
-          }
-        } else {
-          dispatch({ type: 'AUTH_LOGOUT' });
-        }
+        handleAuthExpired();
       } catch (error) {
         console.error('Auth verification error:', error);
-        dispatch({ type: 'AUTH_LOGOUT' });
+        handleAuthExpired();
       } finally {
         dispatch({ type: 'SET_LOADING', payload: false });
       }
     };
 
-    // Execute auth verification
     verifyAuth();
     
-    // Set up periodic token refresh check with longer interval
-    const tokenCheckInterval = setInterval(checkAndRefreshToken, 5 * 60 * 1000); // Every 5 minutes
+    // Set up periodic token refresh
+    const tokenCheckInterval = setInterval(checkAndRefreshToken, TOKEN_REFRESH_INTERVAL);
     
     return () => {
       clearInterval(tokenCheckInterval);
     };
-  }, [checkAndRefreshToken]);
+  }, [checkAndRefreshToken, handleAuthExpired]);
 
-  /**
-   * Sign in with credentials or token-based auth
-   */
+  // Enhanced sign in with better error handling
   const signIn = async (credentials, skipApiCall = false, isGoogleUser = false) => {
     dispatch({ type: 'AUTH_START' });
     
     try {
-      // If we already have tokens (from Google auth or other external provider)
       if (credentials?.accessToken || skipApiCall) {
-        // If we have tokens in the credentials, set them
         if (credentials?.accessToken) {
           setAccessToken(credentials.accessToken, credentials.expiresIn);
           if (credentials.refreshToken) {
             setRefreshToken(credentials.refreshToken);
           }
           
-          // Store the auth provider
           if (isGoogleUser) {
             setAuthProvider('google');
-            // Store google token separately if available
             if (credentials.googleToken) {
               localStorage.setItem('google_token', credentials.googleToken);
             }
@@ -194,52 +212,48 @@ const AuthProvider = ({ children }) => {
           }
         }
         
-        // Get user profile
         const userResponse = await api.get('/auth/me');
         dispatch({ type: 'AUTH_SUCCESS', payload: userResponse.data.data.user });
         return userResponse.data.data.user;
       }
       
-      // Normal login with credentials
       const response = await api.post('/auth/login', credentials);
       
-      // Store tokens from response
       if (response.data?.data?.accessToken) {
         setAccessToken(response.data.data.accessToken, response.data.data.expiresIn);
         setRefreshToken(response.data.data.refreshToken);
-        setAuthProvider('email'); // Default to email auth for regular login
+        setAuthProvider('email');
       }
       
       dispatch({ type: 'AUTH_SUCCESS', payload: response.data.data.user });
       return response.data.data.user;
     } catch (error) {
-      console.log("Login error:", error.response.data.message);
-    
-      // Handle different error cases
+      console.error("Login error:", error);
+      
       let errorMessage = 'Authentication failed';
       
       if (error.response) {
-        // Use server-provided message if available
         if (error.response.data?.message) {
           errorMessage = error.response.data.message;
-        }
-        // Special case for 401 (incorrect credentials)
-        else if (error.response.status === 401) {
+        } else if (error.response.status === 401) {
           errorMessage = 'Incorrect email or password';
-        }
-        // Special case for 403 (account not verified)
-        else if (error.response.status === 403) {
+        } else if (error.response.status === 403) {
           errorMessage = 'Account not verified. Please check your email.';
         }
       }
-      dispatch({ type: 'AUTH_FAIL', payload: { message: errorMessage,response:error.response.data.message } });
+      
+      dispatch({ 
+        type: 'AUTH_FAIL', 
+        payload: { 
+          message: errorMessage,
+          response: error.response?.data?.message 
+        } 
+      });
       throw error;
     }
   };
 
-  /**
-   * Sign out the current user
-   */
+  // Enhanced sign out with cleanup
   const signOut = async (allDevices = false) => {
     dispatch({ type: 'AUTH_START' });
     
@@ -254,7 +268,6 @@ const AuthProvider = ({ children }) => {
         });
       }
       
-      // Handle Google-specific logout
       if (isGoogleUser) {
         const googleToken = localStorage.getItem('google_token');
         if (googleToken) {
@@ -272,27 +285,9 @@ const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Logout error:', error);
+    } finally {
+      handleAuthExpired();
     }
-    
-    // Always clear tokens locally
-    removeTokens();
-    localStorage.removeItem('google_token');
-    
-    // Clear query cache if available
-    if (window.queryClient) {
-      window.queryClient.clear();
-    }
-    
-    // Dispatch logout event to all PrivateRoute components
-    window.dispatchEvent(new Event('auth:logout'));
-    dispatch({ type: 'AUTH_LOGOUT' });
-  };
-
-  /**
-   * Clear authentication errors
-   */
-  const clearAuthError = () => {
-    dispatch({ type: 'CLEAR_ERROR' });
   };
 
   return (
@@ -300,8 +295,8 @@ const AuthProvider = ({ children }) => {
       ...state,
       signIn,
       signOut,
-      clearAuthError,
-      refreshAuthToken
+      clearAuthError: () => dispatch({ type: 'CLEAR_ERROR' }),
+      refreshAuthToken: checkAndRefreshToken
     }}>
       {children}
     </AuthContext.Provider>
