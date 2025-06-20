@@ -84,7 +84,8 @@ const WorkerDetails = () => {
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectionDialog, setShowRejectionDialog] = useState(false);
 
-  console.log("workerData",workerData?.user?._id);
+  console.log("workerData",workerData?.CV);
+  console.log("workerData",workerData);
   useEffect(() => {
     const fetchWorkerDetails = async () => {
       try {
@@ -239,7 +240,7 @@ const WorkerDetails = () => {
   if (loading) {
     return (
       <Box className="worker-details-loading">
-        <LoadingSpinner size="lg" text="Loading worker details..." />
+        <LoadingSpinner size="lg" text="Loading worker details..." fullPage={true} />
       </Box>
     );
   }
@@ -357,7 +358,7 @@ const WorkerDetails = () => {
           <Tab label="Certifications" />
           <Tab label="Availability" />
           <Tab label="Health Information" />
-          <Tab label="References" />
+          <Tab label="References & Work History" />
         </Tabs>
       </Box>
 
@@ -644,64 +645,130 @@ const WorkerDetails = () => {
         )}
 
         {activeTab === 1 && (
-          <Grid container spacing={3}>
+          <Stack spacing={3}>
             {workerData.certifications.map((cert, index) => (
-              <Grid item xs={12} md={6} key={index}>
-                <Card
+              <Card
+                key={index}
+                sx={{
+                  display: 'flex',
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  alignItems: 'stretch',
+                  borderLeft: 6,
+                  borderColor:
+                    cert.verificationStatus === 'Verified'
+                      ? 'success.main'
+                      : cert.verificationStatus === 'Rejected'
+                      ? 'error.main'
+                      : cert.verificationStatus === 'Expiring Soon'
+                      ? 'warning.main'
+                      : 'primary.main',
+                  boxShadow: 3,
+                  transition: 'box-shadow 0.2s, transform 0.2s',
+                  '&:hover': {
+                    boxShadow: 8,
+                    transform: 'translateY(-4px) scale(1.01)',
+                  },
+                  p: 0,
+                }}
+                onClick={() => setSelectedCertification(cert)}
+              >
+                {/* Icon Section */}
+                <Box
                   sx={{
-                    cursor: "pointer",
-                    transition: "transform 0.2s",
-                    "&:hover": {
-                      transform: "translateY(-4px)",
-                    },
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    bgcolor: 'primary.light',
+                    minWidth: 120,
+                    px: 3,
+                    py: { xs: 2, sm: 0 },
                   }}
-                  onClick={() => setSelectedCertification(cert)}
                 >
-                  <CardHeader
-                    title={cert.certificationType.name}
-                    subheader={cert.certificationType.description}
-                    avatar={<SchoolIcon color="primary" />}
-                    action={
-                      <Chip
-                        label={cert.verificationStatus}
-                        color={cert.verificationStatus === "Verified" ? "success" : "warning"}
-                        size="small"
-                      />
-                    }
-                  />
-                  <CardContent>
-                    <Stack spacing={1}>
-                      {cert.number && (
+                  <SchoolIcon sx={{ fontSize: 48, color: 'primary.main' }} />
+                </Box>
+                {/* Content Section */}
+                <Box sx={{ flex: 1, p: 3 }}>
+                  <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 1 }}>
+                    <Typography variant="h6" fontWeight={700} sx={{ flex: 1 }}>
+                      {cert.certificationType.name}
+                    </Typography>
+                    <Chip
+                      label={cert.verificationStatus}
+                      color={
+                        cert.verificationStatus === 'Verified'
+                          ? 'success'
+                          : cert.verificationStatus === 'Rejected'
+                          ? 'error'
+                          : cert.verificationStatus === 'Expiring Soon'
+                          ? 'warning'
+                          : 'primary'
+                      }
+                      size="medium"
+                      sx={{ fontWeight: 600, fontSize: '1rem' }}
+                    />
+                  </Stack>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>
+                    {cert.certificationType.description}
+                  </Typography>
+                  <Grid container spacing={2}>
+                    {cert.number && (
+                      <Grid item xs={12} sm={6}>
                         <Typography variant="body2">
                           <strong>Number:</strong> {cert.number}
                         </Typography>
-                      )}
-                      {cert.issuer && (
+                      </Grid>
+                    )}
+                    {cert.issuer && (
+                      <Grid item xs={12} sm={6}>
                         <Typography variant="body2">
                           <strong>Issuer:</strong> {cert.issuer}
                         </Typography>
-                      )}
-                      {cert.issuedDate && (
+                      </Grid>
+                    )}
+                    {cert.issuedDate && (
+                      <Grid item xs={12} sm={6}>
                         <Typography variant="body2">
                           <strong>Issued:</strong> {formatDate(cert.issuedDate)}
                         </Typography>
-                      )}
-                      {cert.expiryDate && (
+                      </Grid>
+                    )}
+                    {cert.expiryDate && (
+                      <Grid item xs={12} sm={6}>
                         <Typography variant="body2">
                           <strong>Expires:</strong> {formatDate(cert.expiryDate)}
                         </Typography>
-                      )}
-                      {cert.degree && (
+                      </Grid>
+                    )}
+                    {cert.degree && (
+                      <Grid item xs={12} sm={6}>
                         <Typography variant="body2">
                           <strong>Degree:</strong> {cert.degree}
                         </Typography>
-                      )}
+                      </Grid>
+                    )}
+                  </Grid>
+                  {cert.documents && cert.documents.length > 0 && (
+                    <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+                      {cert.documents.map((doc, docIdx) => (
+                        <Button
+                          key={docIdx}
+                          variant="outlined"
+                          size="small"
+                          startIcon={<DescriptionIcon />}
+                          onClick={e => {
+                            e.stopPropagation();
+                            setSelectedDocument(doc);
+                          }}
+                        >
+                          {doc.fileName || `Document ${docIdx + 1}`}
+                        </Button>
+                      ))}
                     </Stack>
-                  </CardContent>
-                </Card>
-              </Grid>
+                  )}
+                </Box>
+              </Card>
             ))}
-          </Grid>
+          </Stack>
         )}
 
         {activeTab === 2 && (
@@ -749,41 +816,486 @@ const WorkerDetails = () => {
           </Grid>
         )}
 
-        {activeTab === 4 && (
+{activeTab === 4 && (
+  <>
+    {/* Hero Section */}
+    {/* <Box 
+      sx={{ 
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderRadius: 4,
+        p: 4,
+        mb: 4,
+        color: 'white',
+        position: 'relative',
+        overflow: 'hidden',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.1"%3E%3Ccircle cx="30" cy="30" r="4"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+          opacity: 0.1,
+        }
+      }}
+    >
+      <Stack direction="row" alignItems="center" spacing={2} sx={{ position: 'relative', zIndex: 1 }}>
+        <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 64, height: 64 }}>
+          <BusinessIcon fontSize="large" />
+        </Avatar>
+        <Box>
+          <Typography variant="h4" fontWeight={800} sx={{ mb: 1 }}>
+            Professional Profile
+          </Typography>
+          <Typography variant="subtitle1" sx={{ opacity: 0.9 }}>
+            References, CV & Work Experience Overview
+          </Typography>
+        </Box>
+      </Stack>
+    </Box> */}
+
+    {/* Main Content Grid */}
+    <Grid container spacing={4}>
+      {/* References Section - Full Width on Mobile, 8 cols on Desktop */}
+      <Grid item xs={12} lg={8}>
+        <Box sx={{ mb: 3 }}>
+          <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
+            <Box sx={{ 
+              width: 4, 
+              height: 32, 
+              bgcolor: 'primary.main', 
+              borderRadius: 2 
+            }} />
+            <Typography variant="h5" fontWeight={700}>
+              Professional References
+            </Typography>
+            <Chip 
+              label={`${workerData.references?.length || 0} References`}
+              color="primary"
+              variant="outlined"
+              size="small"
+            />
+          </Stack>
+        </Box>
+
+        {workerData.references?.length > 0 ? (
           <Grid container spacing={3}>
             {workerData.references.map((ref, index) => (
-              <Grid item xs={12} md={6} key={index}>
-                <Card>
-                  <CardHeader
-                    title={ref.name}
-                    subheader={ref.position}
-                    avatar={<BusinessIcon color="primary" />}
-                    action={
-                      <Chip
-                        label={ref.verified ? "Verified" : "Pending"}
-                        color={ref.verified ? "success" : "warning"}
-                        size="small"
-                      />
+              <Grid item xs={12} sm={6} xl={4} key={index}>
+                <Card
+                  sx={{
+                    borderRadius: 3,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&:hover': {
+                      borderColor: 'primary.main',
+                      transform: 'translateY(-4px)',
+                      boxShadow: '0 12px 40px rgba(0,0,0,0.1)',
+                      '& .reference-actions': {
+                        opacity: 1,
+                        transform: 'translateY(0)',
+                      }
+                    },
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: 4,
+                      background: ref.verified 
+                        ? 'linear-gradient(90deg, #4caf50, #81c784)'
+                        : 'linear-gradient(90deg, #ff9800, #ffb74d)',
                     }
-                  />
-                  <CardContent>
-                    <Stack spacing={1}>
-                      <Typography variant="body2">
-                        <strong>Company:</strong> {ref.company}
-                      </Typography>
-                      <Typography variant="body2">
-                        <strong>Email:</strong> {ref.email}
-                      </Typography>
-                      <Typography variant="body2">
-                        <strong>Phone:</strong> {ref.phone}
-                      </Typography>
+                  }}
+                >
+                  <CardContent sx={{ p: 3, pb: 2 }}>
+                    <Stack alignItems="center" spacing={2}>
+                      <Box sx={{ position: 'relative' }}>
+                        <Avatar 
+                          sx={{ 
+                            bgcolor: 'primary.main', 
+                            width: 56, 
+                            height: 56,
+                            fontSize: 24,
+                            fontWeight: 700,
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          }}
+                        >
+                          {ref.name?.[0] || <BusinessIcon />}
+                        </Avatar>
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            bottom: -2,
+                            right: -2,
+                            width: 20,
+                            height: 20,
+                            borderRadius: '50%',
+                            bgcolor: ref.verified ? 'success.main' : 'warning.main',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: '2px solid white',
+                          }}
+                        >
+                          {ref.verified ? 
+                            <CheckCircleIcon sx={{ fontSize: 12, color: 'white' }} /> :
+                            <WarningIcon sx={{ fontSize: 12, color: 'white' }} />
+                          }
+                        </Box>
+                      </Box>
+
+                      <Box sx={{ textAlign: 'center', width: '100%' }}>
+                        <Typography variant="h6" fontWeight={700} sx={{ mb: 0.5 }}>
+                          {ref.name}
+                        </Typography>
+                        <Typography 
+                          variant="body2" 
+                          color="primary.main" 
+                          fontWeight={600}
+                          sx={{ mb: 1 }}
+                        >
+                          {ref.position}
+                        </Typography>
+                        <Box sx={{ 
+                          bgcolor: 'grey.50', 
+                          px: 2, 
+                          py: 1, 
+                          borderRadius: 2,
+                          mb: 2
+                        }}>
+                          <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                            {ref.company}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      <Stack spacing={1.5} sx={{ width: '100%' }}>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <EmailIcon fontSize="small" color="action" />
+                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                            {ref.email}
+                          </Typography>
+                        </Stack>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <PhoneIcon fontSize="small" color="action" />
+                          <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                            {ref.phone}
+                          </Typography>
+                        </Stack>
+                      </Stack>
                     </Stack>
                   </CardContent>
+
+                  <Box 
+                    className="reference-actions"
+                    sx={{ 
+                      p: 2, 
+                      pt: 0,
+                      opacity: 0.7,
+                      transform: 'translateY(10px)',
+                      transition: 'all 0.3s ease',
+                    }}
+                  >
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      size="small"
+                      startIcon={<InfoIcon />}
+                      fullWidth
+                      sx={{ 
+                        fontWeight: 600, 
+                        borderRadius: 2,
+                        textTransform: 'none',
+                      }}
+                    >
+                      Verify Reference
+                    </Button>
+                  </Box>
                 </Card>
               </Grid>
             ))}
           </Grid>
+        ) : (
+          <Card sx={{ 
+            p: 6, 
+            textAlign: 'center', 
+            borderRadius: 3,
+            border: '2px dashed',
+            borderColor: 'divider',
+            bgcolor: 'grey.50'
+          }}>
+            <BusinessIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+            <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+              No References Added
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Professional references will appear here once added
+            </Typography>
+          </Card>
         )}
+      </Grid>
+
+      {/* CV & Quick Stats Sidebar */}
+      <Grid item xs={12} lg={4}>
+        <Stack spacing={3} sx={{
+          flexDirection:'row',
+          gap:'20px',
+          mt:7,
+        }}>
+          {/* CV Card */}
+          <Card sx={{ borderRadius: 3, overflow: 'hidden' }}>
+            <Box sx={{ 
+              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+              p: 3,
+              
+              color: 'white',
+              textAlign: 'center'
+            }}>
+              <Avatar sx={{ 
+                bgcolor: 'rgba(255,255,255,0.2)', 
+                width: 52, 
+                height: 52, 
+                mx: 'auto',
+                mb: 1
+              }}>
+                <DescriptionIcon fontSize="medium" />
+              </Avatar>
+              <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>
+                Curriculum Vitae
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                Professional resume & portfolio
+              </Typography>
+            </Box>
+            
+            <CardContent sx={{ p: 3 }}>
+              {workerData.CV ? (
+                <Stack spacing={2}>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      startIcon={<DescriptionIcon />}
+                      fullWidth
+                      sx={{ fontWeight: 600, py: 1.5, borderRadius: 2, textTransform: 'none' }}
+                      onClick={() => setSelectedDocument({ url: workerData.CV, fileName: 'CV.pdf' })}
+                    >
+                      Preview CV
+                    </Button>
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary" align="center">
+                    Click to view or download the complete CV
+                  </Typography>
+                </Stack>
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No CV uploaded yet
+                  </Typography>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Quick Stats */}
+          <Card sx={{ borderRadius: 3, p: 3,height:250 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+              Profile Summary
+            </Typography>
+            <Stack spacing={2}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  References
+                </Typography>
+                <Chip 
+                  label={workerData.references?.length || 0}
+                  size="small"
+                  color="primary"
+                />
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Work History
+                </Typography>
+                <Chip 
+                  label={workerData.workHistory?.length || 0}
+                  size="small"
+                  color="secondary"
+                />
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  CV Status
+                </Typography>
+                <Chip 
+                  label={workerData.CV ? "Available" : "Missing"}
+                  size="small"
+                  color={workerData.CV ? "success" : "warning"}
+                />
+              </Box>
+            </Stack>
+          </Card>
+        </Stack>
+      </Grid>
+    </Grid>
+
+    {/* Work History Timeline */}
+    <Box sx={{ mt: 6 }}>
+      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 4 }}>
+        <Box sx={{ 
+          width: 4, 
+          height: 32, 
+          bgcolor: 'secondary.main', 
+          borderRadius: 2 
+        }} />
+        <Typography variant="h5" fontWeight={700}>
+          Work Experience Timeline
+        </Typography>
+        <Chip 
+          label={`${workerData.workHistory?.length || 0} Positions`}
+          color="secondary"
+          variant="outlined"
+          size="small"
+        />
+      </Stack>
+
+      {workerData.workHistory?.length > 0 ? (
+        <Box sx={{ position: 'relative' }}>
+          {/* Timeline Line */}
+          <Box sx={{
+            position: 'absolute',
+            left: 24,
+            top: 0,
+            bottom: 0,
+            width: 2,
+            bgcolor: 'divider',
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              bottom: -8,
+              left: -6,
+              width: 14,
+              height: 14,
+              borderRadius: '50%',
+              bgcolor: 'secondary.main',
+              border: '3px solid white',
+              boxShadow: 2,
+            }
+          }} />
+
+          <Stack spacing={4}>
+            {workerData.workHistory.map((job, idx) => (
+              <Box key={idx} sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                {/* Timeline Dot */}
+                <Box sx={{
+                  width: 48,
+                  height: 48,
+                  bgcolor: 'primary.main',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mr: 3,
+                  mt: 1,
+                  boxShadow: 3,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  flexShrink: 0,
+                }}>
+                  <WorkIcon sx={{ color: 'white', fontSize: 24 }} />
+                </Box>
+
+                {/* Content Card */}
+                <Card sx={{ 
+                  flex: 1, 
+                  borderRadius: 3,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    transform: 'translateX(8px)',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                  }
+                }}>
+                  <CardContent sx={{ p: 3 }}>
+                    <Grid container spacing={3}>
+                      <Grid item xs={12} md={8}>
+                        <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>
+                          {job.position}
+                        </Typography>
+                        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+                          <BusinessIcon fontSize="small" color="primary" />
+                          <Typography variant="subtitle1" color="primary.main" fontWeight={600}>
+                            {job.company}
+                          </Typography>
+                        </Stack>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            whiteSpace: 'pre-line',
+                            lineHeight: 1.6,
+                            color: 'text.secondary'
+                          }}
+                        >
+                          {job.description}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <Box sx={{ 
+                          bgcolor: 'grey.50', 
+                          p: 2, 
+                          borderRadius: 2,
+                          height: 'fit-content'
+                        }}>
+                          <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                            DURATION
+                          </Typography>
+                          <Typography variant="body2" fontWeight={600} sx={{ mt: 0.5 }}>
+                            {job.startDate}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            to
+                          </Typography>
+                          <Typography variant="body2" fontWeight={600}>
+                            {job.endDate || "Present"}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+              </Box>
+            ))}
+          </Stack>
+        </Box>
+      ) : (
+        <Card sx={{ 
+          p: 6, 
+          textAlign: 'center', 
+          borderRadius: 3,
+          border: '2px dashed',
+          borderColor: 'divider',
+          bgcolor: 'grey.50'
+        }}>
+          <WorkIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+          <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+            No Work History Available
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Previous work experience will be displayed here
+          </Typography>
+        </Card>
+      )}
+    </Box>
+  </>
+)}
       </Box>
 
       {/* Certification Details Dialog */}
@@ -795,142 +1307,179 @@ const WorkerDetails = () => {
           setRejectionReason('');
           setShowRejectionDialog(false);
         }}
-        maxWidth="md"
+        maxWidth="sm"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 4,
+            p: 0,
+            m: 1,
+            maxWidth: { xs: '95vw', sm: 600 },
+          },
+        }}
       >
         {selectedCertification && (
-          <>
-            <DialogTitle>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <SchoolIcon color="primary" />
-                {selectedCertification.certificationType.name}
+          <Box>
+            {/* Header */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                px: 3,
+                py: 2.5,
+                bgcolor: 'primary.light',
+                borderTopLeftRadius: 16,
+                borderTopRightRadius: 16,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              <SchoolIcon sx={{ fontSize: 40, color: 'primary.main' }} />
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="h6" fontWeight={700}>
+                  {selectedCertification.certificationType.name}
+                </Typography>
+                <Typography variant="subtitle2" color="text.secondary">
+                  {selectedCertification.certificationType.description}
+                </Typography>
               </Box>
-            </DialogTitle>
-            <DialogContent>
-              <Stack spacing={2}>
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Description Here
-                  </Typography>
-                  <Typography variant="body1">
-                    {selectedCertification.certificationType.description}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Details
-                  </Typography>
-                  <Grid container spacing={2}>
-                    {selectedCertification.number && (
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="body2">
-                          <strong>Number:</strong> {selectedCertification.number}
-                        </Typography>
-                      </Grid>
-                    )}
-                    {selectedCertification.issuer && (
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="body2">
-                          <strong>Issuer:</strong> {selectedCertification.issuer}
-                        </Typography>
-                      </Grid>
-                    )}
-                    {selectedCertification.issuedDate && (
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="body2">
-                          <strong>Issued:</strong> {formatDate(selectedCertification.issuedDate)}
-                        </Typography>
-                      </Grid>
-                    )}
-                    {selectedCertification.expiryDate && (
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="body2">
-                          <strong>Expires:</strong> {formatDate(selectedCertification.expiryDate)}
-                        </Typography>
-                      </Grid>
-                    )}
-                    {selectedCertification.degree && (
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="body2">
-                          <strong>Degree:</strong> {selectedCertification.degree}
-                        </Typography>
-                      </Grid>
-                    )}
-                  </Grid>
-                </Box>
-                {selectedCertification.documents && selectedCertification.documents.length > 0 && (
-                  <Box>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                      Documents
-                    </Typography>
-                    <Stack direction="row" spacing={2}>
-                      {selectedCertification.documents.map((doc, index) => (
-                        <Button
-                          key={index}
-                          variant="outlined"
-                          startIcon={<DescriptionIcon />}
-                          onClick={() => setSelectedDocument(doc)}
-                        >
-                          {doc.fileName || `Document ${index + 1}`}
-                        </Button>
-                      ))}
-                    </Stack>
-                  </Box>
-                )}
+              <Chip
+                label={selectedCertification.verificationStatus}
+                color={
+                  selectedCertification.verificationStatus === 'Verified'
+                    ? 'success'
+                    : selectedCertification.verificationStatus === 'Rejected'
+                    ? 'error'
+                    : selectedCertification.verificationStatus === 'Expiring Soon'
+                    ? 'warning'
+                    : 'primary'
+                }
+                size="medium"
+                sx={{ fontWeight: 600, fontSize: '1rem' }}
+              />
+            </Box>
 
-              </Stack>
-            </DialogContent>
-            <DialogContent>
-              <Stack>
-                <Box style={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  gap: '22px'
-                }}>
-                  <Button 
-                    onClick={() => {
-                      if (window.confirm('Are you sure you want to delete this certification?')) {
-                        // Handle delete
-                      }
-                    }}
-                    style={{
-                      padding: "10px 20px",
-                      color: '#fff',
-                      backgroundColor: 'red'
-                    }}
-                    disabled={isUpdating}
-                  >
-                    Delete
-                  </Button>
-                  
-                  <FormControl sx={{ minWidth: 200 }}>
-                    <InputLabel id="certification-status-label">Status</InputLabel>
-                    <Select
-                      labelId="certification-status-label"
-                      id="certification-status"
-                      value={selectedCertification?.verificationStatus}
-                      label="Status"
-                      onChange={handleStatusChange}
+            {/* Details & Actions */}
+            <Box sx={{ px: { xs: 2, sm: 4 }, py: 3 }}>
+              <Grid container spacing={3}>
+                {/* Details Section */}
+                <Grid item xs={12} sm={7}>
+                  <Stack spacing={2}>
+                    <Box>
+                      <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                        Details
+                      </Typography>
+                      <Grid container spacing={1}>
+                        {selectedCertification.number && (
+                          <Grid item xs={12} sm={6}>
+                            <Typography variant="body2">
+                              <strong>Number:</strong> {selectedCertification.number}
+                            </Typography>
+                          </Grid>
+                        )}
+                        {selectedCertification.issuer && (
+                          <Grid item xs={12} sm={6}>
+                            <Typography variant="body2">
+                              <strong>Issuer:</strong> {selectedCertification.issuer}
+                            </Typography>
+                          </Grid>
+                        )}
+                        {selectedCertification.issuedDate && (
+                          <Grid item xs={12} sm={6}>
+                            <Typography variant="body2">
+                              <strong>Issued:</strong> {formatDate(selectedCertification.issuedDate)}
+                            </Typography>
+                          </Grid>
+                        )}
+                        {selectedCertification.expiryDate && (
+                          <Grid item xs={12} sm={6}>
+                            <Typography variant="body2">
+                              <strong>Expires:</strong> {formatDate(selectedCertification.expiryDate)}
+                            </Typography>
+                          </Grid>
+                        )}
+                        {selectedCertification.degree && (
+                          <Grid item xs={12} sm={6}>
+                            <Typography variant="body2">
+                              <strong>Degree:</strong> {selectedCertification.degree}
+                            </Typography>
+                          </Grid>
+                        )}
+                      </Grid>
+                    </Box>
+                    {selectedCertification.documents && selectedCertification.documents.length > 0 && (
+                      <Box>
+                        <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                          Documents
+                        </Typography>
+                        <Stack direction="row" spacing={1} flexWrap="wrap">
+                          {selectedCertification.documents.map((doc, index) => (
+                            <Button
+                              key={index}
+                              variant="outlined"
+                              size="small"
+                              startIcon={<DescriptionIcon />}
+                              sx={{ mb: 1 }}
+                              onClick={e => {
+                                e.stopPropagation();
+                                setSelectedDocument(doc);
+                              }}
+                            >
+                              {doc.fileName || `Document ${index + 1}`}
+                            </Button>
+                          ))}
+                        </Stack>
+                      </Box>
+                    )}
+                  </Stack>
+                </Grid>
+                {/* Actions Section */}
+                <Grid item xs={12} sm={5}>
+                  <Stack spacing={2} alignItems={{ xs: 'stretch', sm: 'flex-end' }}>
+                    <FormControl fullWidth sx={{ minWidth: 180 }}>
+                      <InputLabel id="certification-status-label">Status</InputLabel>
+                      <Select
+                        labelId="certification-status-label"
+                        id="certification-status"
+                        value={selectedCertification?.verificationStatus}
+                        label="Status"
+                        onChange={handleStatusChange}
+                        disabled={isUpdating}
+                      >
+                        <MenuItem value="Pending">Pending</MenuItem>
+                        <MenuItem value="Verified">Verified</MenuItem>
+                        <MenuItem value="Rejected">Rejected</MenuItem>
+                        <MenuItem value="Expiring Soon">Expiring Soon</MenuItem>
+                        <MenuItem value="Expired">Expired</MenuItem>
+                      </Select>
+                    </FormControl>
+                    <Button
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to delete this certification?')) {
+                          // Handle delete
+                        }
+                      }}
+                      variant="outlined"
+                      color="error"
                       disabled={isUpdating}
+                      sx={{ fontWeight: 600, borderRadius: 2, py: 1 }}
                     >
-                      <MenuItem value="Pending">Pending</MenuItem>
-                      <MenuItem value="Verified">Verified</MenuItem>
-                      <MenuItem value="Rejected">Rejected</MenuItem>
-                      <MenuItem value="Expiring Soon">Expiring Soon</MenuItem>
-                      <MenuItem value="Expired">Expired</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Box>
-                {isUpdating && (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                    <CircularProgress size={24} />
-                  </Box>
-                )}
-              </Stack>
-            </DialogContent>
-            <DialogActions>
-              <Button 
+                      Delete
+                    </Button>
+                    {isUpdating && (
+                      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                        <CircularProgress size={24} />
+                      </Box>
+                    )}
+                  </Stack>
+                </Grid>
+              </Grid>
+            </Box>
+
+            {/* Footer */}
+            <Box sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+              <Button
                 onClick={() => {
                   setSelectedCertification(null);
                   setCertificationStatus('');
@@ -938,11 +1487,14 @@ const WorkerDetails = () => {
                   setShowRejectionDialog(false);
                 }}
                 disabled={isUpdating}
+                variant="contained"
+                color="primary"
+                sx={{ fontWeight: 600, borderRadius: 2 }}
               >
                 Close
               </Button>
-            </DialogActions>
-          </>
+            </Box>
+          </Box>
         )}
       </Dialog>
 
