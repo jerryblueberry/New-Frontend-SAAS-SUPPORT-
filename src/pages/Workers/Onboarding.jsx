@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo } from 'react';
+import React, { useEffect, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import WorkerProfileForm from '../../components/workerForm/WorkerProfileForm';
 import AvailabilityForm from '../../components/workerForm/AvailabilityForm';
@@ -13,9 +13,28 @@ import { Toaster, toast } from 'react-hot-toast';
 import CertificateSecond from '../CertificateCheck/CertificateSecond';
 import HealthInformation from '../../components/workerForm/HealthInformation';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { getCurrentUser } from '../../api/auth';
 
 const Onboarding = () => {
   const navigate = useNavigate();
+  // Add state to prevent UI flash for admins
+  const [checkingRole, setCheckingRole] = useState(true);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      try {
+        const user = await getCurrentUser();
+        if (user.role === 'admin') {
+          navigate('/admin-dashboard', { replace: true });
+        }
+      } catch (err) {
+        // Optionally handle error (e.g., redirect to login)
+      } finally {
+        setCheckingRole(false);
+      }
+    };
+    checkAdmin();
+  }, [navigate]);
 
   // Get state from store
   const currentStep = useOnboardingStore((state) => state.currentStep);
@@ -34,6 +53,7 @@ const Onboarding = () => {
     const store = useOnboardingStore.getState();
     store.checkPersistence();
   }, []);
+
   const isHealthInfoComplete = (healthInfo) => {
     if (!healthInfo) return false;
 
@@ -166,6 +186,21 @@ const Onboarding = () => {
     }),
     [handleSubmitProfile, handleWorkHistoryError]
   );
+
+  // Optional loading state for admin check
+  if (checkingRole) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <LoadingSpinner
+          size="lg"
+          showLogo={true}
+          text="Checking user role..."
+          fullPage={true}
+          variant="gradient"
+        />
+      </div>
+    );
+  }
 
   // Optional loading state
   if (isQueryLoading) {

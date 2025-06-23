@@ -79,6 +79,7 @@ const Register = () => {
 
   // Handle registration form submission
   const handleRegister = (formData) => {
+    
     setLoadingMessage('Creating your account...');
     setIsLoading(true);
     registerUser(formData);

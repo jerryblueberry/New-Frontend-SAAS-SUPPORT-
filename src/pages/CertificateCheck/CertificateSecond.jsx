@@ -237,6 +237,8 @@ const CertificateSecond = () => {
     fetchCertTypes();
   }, []);
 
+  
+
   // Determine required certifications based on residency status
   useEffect(() => {
     if (!residencyStatus || !certificationTypes.length) {
@@ -247,6 +249,15 @@ const CertificateSecond = () => {
     const required = [];
     const requiredCertIds = new Set();
 
+    // Helper to add a specific visa type by name
+    const addSpecificVisaType = (visaName) => {
+      const visaCert = certificationTypes.find(cert => cert.name === visaName && cert.isVisa);
+      if (visaCert && !requiredCertIds.has(visaCert._id)) {
+        required.push(visaCert);
+        requiredCertIds.add(visaCert._id);
+      }
+    };
+
     // Add education certifications first
     certificationTypes.forEach(cert => {
       if (cert.isEducation && !requiredCertIds.has(cert._id)) {
@@ -255,10 +266,9 @@ const CertificateSecond = () => {
       }
     });
 
-    // First, add residency-specific certifications
+    // Residency-specific certifications
     switch (residencyStatus) {
       case 'Citizen':
-        // Australian Citizenship Certificate
         certificationTypes.forEach(cert => {
           if (cert.isCitizenshipProof && cert.acceptableFor === 'Citizens' && !requiredCertIds.has(cert._id)) {
             required.push(cert);
@@ -266,22 +276,18 @@ const CertificateSecond = () => {
           }
         });
         break;
-        
+
       case 'NZCitizen':
-        // New Zealand citizenship + Special Category Visa
         certificationTypes.forEach(cert => {
-          if ((cert.isCitizenshipProof && cert.acceptableFor === 'NZCitizens') && 
-              !requiredCertIds.has(cert._id)) {
+          if (cert.isCitizenshipProof && cert.acceptableFor === 'NZCitizens' && !requiredCertIds.has(cert._id)) {
             required.push(cert);
             requiredCertIds.add(cert._id);
           }
         });
-        // Look for Special Category Visa if available in the system
         addSpecificVisaType('Special Category Visa (Subclass 444)');
         break;
-        
+
       case 'PermanentResident':
-        // Permanent resident documentation
         certificationTypes.forEach(cert => {
           if (cert.acceptableFor === 'PermanentResidents' && !requiredCertIds.has(cert._id)) {
             required.push(cert);
@@ -289,31 +295,31 @@ const CertificateSecond = () => {
           }
         });
         break;
-        
+
       case 'StudentVisa':
         addSpecificVisaType('Student Visa (Subclass 500)');
         break;
-        
+
       case 'TemporaryGraduateVisa':
         addSpecificVisaType('Temporary Graduate Visa (Subclass 485)');
         break;
-        
+
       case 'TSS':
         addSpecificVisaType('Temporary Skill Shortage Visa (Subclass 482)');
         break;
-        
+
       case 'BridgingVisa':
         addSpecificVisaType('Bridging Visa');
         break;
-        
+
       case 'OtherTemporaryVisa':
         // For other visa types, show all visa options that might be applicable
         certificationTypes.forEach(cert => {
-          if (cert.isVisa && 
-              !['Student Visa (Subclass 500)', 
-                'Temporary Graduate Visa (Subclass 485)', 
+          if (cert.isVisa &&
+              !['Student Visa (Subclass 500)',
+                'Temporary Graduate Visa (Subclass 485)',
                 'Temporary Skill Shortage Visa (Subclass 482)',
-                'Bridging Visa'].includes(cert.name) && 
+                'Bridging Visa'].includes(cert.name) &&
               !requiredCertIds.has(cert._id)) {
             required.push(cert);
             requiredCertIds.add(cert._id);
@@ -321,11 +327,11 @@ const CertificateSecond = () => {
         });
         break;
     }
+    
 
     // Add appropriate identity documents based on residency status
     certificationTypes.forEach(cert => {
       if (cert.category === 'Identity') {
-        // Check if the cert is acceptable for this residency status
         const isAcceptable = 
           cert.acceptableFor === 'AllResidents' || 
           (residencyStatus === 'Citizen' && cert.acceptableFor === 'Citizens') ||
@@ -691,6 +697,31 @@ const CertificateSecond = () => {
     );
   }, [requiredCerts, searchQuery]);
 
+  const handleResidencyStatusChange = (newStatus) => {
+    updateResidencyStatus(newStatus);
+
+    // Find required certs for the new status
+    const newRequiredCertIds = new Set(
+      certificationTypes
+        .filter(cert => {
+          // Your residency logic here, e.g.:
+          if (newStatus === 'Citizen') return cert.acceptableFor === 'Citizens';
+          if (newStatus === 'NZCitizen') return cert.acceptableFor === 'NZCitizens';
+          // ...other cases
+          return false;
+        })
+        .map(cert => cert._id)
+    );
+
+    // Filter out certs not required for the new status
+    const filteredCerts = selectedCerts.filter(cert =>
+      newRequiredCertIds.has(cert.certificationType)
+    );
+
+    setSelectedCerts(filteredCerts);
+    updateCertifications(filteredCerts);
+  };
+
   // Render functions for each step
   const renderPersonalInfoStep = useMemo(() => (
     <Card 
@@ -748,7 +779,8 @@ const CertificateSecond = () => {
             ))}
           </Select>
         </Form.Item> */}
-        
+
+
         <Form.Item 
           label={
             <Space>
@@ -762,10 +794,7 @@ const CertificateSecond = () => {
         >
           <Select
             value={residencyStatus}
-            onChange={(value) => {
-              updateResidencyStatus(value);
-              setFormErrors(prev => ({ ...prev, residencyStatus: undefined }));
-            }}
+            onChange={handleResidencyStatusChange}
             placeholder="Select your status"
             optionLabelProp="label"
             style={{ width: '100%' }}

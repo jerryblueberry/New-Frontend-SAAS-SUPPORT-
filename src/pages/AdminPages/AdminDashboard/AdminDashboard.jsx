@@ -218,7 +218,11 @@ const AdminDashboard = () => {
     return (
         <Container maxWidth="xl" className="admin-dashboard">
             <Box sx={{ mb: 4 }}>
-                <Typography variant="h4" component="h1" gutterBottom>
+                <Typography sx={{
+                    display:'flex',
+                    justifyContent:'center',
+                    mt:6
+                }} variant="h4" component="h1" gutterBottom>
                     Worker Management Dashboard
                 </Typography>
                 

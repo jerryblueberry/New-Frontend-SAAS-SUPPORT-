@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../../api/axios";
 import LoadingSpinner from "../../../components/common/LoadingSpinner";
@@ -41,6 +41,7 @@ import {
   InputLabel,
   TextField,
   CircularProgress,
+  Switch,
 } from "@mui/material";
 import {
   Person as PersonIcon,
@@ -67,8 +68,23 @@ import {
   LocationOn as LocationIcon,
   AccessTime as AccessTimeIcon,
   Info as InfoIcon,
+  Edit as EditIcon,
+  DeleteOutline as DeleteOutlineIcon,
 } from "@mui/icons-material";
 import "./WorkerDetails.css";
+
+const getVerificationStatusColor = (status) => {
+  switch (status) {
+    case "Fully Verified":
+      return "success";
+    case "Partially Verified":
+      return "warning";
+    case "Unverified":
+      return "error";
+    default:
+      return "default";
+  }
+};
 
 const WorkerDetails = () => {
   const { workerId } = useParams();
@@ -83,6 +99,17 @@ const WorkerDetails = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectionDialog, setShowRejectionDialog] = useState(false);
+  const [verModalOpen, setVerModalOpen] = useState(false);
+  const [verForm, setVerForm] = useState({
+    identityVerified: workerData?.verificationStatus?.identityVerified || false,
+    skillsVerified: workerData?.verificationStatus?.skillsVerified || false,
+    backgroundCheckPassed: workerData?.verificationStatus?.backgroundCheckPassed || false,
+  });
+  const [verLoading, setVerLoading] = useState(false);
+  const [verError, setVerError] = useState("");
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const deleteTimeoutRef = useRef(); // For cleanup
 
   console.log("workerData",workerData?.CV);
   console.log("workerData",workerData);
@@ -103,25 +130,22 @@ const WorkerDetails = () => {
     fetchWorkerDetails();
   }, [workerId]);
 
+  useEffect(() => {
+    if (workerData) {
+      setVerForm({
+        identityVerified: workerData.verificationStatus.identityVerified,
+        skillsVerified: workerData.verificationStatus.skillsVerified,
+        backgroundCheckPassed: workerData.verificationStatus.backgroundCheckPassed,
+      });
+    }
+  }, [workerData]);
+
   const handleBack = () => {
     navigate(-1);
   };
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
-  };
-
-  const getVerificationStatusColor = (status) => {
-    switch (status) {
-      case "Fully Verified":
-        return "success";
-      case "Partially Verified":
-        return "warning";
-      case "Unverified":
-        return "error";
-      default:
-        return "default";
-    }
   };
 
   const formatDate = (dateString) => {
@@ -236,6 +260,100 @@ const WorkerDetails = () => {
     }
     updateCertificationStatus('Rejected', rejectionReason);
   };
+
+  const getOverallStatus = () => {
+    const { identityVerified, skillsVerified, backgroundCheckPassed } = verForm;
+    if (identityVerified && skillsVerified && backgroundCheckPassed) return "Fully Verified";
+    if (identityVerified && skillsVerified) return "Partially Verified";
+    return "Unverified";
+  };
+
+  const handleVerModalOpen = () => setVerModalOpen(true);
+  const handleVerModalClose = () => { setVerModalOpen(false); setVerError(""); };
+  const handleVerChange = (field) => (e) => {
+    setVerForm((prev) => ({ ...prev, [field]: e.target.checked }));
+  };
+  const handleVerSave = async () => {
+    setVerLoading(true);
+    setVerError("");
+    try {
+      await api.patch(`/admin/workers/${workerData.user._id}/verification-status`, verForm);
+      // Refetch worker data
+      const response = await api.get(`/admin/workers/${workerData._id}`);
+      setWorkerData(response.data.data);
+      setVerModalOpen(false);
+    } catch (err) {
+      setVerError(err.response?.data?.message || 'Failed to update status');
+    } finally {
+      setVerLoading(false);
+    }
+  };
+
+  // Handler for deleting worker profile (production ready)
+  const handleDeleteWorker = async () => {
+    setDeleteLoading(true);
+    
+    try {
+      // Show initial loading message
+      toast.loading('Deleting worker profile and documents...', { id: 'delete-worker' });
+      
+      const response = await api.delete(`/admin/workers/${workerData.user._id}`);
+      
+      if (response.status === 200) {
+        const { data } = response.data;
+        
+        // Show detailed success message based on what was deleted
+        const deletionSummary = data.cloudinaryDeletions;
+        let successMessage = 'Worker profile deleted successfully!';
+        
+        if (deletionSummary.cv === 'deleted' || 
+            deletionSummary.certificationsDeleted > 0 || 
+            deletionSummary.profileImage === 'deleted') {
+          successMessage += ' All associated documents have been removed.';
+        }
+        
+        // Dismiss loading toast and show success
+        toast.dismiss('delete-worker');
+        toast.success(successMessage);
+        
+        // Close modal first
+        setDeleteModalOpen(false);
+        
+        // Navigate after ensuring all cleanup is complete
+        // Add a small delay to ensure UI updates are processed
+        setTimeout(() => {
+          navigate('/admin-dashboard', { replace: true });
+        }, 100);
+        
+      } else {
+        throw new Error('Unexpected response status');
+      }
+      
+    } catch (err) {
+      // Dismiss loading toast
+      toast.dismiss('delete-worker');
+      
+      const errorMessage = err.response?.data?.message || 
+                          err.message || 
+                          'Failed to delete worker profile.';
+      
+      console.error('Delete worker error:', err);
+      toast.error(errorMessage);
+      
+      // Don't navigate on error - let user retry or handle the issue
+      
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+  // Cleanup timeout on unmount to avoid memory leaks
+  useEffect(() => {
+    return () => {
+      if (deleteTimeoutRef.current) {
+        clearTimeout(deleteTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -361,6 +479,254 @@ const WorkerDetails = () => {
           <Tab label="References & Work History" />
         </Tabs>
       </Box>
+
+      {/* Verification Status Card (responsive, beautiful) */}
+      <Box
+        sx={{
+          mb: 4,
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: 3,
+          alignItems: { xs: 'stretch', sm: 'center' },
+          justifyContent: { xs: 'center', sm: 'flex-start' },
+          width: '100%',
+          flexWrap: 'wrap',
+        }}
+      >
+        {/* Verification Status Card */}
+        <Tooltip title="Click to update verification status">
+          <Card
+            sx={{
+              p: 2,
+              minWidth: { xs: '100%', sm: 320 },
+              maxWidth: 440,
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              cursor: 'pointer',
+              boxShadow: 4,
+              borderRadius: 3,
+              transition: 'box-shadow 0.2s, background 0.2s',
+              '&:hover': { boxShadow: 8, background: '#f5f5f5' },
+              background: 'linear-gradient(90deg, #e3f2fd 0%, #fce4ec 100%)',
+              border: '1.5px solid #90caf9',
+            }}
+            onClick={handleVerModalOpen}
+          >
+            <Chip
+              label={workerData.verificationStatus.overall}
+              color={getVerificationStatusColor(workerData.verificationStatus.overall)}
+              icon={
+                workerData.verificationStatus.overall === "Fully Verified" ? (
+                  <VerifiedIcon />
+                ) : workerData.verificationStatus.overall === "Partially Verified" ? (
+                  <WarningIcon />
+                ) : (
+                  <ErrorIcon />
+                )
+              }
+              sx={{ fontWeight: 'bold', fontSize: 16, px: 2, py: 1 }}
+            />
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                Verification Status
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Click to update
+              </Typography>
+            </Box>
+            <EditIcon color="action" />
+          </Card>
+        </Tooltip>
+
+        {/* Delete Worker Profile Card */}
+        <Tooltip title="Delete this worker profile">
+          <Card
+            sx={{
+              p: 2,
+              minWidth: { xs: '100%', sm: 320 },
+              height:80,
+              maxWidth: 440,
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              cursor: 'pointer',
+              boxShadow: 4,
+              borderRadius: 3,
+              transition: 'box-shadow 0.2s, background 0.2s',
+              '&:hover': { boxShadow: 8, background: '#fff0f0' },
+              background: 'linear-gradient(90deg, #fff0f0 0%, #ffe4e1 100%)',
+              border: '1.5px solid #ff1744',
+            }}
+            onClick={() => setDeleteModalOpen(true)}
+          >
+            <DeleteOutlineIcon sx={{ color: '#ff1744', fontSize: 32 }} />
+            <Box>
+              <Typography variant="subtitle2" color="#ff1744" sx={{ fontWeight: 700 }}>
+                Delete Profile
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Permanently remove this worker and all their information
+              </Typography>
+            </Box>
+          </Card>
+        </Tooltip>
+      </Box>
+
+      {/* Modal for updating verification status */}
+      <Dialog open={verModalOpen} onClose={handleVerModalClose} maxWidth="xs" fullWidth>
+        <DialogTitle>Update Verification Status</DialogTitle>
+        <DialogContent>
+          <Box display="flex" flexDirection="column" gap={2} mt={1}>
+            <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Typography>Identity Verified</Typography>
+              <Switch checked={verForm.identityVerified} onChange={handleVerChange('identityVerified')} />
+            </Box>
+            <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Typography>Skills Verified</Typography>
+              <Switch checked={verForm.skillsVerified} onChange={handleVerChange('skillsVerified')} />
+            </Box>
+            <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Typography>Background Check Passed</Typography>
+              <Switch checked={verForm.backgroundCheckPassed} onChange={handleVerChange('backgroundCheckPassed')} />
+            </Box>
+            <Box mt={2} display="flex" alignItems="center" gap={2}>
+              <Typography variant="subtitle2">Preview:</Typography>
+              <Chip
+                label={getOverallStatus()}
+                color={getVerificationStatusColor(getOverallStatus())}
+                icon={
+                  getOverallStatus() === "Fully Verified" ? (
+                    <VerifiedIcon />
+                  ) : getOverallStatus() === "Partially Verified" ? (
+                    <WarningIcon />
+                  ) : (
+                    <ErrorIcon />
+                  )
+                }
+                sx={{ fontWeight: 'bold', fontSize: 16 }}
+              />
+            </Box>
+            {verError && <Alert severity="error">{verError}</Alert>}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleVerModalClose} disabled={verLoading}>Cancel</Button>
+          <Button onClick={handleVerSave} variant="contained" disabled={verLoading} sx={{ minWidth: 100 }}>
+            {verLoading ? <CircularProgress size={24} /> : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Rejection Reason Dialog */}
+      <Dialog
+        open={showRejectionDialog}
+        onClose={() => {
+          setShowRejectionDialog(false);
+          setRejectionReason('');
+          setCertificationStatus('');
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Rejection Reason</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Reason for Rejection"
+            type="text"
+            fullWidth
+            multiline
+            rows={4}
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value)}
+            disabled={isUpdating}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => {
+              setShowRejectionDialog(false);
+              setRejectionReason('');
+              setCertificationStatus('');
+            }}
+            disabled={isUpdating}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleRejectionSubmit}
+            variant="contained"
+            color="error"
+            disabled={isUpdating}
+          >
+            {isUpdating ? <CircularProgress size={24} /> : 'Submit'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Document Preview */}
+      {selectedDocument && (
+        <DocumentPreview
+          document={selectedDocument}
+          onClose={() => setSelectedDocument(null)}
+        />
+      )}
+
+      {/* Delete Worker Profile Dialog */}
+      <Dialog
+        open={deleteModalOpen}
+        onClose={() => !deleteLoading && setDeleteModalOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        aria-labelledby="delete-worker-dialog-title"
+      >
+        <DialogTitle id="delete-worker-dialog-title" sx={{ color: '#ff1744', fontWeight: 700, textAlign: 'center' }}>
+          Delete Worker Profile
+        </DialogTitle>
+        <DialogContent>
+          <Box display="flex" flexDirection="column" alignItems="center" gap={2} mt={1}>
+            <DeleteOutlineIcon sx={{ color: '#ff1744', fontSize: 48 }} />
+            <Typography variant="h6" color="#ff1744" fontWeight={700} textAlign="center">
+              This action is permanent!
+            </Typography>
+            <Typography variant="body2" color="text.secondary" textAlign="center">
+              Are you sure you want to delete this worker profile? <br />
+              <b>All information, certifications, and history will be deleted from the database.</b>
+              <br />This cannot be undone.
+            </Typography>
+            {deleteLoading && (
+              <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
+                <CircularProgress size={28} color="error" />
+                <Typography sx={{ ml: 2 }} color="error">Deleting...</Typography>
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
+          <Button
+            onClick={() => setDeleteModalOpen(false)}
+            variant="outlined"
+            color="primary"
+            sx={{ minWidth: 100, fontWeight: 600 }}
+            disabled={deleteLoading}
+          >
+            No, Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteWorker}
+            variant="contained"
+            color="error"
+            sx={{ minWidth: 100, fontWeight: 600 }}
+            disabled={deleteLoading}
+          >
+            {deleteLoading ? <CircularProgress size={24} color="inherit" /> : 'Yes, Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Tab Content */}
       <Box sx={{ mt: 3 }}>
@@ -1085,7 +1451,15 @@ const WorkerDetails = () => {
                       startIcon={<DescriptionIcon />}
                       fullWidth
                       sx={{ fontWeight: 600, py: 1.5, borderRadius: 2, textTransform: 'none' }}
-                      onClick={() => setSelectedDocument({ url: workerData.CV, fileName: 'CV.pdf' })}
+                      onClick={() => {
+                        const cvDoc = {
+                          url: workerData.CV,
+                          fileName: 'CV',
+                          fileType: workerData.CV?.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 
+                                  workerData.CV?.toLowerCase().match(/\.(jpg|jpeg|png|gif)$/) ? 'image' : 'other'
+                        };
+                        setSelectedDocument(cvDoc);
+                      }}
                     >
                       Preview CV
                     </Button>
@@ -1497,62 +1871,6 @@ const WorkerDetails = () => {
           </Box>
         )}
       </Dialog>
-
-      {/* Rejection Reason Dialog */}
-      <Dialog
-        open={showRejectionDialog}
-        onClose={() => {
-          setShowRejectionDialog(false);
-          setRejectionReason('');
-          setCertificationStatus('');
-        }}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Rejection Reason</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Reason for Rejection"
-            type="text"
-            fullWidth
-            multiline
-            rows={4}
-            value={rejectionReason}
-            onChange={(e) => setRejectionReason(e.target.value)}
-            disabled={isUpdating}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button 
-            onClick={() => {
-              setShowRejectionDialog(false);
-              setRejectionReason('');
-              setCertificationStatus('');
-            }}
-            disabled={isUpdating}
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleRejectionSubmit}
-            variant="contained"
-            color="error"
-            disabled={isUpdating}
-          >
-            {isUpdating ? <CircularProgress size={24} /> : 'Submit'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Document Preview */}
-      {selectedDocument && (
-        <DocumentPreview
-          document={selectedDocument}
-          onClose={() => setSelectedDocument(null)}
-        />
-      )}
     </Container>
   );
 };
