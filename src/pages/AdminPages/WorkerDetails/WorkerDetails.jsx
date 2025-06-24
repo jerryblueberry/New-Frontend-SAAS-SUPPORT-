@@ -1829,9 +1829,25 @@ const WorkerDetails = () => {
                       </Select>
                     </FormControl>
                     <Button
-                      onClick={() => {
-                        if (window.confirm('Are you sure you want to delete this certification?')) {
-                          // Handle delete
+                      onClick={async () => {
+                        if (!selectedCertification?.certificationType?._id) {
+                          toast.error('Certification type ID is missing');
+                          return;
+                        }
+                        try {
+                          setIsUpdating(true);
+                          await api.delete(`/admin/workers/${workerData.user._id}/certifications/${selectedCertification.certificationType._id}`);
+                          toast.success('Certification deleted successfully');
+                          // Remove the deleted certification from local state
+                          setWorkerData(prevData => ({
+                            ...prevData,
+                            certifications: prevData.certifications.filter(cert => cert.certificationType._id !== selectedCertification.certificationType._id)
+                          }));
+                          setSelectedCertification(null);
+                        } catch (error) {
+                          toast.error(error.response?.data?.message || error.message || 'Failed to delete certification');
+                        } finally {
+                          setIsUpdating(false);
                         }
                       }}
                       variant="outlined"
@@ -1839,7 +1855,7 @@ const WorkerDetails = () => {
                       disabled={isUpdating}
                       sx={{ fontWeight: 600, borderRadius: 2, py: 1 }}
                     >
-                      Delete
+                      {isUpdating ? <CircularProgress size={20} color="error" /> : 'Delete'}
                     </Button>
                     {isUpdating && (
                       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
