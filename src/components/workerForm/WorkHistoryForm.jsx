@@ -322,6 +322,7 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
   const validateForm = useCallback(() => {
     const errors = {};
     let isValid = true;
+    let firstReferenceErrorIndex = null;
 
     // Validate work history
     if (!localWorkHistory.noWorkHistory) {
@@ -332,7 +333,7 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
       } else {
         localWorkHistory.jobs.forEach((job, index) => {
           if (!job.title || !job.title.trim()) {
-            errors[`job${index}_position`] = 'Job title is required';
+            errors[`job${index}_title`] = 'Job title is required';
             isValid = false;
           }
 
@@ -385,29 +386,58 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
         if (!ref.name || !ref.name.trim()) {
           errors[`ref${index}_name`] = 'Reference name is required';
           isValid = false;
+          if (firstReferenceErrorIndex === null) firstReferenceErrorIndex = index;
         }
 
         if (!ref.position || !ref.position.trim()) {
           errors[`ref${index}_position`] = 'Reference position is required';
           isValid = false;
+          if (firstReferenceErrorIndex === null) firstReferenceErrorIndex = index;
         }
 
         if (!ref.phone || !ref.phone.trim()) {
           errors[`ref${index}_phone`] = 'Reference phone is required';
           isValid = false;
+          if (firstReferenceErrorIndex === null) firstReferenceErrorIndex = index;
         }
 
         if (!ref.email || !ref.email.trim()) {
           errors[`ref${index}_email`] = 'Reference email is required';
           isValid = false;
+          if (firstReferenceErrorIndex === null) firstReferenceErrorIndex = index;
         } else if (!/\S+@\S+\.\S+/.test(ref.email.trim())) {
           errors[`ref${index}_email`] = 'Please provide a valid email address';
           isValid = false;
+          if (firstReferenceErrorIndex === null) firstReferenceErrorIndex = index;
         }
       });
     }
 
     setFormErrors(errors);
+    // Expand the first reference card with an error
+    if (firstReferenceErrorIndex !== null) {
+      setExpandedReference(firstReferenceErrorIndex);
+    }
+
+    // Auto-scroll to the first error field
+    if (!isValid) {
+      setTimeout(() => {
+        const firstErrorKey = Object.keys(errors)[0];
+        if (firstErrorKey) {
+          // Try to find the field by name
+          let errorField = document.querySelector(`[name="${firstErrorKey}"]`);
+          // Fallback: try by id
+          if (!errorField) {
+            errorField = document.getElementById(firstErrorKey);
+          }
+          if (errorField) {
+            errorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            errorField.focus();
+          }
+        }
+      }, 100);
+    }
+
     return isValid;
   }, [localWorkHistory, CV]);
   //  for the CV upload
@@ -528,8 +558,14 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
   console.log('ONBORDING DTA', workHistory);
 
   return (
-    <form onSubmit={handleSubmit} className="wh-form">
+    <form onSubmit={handleSubmit} className="wh-form" noValidate>
       <Toaster position="top-right" />
+      {/* Summary error at the top */}
+      {Object.keys(formErrors).length > 0 && (
+        <div className="wh-error-message" style={{ marginBottom: '1rem' }}>
+          Please fix the errors highlighted below.
+        </div>
+      )}
       <div className="wh-section wh-header-section">
         <h2>Work History & References</h2>
         <p>
@@ -739,6 +775,7 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                             </label>
                             <input
                               id={`company-${index}`}
+                              name={`job${index}_company`}
                               type="text"
                               value={job.company}
                               onChange={(e) =>
@@ -755,9 +792,15 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                                   : ''
                               }
                               required
+                              aria-invalid={!!formErrors[`job${index}_company`]}
+                              aria-describedby={formErrors[`job${index}_company`] ? `error-job${index}_company` : undefined}
                             />
                             {formErrors[`job${index}_company`] && (
-                              <div className="wh-field-error">
+                              <div
+                                className="wh-field-error"
+                                id={`error-job${index}_company`}
+                                role="alert"
+                              >
                                 {formErrors[`job${index}_company`]}
                               </div>
                             )}
@@ -769,6 +812,7 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                             </label>
                             <input
                               id={`title-${index}`}
+                              name={`job${index}_title`}
                               type="text"
                               value={job.title}
                               onChange={(e) =>
@@ -781,9 +825,15 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                                   : ''
                               }
                               required
+                              aria-invalid={!!formErrors[`job${index}_title`]}
+                              aria-describedby={formErrors[`job${index}_title`] ? `error-job${index}_title` : undefined}
                             />
                             {formErrors[`job${index}_title`] && (
-                              <div className="wh-field-error">
+                              <div
+                                className="wh-field-error"
+                                id={`error-job${index}_title`}
+                                role="alert"
+                              >
                                 {formErrors[`job${index}_title`]}
                               </div>
                             )}
@@ -797,6 +847,7 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                             </label>
                             <input
                               id={`startDate-${index}`}
+                              name={`job${index}_startDate`}
                               type="date"
                               value={formatDateForInput(job.startDate)}
                               onChange={(e) =>
@@ -812,11 +863,15 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                                   : ''
                               }
                               required
+                              aria-invalid={!!formErrors[`job${index}_startDate`]}
+                              aria-describedby={formErrors[`job${index}_startDate`] ? `error-job${index}_startDate` : undefined}
                             />
-                            <p>{job.startDate}</p>{' '}
-                            {/* This shows the raw value for debugging */}
                             {formErrors[`job${index}_startDate`] && (
-                              <div className="wh-field-error">
+                              <div
+                                className="wh-field-error"
+                                id={`error-job${index}_startDate`}
+                                role="alert"
+                              >
                                 {formErrors[`job${index}_startDate`]}
                               </div>
                             )}
@@ -830,6 +885,7 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                             </label>
                             <input
                               id={`endDate-${index}`}
+                              name={`job${index}_endDate`}
                               type="date"
                               value={formatDateForInput(job.endDate)}
                               onChange={(e) =>
@@ -846,9 +902,15 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                                   : ''
                               }
                               required={!job.currentlyWorking}
+                              aria-invalid={!!formErrors[`job${index}_endDate`]}
+                              aria-describedby={formErrors[`job${index}_endDate`] ? `error-job${index}_endDate` : undefined}
                             />
                             {formErrors[`job${index}_endDate`] && (
-                              <div className="wh-field-error">
+                              <div
+                                className="wh-field-error"
+                                id={`error-job${index}_endDate`}
+                                role="alert"
+                              >
                                 {formErrors[`job${index}_endDate`]}
                               </div>
                             )}
@@ -1016,6 +1078,7 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                           </label>
                           <input
                             id={`ref-name-${index}`}
+                            name={`ref${index}_name`}
                             type="text"
                             value={ref.name}
                             onChange={(e) =>
@@ -1032,9 +1095,15 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                                 : ''
                             }
                             required
+                            aria-invalid={!!formErrors[`ref${index}_name`]}
+                            aria-describedby={formErrors[`ref${index}_name`] ? `error-ref${index}_name` : undefined}
                           />
                           {formErrors[`ref${index}_name`] && (
-                            <div className="wh-field-error">
+                            <div
+                              className="wh-field-error"
+                              id={`error-ref${index}_name`}
+                              role="alert"
+                            >
                               {formErrors[`ref${index}_name`]}
                             </div>
                           )}
@@ -1045,6 +1114,7 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                           </label>
                           <input
                             id={`ref-position-${index}`}
+                            name={`ref${index}_position`}
                             type="text"
                             value={ref.position || ''}
                             onChange={(e) =>
@@ -1061,9 +1131,15 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                                 : ''
                             }
                             required
+                            aria-invalid={!!formErrors[`ref${index}_position`]}
+                            aria-describedby={formErrors[`ref${index}_position`] ? `error-ref${index}_position` : undefined}
                           />
                           {formErrors[`ref${index}_position`] && (
-                            <div className="wh-field-error">
+                            <div
+                              className="wh-field-error"
+                              id={`error-ref${index}_position`}
+                              role="alert"
+                            >
                               {formErrors[`ref${index}_position`]}
                             </div>
                           )}
@@ -1075,6 +1151,7 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                           </label>
                           <input
                             id={`ref-company-${index}`}
+                            name={`ref${index}_company`}
                             type="text"
                             value={ref.company || ''}
                             onChange={(e) =>
@@ -1097,6 +1174,7 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                           </label>
                           <input
                             id={`ref-phone-${index}`}
+                            name={`ref${index}_phone`}
                             type="tel"
                             value={ref.phone || ''}
                             onChange={(e) =>
@@ -1113,9 +1191,15 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                                 : ''
                             }
                             required
+                            aria-invalid={!!formErrors[`ref${index}_phone`]}
+                            aria-describedby={formErrors[`ref${index}_phone`] ? `error-ref${index}_phone` : undefined}
                           />
                           {formErrors[`ref${index}_phone`] && (
-                            <div className="wh-field-error">
+                            <div
+                              className="wh-field-error"
+                              id={`error-ref${index}_phone`}
+                              role="alert"
+                            >
                               {formErrors[`ref${index}_phone`]}
                             </div>
                           )}
@@ -1127,6 +1211,7 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                           </label>
                           <input
                             id={`ref-email-${index}`}
+                            name={`ref${index}_email`}
                             type="email"
                             value={ref.email || ''}
                             onChange={(e) =>
@@ -1143,9 +1228,15 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                                 : ''
                             }
                             required
+                            aria-invalid={!!formErrors[`ref${index}_email`]}
+                            aria-describedby={formErrors[`ref${index}_email`] ? `error-ref${index}_email` : undefined}
                           />
                           {formErrors[`ref${index}_email`] && (
-                            <div className="wh-field-error">
+                            <div
+                              className="wh-field-error"
+                              id={`error-ref${index}_email`}
+                              role="alert"
+                            >
                               {formErrors[`ref${index}_email`]}
                             </div>
                           )}

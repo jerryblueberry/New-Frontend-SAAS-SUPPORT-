@@ -711,6 +711,7 @@ const useOnboardingStore = create(
           if (data.success) {
             get().updateProfileCompleteness(data.data);
             queryClient.invalidateQueries({ queryKey: ['onboarding'] });
+           
             get().nextStep();
           }
           return data;
@@ -989,12 +990,14 @@ export const useCertificationsMutation = () => {
 
           // Validate education-specific fields
           if (certType.isEducation) {
-            if (!cert.degree) {
-              throw new Error(`Degree is required for ${certType.name}`);
+            if (!Array.isArray(cert.degree) || cert.degree.length === 0) {
+              throw new Error(`At least one degree is required for ${certType.name}`);
             }
-            if (certType.educationSetting?.degreeOptions && 
-                !certType.educationSetting.degreeOptions.includes(cert.degree)) {
-              throw new Error(`Invalid degree option for ${certType.name}`);
+            if (
+              certType.educationSetting?.degreeOptions &&
+              !cert.degree.every(d => certType.educationSetting.degreeOptions.includes(d))
+            ) {
+              throw new Error(`One or more selected degrees are invalid for ${certType.name}`);
             }
           }
 

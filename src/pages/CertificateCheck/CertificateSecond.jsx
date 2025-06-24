@@ -416,16 +416,17 @@ const CertificateSecond = () => {
   onSuccess: (data) => {
       // Update the profile completeness with the received data
       if (data.success && data.data) {
+        toast.success("SUbmitted Successfully")
         // Update profile completeness in the store
         const { updateProfileCompleteness } = useOnboardingStore.getState();
         updateProfileCompleteness(data.data);
         
         // Use the store's nextStep function instead of onboardingNextStep
-        // const { nextStep } = useOnboardingStore.getState();
+        const { nextStep } = useOnboardingStore.getState();
         nextStep();
         
         message.success('Certifications submitted successfully!');
-        
+    
         // If you want to navigate after the state is updated
         // You may want to reconsider this direct navigation and let the step management handle it
         // Only navigate if you want to leave the onboarding flow
@@ -525,68 +526,75 @@ const CertificateSecond = () => {
     }
   }, [currentCertIndex, selectedCerts, updateCertifications, requiredCerts]);
 
-  const uploadToCloudinary = async (file, certIndex) => {
-    if (!file) return null;
-    
+  const handleDocumentUpload = async (files, certIndex) => {
     try {
       setIsUploading(prev => ({ ...prev, [certIndex]: true }));
-      
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', 'Certificate(Saas)');
-      formData.append('folder', 'SAAS(Support Worker)');
-      
-      // If replacing an existing document, pass the publicId
-      const existingPublicId = selectedCerts[certIndex]?.documents?.[0]?.publicId;
-      if (existingPublicId) {
-        formData.append('public_id', existingPublicId);
-        formData.append('overwrite', 'true');
+      // Check if we have space for all files
+      const currentDocs = selectedCerts[certIndex]?.documents?.length || 0;
+      const remainingSlots = 2 - currentDocs;
+      if (files.length > remainingSlots) {
+        toast.error(`You can only upload ${remainingSlots} more document(s)`);
+        return false;
       }
-      
-      const cloudName = 'dgsphdhns';
-      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        throw new Error('Upload failed');
+      // Process all uploads in parallel
+      const uploadPromises = files.map(file => uploadToCloudinary(file, certIndex));
+      const results = await Promise.all(uploadPromises);
+      // Filter out any failed uploads
+      const successfulUploads = results.filter(result => result !== null);
+      if (successfulUploads.length === 0) {
+        toast.error('No documents were uploaded successfully');
+        return false;
       }
-      
-      const data = await response.json();
-      
-      return {
-        url: data.secure_url,
-        publicId: data.public_id,
-        fileName: file.name,
-        fileType: file.type,
-        uploadedAt: new Date().toISOString()
+      // Update state with new documents
+      const updatedCerts = [...selectedCerts];
+      updatedCerts[certIndex] = {
+        ...updatedCerts[certIndex],
+        documents: [
+          ...(updatedCerts[certIndex].documents || []),
+          ...successfulUploads
+        ].slice(0, 2) // Ensure we don't exceed max limit
       };
+      setSelectedCerts(updatedCerts);
+      updateCertifications(updatedCerts);
+      toast.success(`Uploaded ${successfulUploads.length} document(s)`);
+      return true;
     } catch (error) {
-      console.error('Upload failed:', error);
-      throw error;
+      console.error('Upload error:', error);
+      toast.error('Failed to upload some documents');
+      return false;
     } finally {
       setIsUploading(prev => ({ ...prev, [certIndex]: false }));
     }
   };
 
-  const handleDocumentUpload = async (file, certIndex) => {
+  const uploadToCloudinary = async (file, certIndex) => {
+    if (!file) return null;
     try {
-      const result = await uploadToCloudinary(file, certIndex);
-      
-      const updatedCerts = [...selectedCerts];
-      updatedCerts[certIndex] = { 
-        ...updatedCerts[certIndex],
-        documents: [result] // Replace existing document with new one
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', 'Certificate(Saas)');
+      formData.append('folder', 'SAAS(Support Worker)');
+      const cloudName = 'dgsphdhns';
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+      const data = await response.json();
+      return {
+        uid: data.public_id, // Use public_id as unique identifier
+        url: data.secure_url,
+        publicId: data.public_id,
+        fileName: file.name,
+        fileType: file.type,
+        uploadedAt: new Date().toISOString(),
+        status: 'done'
       };
-      
-      setSelectedCerts(updatedCerts);
-      updateCertifications(updatedCerts);
-      message.success(`${file.name} uploaded successfully`);
-      return false;
     } catch (error) {
-      message.error('Failed to upload document');
-      return false;
+      console.error('Upload failed:', error);
+      return null;
     }
   };
 
@@ -1212,7 +1220,9 @@ const CertificateSecond = () => {
                         {formatFieldLabel(field)}:
                       </div>
                       <div>
-                        {cert[field] ? (
+                        {field === 'degree' ? (
+                          Array.isArray(cert[field]) ? cert[field].join(', ') : cert[field] || <Text type="danger">Missing</Text>
+                        ) : cert[field] ? (
                           field.toLowerCase().includes('date') ? (
                             <Text>{dayjs(cert[field]).format('DD/MM/YYYY')}</Text>
                           ) : (
@@ -1298,24 +1308,22 @@ const CertificateSecond = () => {
 
   const renderEducationFields = (certType, certIndex) => {
     if (!certType.isEducation) return null;
-
     const degreeOptions = certType.educationSetting?.degreeOptions || [];
-    
     if (degreeOptions.length === 0) {
       console.warn(`No degree options found for education certification: ${certType.name}`);
       return null;
     }
-
     return (
       <Form.Item
         label="Degree"
         name="degree"
-        rules={[{ required: true, message: 'Please select your degree' }]}
-        tooltip="Select your qualification from the list of accepted degrees"
+        rules={[{ required: true, message: 'Please select at least one degree' }]}
+        tooltip="Select your qualification(s) from the list of accepted degrees"
       >
-        <Select 
-          placeholder="Select your degree"
+        <Select
+          placeholder="Select your degree(s)"
           showSearch
+          mode="multiple"
           optionFilterProp="children"
           filterOption={(input, option) =>
             option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
@@ -1383,7 +1391,7 @@ const CertificateSecond = () => {
             ...cert,
             issuedDate: cert.issuedDate ? dayjs(cert.issuedDate) : null,
             expiryDate: cert.expiryDate ? dayjs(cert.expiryDate) : null,
-            degree: cert.degree // Ensure degree is included in initial values
+            degree: Array.isArray(cert.degree) ? cert.degree : (cert.degree ? [cert.degree] : [])
           }}
         >
           {renderEducationFields(certType, currentCertIndex)}
@@ -1469,13 +1477,19 @@ const CertificateSecond = () => {
 
           {certType.documentRequired && (
             <Form.Item 
-              label="Documents"
+              label={
+                <span>
+                  Documents <span style={{ fontWeight: 'normal', color: '#888', fontSize: 13 }}>
+                    ({cert.documents?.length || 0}/2 uploaded)
+                  </span>
+                </span>
+              }
               required
-              tooltip="Upload supporting documents in PDF, JPEG or PNG format (max 5MB)"
+              tooltip="Upload 1-2 supporting documents in PDF, JPEG or PNG format (max 5MB each)"
               rules={[{ 
                 required: true, 
                 validator: () => {
-                  if (!cert.documents?.length) {
+                  if (!cert.documents?.length || cert.documents.length < 1) {
                     return Promise.reject('Please upload at least one document');
                   }
                   return Promise.resolve();
@@ -1484,28 +1498,50 @@ const CertificateSecond = () => {
             >
               <Upload
                 accept=".pdf,.jpg,.jpeg,.png"
-                fileList={cert.documents?.map((doc, i) => ({
-                  uid: i,
-                  name: doc.fileName || doc.name,
-                  status: 'done',
-                  url: doc.url
-                })) || []}
-                onRemove={() => {
-                  handleRemoveDocument(currentCertIndex, 0);
+                fileList={cert.documents || []}
+                onRemove={(file) => {
+                  const docIndex = cert.documents.findIndex(d => d.uid === file.uid);
+                  if (docIndex >= 0) {
+                    handleRemoveDocument(currentCertIndex, docIndex);
+                  }
                 }}
-                beforeUpload={(file) => {
-                  handleDocumentUpload(file, currentCertIndex);
+                beforeUpload={(file, fileList) => {
+                  // Calculate total files after upload
+                  const currentCount = cert.documents?.length || 0;
+                  const newCount = currentCount + fileList.length;
+                  if (newCount > 2) {
+                    toast.error(`You can only upload ${2 - currentCount} more document(s)`);
+                    return Upload.LIST_IGNORE;
+                  }
+                  // Show loading state
+                  toast.loading(`Uploading ${fileList.length} document(s)...`);
+                  // Process uploads
+                  handleDocumentUpload(fileList, currentCertIndex)
+                    .then(() => toast.dismiss())
+                    .catch(() => toast.dismiss());
                   return false; // Prevent default upload
                 }}
-                multiple={false}
-                listType="picture"
+                multiple
+                listType="picture-card"
+                showUploadList={{
+                  showPreviewIcon: true,
+                  showRemoveIcon: true,
+                }}
+                onPreview={(file) => {
+                  const doc = cert.documents.find(d => d.uid === file.uid);
+                  if (doc) setPreviewDocument(doc);
+                }}
+                disabled={isUploading[currentCertIndex]}
               >
-                <Button icon={<UploadOutlined />} loading={isUploading[currentCertIndex]}>
-                  {isUploading[currentCertIndex] ? 'Uploading...' : 'Upload Document'}
-                </Button>
+                {cert.documents?.length >= 2 ? null : (
+                  <div>
+                    <PlusOutlined />
+                    <div style={{ marginTop: 8 }}>Upload</div>
+                  </div>
+                )}
               </Upload>
               <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-                Accepted formats: PDF, JPG, PNG (Max 5MB)
+                Accepted formats: PDF, JPG, PNG (Max 5MB each, 1-2 documents required)
               </Text>
             </Form.Item>
           )}

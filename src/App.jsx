@@ -25,6 +25,7 @@ import ForgotPassword from './pages/auth/ForgotPassword';
 import AdminDashboard from './pages/AdminPages/AdminDashboard/AdminDashboard';
 import AdminRoute from './components/common/AdminRoute';
 import WorkerDetails from './pages/AdminPages/WorkerDetails/WorkerDetails';
+import CertificationTypes from './pages/AdminPages/CertificationType/CertificationTypes';
 
 // Create React Query client with optimized settings
 const queryClient = new QueryClient({
@@ -139,6 +140,13 @@ function AppRoutes() {
         <Route path='/worker-details/:workerId' element = {
           <AdminRoute>
             <WorkerDetails/>
+          </AdminRoute>
+        }
+        />
+        {/*  for the certification types related */}
+        <Route path='/certification-types' element = {
+          <AdminRoute>
+            <CertificationTypes/>
           </AdminRoute>
         }
         />

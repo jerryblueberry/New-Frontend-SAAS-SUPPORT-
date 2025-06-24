@@ -91,15 +91,7 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 } }}>
       <Box sx={{ mb: 4 }}>
-        <Typography
-          variant={isMobile ? "h4" : "h3"}
-          component="h1"
-          fontWeight="bold"
-          color="text.primary"
-          gutterBottom
-        >
-          My Profile
-        </Typography>
+     
         <Typography variant="body1" color="text.secondary">
           Manage your professional profile and account settings
         </Typography>
