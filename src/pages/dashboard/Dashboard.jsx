@@ -8,6 +8,9 @@ import api from '../../api/axios';
 import { useOnboardingQuery } from '../../stores/useOnboardingStore';
 import DocumentPreview from '../../components/workerForm/Modals/DocumentPreview';
 import './css/Dashboard.css';
+import OnboardingPrompt from '../../components/workerDashboard/components/OnboardingPrompt/OnboardingPrompt';
+import WorkerProfileComponent from '../../components/workerDashboard/components/WorkerProfile/WorkerProfileComponent';
+
 const Dashboard = () => {
   const { signOut, isAuthenticated, user: authUser } = useAuth();
   const navigate = useNavigate();
@@ -127,74 +130,6 @@ console.log("USer",user);
     if (!completedSections.workHistory) return 5;
 
     return null;
-  };
-
-  const OnboardingPrompt = ({ percentage, nextStep }) => {
-    const steps = [
-      { id: 1, title: 'Basic Info', description: 'Tell us about yourself' },
-      { id: 2, title: 'Availability', description: 'Set your work schedule' },
-      {
-        id: 3,
-        title: 'Certifications',
-        description: 'Add your qualifications',
-      },
-      {
-        id: 4,
-        title: 'Health Info',
-        description: 'Complete few questionnaire related to your health',
-      },
-      { id: 5, title: 'Work History', description: 'Share your experience' },
-    ];
-
-    return (
-      <div className="wrk-onboarding-prominent-prompt">
-        <div className="wrk-onboarding-header">
-          <h2>Let's Get You Started!</h2>
-          <p>Complete your profile to unlock job opportunities</p>
-        </div>
-
-        <div className="wrk-progress-container">
-          <div className="wrk-progress-bar">
-            <div
-              className="wrk-progress-fill"
-              style={{ width: `${percentage || 0}%` }}
-            ></div>
-          </div>
-          <span className="wrk-progress-text">{percentage || 0}% Complete</span>
-        </div>
-
-        <div className="wrk-onboarding-steps">
-          {steps.map((step) => (
-            <div
-              key={step.id}
-              className={`wrk-onboarding-step ${nextStep === step.id ? 'wrk-current-step' : ''} ${(percentage || 0) >= step.id * 20 ? 'wrk-completed-step' : ''}`}
-            >
-              <div className="wrk-step-number">{step.id}</div>
-              <div className="wrk-step-content">
-                <h3>{step.title}</h3>
-                <p>{step.description}</p>
-                <p>{nextStep}</p>
-              </div>
-              {nextStep === step.id && (
-                <button
-                  onClick={continueOnboarding}
-                  className="wrk-start-step-button"
-                >
-                  Start Now
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <button
-          onClick={continueOnboarding}
-          className="wrk-complete-profile-button"
-        >
-          Complete My Profile
-        </button>
-      </div>
-    );
   };
 
   const continueOnboarding = () => {
@@ -341,6 +276,7 @@ console.log("USer",user);
               <OnboardingPrompt
                 percentage={profileStatus?.profileCompleteness?.percentage || 0}
                 nextStep={getNextOnboardingStep()}
+                onContinue={continueOnboarding}
               />
 
               {/* <button
@@ -365,184 +301,116 @@ console.log("USer",user);
           )}
 
           {activeTab === 'overview' && (
-            <div className="wrk-dashboard-overview">
-              <h1 className="wrk-dashboard-section-title">
-                Dashboard Overview
-              </h1>
+            // <div className="wrk-dashboard-overview">
+            //   <h1 className="wrk-dashboard-section-title">
+            //     Dashboard Overview
+            //   </h1>
 
-              <div className="wrk-dashboard-cards-grid">
-                <DashboardCard
-                  title="Profile Status"
-                  value={verificationStatus || 'Pending'}
-                  icon="◉"
-                  color={verificationStatus === 'Verified' ? 'green' : 'amber'}
-                />
-                <DashboardCard
-                  title="Hourly Rate"
-                  value={`$${onboardingData?.data?.profile?.expectedHourlyRate || 0}/hr`}
-                  icon="◉"
-                  color="blue"
-                />
-                <DashboardCard
-                  title="Last Active"
-                  value={
-                    profileStatus?.lastActiveDate
-                      ? new Date(
-                          profileStatus.lastActiveDate
-                        ).toLocaleDateString()
-                      : 'Today'
-                  }
-                  icon="◉"
-                  color="purple"
-                />
-              </div>
+            //   <div className="wrk-dashboard-cards-grid">
+            //     <DashboardCard
+            //       title="Profile Status"
+            //       value={verificationStatus || 'Pending'}
+            //       icon="◉"
+            //       color={verificationStatus === 'Verified' ? 'green' : 'amber'}
+            //     />
+            //     <DashboardCard
+            //       title="Hourly Rate"
+            //       value={`$${onboardingData?.data?.profile?.expectedHourlyRate || 0}/hr`}
+            //       icon="◉"
+            //       color="blue"
+            //     />
+            //     <DashboardCard
+            //       title="Last Active"
+            //       value={
+            //         profileStatus?.lastActiveDate
+            //           ? new Date(
+            //               profileStatus.lastActiveDate
+            //             ).toLocaleDateString()
+            //           : 'Today'
+            //       }
+            //       icon="◉"
+            //       color="purple"
+            //     />
+            //   </div>
 
-              <div className="wrk-dashboard-overview-grid">
-                <div className="wrk-dashboard-skills-card">
-                  <h2 className="wrk-dashboard-card-title">My Skills</h2>
-                  <div className="wrk-dashboard-skills-list">
-                    {onboardingData?.data?.profile?.skillTags?.map(
-                      (skill, index) => (
-                        <span key={index} className="wrk-dashboard-skill-tag">
-                          {skill}
-                        </span>
-                      )
-                    ) || (
-                      <p className="wrk-dashboard-empty-state">
-                        No skills added yet
-                      </p>
-                    )}
-                  </div>
-                </div>
+            //   <div className="wrk-dashboard-overview-grid">
+            //     <div className="wrk-dashboard-skills-card">
+            //       <h2 className="wrk-dashboard-card-title">My Skills</h2>
+            //       <div className="wrk-dashboard-skills-list">
+            //         {onboardingData?.data?.profile?.skillTags?.map(
+            //           (skill, index) => (
+            //             <span key={index} className="wrk-dashboard-skill-tag">
+            //               {skill}
+            //             </span>
+            //           )
+            //         ) || (
+            //           <p className="wrk-dashboard-empty-state">
+            //             No skills added yet
+            //           </p>
+            //         )}
+            //       </div>
+            //     </div>
 
-                <div className="wrk-dashboard-certifications-card">
-                  <h2 className="wrk-dashboard-card-title">
-                    My Certifications
-                  </h2>
-                  <div className="wrk-dashboard-certifications-list">
-                    {onboardingData?.data?.profile?.certifications
-                      ?.slice(0, 3)
-                      .map((cert, index) => (
-                        <div
-                          key={index}
-                          className="wrk-dashboard-certification-item"
-                        >
-                          <div>
-                            <p className="wrk-dashboard-certification-name">
-                              {cert.certificationType?.name}
-                            </p>
+            //     <div className="wrk-dashboard-certifications-card">
+            //       <h2 className="wrk-dashboard-card-title">
+            //         My Certifications
+            //       </h2>
+            //       <div className="wrk-dashboard-certifications-list">
+            //         {onboardingData?.data?.profile?.certifications
+            //           ?.slice(0, 3)
+            //           .map((cert, index) => (
+            //             <div
+            //               key={index}
+            //               className="wrk-dashboard-certification-item"
+            //             >
+            //               <div>
+            //                 <p className="wrk-dashboard-certification-name">
+            //                   {cert.certificationType?.name}
+            //                 </p>
 
-                            <p className="wrk-dashboard-certification-meta">
-                              Expires:{' '}
-                              {cert.expiryDate
-                                ? new Date(cert.expiryDate).toLocaleDateString()
-                                : 'N/A'}
-                            </p>
-                          </div>
-                          <span
-                            className={`wrk-dashboard-certification-status wrk-dashboard-certification-status-${cert.verificationStatus.toLowerCase()}`}
-                          >
-                            {cert.verificationStatus}
-                          </span>
-                        </div>
-                      )) || (
-                      <p className="wrk-dashboard-empty-state">
-                        No certifications added yet
-                      </p>
-                    )}
-                    {onboardingData?.data?.profile?.certifications?.length >
-                      3 && (
-                      <button
-                        onClick={() => setActiveTab('certifications')}
-                        className="wrk-dashboard-view-all-button"
-                      >
-                        View all certifications
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
+            //                 <p className="wrk-dashboard-certification-meta">
+            //                   Expires:{' '}
+            //                   {cert.expiryDate
+            //                     ? new Date(cert.expiryDate).toLocaleDateString()
+            //                     : 'N/A'}
+            //                 </p>
+            //               </div>
+            //               <span
+            //                 className={`wrk-dashboard-certification-status wrk-dashboard-certification-status-${cert.verificationStatus.toLowerCase()}`}
+            //               >
+            //                 {cert.verificationStatus}
+            //               </span>
+            //             </div>
+            //           )) || (
+            //           <p className="wrk-dashboard-empty-state">
+            //             No certifications added yet
+            //           </p>
+            //         )}
+            //         {onboardingData?.data?.profile?.certifications?.length >
+            //           3 && (
+            //           <button
+            //             onClick={() => setActiveTab('certifications')}
+            //             className="wrk-dashboard-view-all-button"
+            //           >
+            //             View all certifications
+            //           </button>
+            //         )}
+            //       </div>
+            //     </div>
+            //   </div>
+            // </div>
+            <div>
+              Later show the Overview 
             </div>
           )}
 
           {activeTab === 'profile' && (
-            <div className="wrk-dashboard-profile">
-              <h1 className="wrk-dashboard-section-title">My Profile</h1>
-
-              <div className="wrk-dashboard-profile-card">
-                <div className="wrk-dashboard-profile-content">
-                  <div className="wrk-dashboard-profile-avatar-wrapper">
-                    <div className="wrk-dashboard-profile-avatar">
-                      {user?.firstName?.[0]}
-                      {user?.lastName?.[0]}
-                    </div>
-                  </div>
-
-                  <div className="wrk-dashboard-profile-details">
-                    <h2 className="wrk-dashboard-profile-name">
-                      {user?.firstName} {user?.lastName}
-                    </h2>
-                    <p className="wrk-dashboard-profile-email">{user?.email}</p>
-
-                    <div className="wrk-dashboard-profile-grid">
-                      <div>
-                        <p className="wrk-dashboard-profile-label">
-                          Phone Number
-                        </p>
-                        <p className="wrk-dashboard-profile-value">
-                          {user?.phone || 'Not provided'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="wrk-dashboard-profile-label">Joined On</p>
-                        <p className="wrk-dashboard-profile-value">
-                          {user?.createdAt
-                            ? new Date(user.createdAt).toLocaleDateString()
-                            : 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="wrk-dashboard-profile-label">
-                          Expected Rate
-                        </p>
-                        <p className="wrk-dashboard-profile-value">
-                          $
-                          {onboardingData?.data?.profile?.expectedHourlyRate ||
-                            0}
-                          /hr
-                        </p>
-                      </div>
-                      <div>
-                        <p className="wrk-dashboard-profile-label">
-                          Profile Status
-                        </p>
-
-                        <p
-                          className={`wrk-dashboard-profile-value wrk-dashboard-profile-status-${verificationStatus?.toLowerCase() || 'pending'}`}
-                        >
-                          {verificationStatus || 'Pending'}
-                        </p>
-                      </div>
-                    </div>
-
-                    <h3 className="wrk-dashboard-profile-subtitle">
-                      Biography
-                    </h3>
-                    <p className="wrk-dashboard-profile-bio">
-                      {onboardingData?.data?.profile?.biography ||
-                        'No biography provided yet.'}
-                    </p>
-
-                    <button
-                      onClick={() => navigate('/profile/edit')}
-                      className="wrk-dashboard-edit-button"
-                    >
-                      Edit Profile
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <WorkerProfileComponent
+              user={user}
+              onboardingData={onboardingData}
+              verificationStatus={verificationStatus}
+              navigate={navigate}
+            />
           )}
 
           {activeTab === 'jobs' && (
