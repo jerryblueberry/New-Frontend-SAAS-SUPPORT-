@@ -44,9 +44,9 @@ const PROFICIENCY_OPTIONS = [
 // Validation constants
 const VALIDATION_RULES = {
   biography: {
-    minLength: 50,
-    maxLength: 1000,
-    required: true,
+    minLength: 0,
+    maxLength: 1500,
+    required: false,
   },
   expectedHourlyRate: {
     min: 15,
@@ -54,9 +54,9 @@ const VALIDATION_RULES = {
     required: true,
   },
   skillTags: {
-    minCount: 5,
-    maxCount: 15,
-    required: true,
+    minCount: 0,
+    maxCount: 10,
+    required: false,
   },
   languages: {
     minCount: 1,
@@ -89,9 +89,7 @@ const WorkerProfileForm = React.memo(() => {
 
     switch (fieldName) {
       case 'biography':
-        if (!value || typeof value !== 'string') {
-          errors.biography = 'Professional summary is required';
-        } else {
+        if (value && typeof value === 'string') {
           const trimmed = value.trim();
           if (trimmed.length < VALIDATION_RULES.biography.minLength) {
             errors.biography = `Professional summary must be at least ${VALIDATION_RULES.biography.minLength} characters (currently: ${trimmed.length})`;
@@ -99,6 +97,7 @@ const WorkerProfileForm = React.memo(() => {
             errors.biography = `Professional summary must not exceed ${VALIDATION_RULES.biography.maxLength} characters (currently: ${trimmed.length})`;
           }
         }
+        // No error if empty
         break;
 
       case 'expectedHourlyRate':
@@ -354,35 +353,26 @@ const WorkerProfileForm = React.memo(() => {
 
   // Check if form is valid for enabling/disabling submit button
   const isFormValid = useMemo(() => {
-    if (!profile.biography?.trim() || 
-        profile.biography.trim().length < VALIDATION_RULES.biography.minLength) {
-      return false;
-    }
-    
+    // biography is now optional, so no check for it
     if (!profile.expectedHourlyRate || 
         profile.expectedHourlyRate < VALIDATION_RULES.expectedHourlyRate.min) {
       return false;
     }
-    
     if (!profile.skillTags || profile.skillTags.length < VALIDATION_RULES.skillTags.minCount) {
       return false;
     }
-    
     if (!profile.languages || profile.languages.length < VALIDATION_RULES.languages.minCount) {
       return false;
     }
-    
     // Validate language proficiencies
     const hasInvalidLanguages = profile.languages.some(lang => {
       const languageName = typeof lang.language === 'string' 
         ? lang.language 
         : lang.language?.language;
-      
       return !languageName || 
              !lang.proficiency || 
              !PROFICIENCY_OPTIONS.some(opt => opt.value === lang.proficiency);
     });
-    
     return !hasInvalidLanguages;
   }, [profile]);
 
@@ -541,6 +531,12 @@ const WorkerProfileForm = React.memo(() => {
 
   return (
     <form onSubmit={handleSubmit} className="profile_wrkr_basic_form" noValidate>
+      {/* Show summary error if form is invalid after submit */}
+      {hasAttemptedSubmit && Object.keys(formErrors).length > 0 && (
+        <div className="profile_wrkr_basic_error_message" role="alert">
+          Please complete all required fields and fix the errors below to continue.
+        </div>
+      )}
       {error && (
         <div className="profile_wrkr_basic_error_message" role="alert">
           {error.response?.data?.message ||
@@ -554,7 +550,6 @@ const WorkerProfileForm = React.memo(() => {
         <div className="profile_wrkr_basic_form_group">
           <label htmlFor="biography" className="profile_wrkr_basic_form_label">
             Professional Summary
-            <span className="profile_wrkr_basic_required">*</span>
           </label>
           <textarea
             id="biography"
@@ -564,17 +559,14 @@ const WorkerProfileForm = React.memo(() => {
             }`}
             value={profile.biography || ''}
             onChange={handleChange}
-            placeholder={`Tell us about your experience, strengths, and what makes you a great care worker (minimum ${VALIDATION_RULES.biography.minLength} characters)...`}
+            placeholder={`(Optional) Tell us about your experience, strengths, and what makes you a great care worker...`}
             rows={4}
-            required
+            required={false}
             maxLength={VALIDATION_RULES.biography.maxLength}
             aria-describedby={formErrors.biography ? 'biography-error' : 'biography-hint'}
           />
           <div className="profile_wrkr_basic_char_count">
             {(profile.biography || '').length}/{VALIDATION_RULES.biography.maxLength} characters
-            {profile.biography && profile.biography.length >= VALIDATION_RULES.biography.minLength && 
-              ' ✓'
-            }
           </div>
           {formErrors.biography && (
             <div 
@@ -814,10 +806,8 @@ const WorkerProfileForm = React.memo(() => {
       <div className="profile_wrkr_basic_form_actions">
         <button 
           type="submit" 
-          className={`profile_wrkr_basic_btn_primary ${
-            !isFormValid ? 'profile_wrkr_basic_btn_disabled' : ''
-          }`}
-          disabled={isPending || !isFormValid}
+          className={`profile_wrkr_basic_btn_primary${isPending ? ' profile_wrkr_basic_btn_disabled' : ''}`}
+          disabled={isPending}
           aria-describedby="submit-help"
         >
           {isPending ? (
@@ -829,18 +819,6 @@ const WorkerProfileForm = React.memo(() => {
             'Next: Availability'
           )}
         </button>
-        
-        {!isFormValid && hasAttemptedSubmit && (
-          <div id="submit-help" className="profile_wrkr_basic_form_help" role="alert">
-            Please complete all required fields above to continue.
-          </div>
-        )}
-        
-        {/* {!isFormValid && !hasAttemptedSubmit && (
-          <div id="submit-help" className="profile_wrkr_basic_form_help">
-            Complete all required fields to proceed to the next step.
-          </div>
-        )} */}
       </div>
     </form>
   );
