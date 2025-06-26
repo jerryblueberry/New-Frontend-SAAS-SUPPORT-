@@ -124,6 +124,7 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [toast, setToast] = useState(null);
+  const [lastErrorMessage, setLastErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
@@ -140,24 +141,29 @@ const Login = () => {
     }
   }, [isAuthenticated, navigate, from]);
 
-  // Handle error display
-  useEffect(() => {
-    if (authError) {
-      showErrorToast(authError.message || 'Authentication failed');
-    }
-  }, [authError]);
-
+  // Improved error display with unique toast and prevention of duplicate messages
   const showErrorToast = (message) => {
+    if (message === lastErrorMessage) return;
+    setLastErrorMessage(message);
     setToast({
       message,
       type: 'error',
-      duration: 5000
+      duration: 3000, // 8 seconds
+      id: Date.now(),
     });
   };
 
   const hideToast = () => {
     setToast(null);
+    setLastErrorMessage('');
   };
+
+  // Improved error handling in useEffect
+  useEffect(() => {
+    if (authError && authError.message) {
+      showErrorToast(authError.message || 'Authentication failed');
+    }
+  }, [authError?.message]);
 
   const {
     mutate,
@@ -166,36 +172,18 @@ const Login = () => {
   } = useMutation({
     mutationFn: signIn,
     onSuccess: () => {
+      clearAuthError();
       navigate(from, { replace: true });
     },
     onError: (error) => {
-      console.log("Login error:", error.response?.data?.message || error.message);
-      showErrorToast(error.response?.data?.message || 'Authentication failed. Please check your credentials.');
+      const errorMessage = error.response?.data?.message || error.message || 'Authentication failed. Please check your credentials.';
+      console.log("Login error:", errorMessage);
+      showErrorToast(errorMessage);
       setIsSubmitting(false);
     }
   });
 
-  // Google login with proper error handling
-  const googleLoginMutation = useMutation({
-    mutationFn: googleAuth,
-    onSuccess: (data) => {
-      signIn(data.data, true)
-        .then(() => {
-          navigate(from, { replace: true });
-        })
-        .catch((err) => {
-          console.error('Error updating auth context after Google login:', err);
-          showErrorToast(err.message || 'Google authentication failed');
-          setIsGoogleLoading(false);
-        });
-    },
-    onError: (error) => {
-      console.error('Google auth failed:', error);
-      showErrorToast(error.message || 'Google authentication failed');
-      setIsGoogleLoading(false);
-    }
-  });
-
+  // Google login with improved error handling
   const googleLogin = useGoogleLogin({
     flow: 'implicit',
     onSuccess: async (response) => {
@@ -203,17 +191,18 @@ const Login = () => {
       try {
         const authResult = await googleAuth(response.access_token);
         await signIn(authResult.data, true, true);
+        clearAuthError();
         navigate(from, { replace: true });
       } catch (error) {
         console.error('Google auth failed:', error);
-        showErrorToast(error.message || 'Google authentication failed');
+        showErrorToast(error.response?.data?.message || error.message || 'Google authentication failed');
       } finally {
         setIsGoogleLoading(false);
       }
     },
     onError: (error) => {
       console.error('Google login error:', error);
-      showErrorToast(error.message || 'Google login failed');
+      showErrorToast('Google login failed. Please try again.');
       setIsGoogleLoading(false);
     },
   });
@@ -223,7 +212,6 @@ const Login = () => {
       showErrorToast(error.response?.data?.message || error.message || 'Authentication failed');
       return;
     }
-
     setIsSubmitting(true);
     try {
       await signIn(credentials);
@@ -243,139 +231,140 @@ const Login = () => {
   };
   
   return (
-    <div className="login__container">
+    <>
       {toast && (
         <Toast
+          key={toast.id}
           message={toast.message}
           type={toast.type}
           onClose={hideToast}
           duration={toast.duration}
         />
       )}
+      <div className="login__container">
+        {/* Left side - Branding section */}
+        <div className="login__branding">
+          <h1 className="login__branding-title">
+            Independent Support Worker Platform
+          </h1>
+          <p className="login__branding-subtitle">
+            Join our community of dedicated support workers and make a real difference in people's lives
+          </p>
 
-      {/* Left side - Branding section */}
-      <div className="login__branding">
-        <h1 className="login__branding-title">
-          Independent Support Worker Platform
-        </h1>
-        <p className="login__branding-subtitle">
-          Join our community of dedicated support workers and make a real difference in people's lives
-        </p>
-
-        <div className="login__features">
-          <div className="login__feature-item">
-            <FaUserFriends className="login__feature-icon" />
-            <h3 className="login__feature-title">Connect with Clients</h3>
-            <p className="login__feature-description">
-              Build meaningful relationships with clients who value your expertise and dedication
-            </p>
-          </div>
-          <div className="login__feature-item">
-            <FaChartLine className="login__feature-icon" />
-            <h3 className="login__feature-title">Career Growth</h3>
-            <p className="login__feature-description">
-              Access training, certifications, and opportunities to advance your career
-            </p>
-          </div>
-          <div className="login__feature-item">
-            <FaHandshake className="login__feature-icon" />
-            <h3 className="login__feature-title">Flexible Work</h3>
-            <p className="login__feature-description">
-              Choose your schedule and work with clients that match your expertise
-            </p>
-          </div>
-          <div className="login__feature-item">
-            <FaCalendarAlt className="login__feature-icon" />
-            <h3 className="login__feature-title">Easy Management</h3>
-            <p className="login__feature-description">
-              Streamline your work with our intuitive scheduling and management tools
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Right side - Login form section */}
-      <div className="login__form-section">
-        <div className="login__card">
-          <div className="login__logo-container">
-            <img src={AECUSLogo} alt="AECUS Logo" className="login__logo-img" />
-          </div>
-          <div className="login__header">
-            <h2 className="login__title">Welcome Back</h2>
-            <p className="login__subtitle">Sign in to continue your journey of making a difference</p>
-          </div>
-
-          <LoginForm
-            onSubmit={handleLoginSubmit}
-            setEmailInputRef={(el) => emailInputRef.current = el}
-            loading={isLoading || isSubmitting}
-            error={mutationError}
-            onInputChange={() => hideToast()}
-          />
-
-          <div className="login__divider">
-            <div className="login__divider-line">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200"></div>
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="login__divider-text">
-                  Or continue with
-                </span>
-              </div>
+          <div className="login__features">
+            <div className="login__feature-item">
+              <FaUserFriends className="login__feature-icon" />
+              <h3 className="login__feature-title">Connect with Clients</h3>
+              <p className="login__feature-description">
+                Build meaningful relationships with clients who value your expertise and dedication
+              </p>
+            </div>
+            <div className="login__feature-item">
+              <FaChartLine className="login__feature-icon" />
+              <h3 className="login__feature-title">Career Growth</h3>
+              <p className="login__feature-description">
+                Access training, certifications, and opportunities to advance your career
+              </p>
+            </div>
+            <div className="login__feature-item">
+              <FaHandshake className="login__feature-icon" />
+              <h3 className="login__feature-title">Flexible Work</h3>
+              <p className="login__feature-description">
+                Choose your schedule and work with clients that match your expertise
+              </p>
+            </div>
+            <div className="login__feature-item">
+              <FaCalendarAlt className="login__feature-icon" />
+              <h3 className="login__feature-title">Easy Management</h3>
+              <p className="login__feature-description">
+                Streamline your work with our intuitive scheduling and management tools
+              </p>
             </div>
           </div>
+        </div>
 
-          <button
-            onClick={handleGoogleButtonClick}
-            disabled={isGoogleLoading}
-            className="login__google-btn"
-            aria-label="Sign in with Google"
-            ref={googleButtonRef}
-          >
-            {isGoogleLoading ? (
-              <LoadingSpinner />
-            ) : (
-              <>
-                <div className="login__google-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-                    <path
-                      fill="#FFC107"
-                      d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
-                    />
-                    <path
-                      fill="#FF3D00"
-                      d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"
-                    />
-                    <path
-                      fill="#4CAF50"
-                      d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0124 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
-                    />
-                    <path
-                      fill="#1976D2"
-                      d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 01-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"
-                    />
-                  </svg>
+        {/* Right side - Login form section */}
+        <div className="login__form-section">
+          <div className="login__card">
+            <div className="login__logo-container">
+              <img src={AECUSLogo} alt="AECUS Logo" className="login__logo-img" />
+            </div>
+            <div className="login__header">
+              <h2 className="login__title">Welcome Back</h2>
+              <p className="login__subtitle">Sign in to continue your journey of making a difference</p>
+            </div>
+
+            <LoginForm
+              onSubmit={handleLoginSubmit}
+              setEmailInputRef={(el) => emailInputRef.current = el}
+              loading={isLoading || isSubmitting}
+              error={mutationError}
+            />
+
+            <div className="login__divider">
+              <div className="login__divider-line">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200"></div>
                 </div>
-                <span>Continue with Google</span>
-              </>
-            )}
-          </button>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="login__divider-text">
+                    Or continue with
+                  </span>
+                </div>
+              </div>
+            </div>
 
-          <div className="login__footer">
-            <p className="login__footer-text">
-              New to our platform?{' '}
-              <a
-                href="/register"
-                className="login__signup-link"
-              >
-                Create an account
-              </a>
-            </p>
+            <button
+              onClick={handleGoogleButtonClick}
+              disabled={isGoogleLoading}
+              className="login__google-btn"
+              aria-label="Sign in with Google"
+              ref={googleButtonRef}
+            >
+              {isGoogleLoading ? (
+                <LoadingSpinner />
+              ) : (
+                <>
+                  <div className="login__google-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+                      <path
+                        fill="#FFC107"
+                        d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
+                      />
+                      <path
+                        fill="#FF3D00"
+                        d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"
+                      />
+                      <path
+                        fill="#4CAF50"
+                        d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0124 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
+                      />
+                      <path
+                        fill="#1976D2"
+                        d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 01-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"
+                      />
+                    </svg>
+                  </div>
+                  <span>Continue with Google</span>
+                </>
+              )}
+            </button>
+
+            <div className="login__footer">
+              <p className="login__footer-text">
+                New to our platform?{' '}
+                <a
+                  href="/register"
+                  className="login__signup-link"
+                >
+                  Create an account
+                </a>
+              </p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

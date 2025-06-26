@@ -4,15 +4,45 @@ import { useGoogleLogin } from '@react-oauth/google';
 import RegisterForm from '../../components/auth/RegisterForm';
 import { register, googleAuth } from '../../api/auth';
 import { useAuth } from '../../hooks/useAuth';
-import { FaUserFriends, FaHandshake, FaChartLine, FaHeart, FaShieldAlt, FaLightbulb } from 'react-icons/fa';
 import { toast } from 'react-toastify';
-import './css/Register.css';
+import { 
+  Box, 
+  Grid, 
+  Typography, 
+  Paper, 
+  Button, 
+  Divider, 
+  useTheme, 
+  useMediaQuery,
+  Avatar,
+  Fade,
+  Collapse,
+  IconButton,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Link
+} from '@mui/material';
+import {
+  People as PeopleIcon,
+  Handshake as HandshakeIcon,
+  TrendingUp as TrendingUpIcon,
+  Favorite as FavoriteIcon,
+  Security as SecurityIcon,
+  Lightbulb as LightbulbIcon,
+  Google as GoogleIcon,
+  Visibility,
+  VisibilityOff
+} from '@mui/icons-material';
 import Logo from '../../assets/AECUS LOGO.webp';
 import { useState, useMemo } from 'react';
 
 const Register = () => {
   const navigate = useNavigate();
   const { signIn } = useAuth();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
 
@@ -77,20 +107,16 @@ const Register = () => {
     },
   });
 
-  // Handle registration form submission
   const handleRegister = (formData) => {
-    
     setLoadingMessage('Creating your account...');
     setIsLoading(true);
     registerUser(formData);
   };
 
-  // Handle Google registration
   const handleGoogleRegister = () => {
     googleLogin();
   };
 
-  // Get error message for display
   const errorMessage = useMemo(() => {
     if (registerError) {
       const message = registerError.response?.data?.message || 'Registration failed';
@@ -105,148 +131,224 @@ const Register = () => {
     return null;
   }, [registerError, googleError]);
 
+  const benefits = [
+    {
+      icon: <PeopleIcon color="primary" />,
+      title: 'Connect with Clients',
+      description: 'Build meaningful relationships with those who need your support'
+    },
+    {
+      icon: <HandshakeIcon color="primary" />,
+      title: 'Flexible Work',
+      description: 'Choose your own schedule and work on your terms'
+    },
+    {
+      icon: <TrendingUpIcon color="primary" />,
+      title: 'Career Growth',
+      description: 'Access training and development opportunities'
+    },
+    {
+      icon: <FavoriteIcon color="primary" />,
+      title: 'Make an Impact',
+      description: 'Create positive change in people\'s lives every day'
+    },
+    {
+      icon: <SecurityIcon color="primary" />,
+      title: 'Secure Platform',
+      description: 'Work with confidence on our trusted platform'
+    },
+    {
+      icon: <LightbulbIcon color="primary" />,
+      title: 'Continuous Learning',
+      description: 'Stay updated with the latest care practices'
+    }
+  ];
+
   return (
-    <div className="register-page">
-      <div className="register-page__container">
-        <div className="register-page__content">
-          <div className="register-page__right">
-            <div className="register-page__form-container">
-              <div className="register-page__logo">
-                <img src={Logo} alt="Support Worker Platform" className="register-page__logo-img" loading="lazy" />
-              </div>
-              
-              <div className="register-page__form-header">
-                <h2 className="register-page__form-title">Create Your Account</h2>
-                <p className="register-page__form-subtitle">Join our community of support workers</p>
-              </div>
-              
-              {errorMessage && (
-                <div className="register-page__error">
-                  {errorMessage}
-                </div>
-              )}
-              
-              <RegisterForm 
-                onSubmit={handleRegister}
-                onGoogleRegister={handleGoogleRegister}
-                loading={isLoading}
-                loadingMessage={loadingMessage}
-                error={errorMessage}
-              />
-              
-              <div className="register-page__social-buttons">
-                <div className="register-page__divider">
-                  <div className="register-page__divider-line"></div>
-                  <span className="register-page__divider-text">
-                    Or sign up with
-                  </span>
-                </div>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        bgcolor: 'background.default',
+        p: isMobile ? 0 : 4
+      }}
+    >
+      <Paper
+        elevation={isMobile ? 0 : 8}
+        sx={{
+          width: '100%',
+          maxWidth: 1200,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: isMobile ? 'column-reverse' : 'row',
+          borderRadius: isMobile ? 0 : theme.shape.borderRadius * 2
+        }}
+      >
+        {/* Left Side - Benefits */}
+        <Box
+          sx={{
+            flex: 1.2,
+            bgcolor: 'primary.dark',
+            p: isMobile ? 3 : 4,
+            color: 'common.white',
+            background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`
+          }}
+        >
+          <Box sx={{ mb: 4 }}>
+            <Typography 
+              variant={isMobile ? 'h5' : 'h4'} 
+              component="h1"
+              sx={{ 
+                fontWeight: 800,
+                mb: 1,
+                background: `linear-gradient(to right, ${theme.palette.common.white}, ${theme.palette.grey[300]})`,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}
+            >
+              Join Our Support Worker Community
+            </Typography>
+            <Typography 
+              variant="subtitle1"
+              sx={{ opacity: 0.9 }}
+            >
+              Start your journey to make a difference in people's lives
+            </Typography>
+          </Box>
 
-                <button
-                  onClick={handleGoogleRegister}
-                  disabled={isLoading}
-                  className="register-page__google-button"
-                  aria-label="Sign up with Google"
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              mb: 4,
+              bgcolor: 'rgba(255, 255, 255, 0.1)',
+              borderLeft: `4px solid ${theme.palette.secondary.main}`
+            }}
+          >
+            <Typography variant="body1" fontStyle="italic">
+              "The best way to find yourself is to lose yourself in the service of others."
+            </Typography>
+            <Typography variant="caption" component="footer" display="block" sx={{ mt: 1 }}>
+              — Mahatma Gandhi
+            </Typography>
+          </Paper>
+
+          <Grid container spacing={2}>
+            {benefits.map((benefit, index) => (
+              <Grid item xs={12} sm={6} key={index}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    height: '100%',
+                    bgcolor: 'rgba(255, 255, 255, 0.1)',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                      bgcolor: 'rgba(255, 255, 255, 0.15)'
+                    }
+                  }}
                 >
-                  <div className="register-page__google-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-                      <path
-                        fill="#FFC107"
-                        d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
-                      />
-                      <path
-                        fill="#FF3D00"
-                        d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"
-                      />
-                      <path
-                        fill="#4CAF50"
-                        d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0124 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
-                      />
-                      <path
-                        fill="#1976D2"
-                        d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 01-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"
-                      />
-                    </svg>
-                  </div>
-                  <span>Continue with Google</span>
-                </button>
-              </div>
-              
-              <div className="register-page__footer">
-                By signing up, you agree to our 
-                <a href="/terms" className="register-page__link"> Terms of Service </a> 
-                and 
-                <a href="/privacy" className="register-page__link"> Privacy Policy</a>
-              </div>
-            </div>
-          </div>
+                  <Box display="flex" alignItems="flex-start" gap={2}>
+                    <Avatar sx={{ bgcolor: 'primary.light', width: 40, height: 40 }}>
+                      {benefit.icon}
+                    </Avatar>
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight={600}>
+                        {benefit.title}
+                      </Typography>
+                      <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                        {benefit.description}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
 
-          <div className="register-page__left">
-            <div className="register-page__header">
-              <h2 className="register-page__title">Join Our Support Worker Community</h2>
-              <p className="register-page__subtitle">Start your journey to make a difference in people's lives</p>
-            </div>
+        {/* Right Side - Form */}
+        <Box
+          sx={{
+            flex: 1,
+            p: isMobile ? 3 : 2,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            bgcolor: 'background.paper'
+          }}
+        >
+          <Box sx={{ mb: 4, textAlign: 'center' }}>
+            <Avatar
+              src={Logo}
+              alt="AECUS Logo"
+              sx={{
+                width: 240,
+                height: 'auto',
+                maxWidth: 320,
+                mx: 'auto',
+                mb: 2,
+                transition: 'transform 0.3s ease',
+                '&:hover': {
+                  transform: 'scale(1.05)'
+                }
+              }}
+              variant="square"
+            />
+            <Typography variant="h5" component="h2" fontWeight={700} gutterBottom fontFamily={'sans-serif'} color='#9d82db'>
+              Create Your Account
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Join our community of support workers
+            </Typography>
+          </Box>
 
-            <div className="register-page__quote">
-              <blockquote>
-                "The best way to find yourself is to lose yourself in the service of others."
-                <footer>— Mahatma Gandhi</footer>
-              </blockquote>
-            </div>
+          {errorMessage && (
+            <Fade in={!!errorMessage}>
+              <Paper
+                elevation={0}
+                sx={{
+                  bgcolor: 'error.light',
+                  color: 'error.dark',
+                  p: 2,
+                  mb: 3,
+                  borderRadius: 1
+                }}
+              >
+                <Typography variant="body2">
+                  {errorMessage}
+                </Typography>
+              </Paper>
+            </Fade>
+          )}
 
-            <div className="register-page__benefits">
-              <div className="register-page__benefit-item">
-                <FaUserFriends className="register-page__benefit-icon" />
-                <div className="register-page__benefit-content">
-                  <h3>Connect with Clients</h3>
-                  <p>Build meaningful relationships with those who need your support</p>
-                </div>
-              </div>
+          <RegisterForm 
+            onSubmit={handleRegister}
+            onGoogleRegister={handleGoogleRegister}
+            loading={isLoading}
+            loadingMessage={loadingMessage}
+            error={errorMessage}
+          />
 
-              <div className="register-page__benefit-item">
-                <FaHandshake className="register-page__benefit-icon" />
-                <div className="register-page__benefit-content">
-                  <h3>Flexible Work</h3>
-                  <p>Choose your own schedule and work on your terms</p>
-                </div>
-              </div>
-
-              <div className="register-page__benefit-item">
-                <FaChartLine className="register-page__benefit-icon" />
-                <div className="register-page__benefit-content">
-                  <h3>Career Growth</h3>
-                  <p>Access training and development opportunities</p>
-                </div>
-              </div>
-
-              <div className="register-page__benefit-item">
-                <FaHeart className="register-page__benefit-icon" />
-                <div className="register-page__benefit-content">
-                  <h3>Make an Impact</h3>
-                  <p>Create positive change in people's lives every day</p>
-                </div>
-              </div>
-
-              <div className="register-page__benefit-item">
-                <FaShieldAlt className="register-page__benefit-icon" />
-                <div className="register-page__benefit-content">
-                  <h3>Secure Platform</h3>
-                  <p>Work with confidence on our trusted platform</p>
-                </div>
-              </div>
-
-              <div className="register-page__benefit-item">
-                <FaLightbulb className="register-page__benefit-icon" />
-                <div className="register-page__benefit-content">
-                  <h3>Continuous Learning</h3>
-                  <p>Stay updated with the latest care practices</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary">
+              Already have an account?{' '}
+              <Link 
+                href="/login" 
+                color="primary"
+                fontWeight={600}
+                underline="hover"
+              >
+                Sign in
+              </Link>
+            </Typography>
+          </Box>
+        </Box>
+      </Paper>
+    </Box>
   );
 };
 

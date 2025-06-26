@@ -1,16 +1,37 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import './css/Toast.css';
 
-const Toast = ({ message, type = 'error', onClose, duration = 5000 }) => {
+const Toast = ({ message, type = 'error', onClose, duration = 2000 }) => {
+  const timerRef = useRef(null);
+  const messageRef = useRef(message);
+
   useEffect(() => {
-    if (duration) {
-      const timer = setTimeout(() => {
+    // Clear any existing timer
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+
+    // Only set timer if duration is provided and message exists
+    if (duration && message) {
+      timerRef.current = setTimeout(() => {
         onClose();
       }, duration);
-
-      return () => clearTimeout(timer);
     }
-  }, [duration, onClose]);
+
+    // Cleanup function
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [message, duration, onClose]); // Include message in dependencies
+
+  // Update message ref when message changes
+  useEffect(() => {
+    messageRef.current = message;
+  }, [message]);
+
+  if (!message) return null;
 
   return (
     <div className={`toast toast--${type}`} role="alert">
@@ -42,4 +63,4 @@ const Toast = ({ message, type = 'error', onClose, duration = 5000 }) => {
   );
 };
 
-export default Toast; 
+export default Toast;

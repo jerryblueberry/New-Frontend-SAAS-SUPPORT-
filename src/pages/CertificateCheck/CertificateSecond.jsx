@@ -49,6 +49,7 @@ import {
   FileOutlined
 
 
+
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import debounce from 'lodash/debounce';
@@ -831,7 +832,7 @@ const CertificateSecond = () => {
       {residencyStatus && (
         <Alert 
           message="Profile Information Saved" 
-          description="Your nationality and residency information has been saved. Click Next to continue to certification selection."
+          description="Your   residency information has been saved. Click Next to continue to certification selection."
           type="success" 
           showIcon 
           style={{ marginTop: 24, maxWidth: 600 }}
