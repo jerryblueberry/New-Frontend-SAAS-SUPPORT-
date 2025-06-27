@@ -10,7 +10,9 @@ import DocumentPreview from '../../components/workerForm/Modals/DocumentPreview'
 import './css/Dashboard.css';
 import OnboardingPrompt from '../../components/workerDashboard/components/OnboardingPrompt/OnboardingPrompt';
 import WorkerProfileComponent from '../../components/workerDashboard/components/WorkerProfile/WorkerProfileComponent';
-
+import { Box, Paper, Typography, Button } from '@mui/material';
+import DashboardSidebar from '../../components/workerDashboard/components/DashboardSidebar/DashboardSidebar';
+import WorkerNavbar from '../../components/Navbar/WorkerNavbar';
 const Dashboard = () => {
   const { signOut, isAuthenticated, user: authUser } = useAuth();
   const navigate = useNavigate();
@@ -160,116 +162,15 @@ console.log("USer",user);
 
   return (
     <div className="wrk-dashboard-container">
-      {/* Top Navigation */}
-      <header className="wrk-dashboard-header">
-        <div className="wrk-dashboard-header-content">
-          <div className="wrk-dashboard-logo-wrapper">
-            <h1 className="wrk-dashboard-logo">WorkerApp</h1>
-          </div>
-
-          <div className="wrk-dashboard-user-actions">
-            <div className="wrk-dashboard-user-info">
-              <span className="wrk-dashboard-user-name">
-                {user?.firstName} {user?.lastName}
-              </span>
-            </div>
-            <div className="wrk-dashboard-user-menu">
-              <button
-                className="wrk-dashboard-user-menu-button"
-                aria-label="User menu"
-              >
-                <div className="wrk-dashboard-user-avatar">
-                  {user?.firstName?.[0]}
-                  {user?.lastName?.[0]}
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
+      <WorkerNavbar />
       <div className="wrk-dashboard-main">
-        {/* Sidebar */}
-        <aside className="wrk-dashboard-sidebar">
-          {needsOnboarding && (
-            <div className="wrk-dashboard-sidebar-progress">
-              {/* <div className="wrk-dashboard-sidebar-progress-header">
-                <span>Profile Completion</span>
-                <span>
-                  {profileStatus?.profileCompleteness?.percentage || 0}%
-                </span>
-              </div> */}
-              <div className="wrk-dashboard-sidebar-progress-track">
-                <div
-                  className="wrk-dashboard-sidebar-progress-bar"
-                  style={{
-                    width: `${profileStatus?.profileCompleteness?.percentage || 0}%`,
-                  }}
-                ></div>
-              </div>
-              {/* <button
-                onClick={continueOnboarding}
-                className="wrk-dashboard-sidebar-progress-button"
-              >
-                Complete Now
-              </button> */}
-            </div>
-          )}
-          <nav className="wrk-dashboard-nav">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`wrk-dashboard-nav-item ${activeTab === 'overview' ? 'wrk-dashboard-nav-item-active' : ''}`}
-            >
-              <span className="wrk-dashboard-nav-icon">◉</span>
-              <span>Overview</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('profile')}
-              className={`wrk-dashboard-nav-item ${activeTab === 'profile' ? 'wrk-dashboard-nav-item-active' : ''}`}
-            >
-              <span className="wrk-dashboard-nav-icon">◉</span>
-              <span>My Profile</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('jobs')}
-              className={`wrk-dashboard-nav-item ${activeTab === 'jobs' ? 'wrk-dashboard-nav-item-active' : ''}`}
-            >
-              <span className="wrk-dashboard-nav-icon">◉</span>
-              <span>Available Jobs</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('schedule')}
-              className={`wrk-dashboard-nav-item ${activeTab === 'schedule' ? 'wrk-dashboard-nav-item-active' : ''}`}
-            >
-              <span className="wrk-dashboard-nav-icon">◉</span>
-              <span>My Schedule</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('certifications')}
-              className={`wrk-dashboard-nav-item ${activeTab === 'certifications' ? 'wrk-dashboard-nav-item-active' : ''}`}
-            >
-              <span className="wrk-dashboard-nav-icon">◉</span>
-              <span>Certifications</span>
-            </button>
-            {/* For the workHistory */}
-            <button
-              onClick={() => setActiveTab('workHistory')}
-              className={`wrk-dashboard-nav-item ${activeTab === 'workHistory' ? 'wrk-dashboard-nav-item-active' : ''}`}
-            >
-              <span className="wrk-dashboard-nav-icon">◉</span>
-              <span>Work History</span>
-            </button>
-            <button
-              onClick={handleSignOut}
-              className="wrk-dashboard-nav-item wrk-dashboard-nav-item-signout"
-            >
-              <span className="wrk-dashboard-nav-icon">◉</span>
-              <span>Sign Out</span>
-            </button>
-          </nav>
-        </aside>
-
-        {/* Main Content */}
+        <DashboardSidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          handleSignOut={handleSignOut}
+          needsOnboarding={needsOnboarding}
+          profileStatus={profileStatus}
+        />
         <main className="wrk-dashboard-content">
           {needsOnboarding && (
             <>
@@ -278,130 +179,95 @@ console.log("USer",user);
                 nextStep={getNextOnboardingStep()}
                 onContinue={continueOnboarding}
               />
-
-              {/* <button
-                onClick={continueOnboarding}
-                className="wrk-fab-onboarding"
-              >
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M19 13H13V19H11V13H5V11H11V5H13V11H19V13Z"
-                    fill="white"
-                  />
-                </svg>
-                <span className="wrk-fab-text">Complete Profile</span>
-              </button> */}
             </>
           )}
 
           {activeTab === 'overview' && (
-            // <div className="wrk-dashboard-overview">
-            //   <h1 className="wrk-dashboard-section-title">
-            //     Dashboard Overview
-            //   </h1>
-
-            //   <div className="wrk-dashboard-cards-grid">
-            //     <DashboardCard
-            //       title="Profile Status"
-            //       value={verificationStatus || 'Pending'}
-            //       icon="◉"
-            //       color={verificationStatus === 'Verified' ? 'green' : 'amber'}
-            //     />
-            //     <DashboardCard
-            //       title="Hourly Rate"
-            //       value={`$${onboardingData?.data?.profile?.expectedHourlyRate || 0}/hr`}
-            //       icon="◉"
-            //       color="blue"
-            //     />
-            //     <DashboardCard
-            //       title="Last Active"
-            //       value={
-            //         profileStatus?.lastActiveDate
-            //           ? new Date(
-            //               profileStatus.lastActiveDate
-            //             ).toLocaleDateString()
-            //           : 'Today'
-            //       }
-            //       icon="◉"
-            //       color="purple"
-            //     />
-            //   </div>
-
-            //   <div className="wrk-dashboard-overview-grid">
-            //     <div className="wrk-dashboard-skills-card">
-            //       <h2 className="wrk-dashboard-card-title">My Skills</h2>
-            //       <div className="wrk-dashboard-skills-list">
-            //         {onboardingData?.data?.profile?.skillTags?.map(
-            //           (skill, index) => (
-            //             <span key={index} className="wrk-dashboard-skill-tag">
-            //               {skill}
-            //             </span>
-            //           )
-            //         ) || (
-            //           <p className="wrk-dashboard-empty-state">
-            //             No skills added yet
-            //           </p>
-            //         )}
-            //       </div>
-            //     </div>
-
-            //     <div className="wrk-dashboard-certifications-card">
-            //       <h2 className="wrk-dashboard-card-title">
-            //         My Certifications
-            //       </h2>
-            //       <div className="wrk-dashboard-certifications-list">
-            //         {onboardingData?.data?.profile?.certifications
-            //           ?.slice(0, 3)
-            //           .map((cert, index) => (
-            //             <div
-            //               key={index}
-            //               className="wrk-dashboard-certification-item"
-            //             >
-            //               <div>
-            //                 <p className="wrk-dashboard-certification-name">
-            //                   {cert.certificationType?.name}
-            //                 </p>
-
-            //                 <p className="wrk-dashboard-certification-meta">
-            //                   Expires:{' '}
-            //                   {cert.expiryDate
-            //                     ? new Date(cert.expiryDate).toLocaleDateString()
-            //                     : 'N/A'}
-            //                 </p>
-            //               </div>
-            //               <span
-            //                 className={`wrk-dashboard-certification-status wrk-dashboard-certification-status-${cert.verificationStatus.toLowerCase()}`}
-            //               >
-            //                 {cert.verificationStatus}
-            //               </span>
-            //             </div>
-            //           )) || (
-            //           <p className="wrk-dashboard-empty-state">
-            //             No certifications added yet
-            //           </p>
-            //         )}
-            //         {onboardingData?.data?.profile?.certifications?.length >
-            //           3 && (
-            //           <button
-            //             onClick={() => setActiveTab('certifications')}
-            //             className="wrk-dashboard-view-all-button"
-            //           >
-            //             View all certifications
-            //           </button>
-            //         )}
-            //       </div>
-            //     </div>
-            //   </div>
-            // </div>
-            <div>
-              Later show the Overview 
-            </div>
+            verificationStatus !== 'Verified' ? (
+              <Box
+                sx={{
+                  mt: { xs: 6, sm: 8 },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: { xs: 400, sm: 500 },
+                  width: '100%',
+                  px: { xs: 2, sm: 0 },
+                }}
+              >
+                <Paper
+                  elevation={3}
+                  sx={{
+                    p: { xs: 3, sm: 5 },
+                    borderRadius: 4,
+                    maxWidth: 480,
+                    width: '100%',
+                    textAlign: 'center',
+                    bgcolor: 'background.paper',
+                    boxShadow: '0 8px 32px rgba(80,80,120,0.08)',
+                    mb: 4,
+                  }}
+                >
+                  {/* Animated SVG Illustration */}
+                  <Box sx={{ mb: 3, display: 'flex', justifyContent: 'center' }}>
+                    <Box
+                      sx={{
+                        width: { xs: 180, sm: 220 },
+                        height: { xs: 120, sm: 140 },
+                        mx: 'auto',
+                        mb: 2,
+                        animation: 'float 2.5s ease-in-out infinite',
+                        '@keyframes float': {
+                          '0%': { transform: 'translateY(0px)' },
+                          '50%': { transform: 'translateY(-16px)' },
+                          '100%': { transform: 'translateY(0px)' },
+                        },
+                      }}
+                    >
+                      {/* Simple SVG illustration (can be replaced with a more complex one) */}
+                      <svg width="100%" height="100%" viewBox="0 0 220 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <ellipse cx="110" cy="120" rx="80" ry="15" fill="#ede7f6"/>
+                        <rect x="60" y="40" width="100" height="60" rx="16" fill="#b39ddb"/>
+                        <rect x="75" y="55" width="70" height="30" rx="8" fill="#fff"/>
+                        <rect x="90" y="65" width="40" height="10" rx="5" fill="#d1c4e9"/>
+                        <circle cx="110" cy="55" r="8" fill="#7e57c2"/>
+                        <rect x="100" y="90" width="20" height="8" rx="4" fill="#9575cd"/>
+                      </svg>
+                    </Box>
+                  </Box>
+                  <Typography variant="h5" fontWeight={700} color="primary.main" gutterBottom>
+                    Thank you for applying!
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+                    Your profile is currently <b>under review</b> by our team. We appreciate your interest and the time you've invested in completing your application.
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    We will notify you via email as soon as your profile has been successfully verified and you are ready to begin your journey with us. In the meantime, feel free to explore your dashboard or update your information if needed.
+                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="large"
+                      onClick={() => setActiveTab('profile')}
+                      sx={{ borderRadius: 2, fontWeight: 600, px: 4, boxShadow: 2 }}
+                    >
+                      View My Profile
+                    </Button>
+                  </Box>
+                </Paper>
+              </Box>
+            ) : (
+              <Box sx={{ mt: 8, textAlign: 'center' }}>
+                <Typography variant="h4" color="primary.main" fontWeight={700}>
+                  Welcome to your Dashboard!
+                </Typography>
+                <Typography variant="body1" color="text.secondary" sx={{ mt: 2 }}>
+                  Your profile is verified. Explore your dashboard features.
+                </Typography>
+              </Box>
+            )
           )}
 
           {activeTab === 'profile' && (

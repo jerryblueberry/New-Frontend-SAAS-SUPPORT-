@@ -90,7 +90,7 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 } }}>
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: 4 ,mt:5 }}>
      
         <Typography variant="body1" color="text.secondary">
           Manage your professional profile and account settings

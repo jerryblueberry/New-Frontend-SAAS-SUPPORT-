@@ -14,7 +14,7 @@ import CertificateSecond from '../CertificateCheck/CertificateSecond';
 import HealthInformation from '../../components/workerForm/HealthInformation';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { getCurrentUser } from '../../api/auth';
-
+import WorkerNavbar from '../../components/Navbar/WorkerNavbar'
 const Onboarding = () => {
   const navigate = useNavigate();
   // Add state to prevent UI flash for admins
@@ -232,10 +232,12 @@ const Onboarding = () => {
   return (
     <div className="onboarding-container">
       <Toaster position="top-right" />
+      <WorkerNavbar/>
       <div className="onboarding-header">
         <h1>Complete Your Worker Profile</h1>
         <p>Tell us about yourself so we can help you find the right jobs.</p>
-        <ProgressBar
+        <ProgressBar 
+        
           currentStep={currentStep}
           totalSteps={5}
           steps={[

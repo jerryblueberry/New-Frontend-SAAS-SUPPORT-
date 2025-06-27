@@ -24,10 +24,11 @@
   display: flex;
   align-items: center;
   height: 100%;
+  
 }
 
 .wrk-dashboard-logo-image {
-  height: 48px;
+  height: 120px;
   width: auto;
   object-fit: contain;
 }
@@ -178,11 +179,11 @@
 
 @media (max-width: 768px) {
   .wrk-dashboard-header {
-    height: 64px;
+    height: 84px;
   }
 
   .wrk-dashboard-logo-image {
-    height: 42px;
+    height: 150px;
   }
 
   .wrk-dashboard-user-name {
@@ -196,7 +197,7 @@
   }
 
   .wrk-dashboard-logo-image {
-    height: 38px;
+    height: 100px;
   }
 
   .wrk-dashboard-user-avatar {

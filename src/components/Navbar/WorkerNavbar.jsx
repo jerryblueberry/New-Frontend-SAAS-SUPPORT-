@@ -66,12 +66,12 @@ const WorkerNavbar = () => {
                   </div>
                 </div>
                 <div className="wrk-dashboard-dropdown-divider" />
-                <button 
+                {/* <button 
                   className="wrk-dashboard-dropdown-item"
-                  onClick={() => navigate('/profile')}
+                  onClick={() => navigate('/dashboard')}
                 >
-                  Profile Settings
-                </button>
+                  Dashboard
+                </button> */}
                 <button 
                   className="wrk-dashboard-dropdown-item"
                   onClick={handleSignOut}

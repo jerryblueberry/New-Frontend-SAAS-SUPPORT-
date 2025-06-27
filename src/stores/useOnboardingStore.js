@@ -110,17 +110,19 @@ const initialState = {
   },
 
   availability: {
-    weeklySchedule: [
-      { day: 'Monday', slots: [] },
-      { day: 'Tuesday', slots: [] },
-      { day: 'Wednesday', slots: [] },
-      { day: 'Thursday', slots: [] },
-      { day: 'Friday', slots: [] },
-      { day: 'Saturday', slots: [] },
-      { day: 'Sunday', slots: [] },
-    ],
+    // weeklySchedule: [
+    //   { day: 'Monday', slots: [] },
+    //   { day: 'Tuesday', slots: [] },
+    //   { day: 'Wednesday', slots: [] },
+    //   { day: 'Thursday', slots: [] },
+    //   { day: 'Friday', slots: [] },
+    //   { day: 'Saturday', slots: [] },
+    //   { day: 'Sunday', slots: [] },
+    // ],
     customTimeSlots: [],
-    notes: '',
+    // notes: '',
+    kmWillingToTravel: 20,
+    suburb: '',
   },
 
   certifications: [],
@@ -270,43 +272,37 @@ const useOnboardingStore = create(
         }
       },
 
-      availability: {
-        weeklySchedule: daysOfWeek.map((day) => ({
-          day,
-          slots: [],
-        })),
-        customTimeSlots: [],
-        notes: '',
-      },
-
       updateAvailability: (availabilityData) => {
         set((state) => ({
           availability: { ...state.availability, ...availabilityData },
         }));
       },
 
-      toggleTimeSlot: (dayIndex, slotValue) => {
-        set((state) => {
-          const updatedSchedule = [...state.availability.weeklySchedule];
-          const daySlots = updatedSchedule[dayIndex].slots;
+      // toggleTimeSlot: (dayIndex, slotValue) => {
+      //   set((state) => {
+      //     const updatedSchedule = [...state.availability.weeklySchedule];
+      //     const daySlots = updatedSchedule[dayIndex].slots;
 
-          if (daySlots.includes(slotValue)) {
-            updatedSchedule[dayIndex].slots = daySlots.filter(
-              (slot) => slot !== slotValue
-            );
-          } else {
-            updatedSchedule[dayIndex].slots = [...daySlots, slotValue];
-          }
+      //     if (daySlots.includes(slotValue)) {
+      //       updatedSchedule[dayIndex].slots = daySlots.filter(
+      //         (slot) => slot !== slotValue
+      //       );
+      //     } else {
+      //       updatedSchedule[dayIndex].slots = [...daySlots, slotValue];
+      //     }
 
-          return {
-            availability: {
-              ...state.availability,
-              weeklySchedule: updatedSchedule,
-            },
-          };
-        });
-      },
+      //     return {
+      //       availability: {
+      //         ...state.availability,
+      //         weeklySchedule: updatedSchedule,
+      //       },
+      //     };
+      //   });
+      // },
 
+      
+  // Adding the suburb liek the customTimeSlot
+  
       // Add Custom Timeslot
       addCustomTimeSlot: (slot) => {
         set((state) => ({
@@ -575,11 +571,14 @@ const useOnboardingStore = create(
               })) || [],
           },
           availability: {
-            weeklySchedule:
-              profile?.availability?.weeklySchedule ||
-              get().availability.weeklySchedule,
-            customTimeSlots: profile?.availability?.customTimeSlots || [],
-            notes: profile?.availability?.notes || '',
+            // weeklySchedule:
+              // profile?.availability?.weeklySchedule ||
+              // get().availability.weeklySchedule,
+            // customTimeSlots: profile?.availability?.customTimeSlots || [],
+            customTimeSlots: profile?.availability?.customTimeSlots || get().availability.customTimeSlots,
+            // notes: profile?.availability?.notes || '',
+            kmWillingToTravel: profile?.availability?.kmWillingToTravel || 20,
+            suburb: profile?.availability?.suburb || '',
           },
           certifications: profile?.certifications || [],
           residencyStatus: profile?.residencyStatus || '',
@@ -656,14 +655,29 @@ const useOnboardingStore = create(
       saveAvailabilityStep: async () => {
         try {
           set({ isLoading: true, error: null });
-          const { weeklySchedule, customTimeSlots, notes } = get().availability;
+          const { customTimeSlots, kmWillingToTravel, suburb } = get().availability;
+
+          // Local validation
+          if (!customTimeSlots || customTimeSlots.length === 0) {
+            throw new Error('At least one custom time slot is required');
+          }
+          if (
+            typeof kmWillingToTravel !== 'number' ||
+            kmWillingToTravel < 1 ||
+            kmWillingToTravel > 100
+          ) {
+            throw new Error('Travel distance must be between 1 and 100 km');
+          }
+          if (!suburb || !suburb.trim()) {
+            throw new Error('Suburb is required');
+          }
 
           const data = await onboardingApi.saveAvailabilityStep({
             availability: {
-              weeklySchedule,
               customTimeSlots,
+              kmWillingToTravel,
+              suburb: suburb.trim(),
             },
-            availabilityNotes: notes,
           });
 
           if (data.success) {
@@ -674,11 +688,8 @@ const useOnboardingStore = create(
           return data;
         } catch (error) {
           set({
-            error:
-              error.response?.data?.message ||
-              'Failed to save availability data',
+            error: error.message || 'Failed to save availability data',
           });
-          console.error(error);
           throw error;
         } finally {
           set({ isLoading: false });
@@ -930,15 +941,29 @@ export const useAvailabilityMutation = () => {
     mutationFn: (availabilityData) => {
       // Direct state access
       const { availability } = useOnboardingStore.getState();
-      const { weeklySchedule, customTimeSlots, notes } =
-        availabilityData || availability;
+      const { customTimeSlots, kmWillingToTravel, suburb } = availabilityData || availability;
+
+      // Local validation
+      if (!customTimeSlots || customTimeSlots.length === 0) {
+        throw new Error('At least one custom time slot is required');
+      }
+      if (
+        typeof kmWillingToTravel !== 'number' ||
+        kmWillingToTravel < 1 ||
+        kmWillingToTravel > 100
+      ) {
+        throw new Error('Travel distance must be between 1 and 100 km');
+      }
+      if (!suburb || !suburb.trim()) {
+        throw new Error('Suburb is required');
+      }
 
       return onboardingApi.saveAvailabilityStep({
         availability: {
-          weeklySchedule,
           customTimeSlots,
+          kmWillingToTravel,
+          suburb: suburb.trim(),
         },
-        availabilityNotes: notes,
       });
     },
     onSuccess: (data) => {

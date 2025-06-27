@@ -161,6 +161,7 @@ button {
 
 /* Main Layout */
 .wrk-dashboard-main {
+  
   display: flex;
   flex: 1;
   height: calc(100vh - 70px);
@@ -168,27 +169,19 @@ button {
 
 /* Sidebar Styles */
 .wrk-dashboard-sidebar {
-  width: 0;
-  background-color: white;
+  position: relative;
+  top: unset;
+  left: unset;
+  height: 100%;
+  width: 260px;
+  background-color: red;
   border-right: 1px solid var(--gray-200);
   overflow: hidden;
   transition: width 0.3s ease;
-  position: fixed;
-  left: 0;
-  top: 70px;
-  bottom: 0;
-  z-index: 40;
   box-shadow: 1px 0 3px rgba(0, 0, 0, 0.05);
 }
 
 @media (min-width: 768px) {
-  .wrk-dashboard-sidebar {
-    width: 260px;
-    position: sticky;
-    top: 70px;
-    height: calc(100vh - 70px);
-  }
-
   .wrk-dashboard-content {
     margin-left: 0;
     width: calc(100% - 260px);
@@ -1120,6 +1113,7 @@ button {
   gap: 2rem;
   padding: 1.5rem;
   font-family: 'Segoe UI', sans-serif;
+  margin-top: 4rem;
 }
 
 .work-section,

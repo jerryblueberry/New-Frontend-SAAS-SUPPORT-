@@ -2,9 +2,9 @@
 .step-progress-container {
   position: relative;
   width: 100%;
-  max-width: 800px;
+  max-width: 900px;
   margin: 2rem auto;
-  padding: 0 1rem;
+  padding: 0 2rem;
   box-sizing: border-box;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
     Ubuntu, Cantarell, 'Open Sans', sans-serif;
@@ -33,8 +33,8 @@
 
 /* Color Variants */
 .step-progress-primary {
-  background-color: #4a6bff;
-  background-image: linear-gradient(90deg, #4a6bff, #6a8eff);
+  background-color: #ff5f4a;
+  background-image: linear-gradient(90deg, #4890f5, #5be972);
 }
 
 .step-progress-secondary {
@@ -105,7 +105,7 @@
   right: 0;
   width: 12px;
   height: 12px;
-  background-color: white;
+  background-color: rgb(16, 230, 95);
   border-radius: 50%;
   transform: translate(50%, -50%);
   animation: pulse 1.5s infinite;
@@ -220,12 +220,12 @@
 .step-connector-line {
   position: absolute;
   height: 100%;
-  background-color: #f0f0f0;
+  /* background-color: #e08080; */
   transition: background-color 0.3s ease;
 }
 
 .connector-active {
-  background-color: #4a6bff;
+  /* background-color: #4a6bff; */
 }
 
 /* Modal Styles */

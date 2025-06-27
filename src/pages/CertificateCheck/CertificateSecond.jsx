@@ -731,6 +731,28 @@ const CertificateSecond = () => {
     updateCertifications(filteredCerts);
   };
 
+  // Returns an array of { certIndex, certTypeName, missingFields: [field, ...] }
+  const getIncompleteRequiredCerts = useCallback(() => {
+    return requiredCerts.map((reqCert) => {
+      const certIndex = selectedCerts.findIndex(sel => sel.certificationType === reqCert._id);
+      if (certIndex === -1) {
+        return {
+          certIndex: null,
+          certTypeName: reqCert.name,
+          missingFields: reqCert.requiredFields.concat(reqCert.documentRequired ? ['documents'] : [])
+        };
+      }
+      const cert = selectedCerts[certIndex];
+      const missingFields = reqCert.requiredFields.filter(f => !cert[f]);
+      if (reqCert.documentRequired && (!cert.documents || cert.documents.length === 0)) {
+        missingFields.push('documents');
+      }
+      return missingFields.length > 0
+        ? { certIndex, certTypeName: reqCert.name, missingFields }
+        : null;
+    }).filter(Boolean);
+  }, [requiredCerts, selectedCerts]);
+
   // Render functions for each step
   const renderPersonalInfoStep = useMemo(() => (
     <Card 
@@ -864,7 +886,58 @@ const CertificateSecond = () => {
               prefix={<InfoCircleOutlined />}
             />
           </Card>
-          
+          {currentStep === 1 && getIncompleteRequiredCerts().length > 0 && (
+            <Alert
+              type="error"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message="Some required certifications are incomplete"
+              description={
+                <div>
+                  {getIncompleteRequiredCerts().map((item, idx) => (
+                    <div key={idx} style={{ marginBottom: 8 }}>
+                      <b>{item.certTypeName}:</b>
+                      {item.missingFields.map((field, i) => (
+                        <Tag color="red" key={i} style={{ marginLeft: 8 }}>
+                          {formatFieldLabel(field)}
+                        </Tag>
+                      ))}
+                      {item.certIndex !== null && (
+                        <Button
+                          type="link"
+                          size="small"
+                          onClick={() => editCertification(item.certIndex)}
+                          style={{ marginLeft: 8, padding: 0 }}
+                        >
+                          Edit
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              }
+            />
+          )}
+          {!allRequiredCertsAdded() && selectedCerts.length > 0 && (
+              <Alert 
+                message="Required Certifications Missing" 
+                description={
+                  <div>
+                    <p>You still need to add {requiredCerts.length - getRequiredCertsAddedCount()} required certifications.</p>
+                    {/* <Button 
+                      type="link" 
+                      onClick={() => setActiveTab('required')}
+                      style={{ padding: 0 }}
+                    >
+                      View required certifications
+                    </Button> */}
+                  </div>
+                } 
+                type="warning" 
+                showIcon
+                style={{ marginTop: 16 }}
+              />
+            )}
           <Card 
             title={<Title level={4} style={{ margin: 0 }}>Available Certifications</Title>}
             style={{ borderRadius: 8 }}
@@ -974,6 +1047,7 @@ const CertificateSecond = () => {
               </TabPane>
             </Tabs>
           </Card>
+          
 
           <Card 
             title={<Title level={4} style={{ margin: 0 }}>Your Certifications</Title>}
@@ -998,7 +1072,10 @@ const CertificateSecond = () => {
             }
           >
             {selectedCerts.length > 0 ? (
-              <List
+              <List  style={{
+
+              }}
+              
                 dataSource={selectedCerts}
                 renderItem={(cert, index) => {
                   const type = certificationTypes.find(t => t._id === cert.certificationType);
@@ -1006,7 +1083,7 @@ const CertificateSecond = () => {
                   const isRequired = requiredCerts.some(rc => rc._id === cert.certificationType);
                   
                   return (
-                    <List.Item
+                    <List.Item 
                       style={{ padding: '12px 24px' }}
                       actions={[
                         <Button 
@@ -1039,7 +1116,7 @@ const CertificateSecond = () => {
                         }
                         title={
                           <Space>
-                            <Text strong>{cert.certTypeName}</Text>
+                            <Text  className='text_your_cert'  strong>{cert.certTypeName}</Text>
                             {isRequired && <Tag color="red">Required</Tag>}
                             {isComplete ? (
                               <Tag icon={<CheckCircleOutlined />} color="success">
@@ -1055,17 +1132,16 @@ const CertificateSecond = () => {
                         description={
                           !isComplete && (
                             <div style={{ marginTop: 4 }}>
-                              <Text type="secondary">
-                                <Space>
-                                  <WarningOutlined />
-                                  Missing: 
-                                  {type?.requiredFields
-                                    .filter(field => !cert[field])
-                                    .map(field => formatFieldLabel(field))
-                                    .join(', ')} 
-                                  {type?.documentRequired && !cert.documents?.length ? 
-                                    (type?.requiredFields.some(field => !cert[field]) ? ', documents' : 'documents') : ''}
-                                </Space>
+                              <Text type="danger">
+                                <WarningOutlined /> Missing:&nbsp;
+                                {type?.requiredFields
+                                  .filter(field => !cert[field])
+                                  .map(field => (
+                                    <Tag color="red" key={field}>{formatFieldLabel(field)}</Tag>
+                                  ))}
+                                {type?.documentRequired && (!cert.documents || cert.documents.length === 0) && (
+                                  <Tag color="red">Documents</Tag>
+                                )}
                               </Text>
                             </div>
                           )
@@ -1090,26 +1166,7 @@ const CertificateSecond = () => {
               </div>
             )}
             
-            {!allRequiredCertsAdded() && selectedCerts.length > 0 && (
-              <Alert 
-                message="Required Certifications Missing" 
-                description={
-                  <div>
-                    <p>You still need to add {requiredCerts.length - getRequiredCertsAddedCount()} required certifications.</p>
-                    <Button 
-                      type="link" 
-                      onClick={() => setActiveTab('required')}
-                      style={{ padding: 0 }}
-                    >
-                      View required certifications
-                    </Button>
-                  </div>
-                } 
-                type="warning" 
-                showIcon
-                style={{ marginTop: 16 }}
-              />
-            )}
+           
           </Card>
         </>
       )}
@@ -1411,6 +1468,8 @@ const CertificateSecond = () => {
                 label={fieldLabel}
                 rules={[{ required: true, message: `Please enter ${fieldLabel}` }]}
                 tooltip={fieldTooltip}
+                validateStatus={!cert[field] ? 'error' : ''}
+                help={!cert[field] ? `This field is required` : undefined}
                 style={{ marginBottom: 16 }}
               >
                 {isDateField ? (
@@ -1602,7 +1661,7 @@ const CertificateSecond = () => {
 
   return (
     <div style={{ padding: '24px 16px', maxWidth: 1400, margin: '0 auto' }}>
-      <div style={{ marginBottom: 32 }}>
+      {/* <div style={{ marginBottom: 32,display:'flex',flexDirection:'column',justifyContent:'center',alignItems:'center' }}>
         <Title level={2} style={{ marginBottom: 8 }}>
           Certification Manager
         </Title>
@@ -1611,9 +1670,9 @@ const CertificateSecond = () => {
             ? 'Review and update your existing certifications or add new ones as needed.'
             : 'Complete your profile by adding the required certifications based on your nationality and residency status.'}
         </Text>
-      </div>
+      </div> */}
       
-      <Steps current={currentStep} style={{ marginBottom: 48 }}>
+      <Steps current={currentStep} style={{ marginBottom: 48,marginTop:40,padding:10 }}>
         {steps.map((item) => (
           <Step 
             key={item.title} 
@@ -1643,7 +1702,7 @@ const CertificateSecond = () => {
             onClick={nextStep}
             disabled={
               (currentStep === 0 && (!residencyStatus)) ||
-              (currentStep === 1 && !allRequiredCertsAdded())
+              (currentStep === 1 && (getIncompleteRequiredCerts().length > 0))
             }
             size="large"
           >
