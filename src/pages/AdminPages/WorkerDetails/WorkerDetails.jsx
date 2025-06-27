@@ -154,41 +154,99 @@ const WorkerDetails = () => {
   };
 
   console.log("SELECTED CERTS",selectedCertification?.verificationStatus);
+  console.log("avalability data",workerData?.availability);
 
   const renderAvailabilitySchedule = () => {
+    const { customTimeSlots = [], suburb, kmWillingToTravel } = workerData.availability || {};
+
+    // Group slots by dayOfWeek
+    const daysOfWeek = [
+      "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+    ];
+    const slotsByDay = daysOfWeek.reduce((acc, day) => {
+      acc[day] = [];
+      return acc;
+    }, {});
+    customTimeSlots.forEach(slot => {
+      if (slotsByDay[slot.dayOfWeek]) {
+        slotsByDay[slot.dayOfWeek].push(slot);
+      }
+    });
+
     return (
-      <Grid container spacing={2}>
-        {workerData.availability.weeklySchedule.map((day) => (
-          <Grid item xs={12} sm={6} md={4} key={day.day}>
-            <Paper
-              elevation={0}
-              sx={{
-                p: 2,
-                bgcolor: day.slots.length > 0 ? "primary.light" : "grey.100",
-                color: day.slots.length > 0 ? "primary.contrastText" : "text.secondary",
-              }}
-            >
-              <Typography variant="subtitle1" fontWeight="bold">
-                {day.day}
-              </Typography>
-              {day.slots.length > 0 ? (
-                <Stack direction="row" spacing={1} mt={1}>
-                  {day.slots.map((slot, index) => (
-                    <Chip
-                      key={index}
-                      label={slot}
-                      size="small"
-                      sx={{ bgcolor: "rgba(255,255,255,0.2)" }}
-                    />
-                  ))}
+      <Card sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3, boxShadow: 4, mb: 2 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems={{ xs: 'flex-start', sm: 'center' }} mb={3}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <LocationIcon color="primary" />
+            <Typography variant="h6" fontWeight={700} sx={{ color: 'primary.main' }}>
+              {suburb || 'No suburb specified'}
+            </Typography>
+          </Stack>
+          <Chip
+            icon={<AccessTimeIcon />}
+            label={`Willing to travel: ${kmWillingToTravel ? kmWillingToTravel + ' km' : 'N/A'}`}
+            color="secondary"
+            sx={{ fontWeight: 600, fontSize: 16 }}
+          />
+        </Stack>
+        <Divider sx={{ mb: 3 }} />
+        <Grid container spacing={3}>
+          {daysOfWeek.map(day => (
+            <Grid item xs={12} sm={6} md={4} key={day}>
+              <Paper
+                elevation={2}
+                sx={{
+                  p: 2,
+                  minHeight: 120,
+                  bgcolor: slotsByDay[day].length > 0 ? 'primary.light' : 'grey.100',
+                  color: slotsByDay[day].length > 0 ? 'primary.contrastText' : 'text.secondary',
+                  borderRadius: 2,
+                  boxShadow: slotsByDay[day].length > 0 ? 4 : 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  transition: 'box-shadow 0.2s',
+                }}
+              >
+                <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+                  <Typography variant="subtitle1" fontWeight="bold">
+                    {day}
+                  </Typography>
+                  <Badge
+                    badgeContent={slotsByDay[day].length}
+                    color={slotsByDay[day].length > 0 ? 'success' : 'default'}
+                    sx={{ ml: 1 }}
+                  >
+                    <ScheduleIcon fontSize="small" />
+                  </Badge>
                 </Stack>
-              ) : (
-                <Typography variant="body2">Not Available</Typography>
-              )}
-            </Paper>
-          </Grid>
-        ))}
-      </Grid>
+                {slotsByDay[day].length > 0 ? (
+                  <Stack direction="row" spacing={1} flexWrap="wrap">
+                    {slotsByDay[day].map((slot, idx) => (
+                      <Chip
+                        key={idx}
+                        icon={<AccessTimeIcon fontSize="small" />}
+                        label={`${slot.startTime} - ${slot.endTime}`}
+                        size="small"
+                        sx={{
+                          bgcolor: 'rgba(255,255,255,0.25)',
+                          color: 'primary.main',
+                          fontWeight: 600,
+                          mb: 1,
+                        }}
+                      />
+                    ))}
+                  </Stack>
+                ) : (
+                  <Typography variant="body2" color="text.secondary" mt={1}>
+                    No availability
+                  </Typography>
+                )}
+              </Paper>
+            </Grid>
+          ))}
+        </Grid>
+      </Card>
     );
   };
 
@@ -1138,15 +1196,7 @@ const WorkerDetails = () => {
         )}
 
         {activeTab === 2 && (
-          <Card>
-            <CardHeader
-              title="Weekly Availability"
-              avatar={<ScheduleIcon color="primary" />}
-            />
-            <CardContent>
-              {renderAvailabilitySchedule()}
-            </CardContent>
-          </Card>
+          renderAvailabilitySchedule()
         )}
 
         {activeTab === 3 && (

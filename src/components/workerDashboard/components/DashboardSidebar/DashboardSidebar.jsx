@@ -54,17 +54,17 @@ const DashboardSidebar = ({
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {needsOnboarding && (
         <Box sx={{ px: 2, pt: 1, pb: 1 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          {/* <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             Profile Completion
-          </Typography>
-          <LinearProgress
+          </Typography> */}
+          {/* <LinearProgress
             variant="determinate"
             value={profileStatus?.profileCompleteness?.percentage || 0}
             sx={{ height: 8, borderRadius: 4, mb: 2 }}
-          />
-          <Typography variant="caption" color="text.secondary">
+          /> */}
+          {/* <Typography variant="caption" color="text.secondary">
             {profileStatus?.profileCompleteness?.percentage || 0}%
-          </Typography>
+          </Typography> */}
         </Box>
       )}
       <List sx={{ flex: 1 }}>

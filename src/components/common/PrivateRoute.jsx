@@ -26,12 +26,17 @@ const LoadingFallback = () => (
  * Redirects to login if user is not authenticated
  */
 const PrivateRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const location = useLocation();
 
   // Show minimal loading state during initial auth check
   if (loading) {
     return <LoadingFallback />;
+  }
+
+  // If authenticated and user is admin, redirect to admin dashboard
+  if (isAuthenticated && user?.role === 'admin') {
+    return <Navigate to="/admin-dashboard" replace />;
   }
 
   // Only redirect if we're sure user is not authenticated

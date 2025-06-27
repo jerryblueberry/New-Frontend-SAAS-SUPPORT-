@@ -13,6 +13,8 @@ import WorkerProfileComponent from '../../components/workerDashboard/components/
 import { Box, Paper, Typography, Button } from '@mui/material';
 import DashboardSidebar from '../../components/workerDashboard/components/DashboardSidebar/DashboardSidebar';
 import WorkerNavbar from '../../components/Navbar/WorkerNavbar';
+import DashboardAvailability from '../../components/workerDashboard/components/WorkerDashboardAvailability/DashboardAvailability';
+
 const Dashboard = () => {
   const { signOut, isAuthenticated, user: authUser } = useAuth();
   const navigate = useNavigate();
@@ -135,7 +137,9 @@ console.log("USer",user);
   };
 
   const continueOnboarding = () => {
-    navigate('/onboarding');
+    navigate('/onboarding'
+
+    );
   };
 
   // Handle document preview
@@ -146,6 +150,45 @@ console.log("USer",user);
   // Close document preview
   const closeDocumentPreview = () => {
     setPreviewDocument(null);
+  };
+
+  // Helper to get missing sections
+  const getMissingSections = () => {
+    const completed = profileStatus?.profileCompleteness?.completedSections || {};
+    const sectionNames = {
+      basicInfo: 'Basic Information',
+      availability: 'Availability',
+      certifications: 'Certifications',
+      healthInformation: 'Health Information',
+      workHistory: 'Work History',
+    };
+    return Object.entries(completed)
+      .filter(([_, done]) => !done)
+      .map(([key]) => sectionNames[key]);
+  };
+
+  // Helper to format 24-hour time to 12-hour with AM/PM
+  const formatTo12Hour = (time24) => {
+    if (!time24) return '';
+    const [hourStr, minute] = time24.split(':');
+    let hour = parseInt(hourStr, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12 || 12;
+    return `${hour}:${minute} ${ampm}`;
+  };
+
+  // Helper to calculate duration between two 24-hour times
+  const calculateDuration = (start, end) => {
+    if (!start || !end) return '';
+    const [startH, startM] = start.split(':').map(Number);
+    const [endH, endM] = end.split(':').map(Number);
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
+    let diff = endMinutes - startMinutes;
+    if (diff <= 0) return 'Invalid time';
+    const hours = Math.floor(diff / 60);
+    const minutes = diff % 60;
+    return `${hours > 0 ? `${hours}h` : ''}${hours > 0 && minutes > 0 ? ' ' : ''}${minutes > 0 ? `${minutes}m` : ''}`.trim();
   };
 
   if (isLoading) return (
@@ -183,7 +226,7 @@ console.log("USer",user);
           )}
 
           {activeTab === 'overview' && (
-            verificationStatus !== 'Verified' ? (
+            verificationStatus === 'Unverified' ? (
               <Box
                 sx={{
                   mt: { xs: 6, sm: 8 },
@@ -245,6 +288,19 @@ console.log("USer",user);
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                     We will notify you via email as soon as your profile has been successfully verified and you are ready to begin your journey with us. In the meantime, feel free to explore your dashboard or update your information if needed.
                   </Typography>
+                  {/* Show missing sections if any */}
+                  {getMissingSections().length > 0 && (
+                    <Box sx={{ mt: 2, mb: 2 }}>
+                      <Typography variant="subtitle1" color="error" fontWeight={600}>
+                        Missing Sections:
+                      </Typography>
+                      <ul style={{ textAlign: 'left', margin: '0 auto', maxWidth: 300 }}>
+                        {getMissingSections().map((section) => (
+                          <li key={section} style={{ color: '#d32f2f', fontWeight: 500 }}>{section}</li>
+                        ))}
+                      </ul>
+                    </Box>
+                  )}
                   <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
                     <Button
                       variant="contained"
@@ -258,13 +314,98 @@ console.log("USer",user);
                   </Box>
                 </Paper>
               </Box>
+            ) : verificationStatus === 'Partially Verified' ? (
+              <Box
+                sx={{
+                  mt: { xs: 6, sm: 8 },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: { xs: 400, sm: 500 },
+                  width: '100%',
+                  px: { xs: 2, sm: 0 },
+                }}
+              >
+                <Paper
+                  elevation={3}
+                  sx={{
+                    p: { xs: 3, sm: 5 },
+                    borderRadius: 4,
+                    maxWidth: 480,
+                    width: '100%',
+                    textAlign: 'center',
+                    bgcolor: '#fffde7',
+                    boxShadow: '0 8px 32px rgba(255, 193, 7, 0.08)',
+                    mb: 4,
+                  }}
+                >
+                  <Box sx={{ mb: 3, display: 'flex', justifyContent: 'center' }}>
+                    <Box
+                      sx={{
+                        width: { xs: 180, sm: 220 },
+                        height: { xs: 120, sm: 140 },
+                        mx: 'auto',
+                        mb: 2,
+                      }}
+                    >
+                      {/* Partially verified SVG */}
+                      <svg width="100%" height="100%" viewBox="0 0 220 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <ellipse cx="110" cy="120" rx="80" ry="15" fill="#fffde7"/>
+                        <rect x="60" y="40" width="100" height="60" rx="16" fill="#ffe082"/>
+                        <rect x="75" y="55" width="70" height="30" rx="8" fill="#fffde7"/>
+                        <rect x="90" y="65" width="40" height="10" rx="5" fill="#ffe082"/>
+                        <circle cx="110" cy="55" r="8" fill="#ffd54f"/>
+                        <rect x="100" y="90" width="20" height="8" rx="4" fill="#ffb300"/>
+                      </svg>
+                    </Box>
+                  </Box>
+                  <Typography variant="h5" fontWeight={700} color="warning.main" gutterBottom>
+                    Profile Partially Verified
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+                    Some sections of your profile are verified, but a few are still pending. Please complete the missing sections below to get fully verified.
+                  </Typography>
+                  {/* Show missing sections if any */}
+                  {getMissingSections().length > 0 && (
+                    <Box sx={{ mt: 2, mb: 2 }}>
+                      <Typography variant="subtitle1" color="error" fontWeight={600}>
+                        Missing Sections:
+                      </Typography>
+                      <ul style={{ textAlign: 'left', margin: '0 auto', maxWidth: 300 }}>
+                        {getMissingSections().map((section) => (
+                          <li key={section} style={{ color: '#d32f2f', fontWeight: 500 }}>{section}</li>
+                        ))}
+                      </ul>
+                    </Box>
+                  )}
+                  <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
+                    <Button
+                      variant="contained"
+                      color="warning"
+                      size="large"
+                      onClick={() => navigate('/onboarding')}
+                      sx={{ borderRadius: 2, fontWeight: 600, px: 4, boxShadow: 2 }}
+                    >
+                      Complete My Profile
+                    </Button>
+                  </Box>
+                </Paper>
+              </Box>
             ) : (
+              // Fully Verified
               <Box sx={{ mt: 8, textAlign: 'center' }}>
-                <Typography variant="h4" color="primary.main" fontWeight={700}>
-                  Welcome to your Dashboard!
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
+                  <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="60" cy="60" r="56" fill="#e8f5e9" stroke="#43a047" strokeWidth="4"/>
+                    <path d="M40 65l15 15 25-35" stroke="#43a047" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                  </svg>
+                </Box>
+                <Typography variant="h4" color="success.main" fontWeight={700}>
+                  Congratulations! 🎉
                 </Typography>
                 <Typography variant="body1" color="text.secondary" sx={{ mt: 2 }}>
-                  Your profile is verified. Explore your dashboard features.
+                  Your profile is <b>fully verified</b>. You now have access to all dashboard features and can start applying for jobs!
                 </Typography>
               </Box>
             )
@@ -300,90 +441,7 @@ console.log("USer",user);
           )}
 
           {activeTab === 'schedule' && (
-            <div className="wrk-dashboard-schedule">
-              <h1 className="wrk-dashboard-section-title">My Schedule</h1>
-
-              <div className="wrk-dashboard-schedule-card">
-                <h2 className="wrk-dashboard-card-title">
-                  Weekly Availability
-                </h2>
-
-                <div className="wrk-dashboard-availability-grid">
-                  {onboardingData?.data?.profile?.availability?.weeklySchedule?.map(
-                    (day, index) => (
-                      <div
-                        key={index}
-                        className="wrk-dashboard-availability-day"
-                      >
-                        <p className="wrk-dashboard-availability-day-name">
-                          {day.day}
-                        </p>
-
-                        <div className="wrk-dashboard-availability-slots">
-                          {day.slots.length > 0 ? (
-                            day.slots.map((slot, slotIndex) => (
-                              <div
-                                key={slotIndex}
-                                className="wrk-dashboard-availability-slot"
-                              >
-                                {slot.charAt(0).toUpperCase() + slot.slice(1)}
-                              </div>
-                            ))
-                          ) : (
-                            <p className="wrk-dashboard-availability-empty">
-                              Not Available
-                            </p>
-                          )}
-                        </div>
-
-                        {/* ✅ Show custom time slots for the current day */}
-                        {onboardingData?.data?.profile?.availability?.customTimeSlots
-                          ?.filter((slot) => slot.dayOfWeek === day.day)
-                          .map((customSlot, customIndex) => {
-                            const formattedStart = formatTimeTo12Hour(
-                              customSlot.startTime
-                            );
-                            const formattedEnd = formatTimeTo12Hour(
-                              customSlot.endTime
-                            );
-                            const duration = calculateTimeDifference(
-                              customSlot.startTime,
-                              customSlot.endTime
-                            );
-
-                            return (
-                              <div
-                                key={`custom-${customIndex}`}
-                                className="wrk-dashboard-availability-slot wrk-dashboard-custom-slot"
-                              >
-                                🕒 {formattedStart} - {formattedEnd}{' '}
-                                <span className="wrk-dashboard-slot-duration">
-                                  ({duration})
-                                </span>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    )
-                  ) || (
-                    <p className="wrk-dashboard-empty-state wrk-dashboard-availability-empty-state">
-                      No availability information found
-                    </p>
-                  )}
-                </div>
-
-                {onboardingData?.data?.profile?.availability?.notes && (
-                  <div className="wrk-dashboard-availability-notes">
-                    <h3 className="wrk-dashboard-availability-notes-title">
-                      Notes:
-                    </h3>
-                    <p className="wrk-dashboard-availability-notes-content">
-                      {onboardingData.data.profile.availability.notes}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
+            <DashboardAvailability onboardingData={onboardingData} />
           )}
 
           {activeTab === 'certifications' && (
@@ -491,7 +549,7 @@ console.log("USer",user);
             <div className="wrk-dashboard-wrk-history">
               {/* Work History Section */}
               <h2>Work History</h2>
-              <p>remove later</p>
+              
 
               <div className="work-section">
                 {/* CV Section */}
