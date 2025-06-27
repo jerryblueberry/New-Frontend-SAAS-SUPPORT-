@@ -160,7 +160,7 @@ console.log("USer",user);
       availability: 'Availability',
       certifications: 'Certifications',
       healthInformation: 'Health Information',
-      workHistory: 'Work Historys',
+      workHistory: 'Work History',
     };
     return Object.entries(completed)
       .filter(([_, done]) => !done)

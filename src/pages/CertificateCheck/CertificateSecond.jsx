@@ -163,6 +163,7 @@ const CertificateSecond = () => {
   const [previewDocument, setPreviewDocument] = useState(null);
   const [hasExistingCertifications, setHasExistingCertifications] = useState(false);
   const [certForm] = Form.useForm();
+  const [isFormValid, setIsFormValid] = useState(true); // Track Drawer form validity
   
   const fileInputRefs = useRef([]);
 
@@ -651,6 +652,9 @@ const CertificateSecond = () => {
   const getFieldTooltip = (field) => {
     const tooltips = {
       number: 'The unique identifier on your certificate or document',
+      policeRefNo: 'The unique identifier on your certificate or document',
+      dateOfCompletion: 'The date when this certification was completed',
+      workerScreeningId:"The unique identifier for your worker screening id",
       issuedDate: 'The date when this certification was issued',
       expiryDate: 'The date when this certification will expire',
       country: 'The country that issued this certification',
@@ -1408,11 +1412,17 @@ const CertificateSecond = () => {
     
     if (!certType) return null;
 
+    // Handler to update form validity
+    const handleFieldsChange = (_, allFields) => {
+      const hasErrors = allFields.some(field => field.errors.length > 0);
+      setIsFormValid(!hasErrors);
+    };
+
     return (
       <Drawer
         title={
           <Space>
-            <span>{cert.certTypeName || 'Certification'} Details</span>
+            <span>{cert.certTypeName || 'Certification'} </span>
             {requiredCerts.some(rc => rc._id === cert.certificationType) && <Tag color="red">Required</Tag>}
           </Space>
         }
@@ -1424,7 +1434,7 @@ const CertificateSecond = () => {
             <Button onClick={() => setCertDetailsVisible(false)} style={{ marginRight: 8 }}>
               Cancel
             </Button>
-            <Button type="primary" onClick={() => certForm.submit()}>
+            <Button type="primary" onClick={() => certForm.submit()} disabled={!isFormValid}>
               Save
             </Button>
           </div>
@@ -1451,6 +1461,7 @@ const CertificateSecond = () => {
             expiryDate: cert.expiryDate ? dayjs(cert.expiryDate) : null,
             degree: Array.isArray(cert.degree) ? cert.degree : (cert.degree ? [cert.degree] : [])
           }}
+          onFieldsChange={handleFieldsChange}
         >
           {renderEducationFields(certType, currentCertIndex)}
 
@@ -1468,8 +1479,6 @@ const CertificateSecond = () => {
                 label={fieldLabel}
                 rules={[{ required: true, message: `Please enter ${fieldLabel}` }]}
                 tooltip={fieldTooltip}
-                validateStatus={!cert[field] ? 'error' : ''}
-                help={!cert[field] ? `This field is required` : undefined}
                 style={{ marginBottom: 16 }}
               >
                 {isDateField ? (

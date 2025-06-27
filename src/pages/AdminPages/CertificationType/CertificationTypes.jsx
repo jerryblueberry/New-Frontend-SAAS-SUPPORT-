@@ -57,7 +57,12 @@ const REQUIRED_FIELDS_ENUM = [
   { value: 'visaConditions', label: 'Visa Conditions' },
   { value: 'workRights', label: 'Work Rights' },
   { value: 'country', label: 'Country' },
-  { value: 'degree', label: 'Degree' }
+  { value: 'degree', label: 'Degree' },
+  { value: 'licenseNo', label: 'Driving License Number ' },
+  { value: 'workerScreeningId', label: 'NDIS Worker Screning ID' },
+  { value: 'dateOfCompletion', label: 'NDIS Certificate of Completion Completion Date' },
+  { value: 'policeRefNo', label: 'Australian Federal Police Reference Id' },
+
 ];
 
 const INITIAL_FORM_STATE = {
