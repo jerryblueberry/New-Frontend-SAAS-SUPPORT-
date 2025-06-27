@@ -491,6 +491,7 @@ console.log("USer",user);
             <div className="wrk-dashboard-wrk-history">
               {/* Work History Section */}
               <h2>Work History</h2>
+              <p>remove later</p>
 
               <div className="work-section">
                 {/* CV Section */}
