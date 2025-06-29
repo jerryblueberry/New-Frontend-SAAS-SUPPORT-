@@ -22,6 +22,11 @@ const DEFAULT_LANGUAGES = [
 
 const DEFAULT_SKILLS = [
   'Patient Care',
+  'Domestic Assistance',
+  "Personal Care",
+  "Working with Children",
+  "Cleaning",
+  "Social Work",
   'Elder Care',
   'Medication Management',
   'First Aid',
@@ -31,6 +36,16 @@ const DEFAULT_SKILLS = [
   'Dementia Care',
   'Wound Care',
   'Vital Signs Monitoring',
+  "Sign Language",
+  "Transport/Driving",
+  "Manual Handling",
+  "NDIS Knowledge",
+  "Speech Therapy Support",
+  "Behaviour Support",
+  "Mental Health Support",
+  "Medical Equipment Monitoring",
+  "Physiotherapy Support",
+  
 ];
 
 // Language proficiency options

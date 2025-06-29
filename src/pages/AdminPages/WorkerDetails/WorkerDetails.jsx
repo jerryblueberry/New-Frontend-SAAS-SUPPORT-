@@ -1886,6 +1886,8 @@ const WorkerDetails = () => {
                         }
                         try {
                           setIsUpdating(true);
+                          console.log("WORker id",workerData?.user?._id);
+                          console.log("Certification Id",selectedCertification?.certificationType?._id)
                           await api.delete(`/admin/workers/${workerData.user._id}/certifications/${selectedCertification.certificationType._id}`);
                           toast.success('Certification deleted successfully');
                           // Remove the deleted certification from local state

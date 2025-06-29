@@ -1018,11 +1018,20 @@ export const useCertificationsMutation = () => {
             if (!Array.isArray(cert.degree) || cert.degree.length === 0) {
               throw new Error(`At least one degree is required for ${certType.name}`);
             }
+            // Validate that all degrees are non-empty strings
+            if (!cert.degree.every(deg => deg && typeof deg === 'string' && deg.trim().length > 0)) {
+              throw new Error(`All degrees must be valid non-empty strings for ${certType.name}`);
+            }
+            // Optional: Check against predefined options if they exist, but don't require it
             if (
               certType.educationSetting?.degreeOptions &&
-              !cert.degree.every(d => certType.educationSetting.degreeOptions.includes(d))
+              certType.educationSetting.degreeOptions.length > 0
             ) {
-              throw new Error(`One or more selected degrees are invalid for ${certType.name}`);
+              // Log a warning for degrees not in predefined list, but don't block submission
+              const invalidDegrees = cert.degree.filter(d => !certType.educationSetting.degreeOptions.includes(d));
+              if (invalidDegrees.length > 0) {
+                console.warn(`Custom degrees detected for ${certType.name}:`, invalidDegrees);
+              }
             }
           }
 

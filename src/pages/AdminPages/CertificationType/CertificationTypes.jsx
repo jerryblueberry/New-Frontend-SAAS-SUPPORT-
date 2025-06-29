@@ -241,7 +241,7 @@ function CertificationTypeFormModal({ open, onClose, onSubmit, initialData }) {
     }
     
     if (form.isEducation && (!form.educationSetting.degreeOptions || form.educationSetting.degreeOptions.length === 0)) {
-      setError('Degree options required for education type');
+      setError('Degree options are optional but recommended for better user experience');
       return;
     }
     
@@ -506,6 +506,9 @@ function CertificationTypeFormModal({ open, onClose, onSubmit, initialData }) {
               <Grid item xs={12}>
                 <Paper elevation={2} sx={{ p: 2 }}>
                   <Typography variant="subtitle1" gutterBottom>Education Settings</Typography>
+                  <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                    Add common degree options for better user experience. Users can still add custom degrees not in this list.
+                  </Typography>
                   <Autocomplete
                     multiple
                     freeSolo
@@ -523,10 +526,11 @@ function CertificationTypeFormModal({ open, onClose, onSubmit, initialData }) {
                     renderInput={(params) => (
                       <TextField
                         {...params}
-                        label="Degree Options"
-                        placeholder="Type and press Enter"
+                        label="Degree Options (Optional)"
+                        placeholder="Type and press Enter to add common degrees"
                         margin="normal"
                         fullWidth
+                        helperText="These are suggested options. Users can add custom degrees."
                       />
                     )}
                   />

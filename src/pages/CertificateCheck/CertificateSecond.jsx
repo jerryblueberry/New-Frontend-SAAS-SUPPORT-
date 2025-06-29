@@ -148,6 +148,9 @@ const CertificateSecond = () => {
   const { mutate: submitCertifications, isLoading: isSubmitting } = useCertificationsMutation();
   
   // Local state
+  const [customDegrees, setCustomDegrees] = useState([]);
+  const [customDegreeInput, setCustomDegreeInput] = useState('');
+  
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [certificationTypes, setCertificationTypes] = useState([]);
@@ -1368,6 +1371,22 @@ const CertificateSecond = () => {
     handleSubmit
   ]);
 
+
+  const addCustomDegree = () => {
+    if (customDegreeInput.trim() && !customDegrees.includes(customDegreeInput.trim())) {
+      const newDegree = customDegreeInput.trim();
+      setCustomDegrees([...customDegrees, newDegree]);
+      
+      // Auto-select the newly added degree
+      const currentValues = form.getFieldValue('degree') || [];
+      form.setFieldsValue({
+        degree: [...currentValues, newDegree]
+      });
+      
+      setCustomDegreeInput('');
+    }
+  };
+  
   const renderEducationFields = (certType, certIndex) => {
     if (!certType.isEducation) return null;
     const degreeOptions = certType.educationSetting?.degreeOptions || [];
@@ -1375,6 +1394,9 @@ const CertificateSecond = () => {
       console.warn(`No degree options found for education certification: ${certType.name}`);
       return null;
     }
+  
+    const allDegreeOptions = [...degreeOptions, ...customDegrees];
+  
     return (
       <Form.Item
         label="Degree"
@@ -1390,8 +1412,60 @@ const CertificateSecond = () => {
           filterOption={(input, option) =>
             option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
           }
+          dropdownRender={(menu) => (
+            <div>
+              {menu}
+              <Divider style={{ margin: '8px 0' }} />
+              <div
+                style={{
+                  padding: 12,
+                  background: '#f6f8fa',
+                  borderRadius: 8,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                }}
+              >
+                <Input
+                  placeholder="Enter custom degree"
+                  value={customDegreeInput}
+                  onChange={(e) => setCustomDegreeInput(e.target.value)}
+                  onPressEnter={addCustomDegree}
+                  style={{
+                    marginBottom: 0,
+                    borderRadius: 6,
+                  }}
+                  allowClear
+                  maxLength={50}
+                />
+                <Button
+                  type="primary"
+                  onClick={addCustomDegree}
+                  style={{
+                    width: '100%',
+                    borderRadius: 6,
+                    fontWeight: 500,
+                    letterSpacing: 0.5,
+                  }}
+                  size="middle"
+                  icon={<PlusOutlined />}
+                  disabled={
+                    !customDegreeInput.trim() ||
+                    allDegreeOptions.includes(customDegreeInput.trim())
+                  }
+                >
+                  Add Custom Degree
+                </Button>
+                {customDegreeInput.trim() && allDegreeOptions.includes(customDegreeInput.trim()) && (
+                  <Text type="danger" style={{ fontSize: 12 }}>
+                    This degree is already in the list.
+                  </Text>
+                )}
+              </div>
+            </div>
+          )}
         >
-          {degreeOptions.map((degree) => (
+          {allDegreeOptions.map((degree) => (
             <Select.Option key={degree} value={degree}>
               {degree}
             </Select.Option>
