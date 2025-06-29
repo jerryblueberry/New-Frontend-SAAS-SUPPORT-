@@ -577,7 +577,7 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
       {/* For the CV */}
       <div className="wh-section wh-cv-section">
         <div className="wh-section-header">
-          <h3>Upload Your CV (Optional)</h3>
+          <h3>Upload Your CV *</h3>
           <p>Upload your resume or CV in PDF or image format</p>
         </div>
 
@@ -687,7 +687,7 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                 className="wh-checkbox"
               />
               <span className="wh-checkmark"></span>
-              <span>I don't have any prior work history</span>
+              <span>I don't have any prior work experience</span>
             </label>
           </div>
         </div>
@@ -708,7 +708,7 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                     className="wh-btn wh-btn-secondary"
                     onClick={addNewJob}
                   >
-                    Add Your First Job
+                    Add Your Work Experience
                   </button>
                 </div>
               ) : (
@@ -723,7 +723,7 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
                       onClick={() => toggleExpandJob(index)}
                     >
                       <div className="wh-card-title">
-                        <h4>{job.company || 'New Job'}</h4>
+                        <h4>{job.company || 'Company Name'}</h4>
                         {job.title && <span>{job.title}</span>}
                       </div>
                       <div className="wh-card-dates">

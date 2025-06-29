@@ -21,30 +21,17 @@ const DEFAULT_LANGUAGES = [
 ];
 
 const DEFAULT_SKILLS = [
-  'Patient Care',
-  'Domestic Assistance',
+  
+  
   "Personal Care",
+  'Meal Preparation',
   "Working with Children",
   "Cleaning",
-  "Social Work",
-  'Elder Care',
-  'Medication Management',
-  'First Aid',
+ 'First Aid',
   'CPR',
-  'Meal Preparation',
-  'Mobility Assistance',
-  'Dementia Care',
-  'Wound Care',
-  'Vital Signs Monitoring',
-  "Sign Language",
-  "Transport/Driving",
-  "Manual Handling",
-  "NDIS Knowledge",
-  "Speech Therapy Support",
-  "Behaviour Support",
-  "Mental Health Support",
-  "Medical Equipment Monitoring",
-  "Physiotherapy Support",
+  
+
+  
   
 ];
 
@@ -64,8 +51,8 @@ const VALIDATION_RULES = {
     required: false,
   },
   expectedHourlyRate: {
-    min: 15,
-    max: 200,
+    min: 1,
+    max: 100,
     required: true,
   },
   skillTags: {
@@ -121,7 +108,7 @@ const WorkerProfileForm = React.memo(() => {
         } else {
           const rate = parseFloat(value);
           if (isNaN(rate) || rate < VALIDATION_RULES.expectedHourlyRate.min) {
-            errors.expectedHourlyRate = `Hourly rate must be at least $${VALIDATION_RULES.expectedHourlyRate.min}`;
+            errors.expectedHourlyRate = `Hourly Rate Missing`;
           } else if (rate > VALIDATION_RULES.expectedHourlyRate.max) {
             errors.expectedHourlyRate = `Hourly rate must not exceed $${VALIDATION_RULES.expectedHourlyRate.max}`;
           }
@@ -574,15 +561,13 @@ const WorkerProfileForm = React.memo(() => {
             }`}
             value={profile.biography || ''}
             onChange={handleChange}
-            placeholder={`(Optional) Tell us about your experience, strengths, and what makes you a great care worker...`}
+            placeholder={`Tell us about your experience, strengths, and what makes you a great care worker...`}
             rows={4}
             required={false}
             maxLength={VALIDATION_RULES.biography.maxLength}
             aria-describedby={formErrors.biography ? 'biography-error' : 'biography-hint'}
           />
-          <div className="profile_wrkr_basic_char_count">
-            {(profile.biography || '').length}/{VALIDATION_RULES.biography.maxLength} characters
-          </div>
+         
           {formErrors.biography && (
             <div 
               id="biography-error" 
@@ -610,7 +595,7 @@ const WorkerProfileForm = React.memo(() => {
               }`}
               value={profile.expectedHourlyRate || ''}
               onChange={handleChange}
-              placeholder="25"
+              // placeholder=""
               min={VALIDATION_RULES.expectedHourlyRate.min}
               max={VALIDATION_RULES.expectedHourlyRate.max}
               step={0.5}
@@ -634,7 +619,7 @@ const WorkerProfileForm = React.memo(() => {
       <div className="profile_wrkr_basic_form_section">
         <h3 className="profile_wrkr_basic_section_title">Skills</h3>
         <p className="profile_wrkr_basic_text_helper">
-          Select your skills or add your own (minimum {VALIDATION_RULES.skillTags.minCount}, maximum {VALIDATION_RULES.skillTags.maxCount})
+          Select your skills or add your own
         </p>
 
         <div className="profile_wrkr_basic_skills_suggestion">
@@ -672,7 +657,7 @@ const WorkerProfileForm = React.memo(() => {
               }`}
               value={newSkill}
               onChange={handleNewSkillChange}
-              placeholder="e.g. Physiotherapy, Diabetes Management"
+              // placeholder="e.g. Physiotherapy, Diabetes Management"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -717,9 +702,9 @@ const WorkerProfileForm = React.memo(() => {
 
       <div className="profile_wrkr_basic_form_section">
         <h3 className="profile_wrkr_basic_section_title">Languages Spoken</h3>
-        <p className="profile_wrkr_basic_text_helper">
+        {/* <p className="profile_wrkr_basic_text_helper">
           Select languages you're comfortable speaking with clients (minimum {VALIDATION_RULES.languages.minCount}, maximum {VALIDATION_RULES.languages.maxCount})
-        </p>
+        </p> */}
 
         <div className="profile_wrkr_basic_languages_suggestion">
           {DEFAULT_LANGUAGES.map((language) => {
@@ -763,7 +748,7 @@ const WorkerProfileForm = React.memo(() => {
               }`}
               value={newLanguage}
               onChange={handleNewLanguageChange}
-              placeholder="e.g. Portuguese, Russian"
+              // placeholder="e.g. Portuguese, Russian"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();

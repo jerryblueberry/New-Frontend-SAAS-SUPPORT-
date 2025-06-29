@@ -47,9 +47,6 @@ import {
   ReadOutlined,
   ClockCircleOutlined,
   FileOutlined
-
-
-
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import debounce from 'lodash/debounce';
@@ -88,7 +85,6 @@ const RESIDENCY_STATUSES = [
   { value: 'OtherTemporaryVisa', label: 'Other Temporary Visa', icon: <FileOutlined />, color: 'cyan' }
 ];
 
-
 const CATEGORY_ICONS = {
   'Citizenship': <IdcardOutlined />,
   'Identity': <FileDoneOutlined />,
@@ -98,6 +94,135 @@ const CATEGORY_ICONS = {
   'License': <CarOutlined />,
   'Health': <MedicineBoxOutlined />,
   'Financial': <BankOutlined />
+};
+
+// LocalStorage utility functions for document tracking
+const DOCUMENT_TRACKING_KEY = 'certification_documents_tracking';
+
+const DocumentTrackingService = {
+  // Get all tracked document public IDs
+  getTrackedDocuments: () => {
+    try {
+      const stored = localStorage.getItem(DOCUMENT_TRACKING_KEY);
+      if (!stored) return {};
+      
+      const parsed = JSON.parse(stored);
+      return typeof parsed === 'object' && parsed !== null ? parsed : {};
+    } catch (error) {
+      console.error('Error reading tracked documents from localStorage:', error);
+      return {};
+    }
+  },
+
+  // Add a document public ID to tracking
+  addTrackedDocument: (publicId) => {
+    try {
+      const tracked = DocumentTrackingService.getTrackedDocuments();
+      
+      // Validate input
+      if (!publicId || typeof publicId !== 'string') {
+        console.error('Invalid publicId provided for document tracking');
+        return false;
+      }
+
+      // Add only public ID with minimal metadata
+      tracked[publicId] = {
+        publicId,
+        trackedAt: new Date().toISOString()
+      };
+
+      localStorage.setItem(DOCUMENT_TRACKING_KEY, JSON.stringify(tracked));
+      console.log(`Document public ID tracked: ${publicId}`);
+      return true;
+    } catch (error) {
+      console.error('Error adding document to tracking:', error);
+      return false;
+    }
+  },
+
+  // Check if document public ID is already tracked
+  isDocumentTracked: (publicId) => {
+    try {
+      const tracked = DocumentTrackingService.getTrackedDocuments();
+      return tracked.hasOwnProperty(publicId);
+    } catch (error) {
+      console.error('Error checking document tracking status:', error);
+      return false;
+    }
+  },
+
+  // Remove document public ID from tracking
+  removeTrackedDocument: (publicId) => {
+    try {
+      const tracked = DocumentTrackingService.getTrackedDocuments();
+      if (tracked[publicId]) {
+        delete tracked[publicId];
+        localStorage.setItem(DOCUMENT_TRACKING_KEY, JSON.stringify(tracked));
+        console.log(`Document public ID removed from tracking: ${publicId}`);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error removing document from tracking:', error);
+      return false;
+    }
+  },
+
+  // Get tracking statistics
+  getTrackingStats: () => {
+    try {
+      const tracked = DocumentTrackingService.getTrackedDocuments();
+      const publicIds = Object.keys(tracked);
+      
+      return {
+        totalTracked: publicIds.length,
+        publicIds: publicIds
+      };
+    } catch (error) {
+      console.error('Error getting tracking statistics:', error);
+      return { totalTracked: 0, publicIds: [] };
+    }
+  },
+
+  // Clean up old documents (older than specified days)
+  cleanupOldDocuments: (daysOld = 30) => {
+    try {
+      const tracked = DocumentTrackingService.getTrackedDocuments();
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+      
+      let cleanedCount = 0;
+      Object.keys(tracked).forEach(publicId => {
+        const trackedAt = new Date(tracked[publicId].trackedAt);
+        if (trackedAt < cutoffDate) {
+          delete tracked[publicId];
+          cleanedCount++;
+        }
+      });
+
+      if (cleanedCount > 0) {
+        localStorage.setItem(DOCUMENT_TRACKING_KEY, JSON.stringify(tracked));
+        console.log(`Cleaned up ${cleanedCount} old document public IDs from tracking`);
+      }
+      
+      return cleanedCount;
+    } catch (error) {
+      console.error('Error cleaning up old documents:', error);
+      return 0;
+    }
+  },
+
+  // Clear all tracked documents
+  clearAllTrackedDocuments: () => {
+    try {
+      localStorage.removeItem(DOCUMENT_TRACKING_KEY);
+      console.log('All tracked document public IDs cleared from localStorage');
+      return true;
+    } catch (error) {
+      console.error('Error clearing tracked documents:', error);
+      return false;
+    }
+  }
 };
 
 // Helper function to normalize certification type (handles both object and string formats)
@@ -242,7 +367,18 @@ const CertificateSecond = () => {
     fetchCertTypes();
   }, []);
 
-  
+  // Cleanup old documents on component mount
+  useEffect(() => {
+    // Clean up documents older than 30 days
+    const cleanedCount = DocumentTrackingService.cleanupOldDocuments(30);
+    if (cleanedCount > 0) {
+      console.log(`Cleaned up ${cleanedCount} old documents from tracking`);
+    }
+    
+    // Log tracking statistics
+    const stats = DocumentTrackingService.getTrackingStats();
+    console.log('Document tracking statistics:', stats);
+  }, []);
 
   // Determine required certifications based on residency status
   useEffect(() => {
@@ -412,39 +548,130 @@ const CertificateSecond = () => {
       certificationType: cert.certificationType // Already normalized to just the ID
     }));
 
+    // Get all tracked document public IDs from localStorage
+    const trackedDocuments = DocumentTrackingService.getTrackedDocuments();
+    const documentPublicIds = Object.keys(trackedDocuments);
+
+    // Save document tracking to database first (if there are documents)
+    const saveDocumentTracking = async () => {
+      if (documentPublicIds.length > 0) {
+        try {
+          await saveDocumentTrackingToDatabase(documentPublicIds);
+          console.log('Document tracking saved to database successfully');
+          // Clear localStorage after successful database save
+          DocumentTrackingService.clearAllTrackedDocuments();
+        } catch (error) {
+          console.error('Document tracking save failed:', error);
+          // Don't block the main submission, just log the error
+          message.warning('Certifications will be saved but document tracking failed. Please contact support.');
+        }
+      }
+    };
+
+    // Execute document tracking save in parallel with certification submission
+    const documentTrackingPromise = saveDocumentTracking();
+
+    // Submit certifications using the mutation
     submitCertifications({
       certifications: certsToSubmit,
       // nationality,
       residencyStatus,
       allCertificationTypes: certificationTypes, // Pass the full list of certification types
     }, {
-  onSuccess: (data) => {
-      // Update the profile completeness with the received data
-      if (data.success && data.data) {
-        toast.success("SUbmitted Successfully")
-        // Update profile completeness in the store
-        const { updateProfileCompleteness } = useOnboardingStore.getState();
-        updateProfileCompleteness(data.data);
-        
-        // Use the store's nextStep function instead of onboardingNextStep
-        const { nextStep } = useOnboardingStore.getState();
-        nextStep();
-        
-        message.success('Certifications submitted successfully!');
-    
-        // If you want to navigate after the state is updated
-        // You may want to reconsider this direct navigation and let the step management handle it
-        // Only navigate if you want to leave the onboarding flow
-        // navigate('/profile');
-      } else {
-        // Handle case where data.success is false but no error was thrown
-        message.warning('Submission successful but profile update incomplete.');
-      }
-    },
+      onSuccess: async (data) => {
+        // Wait for document tracking to complete
+        try {
+          await documentTrackingPromise;
+        } catch (error) {
+          // Document tracking error already handled above
+        }
+
+        // Handle certification submission success
+        if (data.success && data.data) {
+          toast.success("Submitted Successfully");
+          
+          // Update profile completeness in the store
+          const { updateProfileCompleteness } = useOnboardingStore.getState();
+          updateProfileCompleteness(data.data);
+          
+          // Use the store's nextStep function instead of onboardingNextStep
+          const { nextStep } = useOnboardingStore.getState();
+          nextStep();
+          
+          message.success('Certifications submitted successfully!');
+        } else {
+          // Handle case where data.success is false but no error was thrown
+          message.warning('Submission successful but profile update incomplete.');
+        }
+      },
       onError: (error) => {
         message.error(error.message || 'Failed to submit certifications');
       }
     });
+  };
+
+  // Function to save document tracking data to database
+  const saveDocumentTrackingToDatabase = async (documentPublicIds) => {
+    try {
+      console.log('Saving document tracking to database:', documentPublicIds);
+      
+      // Validate input
+      if (!Array.isArray(documentPublicIds) || documentPublicIds.length === 0) {
+        throw new Error('No document public IDs to save');
+      }
+
+      // Filter out any invalid public IDs
+      const validPublicIds = documentPublicIds.filter(id => 
+        id && typeof id === 'string' && id.trim().length > 0
+      );
+
+      if (validPublicIds.length === 0) {
+        throw new Error('No valid document public IDs found');
+      }
+
+      const response = await api.post('/documents-tracking/save', {
+        documents: validPublicIds
+      });
+
+      // Validate response
+      if (!response || !response.data) {
+        throw new Error('Invalid response from server');
+      }
+
+      if (response.data.success) {
+        console.log('Document tracking saved successfully:', response.data);
+        return response.data;
+      } else {
+        throw new Error(response.data.message || 'Failed to save document tracking');
+      }
+    } catch (error) {
+      console.error('Error saving document tracking to database:', error);
+      
+      // Provide more specific error messages based on error type
+      if (error.response) {
+        // Server responded with error status
+        const status = error.response.status;
+        const message = error.response.data?.message || 'Server error';
+        
+        if (status === 401) {
+          throw new Error('Authentication required for document tracking');
+        } else if (status === 403) {
+          throw new Error('Permission denied for document tracking');
+        } else if (status === 400) {
+          throw new Error(`Invalid request: ${message}`);
+        } else if (status >= 500) {
+          throw new Error('Server error while saving document tracking');
+        } else {
+          throw new Error(`Document tracking failed: ${message}`);
+        }
+      } else if (error.request) {
+        // Network error
+        throw new Error('Network error while saving document tracking');
+      } else {
+        // Other error
+        throw new Error('Document tracking save failed: ' + error.message);
+      }
+    }
   };
 
   const addCertification = useCallback((certTypeId) => {
@@ -541,8 +768,34 @@ const CertificateSecond = () => {
         toast.error(`You can only upload ${remainingSlots} more document(s)`);
         return false;
       }
+      
+      // Check for duplicate uploads
+      const duplicateFiles = [];
+      const uniqueFiles = [];
+      
+      files.forEach(file => {
+        // Create a simple hash of file name and size to detect duplicates
+        const fileSignature = `${file.name}_${file.size}`;
+        const isDuplicate = selectedCerts[certIndex]?.documents?.some(doc => 
+          doc.fileName === file.name && doc.fileSize === file.size
+        );
+        
+        if (isDuplicate) {
+          duplicateFiles.push(file.name);
+        } else {
+          uniqueFiles.push(file);
+        }
+      });
+      
+      if (duplicateFiles.length > 0) {
+        toast.error(`Duplicate files detected: ${duplicateFiles.join(', ')}`);
+        if (uniqueFiles.length === 0) {
+          return false;
+        }
+      }
+      
       // Process all uploads in parallel
-      const uploadPromises = files.map(file => uploadToCloudinary(file, certIndex));
+      const uploadPromises = uniqueFiles.map(file => uploadToCloudinary(file, certIndex));
       const results = await Promise.all(uploadPromises);
       // Filter out any failed uploads
       const successfulUploads = results.filter(result => result !== null);
@@ -559,9 +812,20 @@ const CertificateSecond = () => {
           ...successfulUploads
         ].slice(0, 2) // Ensure we don't exceed max limit
       };
+      
       setSelectedCerts(updatedCerts);
       updateCertifications(updatedCerts);
-      toast.success(`Uploaded ${successfulUploads.length} document(s)`);
+      
+      const uploadMessage = successfulUploads.length === 1 ? 
+        `Uploaded ${successfulUploads.length} document` : 
+        `Uploaded ${successfulUploads.length} documents`;
+      
+      if (duplicateFiles.length > 0) {
+        toast.success(`${uploadMessage} (${duplicateFiles.length} duplicate(s) skipped)`);
+      } else {
+        toast.success(uploadMessage);
+      }
+      
       return true;
     } catch (error) {
       console.error('Upload error:', error);
@@ -588,6 +852,26 @@ const CertificateSecond = () => {
         throw new Error('Upload failed');
       }
       const data = await response.json();
+      
+      // Console log the uploaded document details
+      console.log('=== Cloudinary Upload Success ===');
+      console.log('File Name:', file.name);
+      console.log('File Type:', file.type);
+      console.log('File Size:', file.size, 'bytes');
+      console.log('Public ID:', data.public_id);
+      console.log('Secure URL:', data.secure_url);
+      console.log('Upload Date:', new Date().toISOString());
+      console.log('Certificate Index:', certIndex);
+      console.log('================================');
+      
+      // Track only the public ID in localStorage
+      const trackingSuccess = DocumentTrackingService.addTrackedDocument(data.public_id);
+      if (trackingSuccess) {
+        console.log(`Document public ID ${data.public_id} tracked in localStorage`);
+      } else {
+        console.warn(`Failed to track document public ID ${data.public_id} in localStorage`);
+      }
+      
       return {
         uid: data.public_id, // Use public_id as unique identifier
         url: data.secure_url,
@@ -599,6 +883,11 @@ const CertificateSecond = () => {
       };
     } catch (error) {
       console.error('Upload failed:', error);
+      console.log('=== Cloudinary Upload Failed ===');
+      console.log('File Name:', file.name);
+      console.log('Error:', error.message);
+      console.log('Certificate Index:', certIndex);
+      console.log('================================');
       return null;
     }
   };
@@ -619,6 +908,17 @@ const CertificateSecond = () => {
     function performDocumentRemoval(certIndex, docIndex) {
       const updatedCerts = [...selectedCerts];
       const docName = updatedCerts[certIndex].documents[docIndex].fileName;
+      const publicId = updatedCerts[certIndex].documents[docIndex].publicId;
+      
+      // Remove from localStorage tracking
+      if (publicId) {
+        const removed = DocumentTrackingService.removeTrackedDocument(publicId);
+        if (removed) {
+          console.log(`Document ${publicId} removed from localStorage tracking`);
+        } else {
+          console.warn(`Document ${publicId} not found in localStorage tracking`);
+        }
+      }
       
       updatedCerts[certIndex].documents.splice(docIndex, 1);
       
@@ -1125,15 +1425,6 @@ const CertificateSecond = () => {
                           <Space>
                             <Text  className='text_your_cert'  strong>{cert.certTypeName}</Text>
                             {isRequired && <Tag color="red">Required</Tag>}
-                            {isComplete ? (
-                              <Tag icon={<CheckCircleOutlined />} color="success">
-                                Complete
-                              </Tag>
-                            ) : (
-                              <Tag icon={<WarningOutlined />} color="warning">
-                                Incomplete
-                              </Tag>
-                            )}
                           </Space>
                         }
                         description={
@@ -1313,7 +1604,7 @@ const CertificateSecond = () => {
                                 rel="noopener noreferrer"
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  setPreviewDocument(doc);
+                                  handleDocumentPreview(doc);
                                 }}
                               >
                                 {doc.fileName || doc.name}
@@ -1672,7 +1963,7 @@ const CertificateSecond = () => {
                 }}
                 onPreview={(file) => {
                   const doc = cert.documents.find(d => d.uid === file.uid);
-                  if (doc) setPreviewDocument(doc);
+                  if (doc) handleDocumentPreview(doc);
                 }}
                 disabled={isUploading[currentCertIndex]}
               >
@@ -1722,6 +2013,130 @@ const CertificateSecond = () => {
     },
   ], [renderPersonalInfoStep, renderAddCertificationsStep, renderReviewSubmitStep]);
 
+  // Function to handle document preview with tracking
+  const handleDocumentPreview = useCallback((document) => {
+    setPreviewDocument(document);
+  }, []);
+
+  // Function to handle document deletion from preview with tracking
+  const handleDocumentDeleteFromPreview = useCallback(() => {
+    if (previewDocument) {
+      const certIndex = selectedCerts.findIndex(cert => 
+        cert.documents?.some(doc => doc.url === previewDocument.url)
+      );
+      if (certIndex >= 0) {
+        const docIndex = selectedCerts[certIndex].documents.findIndex(
+          doc => doc.url === previewDocument.url
+        );
+        if (docIndex >= 0) {
+          const publicId = selectedCerts[certIndex].documents[docIndex].publicId;
+          
+          // Remove from localStorage tracking
+          if (publicId) {
+            DocumentTrackingService.removeTrackedDocument(publicId);
+          }
+          
+          handleRemoveDocument(certIndex, docIndex);
+        }
+      }
+      setPreviewDocument(null);
+    }
+  }, [previewDocument, selectedCerts, handleRemoveDocument]);
+
+  // Function to get tracking statistics
+  const getDocumentTrackingStats = useCallback(() => {
+    return DocumentTrackingService.getTrackingStats();
+  }, []);
+
+  // Utility function to display tracking information (for debugging)
+  const displayTrackingInfo = useCallback(() => {
+    const stats = DocumentTrackingService.getTrackingStats();
+    const trackedDocs = DocumentTrackingService.getTrackedDocuments();
+    
+    console.log('=== Document Tracking Information ===');
+    console.log('Total tracked public IDs:', stats.totalTracked);
+    console.log('Public IDs:', stats.publicIds);
+    console.log('All tracked documents:', trackedDocs);
+    console.log('=====================================');
+    
+    return stats;
+  }, []);
+
+  // Function to clear all tracking data (for testing/cleanup)
+  const clearAllTracking = useCallback(() => {
+    const success = DocumentTrackingService.clearAllTrackedDocuments();
+    if (success) {
+      console.log('All document tracking data cleared');
+      toast.success('Document tracking data cleared');
+    } else {
+      console.error('Failed to clear document tracking data');
+      toast.error('Failed to clear tracking data');
+    }
+  }, []);
+
+  // Function to export tracking data (for debugging)
+  const exportTrackingData = useCallback(() => {
+    const trackedDocs = DocumentTrackingService.getTrackedDocuments();
+    const dataStr = JSON.stringify(trackedDocs, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `document-tracking-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    console.log('Document tracking data exported');
+  }, []);
+
+  // Function to manually save document tracking (for testing/development)
+  const manuallySaveDocumentTracking = useCallback(async () => {
+    try {
+      const stats = DocumentTrackingService.getTrackingStats();
+      if (stats.totalTracked === 0) {
+        toast.error('No documents to save. Please upload some documents first.');
+        return;
+      }
+
+      toast.loading('Saving document tracking...');
+      const result = await saveDocumentTrackingToDatabase(stats.publicIds);
+      toast.dismiss();
+      
+      if (result.success) {
+        toast.success('Document tracking saved successfully!');
+        // Clear localStorage after successful save
+        DocumentTrackingService.clearAllTrackedDocuments();
+        console.log('Document tracking saved and localStorage cleared');
+      } else {
+        toast.error('Failed to save document tracking');
+      }
+    } catch (error) {
+      toast.dismiss();
+      toast.error('Failed to save document tracking: ' + error.message);
+      console.error('Manual save error:', error);
+    }
+  }, []);
+
+  // Function to test document tracking API (for debugging)
+  const testDocumentTrackingAPI = useCallback(async () => {
+    try {
+      const stats = DocumentTrackingService.getTrackingStats();
+      if (stats.totalTracked === 0) {
+        toast.error('No documents to test with. Please upload some documents first.');
+        return;
+      }
+
+      toast.loading('Testing document tracking API...');
+      const result = await saveDocumentTrackingToDatabase(stats.publicIds);
+      toast.dismiss();
+      toast.success('Document tracking API test successful!');
+      console.log('API test result:', result);
+    } catch (error) {
+      toast.dismiss();
+      toast.error('Document tracking API test failed: ' + error.message);
+      console.error('API test error:', error);
+    }
+  }, []);
+
   if (isOnboardingError) {
     return (
       <div style={{ padding: 24, textAlign: 'center' }}>
@@ -1744,6 +2159,58 @@ const CertificateSecond = () => {
 
   return (
     <div style={{ padding: '24px 16px', maxWidth: 1400, margin: '0 auto' }}>
+      {/* Development Debug Section - Remove in production */}
+      {process.env.NODE_ENV === 'development' && (
+        <Card 
+          title="Document Tracking Debug Info" 
+          style={{ marginBottom: 16, backgroundColor: '#f0f8ff' }}
+          size="small"
+        >
+          <Space wrap>
+            <Button 
+              size="small" 
+              onClick={displayTrackingInfo}
+              icon={<InfoCircleOutlined />}
+            >
+              Log Tracking Info
+            </Button>
+            <Button 
+              size="small" 
+              onClick={exportTrackingData}
+              icon={<FileOutlined />}
+            >
+              Export Data
+            </Button>
+            <Button 
+              size="small" 
+              onClick={testDocumentTrackingAPI}
+              icon={<SafetyCertificateOutlined />}
+            >
+              Test API
+            </Button>
+            <Button 
+              size="small" 
+              type="primary"
+              onClick={manuallySaveDocumentTracking}
+              icon={<FileDoneOutlined />}
+            >
+              Save Tracking
+            </Button>
+            <Button 
+              size="small" 
+              danger 
+              onClick={clearAllTracking}
+              icon={<DeleteOutlined />}
+            >
+              Clear All
+            </Button>
+            <Text type="secondary">
+              Tracked: {getDocumentTrackingStats().totalTracked} documents
+            </Text>
+          </Space>
+        </Card>
+      )}
+      
       {/* <div style={{ marginBottom: 32,display:'flex',flexDirection:'column',justifyContent:'center',alignItems:'center' }}>
         <Title level={2} style={{ marginBottom: 8 }}>
           Certification Manager
@@ -1799,22 +2266,7 @@ const CertificateSecond = () => {
         document={previewDocument}
         visible={!!previewDocument}
         onClose={() => setPreviewDocument(null)}
-        onDelete={() => {
-          if (previewDocument) {
-            const certIndex = selectedCerts.findIndex(cert => 
-              cert.documents?.some(doc => doc.url === previewDocument.url)
-            );
-            if (certIndex >= 0) {
-              const docIndex = selectedCerts[certIndex].documents.findIndex(
-                doc => doc.url === previewDocument.url
-              );
-              if (docIndex >= 0) {
-                handleRemoveDocument(certIndex, docIndex);
-              }
-            }
-            setPreviewDocument(null);
-          }
-        }}
+        onDelete={handleDocumentDeleteFromPreview}
       />
     </div>
   );
