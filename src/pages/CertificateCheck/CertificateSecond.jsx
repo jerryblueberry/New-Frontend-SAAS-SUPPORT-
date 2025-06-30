@@ -294,7 +294,7 @@ const CertificateSecond = () => {
   const [isFormValid, setIsFormValid] = useState(true); // Track Drawer form validity
   
   const fileInputRefs = useRef([]);
-
+console.log("Required Certrs Value",requiredCerts)
   // Initialize with store data from backend
   useEffect(() => {
     if (!isLoadingOnboardingData && onboardingData?.data?.profile) {
@@ -674,6 +674,9 @@ const CertificateSecond = () => {
     }
   };
 
+  console.log("REquired Certs",requiredCerts.map((certs) =>(
+    certs.name
+  )))
   const addCertification = useCallback((certTypeId) => {
     const certType = certificationTypes.find(t => t._id === certTypeId);
     if (!certType) return;
@@ -938,15 +941,23 @@ const CertificateSecond = () => {
     return fieldsComplete && docsComplete;
   }, [certificationTypes]);
 
+  // Helper to check if a cert is the Working With Children Check (case-insensitive, trimmed)
+  const isWorkingWithChildrenCheck = (cert) =>
+    cert.name && cert.name.trim().toLowerCase() === 'working with children check';
+
   const getRequiredCertsAddedCount = useCallback(() => {
-    return requiredCerts.filter(req => 
+    // Only count truly required certs (exclude Working With Children Check)
+    return requiredCerts.filter(req =>
+      !isWorkingWithChildrenCheck(req) &&
       selectedCerts.some(sel => sel.certificationType === req._id)
     ).length;
   }, [requiredCerts, selectedCerts]);
 
   const allRequiredCertsAdded = useCallback(() => {
-    return getRequiredCertsAddedCount() === requiredCerts.length;
-  }, [getRequiredCertsAddedCount, requiredCerts.length]);
+    // Only count truly required certs (exclude Working With Children Check)
+    const requiredCount = requiredCerts.filter(req => !isWorkingWithChildrenCheck(req)).length;
+    return getRequiredCertsAddedCount() === requiredCount;
+  }, [getRequiredCertsAddedCount, requiredCerts]);
 
   const formatFieldLabel = (field) => {
     return field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1');
@@ -967,7 +978,7 @@ const CertificateSecond = () => {
     };
     return tooltips[field] || null;
   };
-
+  console.log("CertForm",certForm)
   const validateCurrentStep = useCallback(() => {
     if (currentStep === 0) {
       const errors = {};
@@ -1040,24 +1051,27 @@ const CertificateSecond = () => {
 
   // Returns an array of { certIndex, certTypeName, missingFields: [field, ...] }
   const getIncompleteRequiredCerts = useCallback(() => {
-    return requiredCerts.map((reqCert) => {
-      const certIndex = selectedCerts.findIndex(sel => sel.certificationType === reqCert._id);
-      if (certIndex === -1) {
-        return {
-          certIndex: null,
-          certTypeName: reqCert.name,
-          missingFields: reqCert.requiredFields.concat(reqCert.documentRequired ? ['documents'] : [])
-        };
-      }
-      const cert = selectedCerts[certIndex];
-      const missingFields = reqCert.requiredFields.filter(f => !cert[f]);
-      if (reqCert.documentRequired && (!cert.documents || cert.documents.length === 0)) {
-        missingFields.push('documents');
-      }
-      return missingFields.length > 0
-        ? { certIndex, certTypeName: reqCert.name, missingFields }
-        : null;
-    }).filter(Boolean);
+    // Only validate truly required certs (exclude Working With Children Check)
+    return requiredCerts
+      .filter(reqCert => !isWorkingWithChildrenCheck(reqCert))
+      .map((reqCert) => {
+        const certIndex = selectedCerts.findIndex(sel => sel.certificationType === reqCert._id);
+        if (certIndex === -1) {
+          return {
+            certIndex: null,
+            certTypeName: reqCert.name,
+            missingFields: reqCert.requiredFields.concat(reqCert.documentRequired ? ['documents'] : [])
+          };
+        }
+        const cert = selectedCerts[certIndex];
+        const missingFields = reqCert.requiredFields.filter(f => !cert[f]);
+        if (reqCert.documentRequired && (!cert.documents || cert.documents.length === 0)) {
+          missingFields.push('documents');
+        }
+        return missingFields.length > 0
+          ? { certIndex, certTypeName: reqCert.name, missingFields }
+          : null;
+      }).filter(Boolean);
   }, [requiredCerts, selectedCerts]);
 
   // Render functions for each step
@@ -1193,7 +1207,7 @@ const CertificateSecond = () => {
               prefix={<InfoCircleOutlined />}
             />
           </Card>
-          {currentStep === 1 && getIncompleteRequiredCerts().length > 0 && (
+          {/* {currentStep === 1 && getIncompleteRequiredCerts().length > 0 && (
             <Alert
               type="error"
               showIcon
@@ -1224,7 +1238,7 @@ const CertificateSecond = () => {
                 </div>
               }
             />
-          )}
+          )} */}
           {!allRequiredCertsAdded() && selectedCerts.length > 0 && (
               <Alert 
                 message="Required Certifications Missing" 
@@ -1323,13 +1337,17 @@ const CertificateSecond = () => {
                             title={
                               <Space>
                                 <Text strong>{cert.name}</Text>
-                                <Tag color="red">Required</Tag>
+                                {isWorkingWithChildrenCheck(cert) ? (
+                                  null
+                                ) : (
+                                  <Tag color="red">Required</Tag>
+                                )}
                               </Space>
                             }
                             description={
                               <div>
-                                <Paragraph>{cert.description}</Paragraph>
-                                <Space wrap>
+                                {/* <Paragraph>{cert.description}</Paragraph> */}
+                                {/* <Space wrap>
                                   {cert.category && (
                                     <Tag icon={CATEGORY_ICONS[cert.category]} color="blue">
                                       {cert.category}
@@ -1338,7 +1356,7 @@ const CertificateSecond = () => {
                                   {cert.validityPeriod && <Tag color="purple">Valid for {cert.validityPeriod}</Tag>}
                                   {cert.isVisa && <Tag color="orange">Visa</Tag>}
                                   {cert.documentRequired && <Tag color="cyan">Document Required</Tag>}
-                                </Space>
+                                </Space> */}
                               </div>
                             }
                           />
@@ -1356,116 +1374,7 @@ const CertificateSecond = () => {
           </Card>
           
 
-          <Card 
-            title={<Title level={4} style={{ margin: 0 }}>Your Certifications</Title>}
-            style={{ borderRadius: 8 }}
-            extra={
-              <Space>
-                <Tooltip title="Overall completion status">
-                  <Badge 
-                    count={`${progress}%`} 
-                    color={progress === 100 ? '#52c41a' : '#faad14'}
-                    style={{ backgroundColor: 'transparent', color: progress === 100 ? '#52c41a' : '#faad14' }}
-                  />
-                </Tooltip>
-                <Progress 
-                  percent={progress} 
-                  status={progress < 100 ? 'active' : 'success'} 
-                  showInfo={false}
-                  strokeWidth={10}
-                  style={{ width: 100 }}
-                />
-              </Space>
-            }
-          >
-            {selectedCerts.length > 0 ? (
-              <List  style={{
-
-              }}
-              
-                dataSource={selectedCerts}
-                renderItem={(cert, index) => {
-                  const type = certificationTypes.find(t => t._id === cert.certificationType);
-                  const isComplete = isCertComplete(cert);
-                  const isRequired = requiredCerts.some(rc => rc._id === cert.certificationType);
-                  
-                  return (
-                    <List.Item 
-                      style={{ padding: '12px 24px' }}
-                      actions={[
-                        <Button 
-                          icon={<EditOutlined />} 
-                          onClick={() => editCertification(index)}
-                          size="small"
-                        >
-                          Edit
-                        </Button>,
-                        <Button 
-                          icon={<DeleteOutlined />} 
-                          danger 
-                          onClick={() => handleRemoveCertification(index)}
-                          disabled={isRequired && requiredCerts.length === 1}
-                          size="small"
-                        >
-                          Remove
-                        </Button>
-                      ]}
-                    >
-                      <List.Item.Meta
-                        avatar={
-                          <Avatar 
-                            icon={type?.isVisa ? <GlobalOutlined /> : CATEGORY_ICONS[type?.category] || <SafetyCertificateOutlined />}
-                            style={{ 
-                              backgroundColor: isComplete ? '#52c41a' : '#faad14',
-                              color: '#fff'
-                            }}
-                          />
-                        }
-                        title={
-                          <Space>
-                            <Text  className='text_your_cert'  strong>{cert.certTypeName}</Text>
-                            {isRequired && <Tag color="red">Required</Tag>}
-                          </Space>
-                        }
-                        description={
-                          !isComplete && (
-                            <div style={{ marginTop: 4 }}>
-                              <Text type="danger">
-                                <WarningOutlined /> Missing:&nbsp;
-                                {type?.requiredFields
-                                  .filter(field => !cert[field])
-                                  .map(field => (
-                                    <Tag color="red" key={field}>{formatFieldLabel(field)}</Tag>
-                                  ))}
-                                {type?.documentRequired && (!cert.documents || cert.documents.length === 0) && (
-                                  <Tag color="red">Documents</Tag>
-                                )}
-                              </Text>
-                            </div>
-                          )
-                        }
-                      />
-                    </List.Item>
-                  );
-                }}
-              />
-            ) : (
-              <div style={{ textAlign: 'center', padding: 20 }}>
-                <Text type="secondary">No certifications added yet</Text>
-                <div style={{ marginTop: 16 }}>
-                  <Button 
-                    type="primary" 
-                    icon={<PlusOutlined />} 
-                    onClick={() => setActiveTab('required')}
-                  >
-                    Add Required Certifications
-                  </Button>
-                </div>
-              </div>
-            )}
-            
-           
-          </Card>
+       
         </>
       )}
     </div>
@@ -1551,7 +1460,11 @@ const CertificateSecond = () => {
                 title={
                   <Space>
                     <Text strong>{cert.certTypeName}</Text>
-                    {isRequired && <Tag color="red">Required</Tag>}
+                    {isWorkingWithChildrenCheck(type) ? (
+                      <Tag color="blue">Optional</Tag>
+                    ) : (
+                      isRequired && <Tag color="red">Required</Tag>
+                    )}
                   </Space>
                 }
                 extra={
@@ -1661,6 +1574,8 @@ const CertificateSecond = () => {
     isCertComplete,
     handleSubmit
   ]);
+
+ 
 
 
   const addCustomDegree = () => {
