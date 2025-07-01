@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../../hooks/useAuth";
 import {useNavigate} from 'react-router-dom';
+import Navbar from "../../../components/Navbar/WorkerNavbar";
 import {
     Box,
     Container,
@@ -216,7 +217,11 @@ const AdminDashboard = () => {
             navigate(`/worker-details/${workerId}`,{})
         }
     return (
-        <Container maxWidth="xl" className="admin-dashboard">
+        <>
+        <Navbar/>
+  <Container sx={{
+    mt:12
+  }} maxWidth="xl" className="admin-dashboard">
             <Box sx={{ mb: 4 }}>
                 <Typography sx={{
                     display:'flex',
@@ -484,6 +489,9 @@ const AdminDashboard = () => {
                 </Paper>
             </Box>
         </Container>
+
+        </>
+      
     );
 };
 

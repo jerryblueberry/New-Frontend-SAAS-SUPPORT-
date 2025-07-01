@@ -62,17 +62,6 @@ const { Option } = Select;
 const { TabPane } = Tabs;
 const { confirm } = Modal;
 
-// Constants
-const NATIONALITIES = [
-  { value: 'AU', label: 'Australia', flag: '🇦🇺' },
-  { value: 'NZ', label: 'New Zealand', flag: '🇳🇿' },
-  { value: 'US', label: 'United States', flag: '🇺🇸' },
-  { value: 'UK', label: 'United Kingdom', flag: '🇬🇧' },
-  { value: 'CA', label: 'Canada', flag: '🇨🇦' },
-  { value: 'IN', label: 'India', flag: '🇮🇳' },
-  { value: 'CN', label: 'China', flag: '🇨🇳' },
-  { value: 'JP', label: 'Japan', flag: '🇯🇵' }
-];
 
 const RESIDENCY_STATUSES = [
   { value: 'Citizen', label: 'Australian Citizen', icon: <IdcardOutlined />, color: 'green' },
@@ -95,6 +84,17 @@ const CATEGORY_ICONS = {
   'Health': <MedicineBoxOutlined />,
   'Financial': <BankOutlined />
 };
+// Constants
+const NATIONALITIES = [
+  { value: 'AU', label: 'Australia', flag: '🇦🇺' },
+  { value: 'NZ', label: 'New Zealand', flag: '🇳🇿' },
+  { value: 'US', label: 'United States', flag: '🇺🇸' },
+  { value: 'UK', label: 'United Kingdom', flag: '🇬🇧' },
+  { value: 'CA', label: 'Canada', flag: '🇨🇦' },
+  { value: 'IN', label: 'India', flag: '🇮🇳' },
+  { value: 'CN', label: 'China', flag: '🇨🇳' },
+  { value: 'JP', label: 'Japan', flag: '🇯🇵' }
+];
 
 // LocalStorage utility functions for document tracking
 const DOCUMENT_TRACKING_KEY = 'certification_documents_tracking';
@@ -252,6 +252,17 @@ const normalizeCertificationType = (certType) => {
   };
 };
 
+// Add this helper above the component
+const isCertFullyComplete = (certType, selectedCerts) => {
+  const cert = selectedCerts.find(c => c.certificationType === certType._id);
+  if (!cert) return false;
+  // Check all required fields
+  const allFieldsFilled = certType.requiredFields.every(f => !!cert[f]);
+  // Check document requirement
+  const docsFilled = !certType.documentRequired || (cert.documents && cert.documents.length > 0);
+  return allFieldsFilled && docsFilled;
+};
+
 const CertificateSecond = () => {
   const navigate = useNavigate();
   const {
@@ -295,6 +306,8 @@ const CertificateSecond = () => {
   
   const fileInputRefs = useRef([]);
 console.log("Required Certrs Value",requiredCerts)
+console.log("Has existing ",hasExistingCertifications);
+console.log("Normalized Certs",onboardingData)
   // Initialize with store data from backend
   useEffect(() => {
     if (!isLoadingOnboardingData && onboardingData?.data?.profile) {
@@ -677,53 +690,93 @@ console.log("Required Certrs Value",requiredCerts)
   console.log("REquired Certs",requiredCerts.map((certs) =>(
     certs.name
   )))
+  // Add new state for pending add/edit
+  const [pendingCertTypeId, setPendingCertTypeId] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Helper to check if a certType is the Working With Children Check
+  const isWorkingWithChildrenCheckType = (certType) =>
+    certType && certType.name && certType.name.trim().toLowerCase() === 'working with children check';
+
   const addCertification = useCallback((certTypeId) => {
     const certType = certificationTypes.find(t => t._id === certTypeId);
     if (!certType) return;
 
-    const newCert = {
-      certificationType: certTypeId, // Store just the ID
-      certTypeName: certType.name,
-      documents: []
-    };
-
-    const updatedCerts = [...selectedCerts, newCert];
-    setSelectedCerts(updatedCerts);
-    updateCertifications(updatedCerts);
-    setCurrentCertIndex(updatedCerts.length - 1);
-    certForm.resetFields();
-    setCertDetailsVisible(true);
+    if (isWorkingWithChildrenCheckType(certType)) {
+      // WWCC: Only add after form submit
+      setPendingCertTypeId(certTypeId);
+      setIsEditing(false);
+      certForm.resetFields();
+      setCertDetailsVisible(true);
+    } else {
+      // Other certs: Add immediately, then open for editing
+      const newCert = {
+        certificationType: certTypeId,
+        certTypeName: certType.name,
+        documents: []
+      };
+      const updatedCerts = [...selectedCerts, newCert];
+      setSelectedCerts(updatedCerts);
+      updateCertifications(updatedCerts);
+      setCurrentCertIndex(updatedCerts.length - 1);
+      setIsEditing(true);
+      setPendingCertTypeId(null);
+      certForm.setFieldsValue(newCert);
+      setCertDetailsVisible(true);
+    }
   }, [certificationTypes, selectedCerts, updateCertifications, certForm]);
 
   const editCertification = useCallback((index) => {
     setCurrentCertIndex(index);
+    setIsEditing(true);
+    setPendingCertTypeId(null);
     const cert = selectedCerts[index];
     const formValues = { ...cert };
-    
     if (cert.issuedDate) formValues.issuedDate = dayjs(cert.issuedDate);
     if (cert.expiryDate) formValues.expiryDate = dayjs(cert.expiryDate);
-    
     certForm.setFieldsValue(formValues);
     setCertDetailsVisible(true);
   }, [selectedCerts, certForm]);
 
   const updateCertification = useCallback((values) => {
-    const updatedCerts = [...selectedCerts];
-    
-    // Preserve existing documents if they exist
-    values.documents = updatedCerts[currentCertIndex]?.documents || [];
-    
-    updatedCerts[currentCertIndex] = { 
-      ...updatedCerts[currentCertIndex],
-      ...values,
-      certTypeName: certificationTypes.find(t => t._id === updatedCerts[currentCertIndex].certificationType)?.name
-    };
-    
-    setSelectedCerts(updatedCerts);
-    updateCertifications(updatedCerts);
+    if (isEditing) {
+      // Update existing
+      const updatedCerts = [...selectedCerts];
+      values.documents = updatedCerts[currentCertIndex]?.documents || [];
+      updatedCerts[currentCertIndex] = {
+        ...updatedCerts[currentCertIndex],
+        ...values,
+        certTypeName: certificationTypes.find(t => t._id === updatedCerts[currentCertIndex].certificationType)?.name
+      };
+      setSelectedCerts(updatedCerts);
+      updateCertifications(updatedCerts);
+      setCertDetailsVisible(false);
+      message.success('Certification details updated');
+    } else if (pendingCertTypeId) {
+      // Only for WWCC
+      const certType = certificationTypes.find(t => t._id === pendingCertTypeId);
+      if (isWorkingWithChildrenCheckType(certType)) {
+        const newCert = {
+          certificationType: pendingCertTypeId,
+          certTypeName: certType?.name,
+          ...values,
+          documents: values.documents || []
+        };
+        const updatedCerts = [...selectedCerts, newCert];
+        setSelectedCerts(updatedCerts);
+        updateCertifications(updatedCerts);
+        setCertDetailsVisible(false);
+        setPendingCertTypeId(null);
+        message.success('Certification added');
+      }
+    }
+  }, [isEditing, currentCertIndex, selectedCerts, certificationTypes, updateCertifications, pendingCertTypeId]);
+
+  // Update Drawer open/close logic
+  const handleDrawerClose = () => {
     setCertDetailsVisible(false);
-    message.success('Certification details updated');
-  }, [currentCertIndex, selectedCerts, certificationTypes, updateCertifications]);
+    setPendingCertTypeId(null);
+  };
 
   const handleRemoveCertification = useCallback((index) => {
     const cert = selectedCerts[index];
@@ -761,42 +814,46 @@ console.log("Required Certrs Value",requiredCerts)
     }
   }, [currentCertIndex, selectedCerts, updateCertifications, requiredCerts]);
 
+  // Document upload validation (max 2 files, allowed types, max 5MB each)
+  const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+  const maxFileSize = 5 * 1024 * 1024; // 5MB
+  const maxFiles = 2;
+
   const handleDocumentUpload = async (files, certIndex) => {
     try {
       setIsUploading(prev => ({ ...prev, [certIndex]: true }));
       // Check if we have space for all files
       const currentDocs = selectedCerts[certIndex]?.documents?.length || 0;
-      const remainingSlots = 2 - currentDocs;
+      const remainingSlots = maxFiles - currentDocs;
       if (files.length > remainingSlots) {
         toast.error(`You can only upload ${remainingSlots} more document(s)`);
         return false;
       }
-      
+      // Validate file type and size
+      const invalidFiles = files.filter(file => !allowedFileTypes.includes(file.type) || file.size > maxFileSize);
+      if (invalidFiles.length > 0) {
+        toast.error(`Invalid file(s): Only PDF, JPG, PNG up to 5MB allowed.`);
+        return false;
+      }
       // Check for duplicate uploads
       const duplicateFiles = [];
       const uniqueFiles = [];
-      
       files.forEach(file => {
-        // Create a simple hash of file name and size to detect duplicates
-        const fileSignature = `${file.name}_${file.size}`;
-        const isDuplicate = selectedCerts[certIndex]?.documents?.some(doc => 
+        const isDuplicate = selectedCerts[certIndex]?.documents?.some(doc =>
           doc.fileName === file.name && doc.fileSize === file.size
         );
-        
         if (isDuplicate) {
           duplicateFiles.push(file.name);
         } else {
           uniqueFiles.push(file);
         }
       });
-      
       if (duplicateFiles.length > 0) {
         toast.error(`Duplicate files detected: ${duplicateFiles.join(', ')}`);
         if (uniqueFiles.length === 0) {
           return false;
         }
       }
-      
       // Process all uploads in parallel
       const uploadPromises = uniqueFiles.map(file => uploadToCloudinary(file, certIndex));
       const results = await Promise.all(uploadPromises);
@@ -813,22 +870,18 @@ console.log("Required Certrs Value",requiredCerts)
         documents: [
           ...(updatedCerts[certIndex].documents || []),
           ...successfulUploads
-        ].slice(0, 2) // Ensure we don't exceed max limit
+        ].slice(0, maxFiles)
       };
-      
       setSelectedCerts(updatedCerts);
       updateCertifications(updatedCerts);
-      
-      const uploadMessage = successfulUploads.length === 1 ? 
-        `Uploaded ${successfulUploads.length} document` : 
+      const uploadMessage = successfulUploads.length === 1 ?
+        `Uploaded ${successfulUploads.length} document` :
         `Uploaded ${successfulUploads.length} documents`;
-      
       if (duplicateFiles.length > 0) {
         toast.success(`${uploadMessage} (${duplicateFiles.length} duplicate(s) skipped)`);
       } else {
         toast.success(uploadMessage);
       }
-      
       return true;
     } catch (error) {
       console.error('Upload error:', error);
@@ -1260,7 +1313,7 @@ console.log("Required Certrs Value",requiredCerts)
               />
             )}
           <Card 
-            title={<Title level={4} style={{ margin: 0 }}>Available Certifications</Title>}
+            // title={<Title level={4} style={{ margin: 0 }}>Available Certifications</Title>}
             style={{ borderRadius: 8 }}
             bodyStyle={{ padding: '16px 0' }}
           >
@@ -1298,28 +1351,50 @@ console.log("Required Certrs Value",requiredCerts)
                   <List
                     dataSource={filteredRequiredCerts}
                     renderItem={cert => {
-                      const isAdded = selectedCerts.some(c => c.certificationType === cert._id);
+                      const certIsComplete = isCertFullyComplete(cert, selectedCerts);
+                      const certInList = selectedCerts.some(c => c.certificationType === cert._id);
                       return (
                         <List.Item
                           style={{ padding: '12px 24px' }}
                           actions={[
-                            isAdded ? (
-                              <Button 
-                                icon={<CheckCircleOutlined />} 
-                                type="text" 
-                                style={{ color: '#52c41a' }}
-                                disabled
-                              >
-                                Added
-                              </Button>
+                            certIsComplete ? (
+                              <>
+                                <Button 
+                                  icon={<CheckCircleOutlined />} 
+                                  type="text" 
+                                  style={{ color: '#52c41a' }}
+                                  disabled
+                                >
+                                  Added
+                                </Button>
+                                <Button
+                                  icon={<EditOutlined />}
+                                  type="link"
+                                  onClick={() => {
+                                    const idx = selectedCerts.findIndex(c => c.certificationType === cert._id);
+                                    editCertification(idx);
+                                  }}
+                                  size="small"
+                                  style={{ marginLeft: 8 }}
+                                >
+                                  Edit
+                                </Button>
+                              </>
                             ) : (
                               <Button 
                                 type="primary"
                                 icon={<PlusOutlined />} 
-                                onClick={() => addCertification(cert._id)}
+                                onClick={() => {
+                                  if (!certInList) {
+                                    addCertification(cert._id);
+                                  } else {
+                                    const idx = selectedCerts.findIndex(c => c.certificationType === cert._id);
+                                    editCertification(idx);
+                                  }
+                                }}
                                 size="small"
                               >
-                                Add
+                                {certInList ? "Complete" : "Add"}
                               </Button>
                             )
                           ]}
@@ -1329,7 +1404,7 @@ console.log("Required Certrs Value",requiredCerts)
                               <Avatar 
                                 icon={cert.isVisa ? <GlobalOutlined /> : CATEGORY_ICONS[cert.category] || <SafetyCertificateOutlined />} 
                                 style={{ 
-                                  backgroundColor: isAdded ? '#52c41a' : '#1890ff',
+                                  backgroundColor: certIsComplete ? '#52c41a' : '#faad14',
                                   color: '#fff'
                                 }}
                               />
@@ -1337,27 +1412,31 @@ console.log("Required Certrs Value",requiredCerts)
                             title={
                               <Space>
                                 <Text strong>{cert.name}</Text>
-                                {isWorkingWithChildrenCheck(cert) ? (
-                                  null
-                                ) : (
-                                  <Tag color="red">Required</Tag>
-                                )}
+                                {!isWorkingWithChildrenCheck(cert) && <Tag color="red">Required</Tag>}
                               </Space>
                             }
                             description={
-                              <div>
-                                {/* <Paragraph>{cert.description}</Paragraph> */}
-                                {/* <Space wrap>
-                                  {cert.category && (
-                                    <Tag icon={CATEGORY_ICONS[cert.category]} color="blue">
-                                      {cert.category}
-                                    </Tag>
-                                  )}
-                                  {cert.validityPeriod && <Tag color="purple">Valid for {cert.validityPeriod}</Tag>}
-                                  {cert.isVisa && <Tag color="orange">Visa</Tag>}
-                                  {cert.documentRequired && <Tag color="cyan">Document Required</Tag>}
-                                </Space> */}
-                              </div>
+                              !certIsComplete && certInList && (
+                                <div>
+                                  <Text type="danger">
+                                    <WarningOutlined /> Missing:&nbsp;
+                                    {cert.requiredFields
+                                      .filter(field => {
+                                        const c = selectedCerts.find(sel => sel.certificationType === cert._id);
+                                        return c && !c[field];
+                                      })
+                                      .map(field => (
+                                        <Tag color="red" key={field}>{formatFieldLabel(field)}</Tag>
+                                      ))}
+                                    {cert.documentRequired && (() => {
+                                      const c = selectedCerts.find(sel => sel.certificationType === cert._id);
+                                      return (!c || !c.documents || c.documents.length === 0) && (
+                                        <Tag color="red">Documents</Tag>
+                                      );
+                                    })()}
+                                  </Text>
+                                </div>
+                              )
                             }
                           />
                         </List.Item>
@@ -1373,6 +1452,119 @@ console.log("Required Certrs Value",requiredCerts)
             </Tabs>
           </Card>
           
+          {
+            onboardingData?.data?.profile?.certifications?.length> 0 ? ( <Card
+              title={<Title level={4} style={{ margin: 0 }}>Your Certifications</Title>}
+              style={{ borderRadius: 8 }}
+              extra={
+                <Space>
+                  <Tooltip title="Overall completion status">
+                    <Badge 
+                      count={`${progress}%`} 
+                      color={progress === 100 ? '#52c41a' : '#faad14'}
+                      style={{ backgroundColor: 'transparent', color: progress === 100 ? '#52c41a' : '#faad14' }}
+                    />
+                  </Tooltip>
+                  <Progress 
+                    percent={progress} 
+                    status={progress < 100 ? 'active' : 'success'} 
+                    showInfo={false}
+                    strokeWidth={10}
+                    style={{ width: 100 }}
+                  />
+                </Space>
+              }
+            >
+              {onboardingData?.data?.profile?.certifications?.length > 0 ? (
+                <List  style={{
+  
+                }}
+                
+                  dataSource={selectedCerts}
+                  renderItem={(cert, index) => {
+                    const type = certificationTypes.find(t => t._id === cert.certificationType);
+                    const isComplete = isCertComplete(cert);
+                    const isRequired = requiredCerts.some(rc => rc._id === cert.certificationType);
+                    
+                    return (
+                      <List.Item 
+                        style={{ padding: '12px 24px' }}
+                        actions={[
+                          <Button 
+                            icon={<EditOutlined />} 
+                            onClick={() => editCertification(index)}
+                            size="small"
+                          >
+                            Edit
+                          </Button>,
+                          <Button 
+                            icon={<DeleteOutlined />} 
+                            danger 
+                            onClick={() => handleRemoveCertification(index)}
+                            disabled={isRequired && requiredCerts.length === 1}
+                            size="small"
+                          >
+                            Remove
+                          </Button>
+                        ]}
+                      >
+                        <List.Item.Meta
+                          avatar={
+                            <Avatar 
+                              icon={type?.isVisa ? <GlobalOutlined /> : CATEGORY_ICONS[type?.category] || <SafetyCertificateOutlined />}
+                              style={{ 
+                                backgroundColor: isComplete ? '#52c41a' : '#faad14',
+                                color: '#fff'
+                              }}
+                            />
+                          }
+                          title={
+                            <Space>
+                              <Text  className='text_your_cert'  strong>{cert.certTypeName}</Text>
+                              {isRequired && <Tag color="red">Required</Tag>}
+                            </Space>
+                          }
+                          description={
+                            !isComplete && (
+                              <div style={{ marginTop: 4 }}>
+                                <Text type="danger">
+                                  <WarningOutlined /> Missing:&nbsp;
+                                  {type?.requiredFields
+                                    .filter(field => !cert[field])
+                                    .map(field => (
+                                      <Tag color="red" key={field}>{formatFieldLabel(field)}</Tag>
+                                    ))}
+                                  {type?.documentRequired && (!cert.documents || cert.documents.length === 0) && (
+                                    <Tag color="red">Documents</Tag>
+                                  )}
+                                </Text>
+                              </div>
+                            )
+                          }
+                        />
+                      </List.Item>
+                    );
+                  }}
+                />
+              ) : (
+                <div style={{ textAlign: 'center', padding: 20 }}>
+                  <Text type="secondary">No certifications added yet</Text>
+                  <div style={{ marginTop: 16 }}>
+                    <Button 
+                      type="primary" 
+                      icon={<PlusOutlined />} 
+                      onClick={() => setActiveTab('required')}
+                    >
+                      Add Required Certifications
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
+             
+            </Card>): (null)
+          }
+         
 
        
         </>
@@ -1415,7 +1607,6 @@ console.log("Required Certrs Value",requiredCerts)
           strokeColor={progress === 100 ? '#52c41a' : '#1890ff'}
           style={{ marginBottom: 16 }}
         />
-        
         {progress < 100 ? (
           <Alert 
             message="Incomplete Information" 
@@ -1443,7 +1634,6 @@ console.log("Required Certrs Value",requiredCerts)
           />
         )}
       </div>
-
       <div style={{ maxHeight: '60vh', overflowY: 'auto', paddingRight: 8 }}>
         <List
           itemLayout="vertical"
@@ -1452,7 +1642,6 @@ console.log("Required Certrs Value",requiredCerts)
             const type = certificationTypes.find(t => t._id === cert.certificationType);
             const isComplete = isCertComplete(cert);
             const isRequired = requiredCerts.some(rc => rc._id === cert.certificationType);
-            
             return (
               <Card 
                 key={index}
@@ -1460,11 +1649,6 @@ console.log("Required Certrs Value",requiredCerts)
                 title={
                   <Space>
                     <Text strong>{cert.certTypeName}</Text>
-                    {isWorkingWithChildrenCheck(type) ? (
-                      <Tag color="blue">Optional</Tag>
-                    ) : (
-                      isRequired && <Tag color="red">Required</Tag>
-                    )}
                   </Space>
                 }
                 extra={
@@ -1474,7 +1658,7 @@ console.log("Required Certrs Value",requiredCerts)
                     </Tag>
                     <Button 
                       size="small"
-                      icon={<EditOutlined />}
+                      icon={<EditOutlined />} 
                       onClick={() => editCertification(index)}
                     >
                       Edit
@@ -1503,7 +1687,6 @@ console.log("Required Certrs Value",requiredCerts)
                       </div>
                     </div>
                   ))}
-                  
                   {type?.documentRequired && (
                     <div style={{ marginTop: 12 }}>
                       <div style={{ fontWeight: 'bold', marginBottom: 4 }}>Documents:</div>
@@ -1530,15 +1713,38 @@ console.log("Required Certrs Value",requiredCerts)
                       )}
                     </div>
                   )}
+                  {/* WWCC incomplete logic */}
+                  {isWorkingWithChildrenCheckType(type) && !isComplete && (
+                    <div style={{ marginTop: 16, background: '#fffbe6', padding: 16, borderRadius: 8, border: '1px solid #ffe58f' }}>
+                      <Text type="danger">
+                        This certification is incomplete. Please complete all fields or remove this certification.
+                      </Text>
+                      <div style={{ marginTop: 8 }}>
+                        <Button
+                          type="primary"
+                          size="small"
+                          onClick={() => editCertification(index)}
+                          style={{ marginRight: 8 }}
+                        >
+                          Complete
+                        </Button>
+                        <Button
+                          danger
+                          size="small"
+                          onClick={() => handleRemoveCertification(index)}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </Card>
             );
           }}
         />
       </div>
-
       <Divider />
-
       <div style={{ marginTop: 24, textAlign: 'center' }}>
         <Button 
           type="primary" 
@@ -1550,7 +1756,6 @@ console.log("Required Certrs Value",requiredCerts)
         >
           {isSubmitting ? 'Submitting...' : 'Submit Certifications'}
         </Button>
-        
         {(progress < 100 || !allRequiredCertsAdded()) && (
           <div style={{ marginTop: 16 }}>
             <Text type="secondary">
@@ -1572,7 +1777,10 @@ console.log("Required Certrs Value",requiredCerts)
     requiredCerts.length,
     editCertification,
     isCertComplete,
-    handleSubmit
+    handleSubmit,
+    handleRemoveCertification,
+    isWorkingWithChildrenCheckType,
+    formatFieldLabel
   ]);
 
  
@@ -1584,8 +1792,8 @@ console.log("Required Certrs Value",requiredCerts)
       setCustomDegrees([...customDegrees, newDegree]);
       
       // Auto-select the newly added degree
-      const currentValues = form.getFieldValue('degree') || [];
-      form.setFieldsValue({
+      const currentValues = certForm.getFieldValue('degree') || [];
+      certForm.setFieldsValue({
         degree: [...currentValues, newDegree]
       });
       
@@ -1683,13 +1891,21 @@ console.log("Required Certrs Value",requiredCerts)
 
 
   const renderCertificationForm = useMemo(() => {
-    if (!certDetailsVisible || currentCertIndex < 0 || currentCertIndex >= selectedCerts.length) {
+    if (!certDetailsVisible) {
       return null;
     }
 
-    const cert = selectedCerts[currentCertIndex];
-    const certType = certificationTypes.find(t => t._id === cert.certificationType);
-    
+    let cert;
+    let certType;
+    if (isEditing && currentCertIndex >= 0 && currentCertIndex < selectedCerts.length) {
+      cert = selectedCerts[currentCertIndex];
+      certType = certificationTypes.find(t => t._id === cert.certificationType);
+    } else if (pendingCertTypeId) {
+      certType = certificationTypes.find(t => t._id === pendingCertTypeId);
+      cert = { certificationType: pendingCertTypeId, certTypeName: certType?.name, documents: [] };
+    } else {
+      return null;
+    }
     if (!certType) return null;
 
     // Handler to update form validity
@@ -1702,16 +1918,16 @@ console.log("Required Certrs Value",requiredCerts)
       <Drawer
         title={
           <Space>
-            <span>{cert.certTypeName || 'Certification'} </span>
-            {requiredCerts.some(rc => rc._id === cert.certificationType) && <Tag color="red">Required</Tag>}
+            <span>{cert.certTypeName || certType?.name || 'Certification'} </span>
+            {requiredCerts.some(rc => rc._id === certType._id) && <Tag color="red">Required</Tag>}
           </Space>
         }
         width={600}
         open={certDetailsVisible}
-        onClose={() => setCertDetailsVisible(false)}
+        onClose={handleDrawerClose}
         footer={
           <div style={{ textAlign: 'right' }}>
-            <Button onClick={() => setCertDetailsVisible(false)} style={{ marginRight: 8 }}>
+            <Button onClick={handleDrawerClose} style={{ marginRight: 8 }}>
               Cancel
             </Button>
             <Button type="primary" onClick={() => certForm.submit()} disabled={!isFormValid}>
@@ -1730,7 +1946,6 @@ console.log("Required Certrs Value",requiredCerts)
             style={{ marginBottom: 16 }}
           />
         )}
-        
         <Form
           form={certForm}
           layout="vertical"
@@ -1837,9 +2052,20 @@ console.log("Required Certrs Value",requiredCerts)
               tooltip="Upload 1-2 supporting documents in PDF, JPEG or PNG format (max 5MB each)"
               rules={[{ 
                 required: true, 
-                validator: () => {
-                  if (!cert.documents?.length || cert.documents.length < 1) {
+                validator: (_, value) => {
+                  if (!value || value.length < 1) {
                     return Promise.reject('Please upload at least one document');
+                  }
+                  if (value.length > maxFiles) {
+                    return Promise.reject(`You can only upload up to ${maxFiles} documents`);
+                  }
+                  for (const file of value) {
+                    if (!allowedFileTypes.includes(file.type)) {
+                      return Promise.reject('Only PDF, JPG, PNG files are allowed');
+                    }
+                    if (file.size > maxFileSize) {
+                      return Promise.reject('Each file must be less than 5MB');
+                    }
                   }
                   return Promise.resolve();
                 }
@@ -1858,13 +2084,19 @@ console.log("Required Certrs Value",requiredCerts)
                   // Calculate total files after upload
                   const currentCount = cert.documents?.length || 0;
                   const newCount = currentCount + fileList.length;
-                  if (newCount > 2) {
-                    toast.error(`You can only upload ${2 - currentCount} more document(s)`);
+                  if (newCount > maxFiles) {
+                    toast.error(`You can only upload ${maxFiles - currentCount} more document(s)`);
                     return Upload.LIST_IGNORE;
                   }
-                  // Show loading state
+                  if (!allowedFileTypes.includes(file.type)) {
+                    toast.error('Only PDF, JPG, PNG files are allowed');
+                    return Upload.LIST_IGNORE;
+                  }
+                  if (file.size > maxFileSize) {
+                    toast.error('Each file must be less than 5MB');
+                    return Upload.LIST_IGNORE;
+                  }
                   toast.loading(`Uploading ${fileList.length} document(s)...`);
-                  // Process uploads
                   handleDocumentUpload(fileList, currentCertIndex)
                     .then(() => toast.dismiss())
                     .catch(() => toast.dismiss());
@@ -1882,7 +2114,7 @@ console.log("Required Certrs Value",requiredCerts)
                 }}
                 disabled={isUploading[currentCertIndex]}
               >
-                {cert.documents?.length >= 2 ? null : (
+                {cert.documents?.length >= maxFiles ? null : (
                   <div>
                     <PlusOutlined />
                     <div style={{ marginTop: 8 }}>Upload</div>
@@ -1899,6 +2131,7 @@ console.log("Required Certrs Value",requiredCerts)
     );
   }, [
     certDetailsVisible, 
+    isEditing, 
     currentCertIndex, 
     selectedCerts, 
     certificationTypes, 
@@ -1907,7 +2140,11 @@ console.log("Required Certrs Value",requiredCerts)
     handleDocumentUpload,
     handleRemoveDocument,
     isUploading,
-    requiredCerts
+    requiredCerts,
+    handleDrawerClose,
+    pendingCertTypeId,
+    renderEducationFields,
+    setIsFormValid
   ]);
 
   const steps = useMemo(() => [
