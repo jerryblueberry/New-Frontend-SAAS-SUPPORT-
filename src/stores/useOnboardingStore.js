@@ -1008,38 +1008,40 @@ export const useCertificationsMutation = () => {
           }
 
           // Find certification type details from the provided allCertTypes
-          const certType = allCertTypes.find(t => t._id === cert.certificationType);
-          if (!certType) {
-            throw new Error(`Certification type not found for ID: ${cert.certificationType}`);
-          }
+          if (allCertTypes) {
+            const certType = allCertTypes.find(t => t._id === cert.certificationType);
+            if (!certType) {
+              throw new Error(`Certification type not found for ID: ${cert.certificationType}`);
+            }
 
-          // Validate education-specific fields
-          if (certType.isEducation) {
-            if (!Array.isArray(cert.degree) || cert.degree.length === 0) {
-              throw new Error(`At least one degree is required for ${certType.name}`);
-            }
-            // Validate that all degrees are non-empty strings
-            if (!cert.degree.every(deg => deg && typeof deg === 'string' && deg.trim().length > 0)) {
-              throw new Error(`All degrees must be valid non-empty strings for ${certType.name}`);
-            }
-            // Optional: Check against predefined options if they exist, but don't require it
-            if (
-              certType.educationSetting?.degreeOptions &&
-              certType.educationSetting.degreeOptions.length > 0
-            ) {
-              // Log a warning for degrees not in predefined list, but don't block submission
-              const invalidDegrees = cert.degree.filter(d => !certType.educationSetting.degreeOptions.includes(d));
-              if (invalidDegrees.length > 0) {
-                console.warn(`Custom degrees detected for ${certType.name}:`, invalidDegrees);
+            // Validate education-specific fields
+            if (certType.isEducation) {
+              if (!Array.isArray(cert.degree) || cert.degree.length === 0) {
+                throw new Error(`At least one degree is required for ${certType.name}`);
+              }
+              // Validate that all degrees are non-empty strings
+              if (!cert.degree.every(deg => deg && typeof deg === 'string' && deg.trim().length > 0)) {
+                throw new Error(`All degrees must be valid non-empty strings for ${certType.name}`);
+              }
+              // Optional: Check against predefined options if they exist, but don't require it
+              if (
+                certType.educationSetting?.degreeOptions &&
+                certType.educationSetting.degreeOptions.length > 0
+              ) {
+                // Log a warning for degrees not in predefined list, but don't block submission
+                const invalidDegrees = cert.degree.filter(d => !certType.educationSetting.degreeOptions.includes(d));
+                if (invalidDegrees.length > 0) {
+                  console.warn(`Custom degrees detected for ${certType.name}:`, invalidDegrees);
+                }
               }
             }
-          }
 
-          // Validate other required fields
-          if (certType.requiredFields) {
-            for (const field of certType.requiredFields) {
-              if (!cert[field]) {
-                throw new Error(`Missing required field '${field}' for ${certType.name}`);
+            // Validate other required fields
+            if (certType.requiredFields) {
+              for (const field of certType.requiredFields) {
+                if (!cert[field]) {
+                  throw new Error(`Missing required field '${field}' for ${certType.name}`);
+                }
               }
             }
           }
@@ -1063,10 +1065,14 @@ export const useCertificationsMutation = () => {
     },
     onSuccess: (data) => {
       if (data.success) {
-        const { updateProfileCompleteness, nextStep } = useOnboardingStore.getState();
-        updateProfileCompleteness(data.data);
+        // Robustly extract profileCompleteness from backend response
+        const profileCompleteness = data.data?.profileCompletion || data.data?.profileCompleteness;
+        if (profileCompleteness) {
+          useOnboardingStore.getState().updateProfileCompleteness({ profileCompletion: profileCompleteness });
+        }
+        // Always invalidate and refetch onboarding query
         queryClient.invalidateQueries({ queryKey: ['onboarding'] });
-        nextStep();
+        useOnboardingStore.getState().nextStep();
       }
     },
     onError: (error) => {

@@ -621,29 +621,6 @@ const WorkerProfileForm = React.memo(() => {
         <p className="profile_wrkr_basic_text_helper">
           Select your skills or add your own
         </p>
-
-        <div className="profile_wrkr_basic_skills_suggestion">
-          {DEFAULT_SKILLS.map((skill) => (
-            <button
-              key={skill}
-              type="button"
-              className={`profile_wrkr_basic_skill_btn ${
-                (profile.skillTags || []).includes(skill) 
-                  ? 'profile_wrkr_basic_skill_selected' 
-                  : ''
-              }`}
-              onClick={() => handleSuggestedSkillClick(skill)}
-              disabled={
-                isPending || 
-                (!((profile.skillTags || []).includes(skill)) && 
-                 (profile.skillTags || []).length >= VALIDATION_RULES.skillTags.maxCount)
-              }
-            >
-              {skill}
-            </button>
-          ))}
-        </div>
-
         <div className="profile_wrkr_basic_form_group">
           <label htmlFor="newSkill" className="profile_wrkr_basic_form_label">
             Add Custom Skill
@@ -696,6 +673,30 @@ const WorkerProfileForm = React.memo(() => {
             </div>
           )}
         </div>
+        <div className="profile_wrkr_basic_skills_suggestion">
+          
+          {DEFAULT_SKILLS.map((skill) => (
+            <button
+              key={skill}
+              type="button"
+              className={`profile_wrkr_basic_skill_btn ${
+                (profile.skillTags || []).includes(skill) 
+                  ? 'profile_wrkr_basic_skill_selected' 
+                  : ''
+              }`}
+              onClick={() => handleSuggestedSkillClick(skill)}
+              disabled={
+                isPending || 
+                (!((profile.skillTags || []).includes(skill)) && 
+                 (profile.skillTags || []).length >= VALIDATION_RULES.skillTags.maxCount)
+              }
+            >
+              {skill}
+            </button>
+          ))}
+        </div>
+
+        
 
         {skillTags}
       </div>

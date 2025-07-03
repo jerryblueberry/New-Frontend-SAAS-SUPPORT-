@@ -693,6 +693,8 @@ console.log("Normalized Certs",onboardingData)
   // Add new state for pending add/edit
   const [pendingCertTypeId, setPendingCertTypeId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  // Add WWCC draft state
+  const [wwccDraft, setWwccDraft] = useState(null);
 
   // Helper to check if a certType is the Working With Children Check
   const isWorkingWithChildrenCheckType = (certType) =>
@@ -703,13 +705,16 @@ console.log("Normalized Certs",onboardingData)
     if (!certType) return;
 
     if (isWorkingWithChildrenCheckType(certType)) {
-      // WWCC: Only add after form submit
       setPendingCertTypeId(certTypeId);
       setIsEditing(false);
-      certForm.resetFields();
+      setWwccDraft({
+        certificationType: certTypeId,
+        certTypeName: certType.name,
+        documents: [],
+      });
+      certForm.resetFields(); // Reset form for WWCC
       setCertDetailsVisible(true);
     } else {
-      // Other certs: Add immediately, then open for editing
       const newCert = {
         certificationType: certTypeId,
         certTypeName: certType.name,
@@ -721,6 +726,7 @@ console.log("Normalized Certs",onboardingData)
       setCurrentCertIndex(updatedCerts.length - 1);
       setIsEditing(true);
       setPendingCertTypeId(null);
+      certForm.resetFields(); // Reset form before setting new values
       certForm.setFieldsValue(newCert);
       setCertDetailsVisible(true);
     }
@@ -738,7 +744,33 @@ console.log("Normalized Certs",onboardingData)
     setCertDetailsVisible(true);
   }, [selectedCerts, certForm]);
 
+  // Centralized document validation helper
+  const validateDocuments = (documents, certType) => {
+    if (certType.documentRequired) {
+      if (!documents || documents.length < 1) {
+        return 'Please upload at least one document';
+      }
+    }
+    return null;
+  };
+
   const updateCertification = useCallback((values) => {
+    let certType;
+    let documents;
+    if (isEditing) {
+      certType = certificationTypes.find(t => t._id === selectedCerts[currentCertIndex].certificationType);
+      documents = selectedCerts[currentCertIndex]?.documents || [];
+    } else if (pendingCertTypeId) {
+      certType = certificationTypes.find(t => t._id === pendingCertTypeId);
+      documents = wwccDraft?.documents || [];
+    }
+    const docError = validateDocuments(documents, certType);
+    if (docError) {
+      message.error(docError);
+      setIsFormValid(false);
+      return;
+    }
+    setIsFormValid(true);
     if (isEditing) {
       // Update existing
       const updatedCerts = [...selectedCerts];
@@ -754,28 +786,30 @@ console.log("Normalized Certs",onboardingData)
       message.success('Certification details updated');
     } else if (pendingCertTypeId) {
       // Only for WWCC
-      const certType = certificationTypes.find(t => t._id === pendingCertTypeId);
       if (isWorkingWithChildrenCheckType(certType)) {
+        // Use wwccDraft for documents
         const newCert = {
           certificationType: pendingCertTypeId,
           certTypeName: certType?.name,
           ...values,
-          documents: values.documents || []
+          documents: wwccDraft?.documents || []
         };
         const updatedCerts = [...selectedCerts, newCert];
         setSelectedCerts(updatedCerts);
         updateCertifications(updatedCerts);
         setCertDetailsVisible(false);
         setPendingCertTypeId(null);
+        setWwccDraft(null);
         message.success('Certification added');
       }
     }
-  }, [isEditing, currentCertIndex, selectedCerts, certificationTypes, updateCertifications, pendingCertTypeId]);
+  }, [isEditing, currentCertIndex, selectedCerts, certificationTypes, updateCertifications, pendingCertTypeId, wwccDraft]);
 
   // Update Drawer open/close logic
   const handleDrawerClose = () => {
     setCertDetailsVisible(false);
     setPendingCertTypeId(null);
+    setWwccDraft(null); // Clear draft on cancel
   };
 
   const handleRemoveCertification = useCallback((index) => {
@@ -819,11 +853,16 @@ console.log("Normalized Certs",onboardingData)
   const maxFileSize = 5 * 1024 * 1024; // 5MB
   const maxFiles = 2;
 
-  const handleDocumentUpload = async (files, certIndex) => {
+  const handleDocumentUpload = async (files, certIndex, isWWCCDraft = false) => {
     try {
       setIsUploading(prev => ({ ...prev, [certIndex]: true }));
-      // Check if we have space for all files
-      const currentDocs = selectedCerts[certIndex]?.documents?.length || 0;
+      // For WWCC draft, use wwccDraft state
+      let currentDocs = 0;
+      if (isWWCCDraft) {
+        currentDocs = wwccDraft?.documents?.length || 0;
+      } else {
+        currentDocs = selectedCerts[certIndex]?.documents?.length || 0;
+      }
       const remainingSlots = maxFiles - currentDocs;
       if (files.length > remainingSlots) {
         toast.error(`You can only upload ${remainingSlots} more document(s)`);
@@ -839,9 +878,9 @@ console.log("Normalized Certs",onboardingData)
       const duplicateFiles = [];
       const uniqueFiles = [];
       files.forEach(file => {
-        const isDuplicate = selectedCerts[certIndex]?.documents?.some(doc =>
-          doc.fileName === file.name && doc.fileSize === file.size
-        );
+        const isDuplicate = isWWCCDraft
+          ? wwccDraft?.documents?.some(doc => doc.fileName === file.name && doc.fileSize === file.size)
+          : selectedCerts[certIndex]?.documents?.some(doc => doc.fileName === file.name && doc.fileSize === file.size);
         if (isDuplicate) {
           duplicateFiles.push(file.name);
         } else {
@@ -864,16 +903,26 @@ console.log("Normalized Certs",onboardingData)
         return false;
       }
       // Update state with new documents
-      const updatedCerts = [...selectedCerts];
-      updatedCerts[certIndex] = {
-        ...updatedCerts[certIndex],
-        documents: [
-          ...(updatedCerts[certIndex].documents || []),
-          ...successfulUploads
-        ].slice(0, maxFiles)
-      };
-      setSelectedCerts(updatedCerts);
-      updateCertifications(updatedCerts);
+      if (isWWCCDraft) {
+        setWwccDraft(prev => ({
+          ...prev,
+          documents: [
+            ...(prev?.documents || []),
+            ...successfulUploads
+          ].slice(0, maxFiles)
+        }));
+      } else {
+        const updatedCerts = [...selectedCerts];
+        updatedCerts[certIndex] = {
+          ...updatedCerts[certIndex],
+          documents: [
+            ...(updatedCerts[certIndex].documents || []),
+            ...successfulUploads
+          ].slice(0, maxFiles)
+        };
+        setSelectedCerts(updatedCerts);
+        updateCertifications(updatedCerts);
+      }
       const uploadMessage = successfulUploads.length === 1 ?
         `Uploaded ${successfulUploads.length} document` :
         `Uploaded ${successfulUploads.length} documents`;
@@ -995,8 +1044,10 @@ console.log("Normalized Certs",onboardingData)
   }, [certificationTypes]);
 
   // Helper to check if a cert is the Working With Children Check (case-insensitive, trimmed)
-  const isWorkingWithChildrenCheck = (cert) =>
-    cert.name && cert.name.trim().toLowerCase() === 'working with children check';
+  const isWorkingWithChildrenCheck = (cert) => {
+    const name = cert.name || cert.certTypeName;
+    return name && name.trim().toLowerCase() === 'working with children check';
+  };
 
   const getRequiredCertsAddedCount = useCallback(() => {
     // Only count truly required certs (exclude Working With Children Check)
@@ -1350,9 +1401,11 @@ console.log("Normalized Certs",onboardingData)
                 ) : filteredRequiredCerts.length > 0 ? (
                   <List
                     dataSource={filteredRequiredCerts}
+                    
                     renderItem={cert => {
                       const certIsComplete = isCertFullyComplete(cert, selectedCerts);
                       const certInList = selectedCerts.some(c => c.certificationType === cert._id);
+                      
                       return (
                         <List.Item
                           style={{ padding: '12px 24px' }}
@@ -1365,9 +1418,9 @@ console.log("Normalized Certs",onboardingData)
                                   style={{ color: '#52c41a' }}
                                   disabled
                                 >
-                                  Added
+                                  Completed
                                 </Button>
-                                <Button
+                                {/* <Button
                                   icon={<EditOutlined />}
                                   type="link"
                                   onClick={() => {
@@ -1378,7 +1431,7 @@ console.log("Normalized Certs",onboardingData)
                                   style={{ marginLeft: 8 }}
                                 >
                                   Edit
-                                </Button>
+                                </Button> */}
                               </>
                             ) : (
                               <Button 
@@ -1394,12 +1447,17 @@ console.log("Normalized Certs",onboardingData)
                                 }}
                                 size="small"
                               >
-                                {certInList ? "Complete" : "Add"}
+                                {certInList ? "Add" : "Add"}
                               </Button>
                             )
                           ]}
                         >
-                          <List.Item.Meta
+                          <List.Item.Meta 
+
+                                onClick={() => {
+                                  const idx = selectedCerts.findIndex(c => c.certificationType === cert._id);
+                                  editCertification(idx);
+                                }}
                             avatar={
                               <Avatar 
                                 icon={cert.isVisa ? <GlobalOutlined /> : CATEGORY_ICONS[cert.category] || <SafetyCertificateOutlined />} 
@@ -1410,9 +1468,11 @@ console.log("Normalized Certs",onboardingData)
                               />
                             }
                             title={
-                              <Space>
+                              <Space 
+                        
+                              >
                                 <Text strong>{cert.name}</Text>
-                                {!isWorkingWithChildrenCheck(cert) && <Tag color="red">Required</Tag>}
+                                {!isWorkingWithChildrenCheck(cert) && <p style={{color:'red'}}>*</p>}
                               </Space>
                             }
                             description={
@@ -1456,6 +1516,7 @@ console.log("Normalized Certs",onboardingData)
             onboardingData?.data?.profile?.certifications?.length> 0 ? ( <Card
               title={<Title level={4} style={{ margin: 0 }}>Your Certifications</Title>}
               style={{ borderRadius: 8 }}
+              
               extra={
                 <Space>
                   <Tooltip title="Overall completion status">
@@ -1476,37 +1537,16 @@ console.log("Normalized Certs",onboardingData)
               }
             >
               {onboardingData?.data?.profile?.certifications?.length > 0 ? (
-                <List  style={{
-  
-                }}
-                
+                <List  style={{}}
                   dataSource={selectedCerts}
                   renderItem={(cert, index) => {
                     const type = certificationTypes.find(t => t._id === cert.certificationType);
                     const isComplete = isCertComplete(cert);
                     const isRequired = requiredCerts.some(rc => rc._id === cert.certificationType);
-                    
                     return (
                       <List.Item 
-                        style={{ padding: '12px 24px' }}
-                        actions={[
-                          <Button 
-                            icon={<EditOutlined />} 
-                            onClick={() => editCertification(index)}
-                            size="small"
-                          >
-                            Edit
-                          </Button>,
-                          <Button 
-                            icon={<DeleteOutlined />} 
-                            danger 
-                            onClick={() => handleRemoveCertification(index)}
-                            disabled={isRequired && requiredCerts.length === 1}
-                            size="small"
-                          >
-                            Remove
-                          </Button>
-                        ]}
+                        onClick={() => editCertification(index)}
+                        style={{ padding: '12px 24px', cursor: 'pointer', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}
                       >
                         <List.Item.Meta
                           avatar={
@@ -1519,10 +1559,15 @@ console.log("Normalized Certs",onboardingData)
                             />
                           }
                           title={
-                            <Space>
-                              <Text  className='text_your_cert'  strong>{cert.certTypeName}</Text>
-                              {isRequired && <Tag color="red">Required</Tag>}
-                            </Space>
+                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 }}>
+                              <span style={{ fontWeight: 600, fontSize: 16, color: '#222' }} className="text_your_cert">{cert.certTypeName}</span>
+                              {isComplete && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto', color: '#52c41a', fontWeight: 500, fontSize: 15 }}>
+                                  <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 18 }} />
+                                  <span className="completed-label">Completed</span>
+                                </span>
+                              )}
+                            </div>
                           }
                           description={
                             !isComplete && (
@@ -1894,32 +1939,35 @@ console.log("Normalized Certs",onboardingData)
     if (!certDetailsVisible) {
       return null;
     }
-
     let cert;
     let certType;
+    let isWWCC = false;
     if (isEditing && currentCertIndex >= 0 && currentCertIndex < selectedCerts.length) {
       cert = selectedCerts[currentCertIndex];
       certType = certificationTypes.find(t => t._id === cert.certificationType);
     } else if (pendingCertTypeId) {
       certType = certificationTypes.find(t => t._id === pendingCertTypeId);
-      cert = { certificationType: pendingCertTypeId, certTypeName: certType?.name, documents: [] };
+      isWWCC = isWorkingWithChildrenCheckType(certType);
+      cert = isWWCC ? (wwccDraft || { certificationType: pendingCertTypeId, certTypeName: certType?.name, documents: [] }) : { certificationType: pendingCertTypeId, certTypeName: certType?.name, documents: [] };
     } else {
       return null;
     }
     if (!certType) return null;
-
     // Handler to update form validity
     const handleFieldsChange = (_, allFields) => {
       const hasErrors = allFields.some(field => field.errors.length > 0);
       setIsFormValid(!hasErrors);
     };
-
+    // For WWCC, bind Upload to wwccDraft
+    const uploadFileList = isWWCC ? (wwccDraft?.documents || []) : (cert.documents || []);
+    const uploadDisabled = isUploading[currentCertIndex] || (isWWCC && isUploading['wwcc']);
     return (
       <Drawer
         title={
           <Space>
             <span>{cert.certTypeName || certType?.name || 'Certification'} </span>
-            {requiredCerts.some(rc => rc._id === certType._id) && <Tag color="red">Required</Tag>}
+
+            {!isWorkingWithChildrenCheck(cert) && <p style={{color:'red'}}>*</p>}
           </Space>
         }
         width={600}
@@ -1930,7 +1978,9 @@ console.log("Normalized Certs",onboardingData)
             <Button onClick={handleDrawerClose} style={{ marginRight: 8 }}>
               Cancel
             </Button>
-            <Button type="primary" onClick={() => certForm.submit()} disabled={!isFormValid}>
+            <Button type="primary" onClick={() => certForm.submit()} 
+            disabled={!isFormValid}
+              >
               Save
             </Button>
           </div>
@@ -1959,14 +2009,11 @@ console.log("Normalized Certs",onboardingData)
           onFieldsChange={handleFieldsChange}
         >
           {renderEducationFields(certType, currentCertIndex)}
-
           {certType.requiredFields.map(field => {
             if (field === 'degree') return null; // Skip degree as it's handled separately
-            
             const isDateField = field.toLowerCase().includes('date');
             const fieldLabel = formatFieldLabel(field);
             const fieldTooltip = getFieldTooltip(field);
-            
             return (
               <Form.Item
                 key={field}
@@ -2038,51 +2085,52 @@ console.log("Normalized Certs",onboardingData)
               </Form.Item>
             );
           })}
-
           {certType.documentRequired && (
             <Form.Item 
               label={
                 <span>
                   Documents <span style={{ fontWeight: 'normal', color: '#888', fontSize: 13 }}>
-                    ({cert.documents?.length || 0}/2 uploaded)
+                    ({uploadFileList.length}/2 uploaded)
                   </span>
                 </span>
               }
-              required
-              tooltip="Upload 1-2 supporting documents in PDF, JPEG or PNG format (max 5MB each)"
-              rules={[{ 
-                required: true, 
-                validator: (_, value) => {
-                  if (!value || value.length < 1) {
-                    return Promise.reject('Please upload at least one document');
-                  }
-                  if (value.length > maxFiles) {
-                    return Promise.reject(`You can only upload up to ${maxFiles} documents`);
-                  }
-                  for (const file of value) {
-                    if (!allowedFileTypes.includes(file.type)) {
-                      return Promise.reject('Only PDF, JPG, PNG files are allowed');
+              name="documents"
+              required={certType.documentRequired}
+              rules={[
+                {
+                  validator: (_, value) => {
+                    if (certType.documentRequired && (!uploadFileList || uploadFileList.length === 0)) {
+                      return Promise.reject('Please upload at least one document');
                     }
-                    if (file.size > maxFileSize) {
-                      return Promise.reject('Each file must be less than 5MB');
-                    }
+                    return Promise.resolve();
                   }
-                  return Promise.resolve();
                 }
-              }]}
+              ]}
             >
               <Upload
                 accept=".pdf,.jpg,.jpeg,.png"
-                fileList={cert.documents || []}
+                fileList={uploadFileList}
                 onRemove={(file) => {
-                  const docIndex = cert.documents.findIndex(d => d.uid === file.uid);
-                  if (docIndex >= 0) {
-                    handleRemoveDocument(currentCertIndex, docIndex);
+                  let newUploadFileList;
+                  if (isWWCC) {
+                    newUploadFileList = (wwccDraft?.documents || []).filter(d => d.uid !== file.uid);
+                    setWwccDraft(prev => ({
+                      ...prev,
+                      documents: newUploadFileList
+                    }));
+                  } else {
+                    const docIndex = cert.documents.findIndex(d => d.uid === file.uid);
+                    if (docIndex >= 0) {
+                      handleRemoveDocument(currentCertIndex, docIndex);
+                    }
+                    newUploadFileList = cert.documents.filter(d => d.uid !== file.uid);
                   }
+                  // Update form value for documents after every upload/remove
+                  certForm.setFieldsValue({ documents: newUploadFileList });
                 }}
                 beforeUpload={(file, fileList) => {
                   // Calculate total files after upload
-                  const currentCount = cert.documents?.length || 0;
+                  const currentCount = uploadFileList.length;
                   const newCount = currentCount + fileList.length;
                   if (newCount > maxFiles) {
                     toast.error(`You can only upload ${maxFiles - currentCount} more document(s)`);
@@ -2097,8 +2145,18 @@ console.log("Normalized Certs",onboardingData)
                     return Upload.LIST_IGNORE;
                   }
                   toast.loading(`Uploading ${fileList.length} document(s)...`);
-                  handleDocumentUpload(fileList, currentCertIndex)
-                    .then(() => toast.dismiss())
+                  handleDocumentUpload(fileList, isWWCC ? 'wwcc' : currentCertIndex, isWWCC)
+                    .then(() => {
+                      toast.dismiss();
+                      // After upload, update form value for documents
+                      let newUploadFileList;
+                      if (isWWCC) {
+                        newUploadFileList = (wwccDraft?.documents || []).concat([]); // force new array
+                      } else {
+                        newUploadFileList = (cert.documents || []).concat([]);
+                      }
+                      certForm.setFieldsValue({ documents: newUploadFileList });
+                    })
                     .catch(() => toast.dismiss());
                   return false; // Prevent default upload
                 }}
@@ -2109,12 +2167,12 @@ console.log("Normalized Certs",onboardingData)
                   showRemoveIcon: true,
                 }}
                 onPreview={(file) => {
-                  const doc = cert.documents.find(d => d.uid === file.uid);
+                  const doc = uploadFileList.find(d => d.uid === file.uid);
                   if (doc) handleDocumentPreview(doc);
                 }}
-                disabled={isUploading[currentCertIndex]}
+                disabled={uploadDisabled}
               >
-                {cert.documents?.length >= maxFiles ? null : (
+                {uploadFileList.length >= maxFiles ? null : (
                   <div>
                     <PlusOutlined />
                     <div style={{ marginTop: 8 }}>Upload</div>
@@ -2144,7 +2202,8 @@ console.log("Normalized Certs",onboardingData)
     handleDrawerClose,
     pendingCertTypeId,
     renderEducationFields,
-    setIsFormValid
+    setIsFormValid,
+    wwccDraft
   ]);
 
   const steps = useMemo(() => [
@@ -2288,6 +2347,29 @@ console.log("Normalized Certs",onboardingData)
       console.error('API test error:', error);
     }
   }, []);
+
+  // Add this useEffect above renderCertificationForm (inside CertificateSecond)
+  useEffect(() => {
+    if (!certDetailsVisible) return;
+    // Get the current documents list
+    let docs = [];
+    if (isEditing && currentCertIndex >= 0 && currentCertIndex < selectedCerts.length) {
+      docs = selectedCerts[currentCertIndex]?.documents || [];
+    } else if (pendingCertTypeId) {
+      docs = wwccDraft?.documents || [];
+    }
+    // If documentRequired, validate
+    const certType = isEditing
+      ? certificationTypes.find(t => t._id === selectedCerts[currentCertIndex]?.certificationType)
+      : certificationTypes.find(t => t._id === pendingCertTypeId);
+    if (certType?.documentRequired) {
+      certForm.validateFields(['documents']);
+    }
+    certForm
+      .validateFields()
+      .then(() => setIsFormValid(true))
+      .catch(() => setIsFormValid(false));
+  }, [certDetailsVisible, certForm, isEditing, currentCertIndex, selectedCerts, pendingCertTypeId, wwccDraft, certificationTypes]);
 
   if (isOnboardingError) {
     return (
