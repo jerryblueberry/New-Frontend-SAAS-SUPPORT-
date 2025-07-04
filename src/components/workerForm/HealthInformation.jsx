@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import useOnboardingStore, { useHealthInfoMutation } from '../../stores/useOnboardingStore';
 import './css/HealthInformation.css';
 
-const HealthInformation = () => {
+const HealthInformation = ({ onComplete, onError }) => {
   const healthInformation = useOnboardingStore((state) => state.healthInformation);
   const updateHealthInformation = useOnboardingStore((state) => state.updateHealthInformation);
   const addVaccination = useOnboardingStore((state) => state.addVaccination);
@@ -218,14 +218,16 @@ const handleSubmit = useCallback((e) => {
   saveHealthInfo(dataToSend, {
     onSuccess: () => {
       console.log('Health info saved successfully');
-      nextStep();
+      toast.success('Health info saved successfully');
+      onComplete?.(); // Complete the profile here
     },
     onError: (error) => {
       console.error('Submission error:', error);
       toast.error(error.message || 'Failed to save health information');
+      onError?.(error.message);
     }
   });
-}, [validateForm, healthInformation, saveHealthInfo, nextStep]);
+}, [validateForm, healthInformation, saveHealthInfo, onComplete, onError, nextStep]);
 
 
   const renderFieldError = (fieldName) => {

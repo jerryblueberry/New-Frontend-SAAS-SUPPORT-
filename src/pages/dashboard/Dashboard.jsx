@@ -128,10 +128,10 @@ console.log("USer",user);
     const { completedSections } = profileStatus.profileCompleteness;
 
     if (!completedSections.basicInfo) return 1;
-    if (!completedSections.availability) return 2;
-    if (!completedSections.certifications) return 3;
-    if (!completedSections.healthInformation) return 4;
-    if (!completedSections.workHistory) return 5;
+    if (!completedSections.workHistory) return 2;
+    if (!completedSections.availability) return 3;
+    if (!completedSections.certifications) return 4;
+    if (!completedSections.healthInformation) return 5;
 
     return null;
   };
@@ -157,10 +157,11 @@ console.log("USer",user);
     const completed = profileStatus?.profileCompleteness?.completedSections || {};
     const sectionNames = {
       basicInfo: 'Basic Information',
+      workHistory: 'Work History',
       availability: 'Availability',
       certifications: 'Certifications',
       healthInformation: 'Health Information',
-      workHistory: 'Work History',
+    
     };
     return Object.entries(completed)
       .filter(([_, done]) => !done)
@@ -393,21 +394,26 @@ console.log("USer",user);
                 </Paper>
               </Box>
             ) : (
-              // Fully Verified
-              <Box sx={{ mt: 8, textAlign: 'center' }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
-                  <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="60" cy="60" r="56" fill="#e8f5e9" stroke="#43a047" strokeWidth="4"/>
-                    <path d="M40 65l15 15 25-35" stroke="#43a047" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                  </svg>
+              // Only show if fully verified AND profile is 100% complete
+              profileStatus?.profileCompleteness?.percentage === 100 ? (
+                <Box sx={{ mt: 8, textAlign: 'center' }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
+                    <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="60" cy="60" r="56" fill="#e8f5e9" stroke="#43a047" strokeWidth="4"/>
+                      <path d="M40 65l15 15 25-35" stroke="#43a047" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                    </svg>
+                  </Box>
+                  <Typography variant="h4" color="success.main" fontWeight={700}>
+                    Congratulations! 🎉
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary" sx={{ mt: 2 }}>
+                    Your profile is <b>fully verified</b>. You now have access to all dashboard features and can start applying for jobs!
+                  </Typography>
                 </Box>
-                <Typography variant="h4" color="success.main" fontWeight={700}>
-                  Congratulations! 🎉
-                </Typography>
-                <Typography variant="body1" color="text.secondary" sx={{ mt: 2 }}>
-                  Your profile is <b>fully verified</b>. You now have access to all dashboard features and can start applying for jobs!
-                </Typography>
-              </Box>
+              ) : (
+                // If not 100% complete, show a prompt to complete profile
+                null
+              )
             )
           )}
 

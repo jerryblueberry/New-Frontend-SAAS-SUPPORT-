@@ -97,19 +97,19 @@ const Onboarding = () => {
       steps.push(1);
       nextStep = 2;
     }
-    if (profileCompleteness.completedSections.availability) {
+    if (profileCompleteness.completedSections.workHistory) {
       steps.push(2);
       nextStep = 3;
     }
-    if (profileCompleteness.completedSections.certifications) {
+    if (profileCompleteness.completedSections.availability) {
       steps.push(3);
       nextStep = 4;
     }
-    if (profileCompleteness.completedSections.healthInformation) {
+    if (profileCompleteness.completedSections.certifications) {
       steps.push(4);
       nextStep = 5;
     }
-    if (profileCompleteness.completedSections.workHistory) {
+    if (profileCompleteness.completedSections.healthInformation) {
       steps.push(5);
       nextStep = 6; // Profile is complete
     }
@@ -174,17 +174,17 @@ const Onboarding = () => {
   const stepComponents = useMemo(
     () => ({
       1: <WorkerProfileForm />,
-      2: <AvailabilityForm />,
-      3: <CertificateSecond />,
-      4: <HealthInformation />,
+      2: <WorkHistoryForm onNextStep={() => setStep(3)} />,
+      3: <AvailabilityForm />,
+      4: <CertificateSecond />,
       5: (
-        <WorkHistoryForm
+        <HealthInformation
           onComplete={handleSubmitProfile}
           onError={handleWorkHistoryError}
         />
       ),
     }),
-    [handleSubmitProfile, handleWorkHistoryError]
+    [handleSubmitProfile, handleWorkHistoryError, setStep]
   );
 
   // Optional loading state for admin check
@@ -246,19 +246,19 @@ const Onboarding = () => {
               completed: completedSteps.includes(1),
             },
             {
-              label: 'Availability',
+              label: 'Work History',
               completed: completedSteps.includes(2),
             },
             {
-              label: 'Certifications',
+              label: 'Availability',
               completed: completedSteps.includes(3),
             },
             {
-              label: 'Health Info',
+              label: 'Certifications',
               completed: completedSteps.includes(4),
             },
             {
-              label: 'Work History',
+              label: 'Health Info',
               completed: completedSteps.includes(5),
             },
           ]}

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import {
   Box,
   Paper,
@@ -23,56 +24,20 @@ import {
   Work as WorkIcon,
   ArrowForward as ArrowForwardIcon,
   CheckCircle as CheckCircleIcon,
-  Timer as TimerIcon,
 } from '@mui/icons-material';
 
-const OnboardingPrompt = ({ percentage = 0, nextStep = 1, onContinue = () => {} }) => {
+const OnboardingPrompt = ({ percentage = 0, nextStep = 1, onContinue = () => {}, completedSteps = 0 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
-  
   const [hoveredStep, setHoveredStep] = useState(null);
 
   const steps = [
-    { 
-      id: 1, 
-      title: 'Personal Profile', 
-      description: 'Share your professional identity',
-      icon: <AccountIcon />,
-    //   time: '3m'
-    },
-    { 
-      id: 2, 
-      title: 'Availability', 
-      description: 'Set your work schedule',
-      icon: <ScheduleIcon />,
-    //   time: '2m'
-    },
-    {
-      id: 3,
-      title: 'Skills & Certs',
-      description: 'Showcase your expertise',
-      icon: <CertificationIcon />,
-    //   time: '5m'
-    },
-    {
-      id: 4,
-      title: 'Health Check',
-      description: 'Complete compliance form',
-      icon: <HealthIcon />,
-    //   time: '4m'
-    },
-    { 
-      id: 5, 
-      title: 'Experience', 
-      description: 'Add work history',
-      icon: <WorkIcon />,
-    //   time: '6m'
-    },
+    { id: 1, title: 'Personal Profile', description: 'Share your professional identity', icon: <AccountIcon /> },
+    { id: 2, title: 'Experience', description: 'Add work history', icon: <WorkIcon /> },
+    { id: 3, title: 'Availability', description: 'Set your work schedule', icon: <ScheduleIcon /> },
+    { id: 4, title: 'Skills & Certs', description: 'Showcase your expertise', icon: <CertificationIcon /> },
+    { id: 5, title: 'Health Check', description: 'Complete compliance form', icon: <HealthIcon /> },
   ];
-
-  const completedSteps = Math.floor((percentage || 0) / 20);
-  const totalTime = steps.reduce((acc, step) => acc + parseInt(step.time), 0);
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 3 } }}>
@@ -88,51 +53,21 @@ const OnboardingPrompt = ({ percentage = 0, nextStep = 1, onContinue = () => {} 
         {/* Header */}
         <Box sx={{ mb: 3, textAlign: 'center' }}>
           <Typography
-            variant={isMobile ? "h5" : "h4"}
-            sx={{
-              fontWeight: 700,
-              color: 'grey.900',
-              mb: 1,
-            }}
+            variant={isMobile ? 'h5' : 'h4'}
+            sx={{ fontWeight: 700, color: 'grey.900', mb: 1 }}
           >
             Complete Your Profile
           </Typography>
-          <Typography 
-            variant="body2" 
-            color="grey.600"
-            sx={{ mb: 2 }}
-          >
-            Get matched with  opportunities
+          <Typography variant="body2" color="grey.600" sx={{ mb: 2 }}>
+            Get matched with opportunities
           </Typography>
-          
-          <Stack 
-            direction="row" 
-            spacing={1} 
-            justifyContent="center"
-            sx={{ mb: 2 }}
-          >
-            {/* <Chip
-              icon={<TimerIcon sx={{ fontSize: 16 }} />}
-            //   label={`${totalTime}min`}
-              size="small"
-              variant="outlined"
-              sx={{ 
-                borderColor: 'grey.300',
-                color: 'grey.700',
-                fontSize: '0.75rem'
-              }}
-            /> */}
+          <Stack direction="row" spacing={1} justifyContent="center" sx={{ mb: 2 }}>
             <Chip
               label={`${completedSteps}/${steps.length}`}
               size="small"
-              sx={{ 
-                bgcolor: 'primary.main',
-                color: 'white',
-                fontSize: '0.75rem'
-              }}
+              sx={{ bgcolor: 'primary.main', color: 'white', fontSize: '0.75rem' }}
             />
           </Stack>
-
           {/* Progress Bar */}
           <Box sx={{ width: '100%', mb: 1 }}>
             <LinearProgress
@@ -160,7 +95,6 @@ const OnboardingPrompt = ({ percentage = 0, nextStep = 1, onContinue = () => {} 
             const isCompleted = (percentage || 0) >= step.id * 20;
             const isNext = nextStep === step.id;
             const isHovered = hoveredStep === step.id;
-            
             return (
               <Grid item xs={12} sm={6} md={12} lg={6} key={step.id}>
                 <Card
@@ -171,15 +105,15 @@ const OnboardingPrompt = ({ percentage = 0, nextStep = 1, onContinue = () => {} 
                     borderRadius: 1.5,
                     transition: 'all 0.2s ease',
                     cursor: 'pointer',
-                    bgcolor: isNext 
+                    bgcolor: isNext
                       ? alpha(theme.palette.primary.main, 0.04)
-                      : isHovered 
-                      ? 'grey.50' 
+                      : isHovered
+                      ? 'grey.50'
                       : 'white',
                     border: `1px solid ${
-                      isNext 
+                      isNext
                         ? theme.palette.primary.main
-                        : isHovered 
+                        : isHovered
                         ? theme.palette.grey[300]
                         : theme.palette.grey[200]
                     }`,
@@ -197,14 +131,14 @@ const OnboardingPrompt = ({ percentage = 0, nextStep = 1, onContinue = () => {} 
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          bgcolor: isCompleted 
-                            ? 'primary.main' 
-                            : isNext 
+                          bgcolor: isCompleted
+                            ? 'primary.main'
+                            : isNext
                             ? alpha(theme.palette.primary.main, 0.1)
                             : 'grey.100',
-                          color: isCompleted 
-                            ? 'white' 
-                            : isNext 
+                          color: isCompleted
+                            ? 'white'
+                            : isNext
                             ? 'primary.main'
                             : 'grey.600',
                           transition: 'all 0.2s ease',
@@ -217,44 +151,27 @@ const OnboardingPrompt = ({ percentage = 0, nextStep = 1, onContinue = () => {} 
                           React.cloneElement(step.icon, { sx: { fontSize: 20 } })
                         )}
                       </Box>
-                      
                       {/* Content */}
                       <Box sx={{ flex: 1, minWidth: 0, mr: 1 }}>
-                        <Typography 
+                        <Typography
                           variant="subtitle2"
-                          sx={{ 
+                          sx={{
                             fontWeight: 600,
                             color: isNext ? 'primary.main' : 'grey.900',
                             lineHeight: 1.2,
-                            mb: 0.5
+                            mb: 0.5,
                           }}
                         >
                           {step.title}
                         </Typography>
-                        <Typography 
-                          variant="caption" 
+                        <Typography
+                          variant="caption"
                           color="grey.600"
-                          sx={{ 
-                            display: 'block',
-                            lineHeight: 1.3,
-                            mb: 0.5 
-                          }}
+                          sx={{ display: 'block', lineHeight: 1.3, mb: 0.5 }}
                         >
                           {step.description}
                         </Typography>
-                        <Chip
-                          label={step.time}
-                          size="small"
-                          variant="outlined"
-                          sx={{ 
-                            height: 20,
-                            fontSize: '0.7rem',
-                            borderColor: 'grey.300',
-                            color: 'grey.600'
-                          }}
-                        />
                       </Box>
-                      
                       {/* Action Button */}
                       {isNext && (
                         <Button
@@ -299,9 +216,9 @@ const OnboardingPrompt = ({ percentage = 0, nextStep = 1, onContinue = () => {} 
           >
             Continue Setup
           </Button>
-          <Typography 
-            variant="caption" 
-            color="grey.500" 
+          <Typography
+            variant="caption"
+            color="grey.500"
             sx={{ display: 'block', mt: 1, maxWidth: 300, mx: 'auto' }}
           >
             Secure & confidential • Shared only with your consent
@@ -310,6 +227,13 @@ const OnboardingPrompt = ({ percentage = 0, nextStep = 1, onContinue = () => {} 
       </Paper>
     </Container>
   );
+};
+
+OnboardingPrompt.propTypes = {
+  percentage: PropTypes.number,
+  nextStep: PropTypes.number,
+  onContinue: PropTypes.func,
+  completedSteps: PropTypes.number,
 };
 
 export default OnboardingPrompt;

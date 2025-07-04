@@ -549,13 +549,13 @@ const useOnboardingStore = create(
         const completedSteps = [];
         if (profileCompletion?.completedSections?.basicInfo)
           completedSteps.push(1);
-        if (profileCompletion?.completedSections?.availability)
-          completedSteps.push(2);
-        if (profileCompletion?.completedSections?.certifications)
-          completedSteps.push(3);
-        if (profileCompletion?.completedSections?.healthInformation)
-          completedSteps.push(4);
         if (profileCompletion?.completedSections?.workHistory)
+          completedSteps.push(2);
+        if (profileCompletion?.completedSections?.availability)
+          completedSteps.push(3);
+        if (profileCompletion?.completedSections?.certifications)
+          completedSteps.push(4);
+        if (profileCompletion?.completedSections?.healthInformation)
           completedSteps.push(5);
         set({
           currentStep: currentStep || 1,

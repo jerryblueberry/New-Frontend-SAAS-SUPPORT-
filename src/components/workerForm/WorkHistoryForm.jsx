@@ -4,7 +4,7 @@ import useOnboardingStore from '../../stores/useOnboardingStore';
 import { shallow } from 'zustand/shallow';
 import './css/WorkHistoryForm.css';
 import { Toaster, toast } from 'react-hot-toast';
-const WorkHistoryForm = ({ onComplete, onError }) => {
+const WorkHistoryForm = ({ onNextStep }) => {
   // Access store state with selectors for targeted re-renders
   const workHistory = useOnboardingStore((state) => state.workHistory, shallow);
   const prevStep = useOnboardingStore((state) => state.prevStep);
@@ -517,7 +517,7 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
             toast.success('Work history saved successfully!', {
               position: 'top-right',
             });
-            onComplete?.();
+            onNextStep?.(); // Move to next step only
           } else {
             const errorMsg =
               data.message ||
@@ -526,7 +526,6 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
               position: 'top-right',
               duration: 5000,
             });
-            onError?.(errorMsg);
           }
         },
         onError: (error) => {
@@ -536,11 +535,10 @@ const WorkHistoryForm = ({ onComplete, onError }) => {
             position: 'top-right',
             duration: 5000,
           });
-          onError?.(errorMsg);
         },
       });
     },
-    [localWorkHistory, validateForm, saveWorkHistory, updateWorkHistory, onComplete, onError, CV]
+    [localWorkHistory, validateForm, saveWorkHistory, updateWorkHistory, onNextStep, CV]
   );
 
   const formatDateForInput = (dateValue) => {
