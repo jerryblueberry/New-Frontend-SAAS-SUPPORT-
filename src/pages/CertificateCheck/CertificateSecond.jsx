@@ -264,6 +264,14 @@ const isCertFullyComplete = (certType, selectedCerts) => {
   return allFieldsFilled && docsFilled;
 };
 
+// Add at the top, after other constants
+const PREDEFINED_INSURANCE_TYPES = [
+  "Comprehensive",
+  "Third Party Property",
+  "CTP (Compulsory Third Party)",
+  "Other"
+];
+
 const CertificateSecond = () => {
   const navigate = useNavigate();
   const {
@@ -1078,6 +1086,7 @@ console.log("Normalized Certs",onboardingData)
       policeRefNo: 'The unique identifier on your certificate or document',
       dateOfCompletion: 'The date when this certification was completed',
       workerScreeningId:"The unique identifier for your worker screening id",
+      insuranceType:"Any Insurance Type you have",
       issuedDate: 'The date when this certification was issued',
       expiryDate: 'The date when this certification will expire',
       country: 'The country that issued this certification',
@@ -2042,6 +2051,24 @@ console.log("Normalized Certs",onboardingData)
           {renderEducationFields(certType, currentCertIndex)}
           {certType.requiredFields.map(field => {
             if (field === 'degree') return null; // Skip degree as it's handled separately
+            if (field === 'insuranceType') {
+              return (
+                <Form.Item
+                  key={field}
+                  name={field}
+                  label="Insurance Type"
+                  rules={[{ required: true, message: 'Please select or enter at least one insurance type' }]}
+                  tooltip="Select or enter your insurance type(s)"
+                >
+                  <Select
+                    mode="tags"
+                    placeholder="Select or enter insurance type(s)"
+                    allowClear
+                    options={PREDEFINED_INSURANCE_TYPES.map(opt => ({ value: opt, label: opt }))}
+                  />
+                </Form.Item>
+              );
+            }
             const isDateField = field.toLowerCase().includes('date');
             const fieldLabel = formatFieldLabel(field);
             const fieldTooltip = getFieldTooltip(field);

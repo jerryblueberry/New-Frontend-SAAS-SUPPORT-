@@ -60,6 +60,7 @@ const REQUIRED_FIELDS_ENUM = [
   { value: 'degree', label: 'Degree' },
   { value: 'licenseNo', label: 'Driving License Number ' },
   { value: 'workerScreeningId', label: 'NDIS Worker Screning ID' },
+  { value: 'Insurance Type', label: 'Insurance Type' },
   { value: 'dateOfCompletion', label: 'NDIS Certificate of Completion Completion Date' },
   { value: 'policeRefNo', label: 'Australian Federal Police Reference Id' },
 
@@ -85,7 +86,8 @@ const INITIAL_FORM_STATE = {
   isCitizenshipProof: false,
   acceptableFor: 'AllResidents',
   description: '',
-  instructions: ''
+  instructions: '',
+  insuranceTypeOptions: [] // Add this line
 };
 
 // Modal for Add/Edit Certification Type
@@ -245,9 +247,14 @@ function CertificationTypeFormModal({ open, onClose, onSubmit, initialData }) {
       return;
     }
     
+    if (form.category === 'Insurance' && (!form.insuranceTypeOptions || form.insuranceTypeOptions.length === 0)) {
+      setError('At least one Insurance Type Option is required for Insurance category');
+      return;
+    }
+    
     setLoading(true);
     try {
-      await onSubmit(form);
+      await onSubmit({ ...form, insuranceTypeOptions: form.insuranceTypeOptions });
       onClose();
     } catch (err) {
       setError(err.response?.data?.message || 'Operation failed');
@@ -531,6 +538,40 @@ function CertificationTypeFormModal({ open, onClose, onSubmit, initialData }) {
                         margin="normal"
                         fullWidth
                         helperText="These are suggested options. Users can add custom degrees."
+                      />
+                    )}
+                  />
+                </Paper>
+              </Grid>
+            )}
+
+            {form.category === 'Insurance' && (
+              <Grid item xs={12}>
+                <Paper elevation={2} sx={{ p: 2 }}>
+                  <Typography variant="subtitle1" gutterBottom>Insurance Type Settings</Typography>
+                  <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                    Add all allowed insurance types for this certification. Users can still add custom types.
+                  </Typography>
+                  <Autocomplete
+                    multiple
+                    freeSolo
+                    options={[]}
+                    value={form.insuranceTypeOptions}
+                    onChange={(event, newValue) => {
+                      setForm(prev => ({
+                        ...prev,
+                        insuranceTypeOptions: newValue
+                      }));
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Insurance Type Options"
+                        placeholder="Type and press Enter to add"
+                        margin="normal"
+                        fullWidth
+                        helperText="Add all allowed insurance types for this certification"
+                        required={form.category === 'Insurance'}
                       />
                     )}
                   />
