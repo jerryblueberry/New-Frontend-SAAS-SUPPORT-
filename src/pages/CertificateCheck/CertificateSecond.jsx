@@ -46,7 +46,8 @@ import {
   ExclamationCircleOutlined,
   ReadOutlined,
   ClockCircleOutlined,
-  FileOutlined
+  FileOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import debounce from 'lodash/debounce';
@@ -807,9 +808,29 @@ console.log("Normalized Certs",onboardingData)
 
   // Update Drawer open/close logic
   const handleDrawerClose = () => {
+    // Get current form values
+    const formValues = certForm.getFieldsValue();
+    // Determine which cert is being edited
+    let certIndex = -1;
+    if (isEditing && currentCertIndex >= 0) {
+      certIndex = currentCertIndex;
+    } else if (pendingCertTypeId) {
+      certIndex = selectedCerts.findIndex(c => c.certificationType === pendingCertTypeId);
+    }
+    // If editing an existing cert, update it with partial values
+    if (certIndex >= 0) {
+      const updatedCerts = [...selectedCerts];
+      updatedCerts[certIndex] = {
+        ...updatedCerts[certIndex],
+        ...formValues,
+      };
+      setSelectedCerts(updatedCerts);
+      updateCertifications(updatedCerts); // Update Zustand store
+    }
     setCertDetailsVisible(false);
     setPendingCertTypeId(null);
-    setWwccDraft(null); // Clear draft on cancel
+    setWwccDraft(null);
+    certForm.resetFields();
   };
 
   const handleRemoveCertification = useCallback((index) => {
@@ -1011,27 +1032,11 @@ console.log("Normalized Certs",onboardingData)
     });
     
     function performDocumentRemoval(certIndex, docIndex) {
-      const updatedCerts = [...selectedCerts];
-      const docName = updatedCerts[certIndex].documents[docIndex].fileName;
-      const publicId = updatedCerts[certIndex].documents[docIndex].publicId;
-      
-      // Remove from localStorage tracking
-      if (publicId) {
-        const removed = DocumentTrackingService.removeTrackedDocument(publicId);
-        if (removed) {
-          console.log(`Document ${publicId} removed from localStorage tracking`);
-        } else {
-          console.warn(`Document ${publicId} not found in localStorage tracking`);
-        }
-      }
-      
-      updatedCerts[certIndex].documents.splice(docIndex, 1);
-      
-      setSelectedCerts(updatedCerts);
-      updateCertifications(updatedCerts);
-      message.info(`${docName} removed`);
+      // Only update the Zustand store, do not touch localStorage tracking
+      removeCertificationDocument(certIndex, docIndex);
+      message.info(`Document removed`);
     }
-  }, [selectedCerts, updateCertifications]);
+  }, [removeCertificationDocument]);
 
   const isCertComplete = useCallback((cert) => {
     const type = certificationTypes.find(t => t._id === cert.certificationType);
@@ -1482,15 +1487,41 @@ console.log("Normalized Certs",onboardingData)
                                     <WarningOutlined /> Missing:&nbsp;
                                     {cert.requiredFields
                                       .filter(field => {
-                                        const c = selectedCerts.find(sel => sel.certificationType === cert._id);
-                                        return c && !c[field];
+                                        // If this cert is being edited, use the form's current values
+                                        let userCert;
+                                        if (
+                                          certDetailsVisible &&
+                                          ((isEditing && selectedCerts[currentCertIndex]?.certificationType === cert._id) ||
+                                           (!isEditing && pendingCertTypeId === cert._id))
+                                        ) {
+                                          // Get live form values
+                                          userCert = certForm.getFieldsValue();
+                                        } else {
+                                          // Use saved state
+                                          userCert = certifications.find(sel => sel.certificationType === cert._id);
+                                        }
+                                        if (!userCert) return true;
+                                        // Special handling for degree (array)
+                                        if (field === 'degree') {
+                                          return !Array.isArray(userCert.degree) || userCert.degree.length === 0;
+                                        }
+                                        return !userCert[field];
                                       })
                                       .map(field => (
                                         <Tag color="red" key={field}>{formatFieldLabel(field)}</Tag>
                                       ))}
                                     {cert.documentRequired && (() => {
-                                      const c = selectedCerts.find(sel => sel.certificationType === cert._id);
-                                      return (!c || !c.documents || c.documents.length === 0) && (
+                                      let userCert;
+                                      if (
+                                        certDetailsVisible &&
+                                        ((isEditing && selectedCerts[currentCertIndex]?.certificationType === cert._id) ||
+                                         (!isEditing && pendingCertTypeId === cert._id))
+                                      ) {
+                                        userCert = certForm.getFieldsValue();
+                                      } else {
+                                        userCert = certifications.find(sel => sel.certificationType === cert._id);
+                                      }
+                                      return (!userCert || !userCert.documents || userCert.documents.length === 0) && (
                                         <Tag color="red">Documents</Tag>
                                       );
                                     })()}
@@ -2121,7 +2152,10 @@ console.log("Normalized Certs",onboardingData)
                   } else {
                     const docIndex = cert.documents.findIndex(d => d.uid === file.uid);
                     if (docIndex >= 0) {
-                      handleRemoveDocument(currentCertIndex, docIndex);
+                      removeCertificationDocument(currentCertIndex, docIndex);
+                      // Sync local state with store so UI updates
+                      const updatedCerts = useOnboardingStore.getState().certifications;
+                      setSelectedCerts(updatedCerts);
                     }
                     newUploadFileList = cert.documents.filter(d => d.uid !== file.uid);
                   }
@@ -2165,6 +2199,68 @@ console.log("Normalized Certs",onboardingData)
                 showUploadList={{
                   showPreviewIcon: true,
                   showRemoveIcon: true,
+                  previewIcon: (file) => (
+                    <Tooltip title="Preview Document">
+                      <button
+                        type="button"
+                        aria-label="Preview Document"
+                        tabIndex={0}
+                        style={{
+                          color: '#fff',
+                          background: 'linear-gradient(135deg, #1890ff 60%, #40a9ff 100%)',
+                          fontSize: 28,
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: 28,
+                          height: 28,
+                          marginRight: 10,
+                          boxShadow: '0 4px 16px rgba(24,144,255,0.18)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          outline: 'none',
+                          transition: 'box-shadow 0.2s, background 0.2s',
+                        }}
+                        className="upload-action-btn preview-btn"
+                        onMouseOver={e => e.currentTarget.style.boxShadow = '0 6px 24px rgba(24,144,255,0.28)'}
+                        onMouseOut={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(24,144,255,0.18)'}
+                      >
+                        <EyeOutlined />
+                      </button>
+                    </Tooltip>
+                  ),
+                  removeIcon: (file) => (
+                    <Tooltip title="Delete Document">
+                      <button
+                        type="button"
+                        aria-label="Delete Document"
+                        tabIndex={0}
+                        style={{
+                          color: '#fff',
+                          background: 'linear-gradient(135deg, #ff4d4f 60%, #ff7875 100%)',
+                          fontSize: 28,
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: 28,
+                          height: 28,
+                          marginLeft: 10,
+                          boxShadow: '0 4px 16px rgba(255,77,79,0.18)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          outline: 'none',
+                          transition: 'box-shadow 0.2s, background 0.2s',
+                        }}
+                        className="upload-action-btn delete-btn"
+                        onMouseOver={e => e.currentTarget.style.boxShadow = '0 6px 24px rgba(255,77,79,0.28)'}
+                        onMouseOut={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(255,77,79,0.18)'}
+                      >
+                        <DeleteOutlined />
+                      </button>
+                    </Tooltip>
+                  ),
                 }}
                 onPreview={(file) => {
                   const doc = uploadFileList.find(d => d.uid === file.uid);
@@ -2203,7 +2299,8 @@ console.log("Normalized Certs",onboardingData)
     pendingCertTypeId,
     renderEducationFields,
     setIsFormValid,
-    wwccDraft
+    wwccDraft,
+    removeCertificationDocument
   ]);
 
   const steps = useMemo(() => [
@@ -2370,6 +2467,13 @@ console.log("Normalized Certs",onboardingData)
       .then(() => setIsFormValid(true))
       .catch(() => setIsFormValid(false));
   }, [certDetailsVisible, certForm, isEditing, currentCertIndex, selectedCerts, pendingCertTypeId, wwccDraft, certificationTypes]);
+
+  // Trigger validation when Drawer opens to show missing fields immediately
+  useEffect(() => {
+    if (certDetailsVisible) {
+      certForm.validateFields().catch(() => {}); // Show errors for missing fields
+    }
+  }, [certDetailsVisible, certForm]);
 
   if (isOnboardingError) {
     return (

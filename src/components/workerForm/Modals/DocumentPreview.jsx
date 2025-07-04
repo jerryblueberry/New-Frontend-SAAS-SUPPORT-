@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './DocumentPreview.css';
 
-const DocumentPreview = ({ document, onClose }) => {
+const DocumentPreview = ({ document, onClose,onDelete }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [rotation, setRotation] = useState(0);
