@@ -27,6 +27,11 @@ import AdminRoute from './components/common/AdminRoute';
 import WorkerDetails from './pages/AdminPages/WorkerDetails/WorkerDetails';
 import CertificationTypes from './pages/AdminPages/CertificationType/CertificationTypes';
 
+//  FOr hte Reference Check 
+import CompleteReferenceCheck from './pages/ReferenceCheck/CompleteReferenceCheck/CompleteReferenceCheck';
+import ReferenceQuestion from './pages/AdminPages/ReferenceQuestonnaire/ReferenceQuestion';
+import AdminReference from './pages/AdminPages/ReferenceSection/AdminReference';
+
 // Create React Query client with optimized settings
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -100,6 +105,14 @@ function AppRoutes() {
             </PublicRoute>
           }
         />
+        <Route path='/reference-check/:token' element ={
+          <PublicRoute>
+            <CompleteReferenceCheck/>
+          </PublicRoute>
+        }
+        />
+
+
 
         {/* Protected routes - need authentication */}
         <Route
@@ -127,7 +140,23 @@ function AppRoutes() {
           }
         />
         {/* Admin Related Routes */}
+          {/* FOr the refrence related */}
+          {/* Reference question */}
+          <Route path='/admin-reference/questions' element ={
+            <AdminRoute>
+              <ReferenceQuestion/>
+            </AdminRoute>
+          }
+          />
 
+           {/* Admin Reference Page */}
+           <Route path = '/admin-reference/:workerId' element  = {
+            <AdminRoute>
+              <AdminReference/>
+            </AdminRoute>
+           }
+           />
+          
         <Route
           path="/admin-dashboard"
           element={

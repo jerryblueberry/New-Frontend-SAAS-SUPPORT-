@@ -2148,7 +2148,7 @@ console.log("Normalized Certs",onboardingData)
               label={
                 <span>
                   Documents <span style={{ fontWeight: 'normal', color: '#888', fontSize: 13 }}>
-                    ({uploadFileList.length}/2 uploaded)
+                    {/* ({uploadFileList.length}/2 uploaded) */}
                   </span>
                 </span>
               }

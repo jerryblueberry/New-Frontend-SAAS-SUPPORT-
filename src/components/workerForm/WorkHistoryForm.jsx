@@ -1326,7 +1326,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
             </>
           ) : (
             <>
-              Complete Profile
+              Next: Availability
               <svg
                 width="16"
                 height="16"

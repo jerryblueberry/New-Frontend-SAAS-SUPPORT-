@@ -32,7 +32,8 @@ import {
   Email as EmailIcon,
   Lock as LockIcon,
   LockOpen as LockOpenIcon,
-  Google as GoogleIcon
+  Google as GoogleIcon,
+  Phone as PhoneIcon
 } from '@mui/icons-material';
 
 const passwordRequirements = [
@@ -102,6 +103,7 @@ const RegisterForm = ({
     firstName: '',
     lastName: '',
     email: '',
+    phone: '+61',
     password: '',
     confirmPassword: '',
   });
@@ -126,6 +128,16 @@ const RegisterForm = ({
         if (!value.trim()) return 'Email address is required';
         if (!validateEmail(value)) return 'Please enter a valid email address';
         break;
+      case 'phone': {
+        if (!value.trim()) return 'Phone number is required';
+        if (!value.startsWith('+61')) return 'Phone must start with country code +61';
+        const digits = value.replace(/\D/g, '');
+        // Remove country code digits (first 2 digits after +)
+        const afterCode = value.startsWith('+61') ? value.slice(3) : value;
+        if (!/^\d{9,10}$/.test(afterCode)) return 'Enter 9 or 10 digits after +61';
+        if (afterCode.length !== 9 && afterCode.length !== 10) return 'Phone number must be 9 or 10 digits after +61';
+        break;
+      }
       case 'password':
         if (!value) return 'Password is required';
         const strength = getPasswordStrength(value);
@@ -151,11 +163,24 @@ const RegisterForm = ({
 
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
-    const newFormData = { ...formData, [name]: value };
+    let newValue = value;
+    if (name === 'phone') {
+      // Always start with +61
+      if (!newValue.startsWith('+61')) {
+        newValue = '+61';
+      }
+      // Only allow numbers after +61
+      newValue = '+61' + newValue.slice(3).replace(/[^\d]/g, '');
+      // Limit to 10 digits after +61
+      if (newValue.length > 13) {
+        newValue = newValue.slice(0, 13);
+      }
+    }
+    const newFormData = { ...formData, [name]: newValue };
     setFormData(newFormData);
     
     if (touched[name]) {
-      const error = validateField(name, value, newFormData);
+      const error = validateField(name, newValue, newFormData);
       setValidationErrors(prev => ({ ...prev, [name]: error }));
     }
 
@@ -331,6 +356,45 @@ const RegisterForm = ({
           />
         </Grid>
 
+        {/* Phone */}
+        <Grid item xs={12}>
+          <TextField
+            fullWidth
+            variant="outlined"
+            id="phone"
+            name="phone"
+            label="Phone Number"
+            type="tel"
+            autoComplete="tel"
+            required
+            value={formData.phone}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            error={!!getFieldError('phone')}
+            helperText={getFieldError('phone')}
+            disabled={loading}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <PhoneIcon color={getFieldError('phone') ? 'error' : 'action'} />
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              width:isMobile?370:480,
+              mb:1.5,
+              '@media (max-width:350px)': {
+                width: 280,
+              },
+              '@media (min-width:351px) and (max-width:390px)': { width: 310 },
+            }}
+            inputProps={{
+              maxLength: 13,
+              pattern: '\\+61\\d{9,10}',
+              inputMode: 'numeric',
+            }}
+          />
+        </Grid>
         {/* Password */}
         <Grid item xs={12}>
           <TextField

@@ -527,7 +527,7 @@ const AvailabilityForm = () => {
                     </Avatar>
                     <Box>
                       <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                        Your Schedule
+                        Your Availability
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         {totalSlots > 0 ? `${totalSlots} time slot${totalSlots > 1 ? 's' : ''} added` : 'No time slots yet'}
