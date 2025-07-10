@@ -399,6 +399,10 @@ const WorkHistoryForm = ({ onNextStep }) => {
           errors[`ref${index}_phone`] = 'Reference phone is required';
           isValid = false;
           if (firstReferenceErrorIndex === null) firstReferenceErrorIndex = index;
+        } else if (!isValidAustralianPhone(ref.phone)) {
+          errors[`ref${index}_phone`] = 'Enter a valid Australian phone (e.g. 412 345 678)';
+          isValid = false;
+          if (firstReferenceErrorIndex === null) firstReferenceErrorIndex = index;
         }
 
         if (!ref.email || !ref.email.trim()) {
@@ -551,6 +555,44 @@ const WorkHistoryForm = ({ onNextStep }) => {
     }
     const date = new Date(dateValue);
     return isNaN(date.getTime()) ? '' : date.toISOString().split('T')[0];
+  };
+
+  // Helper for Australian phone formatting and validation
+  const formatAustralianPhone = (input) => {
+    // Remove all non-digit characters
+    let digits = input.replace(/\D/g, '');
+    // Remove leading 0 if present (for local numbers)
+    if (digits.startsWith('0')) digits = digits.slice(1);
+    // Remove leading 61 if present (for numbers already with country code)
+    if (digits.startsWith('61')) digits = digits.slice(2);
+    // Only keep up to 9 digits (Australian mobile/landline without country code)
+    digits = digits.slice(0, 9);
+    // Format as 123 123 123
+    let formatted = digits.replace(/(\d{3})(\d{3})(\d{0,3})/, (m, a, b, c) => c ? `${a} ${b} ${c}` : `${a} ${b}`);
+    return formatted.trim();
+  };
+
+  const toE164Australian = (input) => {
+    // Remove all non-digit characters
+    let digits = input.replace(/\D/g, '');
+    // Remove leading 0 if present
+    if (digits.startsWith('0')) digits = digits.slice(1);
+    // Remove leading 61 if present
+    if (digits.startsWith('61')) digits = digits.slice(2);
+    // Only keep up to 9 digits
+    digits = digits.slice(0, 9);
+    // Return in E.164 format
+    return `+61${digits}`;
+  };
+
+  const isValidAustralianPhone = (input) => {
+    // Remove all non-digit characters
+    let digits = input.replace(/\D/g, '');
+    // Remove leading 0 or 61
+    if (digits.startsWith('0')) digits = digits.slice(1);
+    if (digits.startsWith('61')) digits = digits.slice(2);
+    // Must be exactly 9 digits
+    return /^\d{9}$/.test(digits);
   };
 
   console.log('ONBORDING DTA', workHistory);
@@ -1170,28 +1212,35 @@ const WorkHistoryForm = ({ onNextStep }) => {
                             Phone Number{' '}
                             <span className="wh-required">*</span>
                           </label>
-                          <input
-                            id={`ref-phone-${index}`}
-                            name={`ref${index}_phone`}
-                            type="tel"
-                            value={ref.phone || ''}
-                            onChange={(e) =>
-                              handleUpdateReference(
-                                index,
-                                'phone',
-                                e.target.value
-                              )
-                            }
-                            placeholder="Enter phone number"
-                            className={
-                              formErrors[`ref${index}_phone`]
-                                ? 'wh-error-field'
-                                : ''
-                            }
-                            required
-                            aria-invalid={!!formErrors[`ref${index}_phone`]}
-                            aria-describedby={formErrors[`ref${index}_phone`] ? `error-ref${index}_phone` : undefined}
-                          />
+                          <div className="wh-phone-input-group">
+                            <span className="wh-country-code-prefix" tabIndex={-1} aria-hidden="true">🇦🇺 +61</span>
+                            <input
+                              id={`ref-phone-${index}`}
+                              name={`ref${index}_phone`}
+                              type="tel"
+                              value={formatAustralianPhone(ref.phone || '')}
+                              onChange={(e) => {
+                                // Only allow digits and spaces
+                                let raw = e.target.value.replace(/[^\d ]/g, '');
+                                // Format as user types
+                                const formatted = formatAustralianPhone(raw);
+                                handleUpdateReference(index, 'phone', formatted);
+                              }}
+                              placeholder="412 345 678"
+                              className={
+                                formErrors[`ref${index}_phone`]
+                                  ? 'wh-error-field'
+                                  : ''
+                              }
+                              required
+                              aria-invalid={!!formErrors[`ref${index}_phone`]}
+                              aria-describedby={formErrors[`ref${index}_phone`] ? `error-ref${index}_phone` : undefined}
+                              pattern="\\d{3} \\d{3} \\d{3}"
+                              maxLength={11} // 9 digits + 2 spaces
+                              style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
+                            />
+                          </div>
+                          {/* <span className="wh-cv-upload-hint">Format: 412 345 678</span> */}
                           {formErrors[`ref${index}_phone`] && (
                             <div
                               className="wh-field-error"

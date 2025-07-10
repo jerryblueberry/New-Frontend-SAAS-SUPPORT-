@@ -32,6 +32,7 @@ import CompleteReferenceCheck from './pages/ReferenceCheck/CompleteReferenceChec
 import ReferenceQuestion from './pages/AdminPages/ReferenceQuestonnaire/ReferenceQuestion';
 import AdminReference from './pages/AdminPages/ReferenceSection/AdminReference';
 
+
 // Create React Query client with optimized settings
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -105,6 +106,9 @@ function AppRoutes() {
             </PublicRoute>
           }
         />
+
+      
+
         <Route path='/reference-check/:token' element ={
           <PublicRoute>
             <CompleteReferenceCheck/>

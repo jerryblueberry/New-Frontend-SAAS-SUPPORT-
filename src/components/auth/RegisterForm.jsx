@@ -89,6 +89,14 @@ const validateName = (name) => {
   return name.trim().length >= 2 && /^[a-zA-Z\s'-]+$/.test(name.trim());
 };
 
+const formatAustralianPhone = (digits) => {
+  // Format as 123 456 789 or 123 456 7890
+  const cleaned = digits.replace(/\D/g, '').slice(0, 10);
+  if (cleaned.length <= 3) return cleaned;
+  if (cleaned.length <= 6) return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
+  return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)} ${cleaned.slice(6)}`;
+};
+
 const RegisterForm = ({ 
   onSubmit, 
   onGoogleRegister,
@@ -103,7 +111,7 @@ const RegisterForm = ({
     firstName: '',
     lastName: '',
     email: '',
-    phone: '+61',
+    phone: '', // Only digits, no +61
     password: '',
     confirmPassword: '',
   });
@@ -130,12 +138,8 @@ const RegisterForm = ({
         break;
       case 'phone': {
         if (!value.trim()) return 'Phone number is required';
-        if (!value.startsWith('+61')) return 'Phone must start with country code +61';
         const digits = value.replace(/\D/g, '');
-        // Remove country code digits (first 2 digits after +)
-        const afterCode = value.startsWith('+61') ? value.slice(3) : value;
-        if (!/^\d{9,10}$/.test(afterCode)) return 'Enter 9 or 10 digits after +61';
-        if (afterCode.length !== 9 && afterCode.length !== 10) return 'Phone number must be 9 or 10 digits after +61';
+        if (digits.length < 9 || digits.length > 10) return 'Phone number must be 9 or 10 digits';
         break;
       }
       case 'password':
@@ -165,16 +169,8 @@ const RegisterForm = ({
     const { name, value } = e.target;
     let newValue = value;
     if (name === 'phone') {
-      // Always start with +61
-      if (!newValue.startsWith('+61')) {
-        newValue = '+61';
-      }
-      // Only allow numbers after +61
-      newValue = '+61' + newValue.slice(3).replace(/[^\d]/g, '');
-      // Limit to 10 digits after +61
-      if (newValue.length > 13) {
-        newValue = newValue.slice(0, 13);
-      }
+      // Only allow numbers, max 10 digits
+      newValue = newValue.replace(/\D/g, '').slice(0, 10);
     }
     const newFormData = { ...formData, [name]: newValue };
     setFormData(newFormData);
@@ -367,7 +363,7 @@ const RegisterForm = ({
             type="tel"
             autoComplete="tel"
             required
-            value={formData.phone}
+            value={formatAustralianPhone(formData.phone)}
             onChange={handleChange}
             onBlur={handleBlur}
             error={!!getFieldError('phone')}
@@ -377,6 +373,7 @@ const RegisterForm = ({
               startAdornment: (
                 <InputAdornment position="start">
                   <PhoneIcon color={getFieldError('phone') ? 'error' : 'action'} />
+                  <Typography sx={{ ml: 1, fontWeight: 600 }}>+61</Typography>
                 </InputAdornment>
               ),
             }}
@@ -389,8 +386,7 @@ const RegisterForm = ({
               '@media (min-width:351px) and (max-width:390px)': { width: 310 },
             }}
             inputProps={{
-              maxLength: 13,
-              pattern: '\\+61\\d{9,10}',
+              maxLength: 12, // 10 digits + 2 spaces
               inputMode: 'numeric',
             }}
           />

@@ -817,7 +817,7 @@ const WorkerProfileForm = React.memo(() => {
               Saving...
             </>
           ) : (
-            'Next: Availability'
+            'Next: Work History'
           )}
         </button>
       </div>
