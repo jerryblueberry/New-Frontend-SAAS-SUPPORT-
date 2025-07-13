@@ -176,7 +176,17 @@ const Onboarding = () => {
       1: <WorkerProfileForm />,
       2: <WorkHistoryForm onNextStep={() => setStep(3)} />,
       3: <AvailabilityForm />,
-      4: <CertificateSecond />,
+      4: (
+        <CertificateSecond
+          initialStep={
+            onboardingData?.data?.profile?.residencyStatus &&
+            onboardingData?.data?.profile?.certifications &&
+            onboardingData?.data?.profile?.certifications.length > 0
+              ? 2 // Go directly to Review & Submit
+              : 0 // Start at Residency Status
+          }
+        />
+      ),
       5: (
         <HealthInformation
           onComplete={handleSubmitProfile}
@@ -184,7 +194,7 @@ const Onboarding = () => {
         />
       ),
     }),
-    [handleSubmitProfile, handleWorkHistoryError, setStep]
+    [handleSubmitProfile, handleWorkHistoryError, setStep, onboardingData]
   );
 
   // Optional loading state for admin check

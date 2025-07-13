@@ -410,6 +410,10 @@ const AvailabilityForm = () => {
       if (!groups[slot.dayOfWeek]) groups[slot.dayOfWeek] = [];
       groups[slot.dayOfWeek].push({ ...slot, index: idx });
     });
+    // Sort each day's slots by startTime
+    Object.keys(groups).forEach(day => {
+      groups[day].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    });
     return groups;
   }, [availability.customTimeSlots]);
 
@@ -490,7 +494,7 @@ const AvailabilityForm = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 } }}>
-      <Box sx={{ mb: 4 }}>
+      {/* <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
           Set Your Availability
         </Typography>
@@ -498,7 +502,7 @@ const AvailabilityForm = () => {
           Define when you're available to work and how far you're willing to travel
         </Typography>
         {isPending && <LinearProgress sx={{ mt: 2 }} />}
-      </Box>
+      </Box> */}
 
       <form onSubmit={handleSubmit}>
         {/* Time Slots Section - Full Width */}

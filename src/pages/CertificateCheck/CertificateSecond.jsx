@@ -56,6 +56,7 @@ import { useOnboardingQuery } from '../../stores/useOnboardingStore';
 import DocumentPreview from '../../components/workerForm/Modals/DocumentPreview';
 import { toast } from 'react-hot-toast';
 import api from '../../api/axios';
+import { NATIONALITIES } from '../../utils/constants';
 
 const { Title, Text, Paragraph } = Typography;
 const { Step } = Steps;
@@ -86,16 +87,10 @@ const CATEGORY_ICONS = {
   'Financial': <BankOutlined />
 };
 // Constants
-const NATIONALITIES = [
-  { value: 'AU', label: 'Australia', flag: '🇦🇺' },
-  { value: 'NZ', label: 'New Zealand', flag: '🇳🇿' },
-  { value: 'US', label: 'United States', flag: '🇺🇸' },
-  { value: 'UK', label: 'United Kingdom', flag: '🇬🇧' },
-  { value: 'CA', label: 'Canada', flag: '🇨🇦' },
-  { value: 'IN', label: 'India', flag: '🇮🇳' },
-  { value: 'CN', label: 'China', flag: '🇨🇳' },
-  { value: 'JP', label: 'Japan', flag: '🇯🇵' }
-];
+
+
+
+
 
 // LocalStorage utility functions for document tracking
 const DOCUMENT_TRACKING_KEY = 'certification_documents_tracking';
@@ -106,7 +101,7 @@ const DocumentTrackingService = {
     try {
       const stored = localStorage.getItem(DOCUMENT_TRACKING_KEY);
       if (!stored) return {};
-      
+
       const parsed = JSON.parse(stored);
       return typeof parsed === 'object' && parsed !== null ? parsed : {};
     } catch (error) {
@@ -119,7 +114,7 @@ const DocumentTrackingService = {
   addTrackedDocument: (publicId) => {
     try {
       const tracked = DocumentTrackingService.getTrackedDocuments();
-      
+
       // Validate input
       if (!publicId || typeof publicId !== 'string') {
         console.error('Invalid publicId provided for document tracking');
@@ -174,7 +169,7 @@ const DocumentTrackingService = {
     try {
       const tracked = DocumentTrackingService.getTrackedDocuments();
       const publicIds = Object.keys(tracked);
-      
+
       return {
         totalTracked: publicIds.length,
         publicIds: publicIds
@@ -191,7 +186,7 @@ const DocumentTrackingService = {
       const tracked = DocumentTrackingService.getTrackedDocuments();
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-      
+
       let cleanedCount = 0;
       Object.keys(tracked).forEach(publicId => {
         const trackedAt = new Date(tracked[publicId].trackedAt);
@@ -205,7 +200,7 @@ const DocumentTrackingService = {
         localStorage.setItem(DOCUMENT_TRACKING_KEY, JSON.stringify(tracked));
         console.log(`Cleaned up ${cleanedCount} old document public IDs from tracking`);
       }
-      
+
       return cleanedCount;
     } catch (error) {
       console.error('Error cleaning up old documents:', error);
@@ -264,15 +259,21 @@ const isCertFullyComplete = (certType, selectedCerts) => {
   return allFieldsFilled && docsFilled;
 };
 
+// Add this helper for degree field validation
+const isDegreeMissing = (degree) => {
+  if (Array.isArray(degree)) return degree.length === 0;
+  return !degree || degree === '';
+};
+
 // Add at the top, after other constants
 const PREDEFINED_INSURANCE_TYPES = [
   "Comprehensive",
   "Third Party Property",
   "CTP (Compulsory Third Party)",
-  "Other"
+
 ];
 
-const CertificateSecond = () => {
+const CertificateSecond = ({ initialStep = 0 }) => {
   const navigate = useNavigate();
   const {
     currentStep: onboardingStep,
@@ -284,19 +285,19 @@ const CertificateSecond = () => {
     updateCertificationAtIndex,
     removeCertification,
     removeCertificationDocument,
-    
+
     updateResidencyStatus,
     updateCertifications
   } = useOnboardingStore();
-  
+
   const { data: onboardingData, isLoading: isLoadingOnboardingData, isError: isOnboardingError } = useOnboardingQuery();
   const { mutate: submitCertifications, isLoading: isSubmitting } = useCertificationsMutation();
-  
+
   // Local state
   const [customDegrees, setCustomDegrees] = useState([]);
   const [customDegreeInput, setCustomDegreeInput] = useState('');
-  
-  const [currentStep, setCurrentStep] = useState(0);
+
+  const [currentStep, setCurrentStep] = useState(initialStep);
   const [loading, setLoading] = useState(false);
   const [certificationTypes, setCertificationTypes] = useState([]);
   const [selectedCerts, setSelectedCerts] = useState([]);
@@ -312,30 +313,38 @@ const CertificateSecond = () => {
   const [hasExistingCertifications, setHasExistingCertifications] = useState(false);
   const [certForm] = Form.useForm();
   const [isFormValid, setIsFormValid] = useState(true); // Track Drawer form validity
-  
+
+  // Add these to CertificateSecond component's state (with the other useState hooks)
+  const [showCustomDegree, setShowCustomDegree] = useState(false);
+  const [customDegreeValue, setCustomDegreeValue] = useState('');
+  // Add for insurance type
+  const [showCustomInsurance, setShowCustomInsurance] = useState(false);
+  const [customInsuranceValue, setCustomInsuranceValue] = useState('');
+
   const fileInputRefs = useRef([]);
 console.log("Required Certrs Value",requiredCerts)
 console.log("Has existing ",hasExistingCertifications);
 console.log("Normalized Certs",onboardingData)
-  // Initialize with store data from backend
+console.log("Onboarding Data",onboardingData?.data?.profile); 
+// Initialize with store data from backend
   useEffect(() => {
     if (!isLoadingOnboardingData && onboardingData?.data?.profile) {
       const profile = onboardingData.data.profile;
       const initialCerts = profile.certifications || [];
-      
+
       // Normalize the certifications data to ensure consistent format
       const normalizedCerts = initialCerts.map(cert => ({
         ...cert,
         certificationType: normalizeCertificationType(cert.certificationType)._id,
         certTypeName: normalizeCertificationType(cert.certificationType).name
       }));
-      
+
       // Check if user has existing certifications
       if (normalizedCerts.length > 0) {
         setHasExistingCertifications(true);
         setSelectedCerts(normalizedCerts);
         updateCertifications(normalizedCerts);
-        
+
         // Show success message if all required certs are already added
         if ( profile.residencyStatus) {
           // updateNationality(profile.nationality);
@@ -353,17 +362,17 @@ console.log("Normalized Certs",onboardingData)
       setLoading(true);
       const response = await api.get('/certification/worker');
       console.log('Raw certification types response:', response.data);
-      
+
       if (response.data.success) {
         const normalizedTypes = response.data.data.map(normalizeCertificationType);
         console.log('Normalized certification types:', normalizedTypes);
-        
+
         // Find the NDIS certification type
         const ndisCert = normalizedTypes.find(t => t.name === 'NDIS Support Worker Qualification');
         console.log('NDIS certification type:', ndisCert);
-        
+
         setCertificationTypes(normalizedTypes);
-        
+
         // Update certTypeName for existing certifications if needed
         setSelectedCerts(prevCerts => 
           prevCerts.map(cert => {
@@ -396,7 +405,7 @@ console.log("Normalized Certs",onboardingData)
     if (cleanedCount > 0) {
       console.log(`Cleaned up ${cleanedCount} old documents from tracking`);
     }
-    
+
     // Log tracking statistics
     const stats = DocumentTrackingService.getTrackingStats();
     console.log('Document tracking statistics:', stats);
@@ -490,7 +499,7 @@ console.log("Normalized Certs",onboardingData)
         });
         break;
     }
-    
+
 
     // Add appropriate identity documents based on residency status
     certificationTypes.forEach(cert => {
@@ -502,14 +511,14 @@ console.log("Normalized Certs",onboardingData)
           (residencyStatus === 'PermanentResident' && cert.acceptableFor === 'PermanentResidents') ||
           (['StudentVisa', 'TemporaryGraduateVisa', 'TSS', 'BridgingVisa', 'OtherTemporaryVisa'].includes(residencyStatus) && 
            cert.acceptableFor === 'Foreigners');
-        
+
         if (isAcceptable && !requiredCertIds.has(cert._id)) {
           required.push(cert);
           requiredCertIds.add(cert._id);
         }
       }
     });
-    
+
     // Add standard certifications required for all applicants regardless of residency
     certificationTypes.forEach(cert => {
       if ((cert.category === 'Professional' || 
@@ -522,7 +531,7 @@ console.log("Normalized Certs",onboardingData)
         requiredCertIds.add(cert._id);
       }
     });
-    
+
     console.log('Required certifications:', required); // Add logging
     setRequiredCerts(required);
   }, [residencyStatus, certificationTypes]);
@@ -532,7 +541,7 @@ console.log("Normalized Certs",onboardingData)
   useEffect(() => {
     const calculateProgress = () => {
       if (!selectedCerts.length) return 0;
-      
+
       const totalFields = selectedCerts.reduce((total, cert) => {
         const type = certificationTypes.find(t => t._id === cert.certificationType);
         if (!type) return total;
@@ -567,6 +576,8 @@ console.log("Normalized Certs",onboardingData)
     // Ensure we're sending just the ID for certificationType
     const certsToSubmit = selectedCerts.map(cert => ({
       ...cert,
+      degree: cert.degree ? (Array.isArray(cert.degree) ? cert.degree : [cert.degree]) : [],
+      insuranceType: cert.insuranceType ? (Array.isArray(cert.insuranceType) ? cert.insuranceType : [cert.insuranceType]) : [],
       certificationType: cert.certificationType // Already normalized to just the ID
     }));
 
@@ -611,15 +622,15 @@ console.log("Normalized Certs",onboardingData)
         // Handle certification submission success
         if (data.success && data.data) {
           toast.success("Submitted Successfully");
-          
+
           // Update profile completeness in the store
           const { updateProfileCompleteness } = useOnboardingStore.getState();
           updateProfileCompleteness(data.data);
-          
+
           // Use the store's nextStep function instead of onboardingNextStep
           const { nextStep } = useOnboardingStore.getState();
           nextStep();
-          
+
           message.success('Certifications submitted successfully!');
         } else {
           // Handle case where data.success is false but no error was thrown
@@ -636,7 +647,7 @@ console.log("Normalized Certs",onboardingData)
   const saveDocumentTrackingToDatabase = async (documentPublicIds) => {
     try {
       console.log('Saving document tracking to database:', documentPublicIds);
-      
+
       // Validate input
       if (!Array.isArray(documentPublicIds) || documentPublicIds.length === 0) {
         throw new Error('No document public IDs to save');
@@ -668,13 +679,13 @@ console.log("Normalized Certs",onboardingData)
       }
     } catch (error) {
       console.error('Error saving document tracking to database:', error);
-      
+
       // Provide more specific error messages based on error type
       if (error.response) {
         // Server responded with error status
         const status = error.response.status;
         const message = error.response.data?.message || 'Server error';
-        
+
         if (status === 401) {
           throw new Error('Authentication required for document tracking');
         } else if (status === 403) {
@@ -844,7 +855,7 @@ console.log("Normalized Certs",onboardingData)
   const handleRemoveCertification = useCallback((index) => {
     const cert = selectedCerts[index];
     const isRequired = requiredCerts.some(rc => rc._id === cert.certificationType._id);
-    
+
     if (isRequired) {
       confirm({
         title: `Remove Required Certification?`,
@@ -860,19 +871,19 @@ console.log("Normalized Certs",onboardingData)
     } else {
       performRemoveCertification(index);
     }
-    
+
     function performRemoveCertification(index) {
       const certName = selectedCerts[index].certTypeName;
       const updatedCerts = [...selectedCerts];
       updatedCerts.splice(index, 1);
-      
+
       setSelectedCerts(updatedCerts);
       updateCertifications(updatedCerts);
-      
+
       if (currentCertIndex >= updatedCerts.length) {
         setCurrentCertIndex(Math.max(0, updatedCerts.length - 1));
       }
-      
+
       message.info(`${certName} removed`);
     }
   }, [currentCertIndex, selectedCerts, updateCertifications, requiredCerts]);
@@ -986,7 +997,7 @@ console.log("Normalized Certs",onboardingData)
         throw new Error('Upload failed');
       }
       const data = await response.json();
-      
+
       // Console log the uploaded document details
       console.log('=== Cloudinary Upload Success ===');
       console.log('File Name:', file.name);
@@ -997,7 +1008,7 @@ console.log("Normalized Certs",onboardingData)
       console.log('Upload Date:', new Date().toISOString());
       console.log('Certificate Index:', certIndex);
       console.log('================================');
-      
+
       // Track only the public ID in localStorage
       const trackingSuccess = DocumentTrackingService.addTrackedDocument(data.public_id);
       if (trackingSuccess) {
@@ -1005,7 +1016,7 @@ console.log("Normalized Certs",onboardingData)
       } else {
         console.warn(`Failed to track document public ID ${data.public_id} in localStorage`);
       }
-      
+
       return {
         uid: data.public_id, // Use public_id as unique identifier
         url: data.secure_url,
@@ -1038,7 +1049,7 @@ console.log("Normalized Certs",onboardingData)
         performDocumentRemoval(certIndex, docIndex);
       }
     });
-    
+
     function performDocumentRemoval(certIndex, docIndex) {
       // Only update the Zustand store, do not touch localStorage tracking
       removeCertificationDocument(certIndex, docIndex);
@@ -1052,7 +1063,7 @@ console.log("Normalized Certs",onboardingData)
 
     const fieldsComplete = type.requiredFields.every(f => cert[f]);
     const docsComplete = !type.documentRequired || (cert.documents?.length > 0);
-    
+
     return fieldsComplete && docsComplete;
   }, [certificationTypes]);
 
@@ -1102,19 +1113,19 @@ console.log("Normalized Certs",onboardingData)
       const errors = {};
       // if (!nationality) errors.nationality = 'Please select your nationality';
       if (!residencyStatus) errors.residencyStatus = 'Please select your residency status';
-      
+
       if (Object.keys(errors).length) {
         setFormErrors(errors);
         return false;
       }
       return true;
     }
-    
+
     if (currentStep === 1 && !allRequiredCertsAdded()) {
       message.warning('Please add all required certifications before proceeding');
       return false;
     }
-    
+
     return true;
   }, [currentStep,
     //  nationality,
@@ -1133,7 +1144,7 @@ console.log("Normalized Certs",onboardingData)
   // Filter certifications based on search query
   const filteredRequiredCerts = useMemo(() => {
     if (!searchQuery) return requiredCerts;
-    
+
     const query = searchQuery.toLowerCase();
     return requiredCerts.filter(cert => 
       cert.name.toLowerCase().includes(query) ||
@@ -1182,7 +1193,10 @@ console.log("Normalized Certs",onboardingData)
           };
         }
         const cert = selectedCerts[certIndex];
-        const missingFields = reqCert.requiredFields.filter(f => !cert[f]);
+        const missingFields = reqCert.requiredFields.filter(f => {
+          if (f === 'degree') return isDegreeMissing(cert.degree);
+          return !cert[f];
+        });
         if (reqCert.documentRequired && (!cert.documents || cert.documents.length === 0)) {
           missingFields.push('documents');
         }
@@ -1203,7 +1217,7 @@ console.log("Normalized Certs",onboardingData)
       <Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
         Please provide your personal details so we can determine which certifications are required for you.
       </Text>
-      
+
       <Form layout="vertical" style={{ maxWidth: 600 }}>
         {/* <Form.Item 
           label={
@@ -1289,7 +1303,7 @@ console.log("Normalized Certs",onboardingData)
           </Select>
         </Form.Item>
       </Form>
-      
+
       {residencyStatus && (
         <Alert 
           message="Profile Information Saved" 
@@ -1415,11 +1429,11 @@ console.log("Normalized Certs",onboardingData)
                 ) : filteredRequiredCerts.length > 0 ? (
                   <List
                     dataSource={filteredRequiredCerts}
-                    
+
                     renderItem={cert => {
                       const certIsComplete = isCertFullyComplete(cert, selectedCerts);
                       const certInList = selectedCerts.some(c => c.certificationType === cert._id);
-                      
+
                       return (
                         <List.Item
                           style={{ padding: '12px 24px' }}
@@ -1483,7 +1497,7 @@ console.log("Normalized Certs",onboardingData)
                             }
                             title={
                               <Space 
-                        
+
                               >
                                 <Text strong>{cert.name}</Text>
                                 {!isWorkingWithChildrenCheck(cert) && <p style={{color:'red'}}>*</p>}
@@ -1510,9 +1524,9 @@ console.log("Normalized Certs",onboardingData)
                                           userCert = certifications.find(sel => sel.certificationType === cert._id);
                                         }
                                         if (!userCert) return true;
-                                        // Special handling for degree (array)
+                                        // Special handling for degree (array or string)
                                         if (field === 'degree') {
-                                          return !Array.isArray(userCert.degree) || userCert.degree.length === 0;
+                                          return isDegreeMissing(userCert.degree);
                                         }
                                         return !userCert[field];
                                       })
@@ -1551,12 +1565,12 @@ console.log("Normalized Certs",onboardingData)
               </TabPane>
             </Tabs>
           </Card>
-          
+
           {
             onboardingData?.data?.profile?.certifications?.length> 0 ? ( <Card
               title={<Title level={4} style={{ margin: 0 }}>Your Certifications</Title>}
               style={{ borderRadius: 8 }}
-              
+
               extra={
                 <Space>
                   <Tooltip title="Overall completion status">
@@ -1645,13 +1659,13 @@ console.log("Normalized Certs",onboardingData)
                   </div>
                 </div>
               )}
-              
-             
+
+
             </Card>): (null)
           }
-         
 
-       
+
+
         </>
       )}
     </div>
@@ -1759,7 +1773,7 @@ console.log("Normalized Certs",onboardingData)
                       </div>
                       <div>
                         {field === 'degree' ? (
-                          Array.isArray(cert[field]) ? cert[field].join(', ') : cert[field] || <Text type="danger">Missing</Text>
+                          isDegreeMissing(cert[field]) ? <Text type="danger">Missing</Text> : (Array.isArray(cert[field]) ? cert[field].join(', ') : cert[field])
                         ) : cert[field] ? (
                           field.toLowerCase().includes('date') ? (
                             <Text>{dayjs(cert[field]).format('DD/MM/YYYY')}</Text>
@@ -1865,115 +1879,182 @@ console.log("Normalized Certs",onboardingData)
     handleSubmit,
     handleRemoveCertification,
     isWorkingWithChildrenCheckType,
-    formatFieldLabel
+    formatFieldLabel,
+    isDegreeMissing
   ]);
 
- 
+
 
 
   const addCustomDegree = () => {
     if (customDegreeInput.trim() && !customDegrees.includes(customDegreeInput.trim())) {
       const newDegree = customDegreeInput.trim();
       setCustomDegrees([...customDegrees, newDegree]);
-      
+
       // Auto-select the newly added degree
       const currentValues = certForm.getFieldValue('degree') || [];
       certForm.setFieldsValue({
         degree: [...currentValues, newDegree]
       });
-      
+
       setCustomDegreeInput('');
     }
   };
-  
-  const renderEducationFields = (certType, certIndex) => {
+
+  // 1. Add refs for custom input focus at the top of CertificateSecond
+  const customDegreeInputRef = useRef(null);
+  const customInsuranceInputRef = useRef(null);
+
+  // 2. Update renderEducationFields to single-select and custom input with auto-focus
+  const renderEducationFields = (certType, certIndex, showCustomDegree, setShowCustomDegree, customDegreeValue, setCustomDegreeValue) => {
     if (!certType.isEducation) return null;
     const degreeOptions = certType.educationSetting?.degreeOptions || [];
-    if (degreeOptions.length === 0) {
-      console.warn(`No degree options found for education certification: ${certType.name}`);
-      return null;
-    }
-  
-    const allDegreeOptions = [...degreeOptions, ...customDegrees];
-  
+    const allDegreeOptions = [...degreeOptions, 'Other'];
+
+    // Handler for degree change
+    const handleDegreeChange = (value) => {
+      if (value === 'Other') {
+        setShowCustomDegree(true);
+        setTimeout(() => {
+          if (customDegreeInputRef.current) customDegreeInputRef.current.focus();
+        }, 0);
+      } else {
+        setShowCustomDegree(false);
+        setCustomDegreeValue('');
+        certForm.setFieldsValue({ degree: value });
+      }
+    };
+
+    // Handler for custom degree input
+    const handleCustomDegreeInput = (e) => {
+      setCustomDegreeValue(e.target.value);
+    };
+
+    // Handler for saving custom degree
+    const handleSaveCustomDegree = () => {
+      if (customDegreeValue.trim()) {
+        certForm.setFieldsValue({ degree: customDegreeValue.trim() });
+        setShowCustomDegree(false);
+        setCustomDegreeValue('');
+      }
+    };
+
+    // Handler for canceling custom degree
+    const handleCancelCustomDegree = () => {
+      certForm.setFieldsValue({ degree: undefined });
+      setShowCustomDegree(false);
+      setCustomDegreeValue('');
+    };
+
     return (
-      <Form.Item
-        label="Degree"
-        name="degree"
-        rules={[{ required: true, message: 'Please select at least one degree' }]}
-        tooltip="Select your qualification(s) from the list of accepted degrees"
-      >
-        <Select
-          placeholder="Select your degree(s)"
-          showSearch
-          mode="multiple"
-          optionFilterProp="children"
-          filterOption={(input, option) =>
-            option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-          }
-          dropdownRender={(menu) => (
-            <div>
-              {menu}
-              <Divider style={{ margin: '8px 0' }} />
-              <div
-                style={{
-                  padding: 12,
-                  background: '#f6f8fa',
-                  borderRadius: 8,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 8,
-                }}
-              >
-                <Input
-                  placeholder="Enter custom degree"
-                  value={customDegreeInput}
-                  onChange={(e) => setCustomDegreeInput(e.target.value)}
-                  onPressEnter={addCustomDegree}
-                  style={{
-                    marginBottom: 0,
-                    borderRadius: 6,
-                  }}
-                  allowClear
-                  maxLength={50}
-                />
-                <Button
-                  type="primary"
-                  onClick={addCustomDegree}
-                  style={{
-                    width: '100%',
-                    borderRadius: 6,
-                    fontWeight: 500,
-                    letterSpacing: 0.5,
-                  }}
-                  size="middle"
-                  icon={<PlusOutlined />}
-                  disabled={
-                    !customDegreeInput.trim() ||
-                    allDegreeOptions.includes(customDegreeInput.trim())
-                  }
-                >
-                  Add Custom Degree
-                </Button>
-                {customDegreeInput.trim() && allDegreeOptions.includes(customDegreeInput.trim()) && (
-                  <Text type="danger" style={{ fontSize: 12 }}>
-                    This degree is already in the list.
-                  </Text>
-                )}
-              </div>
-            </div>
-          )}
+      <>
+        <Form.Item
+          label="Degree"
+          name="degree"
+          rules={[{ required: true, message: 'Please select or enter your degree' }]}
+          tooltip="Select your qualification from the list. If not listed, choose 'Other'."
         >
-          {allDegreeOptions.map((degree) => (
-            <Select.Option key={degree} value={degree}>
-              {degree}
-            </Select.Option>
-          ))}
-        </Select>
-      </Form.Item>
+          <Select
+            placeholder="Select your degree"
+            showSearch
+            optionFilterProp="children"
+            filterOption={(input, option) =>
+              option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+            }
+            onChange={handleDegreeChange}
+            value={certForm.getFieldValue('degree')}
+          >
+            {allDegreeOptions.map((degree) => (
+              <Select.Option key={degree} value={degree}>
+                {degree}
+              </Select.Option>
+            ))}
+          </Select>
+        </Form.Item>
+        {showCustomDegree && (
+          <div
+            style={{
+              background: '#f6f8fa',
+              border: '1px solid #e6e6e6',
+              borderRadius: 8,
+              padding: 20,
+              marginBottom: 16,
+              marginTop: -8,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+            }}
+          >
+            <div style={{ fontWeight: 500, fontSize: 15, marginBottom: 4 }}>
+              Enter your degree
+            </div>
+            <Input
+              ref={customDegreeInputRef}
+              placeholder="Type your degree name"
+              value={customDegreeValue}
+              onChange={handleCustomDegreeInput}
+              maxLength={50}
+              style={{ borderRadius: 6, fontSize: 15 }}
+              autoFocus
+              onPressEnter={handleSaveCustomDegree}
+            />
+            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+              <Button
+                type="primary"
+                onClick={handleSaveCustomDegree}
+                disabled={!customDegreeValue.trim()}
+                style={{ borderRadius: 6 }}
+              >
+                Save
+              </Button>
+              <Button
+                onClick={handleCancelCustomDegree}
+                style={{ borderRadius: 6 }}
+              >
+                Cancel
+              </Button>
+            </div>
+            <div style={{ color: '#888', fontSize: 12 }}>
+              Please enter your degree as it appears on your certificate.
+            </div>
+          </div>
+        )}
+      </>
     );
   };
 
+  // Handler for insurance type change (like degree)
+  const handleInsuranceTypeChange = (value) => {
+    if (value === 'Other') {
+      setShowCustomInsurance(true);
+      setTimeout(() => {
+        if (customInsuranceInputRef.current) customInsuranceInputRef.current.focus();
+      }, 0);
+    } else {
+      setShowCustomInsurance(false);
+      setCustomInsuranceValue('');
+      certForm.setFieldsValue({ insuranceType: value });
+    }
+  };
+
+  const handleCustomInsuranceInput = (e) => {
+    setCustomInsuranceValue(e.target.value);
+  };
+
+  const handleSaveCustomInsurance = () => {
+    if (customInsuranceValue.trim()) {
+      certForm.setFieldsValue({ insuranceType: customInsuranceValue.trim() });
+      setShowCustomInsurance(false);
+      setCustomInsuranceValue('');
+    }
+  };
+
+  const handleCancelCustomInsurance = () => {
+    certForm.setFieldsValue({ insuranceType: undefined });
+    setShowCustomInsurance(false);
+    setCustomInsuranceValue('');
+  };
 
   const renderCertificationForm = useMemo(() => {
     if (!certDetailsVisible) {
@@ -2048,25 +2129,84 @@ console.log("Normalized Certs",onboardingData)
           }}
           onFieldsChange={handleFieldsChange}
         >
-          {renderEducationFields(certType, currentCertIndex)}
+          {renderEducationFields(certType, currentCertIndex, showCustomDegree, setShowCustomDegree, customDegreeValue, setCustomDegreeValue)}
           {certType.requiredFields.map(field => {
             if (field === 'degree') return null; // Skip degree as it's handled separately
             if (field === 'insuranceType') {
               return (
-                <Form.Item
-                  key={field}
-                  name={field}
-                  label="Insurance Type"
-                  rules={[{ required: true, message: 'Please select or enter at least one insurance type' }]}
-                  tooltip="Select or enter your insurance type(s)"
-                >
-                  <Select
-                    mode="tags"
-                    placeholder="Select or enter insurance type(s)"
-                    allowClear
-                    options={PREDEFINED_INSURANCE_TYPES.map(opt => ({ value: opt, label: opt }))}
-                  />
-                </Form.Item>
+                <React.Fragment key={field}>
+                  <Form.Item
+                    name={field}
+                    label="Insurance Type"
+                    rules={[{ required: true, message: 'Please select or enter your insurance type' }]}
+                    tooltip="Select your insurance type. If not listed, choose 'Other' to add your own."
+                  >
+                    <Select
+                      placeholder="Select or enter insurance type"
+                      allowClear
+                      value={certForm.getFieldValue('insuranceType')}
+                      onChange={handleInsuranceTypeChange}
+                    >
+                      {PREDEFINED_INSURANCE_TYPES.map((type) => (
+                        <Select.Option key={type} value={type}>
+                          {type}
+                        </Select.Option>
+                      ))}
+                      <Select.Option key="Other" value="Other">
+                        Other
+                      </Select.Option>
+                    </Select>
+                  </Form.Item>
+                  {showCustomInsurance && (
+                    <div
+                      style={{
+                        background: '#f6f8fa',
+                        border: '1px solid #e6e6e6',
+                        borderRadius: 8,
+                        padding: 20,
+                        marginBottom: 16,
+                        marginTop: -8,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 12,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                      }}
+                    >
+                      <div style={{ fontWeight: 500, fontSize: 15, marginBottom: 4 }}>
+                        Enter your insurance type
+                      </div>
+                      <Input
+                        ref={customInsuranceInputRef}
+                        placeholder="Type your insurance type"
+                        value={customInsuranceValue}
+                        onChange={handleCustomInsuranceInput}
+                        maxLength={50}
+                        style={{ borderRadius: 6, fontSize: 15 }}
+                        autoFocus
+                        onPressEnter={handleSaveCustomInsurance}
+                      />
+                      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                        <Button
+                          type="primary"
+                          onClick={handleSaveCustomInsurance}
+                          disabled={!customInsuranceValue.trim()}
+                          style={{ borderRadius: 6 }}
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          onClick={handleCancelCustomInsurance}
+                          style={{ borderRadius: 6 }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                      <div style={{ color: '#888', fontSize: 12 }}>
+                        Please enter your insurance type as it appears on your document.
+                      </div>
+                    </div>
+                  )}
+                </React.Fragment>
               );
             }
             const isDateField = field.toLowerCase().includes('date');
@@ -2148,7 +2288,7 @@ console.log("Normalized Certs",onboardingData)
               label={
                 <span>
                   Documents <span style={{ fontWeight: 'normal', color: '#888', fontSize: 13 }}>
-                    {/* ({uploadFileList.length}/2 uploaded) */}
+                    ({uploadFileList.length}/2 uploaded)
                   </span>
                 </span>
               }
@@ -2365,12 +2505,12 @@ console.log("Normalized Certs",onboardingData)
         );
         if (docIndex >= 0) {
           const publicId = selectedCerts[certIndex].documents[docIndex].publicId;
-          
+
           // Remove from localStorage tracking
           if (publicId) {
             DocumentTrackingService.removeTrackedDocument(publicId);
           }
-          
+
           handleRemoveDocument(certIndex, docIndex);
         }
       }
@@ -2387,13 +2527,13 @@ console.log("Normalized Certs",onboardingData)
   const displayTrackingInfo = useCallback(() => {
     const stats = DocumentTrackingService.getTrackingStats();
     const trackedDocs = DocumentTrackingService.getTrackedDocuments();
-    
+
     console.log('=== Document Tracking Information ===');
     console.log('Total tracked public IDs:', stats.totalTracked);
     console.log('Public IDs:', stats.publicIds);
     console.log('All tracked documents:', trackedDocs);
     console.log('=====================================');
-    
+
     return stats;
   }, []);
 
@@ -2435,7 +2575,7 @@ console.log("Normalized Certs",onboardingData)
       toast.loading('Saving document tracking...');
       const result = await saveDocumentTrackingToDatabase(stats.publicIds);
       toast.dismiss();
-      
+
       if (result.success) {
         toast.success('Document tracking saved successfully!');
         // Clear localStorage after successful save
@@ -2575,7 +2715,7 @@ console.log("Normalized Certs",onboardingData)
           </Space>
         </Card>
       )}
-      
+
       {/* <div style={{ marginBottom: 32,display:'flex',flexDirection:'column',justifyContent:'center',alignItems:'center' }}>
         <Title level={2} style={{ marginBottom: 8 }}>
           Certification Manager
@@ -2586,7 +2726,7 @@ console.log("Normalized Certs",onboardingData)
             : 'Complete your profile by adding the required certifications based on your nationality and residency status.'}
         </Text>
       </div> */}
-      
+
       <Steps current={currentStep} style={{ marginBottom: 48,marginTop:40,padding:10 }}>
         {steps.map((item) => (
           <Step 
@@ -2596,11 +2736,11 @@ console.log("Normalized Certs",onboardingData)
           />
         ))}
       </Steps>
-      
+
       <div className="steps-content" style={{ minHeight: '60vh' }}>
         {steps[currentStep].content}
       </div>
-      
+
       <div className="steps-action" style={{ marginTop: 24, textAlign: 'center' }}>
         {currentStep > 0 && (
           <Button 
@@ -2625,7 +2765,7 @@ console.log("Normalized Certs",onboardingData)
           </Button>
         )}
       </div>
-      
+
       {renderCertificationForm}
       <DocumentPreview
         document={previewDocument}
@@ -2636,5 +2776,4 @@ console.log("Normalized Certs",onboardingData)
     </div>
   );
 };
-
-export default CertificateSecond;
+export default CertificateSecond

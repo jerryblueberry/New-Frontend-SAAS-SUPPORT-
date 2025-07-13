@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './DocumentPreview.css';
+import { useMediaQuery } from '@mui/material';
 
-const DocumentPreview = ({ document, onClose,onDelete }) => {
+const DocumentPreview = ({ document, onClose, onDelete, certificateData }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [rotation, setRotation] = useState(0);
@@ -197,6 +198,67 @@ const DocumentPreview = ({ document, onClose,onDelete }) => {
     }
   };
 
+  const isDesktop = useMediaQuery('(min-width:900px)');
+
+  // Helper to format date/time in 12-hour format for user readability
+  const formatDateTime = (value) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return value; // fallback if not a valid date
+    return date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  // Certificate summary panel
+  const renderCertificateSummary = () => {
+    if (!certificateData) return null;
+    return (
+      <div style={{
+        minWidth: isDesktop ? 320 : '100%',
+        maxWidth: 400,
+        background: '#f7f9fa',
+        borderRadius: 12,
+        padding: 24,
+        marginBottom: isDesktop ? 0 : 24,
+        marginRight: isDesktop ? 24 : 0,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+        flex: '0 0 auto',
+        maxHeight: certificateData && isDesktop ? '70vh' : undefined,
+        overflow: certificateData && isDesktop ? 'auto' : undefined,
+      }}>
+        <h4 style={{marginTop:0,marginBottom:16,fontWeight:700}}>Certificate Details</h4>
+        <div style={{marginBottom:8}}><b>Name:</b> {certificateData.certificationType?.name || '-'}</div>
+
+        {(certificateData.number && certificateData.certificationType?.name === 'Driving License') ? (
+          <div style={{marginBottom:8}}><b>License No:</b> {certificateData.number}</div>
+        ) : certificateData.number ? (
+          <div style={{marginBottom:8}}><b>Number:</b> {certificateData.number}</div>
+        ) : null}
+        {certificateData.country ? (
+          <div style={{marginBottom:8}}><b>Country:</b> {certificateData.country}</div>
+        ) : null}
+        {certificateData.issuer && <div style={{marginBottom:8}}><b>Issuer:</b> {certificateData.issuer}</div>}
+        {certificateData.issuedDate && <div style={{marginBottom:8}}><b>Issued:</b> {formatDateTime(certificateData.issuedDate)}</div>}
+        {certificateData.expiryDate && <div style={{marginBottom:8}}><b>Expires:</b> {formatDateTime(certificateData.expiryDate)}</div>}
+        {(
+          certificateData.degree &&
+          !(Array.isArray(certificateData.degree) && certificateData.degree.length === 0) &&
+          certificateData.degree !== ''
+        ) ? (
+          <div style={{marginBottom:8}}><b>Degree:</b> {certificateData.degree}</div>
+        ) : null}
+        {certificateData.verificationStatus && <div style={{marginBottom:8}}><b>Status:</b> {certificateData.verificationStatus}</div>}
+        {certificateData.rejectionReason && <div style={{marginBottom:8}}><b>Rejection Reason:</b> {certificateData.rejectionReason}</div>}
+      </div>
+    );
+  };
+
   if (!document) {
     return null;
   }
@@ -313,7 +375,18 @@ const DocumentPreview = ({ document, onClose,onDelete }) => {
           </div>
         </div>
         
-        <div className="doc-preview__content">
+        <div 
+          className="doc-preview__content" 
+          style={{
+            display: certificateData && isDesktop ? 'flex' : 'block',
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            paddingRight: 8,
+          }}>
+          {certificateData && renderCertificateSummary()}
+          <div style={{flex:1,minWidth:0}}>
           {isLoading && (
             <div className="doc-preview__loading" aria-live="polite">
               <div className="doc-preview__spinner" aria-hidden="true"></div>
@@ -422,6 +495,7 @@ const DocumentPreview = ({ document, onClose,onDelete }) => {
               </a>
             </div>
           )}
+          </div>
         </div>
         
         {/* Mobile action bar at bottom for easy access */}
