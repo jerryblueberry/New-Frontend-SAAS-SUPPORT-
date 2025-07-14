@@ -601,6 +601,7 @@ const WorkerProfileForm = React.memo(() => {
               step={0.5}
               required
               aria-describedby={formErrors.expectedHourlyRate ? 'rate-error' : 'rate-hint'}
+              onWheel={e => e.target.blur()}
             />
           </div>
    
