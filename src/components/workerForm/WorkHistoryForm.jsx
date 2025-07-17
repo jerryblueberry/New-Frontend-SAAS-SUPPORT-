@@ -325,48 +325,45 @@ const WorkHistoryForm = ({ onNextStep }) => {
     let firstReferenceErrorIndex = null;
 
     // Validate work history
-    if (!localWorkHistory.noWorkHistory) {
-      if (!localWorkHistory.jobs || localWorkHistory.jobs.length === 0) {
-        errors.jobs =
-          'At least one job is required unless "No Work History" is selected';
-        isValid = false;
-      } else {
-        localWorkHistory.jobs.forEach((job, index) => {
-          if (!job.title || !job.title.trim()) {
-            errors[`job${index}_title`] = 'Job title is required';
-            isValid = false;
-          }
+    if (!localWorkHistory.jobs || localWorkHistory.jobs.length === 0) {
+      errors.jobs = 'At least one job is required';
+      isValid = false;
+    } else {
+      localWorkHistory.jobs.forEach((job, index) => {
+        if (!job.title || !job.title.trim()) {
+          errors[`job${index}_title`] = 'Job title is required';
+          isValid = false;
+        }
 
-          if (!job.company || !job.company.trim()) {
-            errors[`job${index}_company`] = 'Company name is required';
-            isValid = false;
-          }
+        if (!job.company || !job.company.trim()) {
+          errors[`job${index}_company`] = 'Company name is required';
+          isValid = false;
+        }
 
-          if (!job.startDate) {
-            errors[`job${index}_startDate`] = 'Start date is required';
-            isValid = false;
-          }
+        if (!job.startDate) {
+          errors[`job${index}_startDate`] = 'Start date is required';
+          isValid = false;
+        }
 
-          const isCurrentJob = job.currentlyWorking || job.current || false;
+        const isCurrentJob = job.currentlyWorking || job.current || false;
 
-          if (!isCurrentJob && !job.endDate) {
+        if (!isCurrentJob && !job.endDate) {
+          errors[`job${index}_endDate`] =
+            'End date is required for past jobs';
+          isValid = false;
+        }
+
+        if (job.startDate && job.endDate) {
+          const startDate = new Date(job.startDate);
+          const endDate = new Date(job.endDate);
+
+          if (endDate < startDate) {
             errors[`job${index}_endDate`] =
-              'End date is required for past jobs';
+              'End date must be after start date';
             isValid = false;
           }
-
-          if (job.startDate && job.endDate) {
-            const startDate = new Date(job.startDate);
-            const endDate = new Date(job.endDate);
-
-            if (endDate < startDate) {
-              errors[`job${index}_endDate`] =
-                'End date must be after start date';
-              isValid = false;
-            }
-          }
-        });
-      }
+        }
+      });
     }
 
     // Validate CV field - check both local and global state
@@ -718,73 +715,272 @@ const WorkHistoryForm = ({ onNextStep }) => {
       <div className="wh-section wh-work-history-section">
         <div className="wh-section-header">
           <h3>Work Experience</h3>
-          <div className="wh-no-work-option">
-            <label className="wh-checkbox-container">
-              <input
-                type="checkbox"
-                checked={localWorkHistory.noWorkHistory}
-                onChange={handleNoWorkHistoryChange}
-                className="wh-checkbox"
-              />
-              <span className="wh-checkmark"></span>
-              <span>I don't have any prior work experience</span>
-            </label>
-          </div>
         </div>
 
         {formErrors.jobs && (
           <div className="wh-error-message">{formErrors.jobs}</div>
         )}
 
-        {!localWorkHistory.noWorkHistory && (
-          <>
-            <div className="wh-job-list">
-              {localWorkHistory.jobs.length === 0 ? (
-                <div className="wh-empty-state">
-                  <div className="wh-empty-icon">💼</div>
-                  <p>You haven't added any work experience yet</p>
+        <div className="wh-job-list">
+          {localWorkHistory.jobs.length === 0 ? (
+            <div className="wh-empty-state">
+              <div className="wh-empty-icon">💼</div>
+              <p>You haven't added any work experience yet</p>
+              <button
+                type="button"
+                className="wh-btn wh-btn-secondary"
+                onClick={addNewJob}
+              >
+                Add Your Work Experience
+              </button>
+            </div>
+          ) : (
+            localWorkHistory.jobs.map((job, index) => (
+              <div
+                key={index}
+                id={`wh-job-card-${index}`}
+                className={`wh-card wh-job-card ${expandedJob === index ? 'wh-expanded' : ''}`}
+              >
+                <div
+                  className="wh-card-header"
+                  onClick={() => toggleExpandJob(index)}
+                >
+                  <div className="wh-card-title">
+                    <h4>{job.company || 'Company Name'}</h4>
+                    {job.title && <span>{job.title}</span>}
+                  </div>
+                  <div className="wh-card-dates">
+                    {job.startDate && (
+                      <span>
+                        {new Date(job.startDate).toLocaleDateString(
+                          undefined,
+                          { year: 'numeric', month: 'short' }
+                        )}
+                        {job.currentlyWorking
+                          ? ' - Present'
+                          : job.endDate
+                            ? ` - ${new Date(job.endDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })}`
+                            : ''}
+                      </span>
+                    )}
+                  </div>
                   <button
                     type="button"
-                    className="wh-btn wh-btn-secondary"
-                    onClick={addNewJob}
+                    className="wh-expand-toggle"
+                    aria-label="Toggle details"
                   >
-                    Add Your Work Experience
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <polyline
+                        points={
+                          expandedJob === index
+                            ? '18 15 12 9 6 15'
+                            : '6 9 12 15 18 9'
+                        }
+                      ></polyline>
+                    </svg>
                   </button>
                 </div>
-              ) : (
-                localWorkHistory.jobs.map((job, index) => (
-                  <div
-                    key={index}
-                    id={`wh-job-card-${index}`}
-                    className={`wh-card wh-job-card ${expandedJob === index ? 'wh-expanded' : ''}`}
-                  >
-                    <div
-                      className="wh-card-header"
-                      onClick={() => toggleExpandJob(index)}
-                    >
-                      <div className="wh-card-title">
-                        <h4>{job.company || 'Company Name'}</h4>
-                        {job.title && <span>{job.title}</span>}
-                      </div>
-                      <div className="wh-card-dates">
-                        {job.startDate && (
-                          <span>
-                            {new Date(job.startDate).toLocaleDateString(
-                              undefined,
-                              { year: 'numeric', month: 'short' }
-                            )}
-                            {job.currentlyWorking
-                              ? ' - Present'
-                              : job.endDate
-                                ? ` - ${new Date(job.endDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })}`
-                                : ''}
-                          </span>
+
+                {expandedJob === index && (
+                  <div className="wh-card-content">
+                    <div className="wh-form-row">
+                      <div className="wh-form-group">
+                        <label htmlFor={`company-${index}`}>
+                          Company Name{' '}
+                          <span className="wh-required">*</span>
+                        </label>
+                        <input
+                          id={`company-${index}`}
+                          name={`job${index}_company`}
+                          type="text"
+                          value={job.company}
+                          onChange={(e) =>
+                            handleUpdateJob(
+                              index,
+                              'company',
+                              e.target.value
+                            )
+                          }
+                          placeholder="Enter company name"
+                          className={
+                            formErrors[`job${index}_company`]
+                              ? 'wh-error-field'
+                              : ''
+                          }
+                          required
+                          aria-invalid={!!formErrors[`job${index}_company`]}
+                          aria-describedby={formErrors[`job${index}_company`] ? `error-job${index}_company` : undefined}
+                        />
+                        {formErrors[`job${index}_company`] && (
+                          <div
+                            className="wh-field-error"
+                            id={`error-job${index}_company`}
+                            role="alert"
+                          >
+                            {formErrors[`job${index}_company`]}
+                          </div>
                         )}
                       </div>
+
+                      <div className="wh-form-group">
+                        <label htmlFor={`title-${index}`}>
+                          Title<span className="wh-required">*</span>
+                        </label>
+                        <input
+                          id={`title-${index}`}
+                          name={`job${index}_title`}
+                          type="text"
+                          value={job.title}
+                          onChange={(e) =>
+                            handleUpdateJob(index, 'title', e.target.value)
+                          }
+                          placeholder="Your job title"
+                          className={
+                            formErrors[`job${index}_title`]
+                              ? 'wh-error-field'
+                              : ''
+                          }
+                          required
+                          aria-invalid={!!formErrors[`job${index}_title`]}
+                          aria-describedby={formErrors[`job${index}_title`] ? `error-job${index}_title` : undefined}
+                        />
+                        {formErrors[`job${index}_title`] && (
+                          <div
+                            className="wh-field-error"
+                            id={`error-job${index}_title`}
+                            role="alert"
+                          >
+                            {formErrors[`job${index}_title`]}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="wh-form-row">
+                      <div className="wh-form-group">
+                        <label htmlFor={`startDate-${index}`}>
+                          Start Date <span className="wh-required">*</span>
+                        </label>
+                        <input
+                          id={`startDate-${index}`}
+                          name={`job${index}_startDate`}
+                          type="date"
+                          value={formatDateForInput(job.startDate)}
+                          onChange={(e) =>
+                            handleUpdateJob(
+                              index,
+                              'startDate',
+                              e.target.value
+                            )
+                          }
+                          className={
+                            formErrors[`job${index}_startDate`]
+                              ? 'wh-error-field'
+                              : ''
+                          }
+                          required
+                          aria-invalid={!!formErrors[`job${index}_startDate`]}
+                          aria-describedby={formErrors[`job${index}_startDate`] ? `error-job${index}_startDate` : undefined}
+                        />
+                        {formErrors[`job${index}_startDate`] && (
+                          <div
+                            className="wh-field-error"
+                            id={`error-job${index}_startDate`}
+                            role="alert"
+                          >
+                            {formErrors[`job${index}_startDate`]}
+                          </div>
+                        )}
+                      </div>
+                      <div className="wh-form-group">
+                        <label htmlFor={`endDate-${index}`}>
+                          End Date{' '}
+                          {!job.currentlyWorking && (
+                            <span className="wh-required">*</span>
+                          )}
+                        </label>
+                        <input
+                          id={`endDate-${index}`}
+                          name={`job${index}_endDate`}
+                          type="date"
+                          value={formatDateForInput(job.endDate)}
+                          onChange={(e) =>
+                            handleUpdateJob(
+                              index,
+                              'endDate',
+                              e.target.value
+                            )
+                          }
+                          disabled={job.currentlyWorking}
+                          className={
+                            formErrors[`job${index}_endDate`]
+                              ? 'wh-error-field'
+                              : ''
+                          }
+                          required={!job.currentlyWorking}
+                          aria-invalid={!!formErrors[`job${index}_endDate`]}
+                          aria-describedby={formErrors[`job${index}_endDate`] ? `error-job${index}_endDate` : undefined}
+                        />
+                        {formErrors[`job${index}_endDate`] && (
+                          <div
+                            className="wh-field-error"
+                            id={`error-job${index}_endDate`}
+                            role="alert"
+                          >
+                            {formErrors[`job${index}_endDate`]}
+                          </div>
+                        )}
+
+                        <label className="wh-checkbox-container wh-current-job">
+                          <input
+                            type="checkbox"
+                            checked={job.currentlyWorking}
+                            onChange={(e) =>
+                              handleUpdateJob(
+                                index,
+                                'currentlyWorking',
+                                e.target.checked
+                              )
+                            }
+                            className="wh-checkbox"
+                          />
+                          <span className="wh-checkmark"></span>
+                          <span>I currently work here</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="wh-form-group">
+                      <label htmlFor={`description-${index}`}>
+                        Job Description
+                      </label>
+                      <textarea
+                        id={`description-${index}`}
+                        value={job.description || ''}
+                        onChange={(e) =>
+                          handleUpdateJob(
+                            index,
+                            'description',
+                            e.target.value
+                          )
+                        }
+                        placeholder="Describe your responsibilities and achievements at this job"
+                        rows={4}
+                      />
+                    </div>
+
+                    <div className="wh-card-actions">
                       <button
                         type="button"
-                        className="wh-expand-toggle"
-                        aria-label="Toggle details"
+                        className="wh-btn wh-btn-danger"
+                        onClick={() => handleRemoveJob(index)}
                       >
                         <svg
                           width="16"
@@ -794,254 +990,39 @@ const WorkHistoryForm = ({ onNextStep }) => {
                           stroke="currentColor"
                           strokeWidth="2"
                         >
-                          <polyline
-                            points={
-                              expandedJob === index
-                                ? '18 15 12 9 6 15'
-                                : '6 9 12 15 18 9'
-                            }
-                          ></polyline>
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                         </svg>
+                        Remove Job
                       </button>
                     </div>
-
-                    {expandedJob === index && (
-                      <div className="wh-card-content">
-                        <div className="wh-form-row">
-                          <div className="wh-form-group">
-                            <label htmlFor={`company-${index}`}>
-                              Company Name{' '}
-                              <span className="wh-required">*</span>
-                            </label>
-                            <input
-                              id={`company-${index}`}
-                              name={`job${index}_company`}
-                              type="text"
-                              value={job.company}
-                              onChange={(e) =>
-                                handleUpdateJob(
-                                  index,
-                                  'company',
-                                  e.target.value
-                                )
-                              }
-                              placeholder="Enter company name"
-                              className={
-                                formErrors[`job${index}_company`]
-                                  ? 'wh-error-field'
-                                  : ''
-                              }
-                              required
-                              aria-invalid={!!formErrors[`job${index}_company`]}
-                              aria-describedby={formErrors[`job${index}_company`] ? `error-job${index}_company` : undefined}
-                            />
-                            {formErrors[`job${index}_company`] && (
-                              <div
-                                className="wh-field-error"
-                                id={`error-job${index}_company`}
-                                role="alert"
-                              >
-                                {formErrors[`job${index}_company`]}
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="wh-form-group">
-                            <label htmlFor={`title-${index}`}>
-                              Title<span className="wh-required">*</span>
-                            </label>
-                            <input
-                              id={`title-${index}`}
-                              name={`job${index}_title`}
-                              type="text"
-                              value={job.title}
-                              onChange={(e) =>
-                                handleUpdateJob(index, 'title', e.target.value)
-                              }
-                              placeholder="Your job title"
-                              className={
-                                formErrors[`job${index}_title`]
-                                  ? 'wh-error-field'
-                                  : ''
-                              }
-                              required
-                              aria-invalid={!!formErrors[`job${index}_title`]}
-                              aria-describedby={formErrors[`job${index}_title`] ? `error-job${index}_title` : undefined}
-                            />
-                            {formErrors[`job${index}_title`] && (
-                              <div
-                                className="wh-field-error"
-                                id={`error-job${index}_title`}
-                                role="alert"
-                              >
-                                {formErrors[`job${index}_title`]}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="wh-form-row">
-                          <div className="wh-form-group">
-                            <label htmlFor={`startDate-${index}`}>
-                              Start Date <span className="wh-required">*</span>
-                            </label>
-                            <input
-                              id={`startDate-${index}`}
-                              name={`job${index}_startDate`}
-                              type="date"
-                              value={formatDateForInput(job.startDate)}
-                              onChange={(e) =>
-                                handleUpdateJob(
-                                  index,
-                                  'startDate',
-                                  e.target.value
-                                )
-                              }
-                              className={
-                                formErrors[`job${index}_startDate`]
-                                  ? 'wh-error-field'
-                                  : ''
-                              }
-                              required
-                              aria-invalid={!!formErrors[`job${index}_startDate`]}
-                              aria-describedby={formErrors[`job${index}_startDate`] ? `error-job${index}_startDate` : undefined}
-                            />
-                            {formErrors[`job${index}_startDate`] && (
-                              <div
-                                className="wh-field-error"
-                                id={`error-job${index}_startDate`}
-                                role="alert"
-                              >
-                                {formErrors[`job${index}_startDate`]}
-                              </div>
-                            )}
-                          </div>
-                          <div className="wh-form-group">
-                            <label htmlFor={`endDate-${index}`}>
-                              End Date{' '}
-                              {!job.currentlyWorking && (
-                                <span className="wh-required">*</span>
-                              )}
-                            </label>
-                            <input
-                              id={`endDate-${index}`}
-                              name={`job${index}_endDate`}
-                              type="date"
-                              value={formatDateForInput(job.endDate)}
-                              onChange={(e) =>
-                                handleUpdateJob(
-                                  index,
-                                  'endDate',
-                                  e.target.value
-                                )
-                              }
-                              disabled={job.currentlyWorking}
-                              className={
-                                formErrors[`job${index}_endDate`]
-                                  ? 'wh-error-field'
-                                  : ''
-                              }
-                              required={!job.currentlyWorking}
-                              aria-invalid={!!formErrors[`job${index}_endDate`]}
-                              aria-describedby={formErrors[`job${index}_endDate`] ? `error-job${index}_endDate` : undefined}
-                            />
-                            {formErrors[`job${index}_endDate`] && (
-                              <div
-                                className="wh-field-error"
-                                id={`error-job${index}_endDate`}
-                                role="alert"
-                              >
-                                {formErrors[`job${index}_endDate`]}
-                              </div>
-                            )}
-
-                            <label className="wh-checkbox-container wh-current-job">
-                              <input
-                                type="checkbox"
-                                checked={job.currentlyWorking}
-                                onChange={(e) =>
-                                  handleUpdateJob(
-                                    index,
-                                    'currentlyWorking',
-                                    e.target.checked
-                                  )
-                                }
-                                className="wh-checkbox"
-                              />
-                              <span className="wh-checkmark"></span>
-                              <span>I currently work here</span>
-                            </label>
-                          </div>
-                        </div>
-
-                        <div className="wh-form-group">
-                          <label htmlFor={`description-${index}`}>
-                            Job Description
-                          </label>
-                          <textarea
-                            id={`description-${index}`}
-                            value={job.description || ''}
-                            onChange={(e) =>
-                              handleUpdateJob(
-                                index,
-                                'description',
-                                e.target.value
-                              )
-                            }
-                            placeholder="Describe your responsibilities and achievements at this job"
-                            rows={4}
-                          />
-                        </div>
-
-                        <div className="wh-card-actions">
-                          <button
-                            type="button"
-                            className="wh-btn wh-btn-danger"
-                            onClick={() => handleRemoveJob(index)}
-                          >
-                            <svg
-                              width="16"
-                              height="16"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                            >
-                              <polyline points="3 6 5 6 21 6"></polyline>
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            </svg>
-                            Remove Job
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
-                ))
-              )}
-            </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
 
-            {localWorkHistory.jobs.length > 0 && (
-              <button
-                type="button"
-                className="wh-btn wh-btn-secondary wh-add-btn"
-                onClick={addNewJob}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" y1="8" x2="12" y2="16"></line>
-                  <line x1="8" y1="12" x2="16" y2="12"></line>
-                </svg>
-                Add Another Job
-              </button>
-            )}
-          </>
+        {localWorkHistory.jobs.length > 0 && (
+          <button
+            type="button"
+            className="wh-btn wh-btn-secondary wh-add-btn"
+            onClick={addNewJob}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="16"></line>
+              <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+            Add Another Experience
+          </button>
         )}
       </div>
 

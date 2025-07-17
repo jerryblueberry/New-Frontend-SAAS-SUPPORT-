@@ -31,6 +31,7 @@ import CertificationTypes from './pages/AdminPages/CertificationType/Certificati
 import CompleteReferenceCheck from './pages/ReferenceCheck/CompleteReferenceCheck/CompleteReferenceCheck';
 import ReferenceQuestion from './pages/AdminPages/ReferenceQuestonnaire/ReferenceQuestion';
 import AdminReference from './pages/AdminPages/ReferenceSection/AdminReference';
+import WorkerManagementDashboard from './pages/AdminPages/AdminDashboard/WorkerManagementDashboard';
 
 
 // Create React Query client with optimized settings
@@ -169,6 +170,15 @@ function AppRoutes() {
             </AdminRoute>
           }
         />
+        {/*  For the workers management  */}
+        <Route path='/admin/workers'
+        element = {
+          <AdminRoute>
+            <WorkerManagementDashboard/>
+          </AdminRoute>
+        }
+        />
+        
         {/*  For viewing worker details by admin*/}
         <Route path='/worker-details/:workerId' element = {
           <AdminRoute>

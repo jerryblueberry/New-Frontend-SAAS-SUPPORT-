@@ -26,12 +26,16 @@
   height: 100%;
   
 }
+.wrk-dashboard-logo-wrapper:hover{
+  cursor: pointer;
+}
 
 .wrk-dashboard-logo-image {
   height: 120px;
   width: auto;
   object-fit: contain;
 }
+
 
 .wrk-dashboard-user-actions {
   display: flex;

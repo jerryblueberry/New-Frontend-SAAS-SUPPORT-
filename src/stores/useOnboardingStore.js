@@ -152,7 +152,6 @@ const initialState = {
 
   workHistory: {
     jobs: [],
-    noWorkHistory: false,
     references: [],
     CV: '',
   },
@@ -571,12 +570,7 @@ const useOnboardingStore = create(
               })) || [],
           },
           availability: {
-            // weeklySchedule:
-              // profile?.availability?.weeklySchedule ||
-              // get().availability.weeklySchedule,
-            // customTimeSlots: profile?.availability?.customTimeSlots || [],
             customTimeSlots: profile?.availability?.customTimeSlots || get().availability.customTimeSlots,
-            // notes: profile?.availability?.notes || '',
             kmWillingToTravel: profile?.availability?.kmWillingToTravel || 20,
             suburb: profile?.availability?.suburb || '',
           },
@@ -585,7 +579,6 @@ const useOnboardingStore = create(
           healthInformation: profile?.healthInformation || {},
           workHistory: {
             jobs: profile?.workHistory || [],
-            noWorkHistory: profile?.noWorkHistory || false,
             references: profile?.references || [],
             CV: profile?.CV || null,
           },
@@ -794,11 +787,10 @@ const useOnboardingStore = create(
       saveWorkHistoryStep: async () => {
         try {
           set({ isLoading: true, error: null });
-          const { jobs, noWorkHistory, references, CV } = get().workHistory;
+          const { jobs, references, CV } = get().workHistory;
 
           const data = await onboardingApi.saveWorkHistoryStep({
             workHistory: jobs,
-            noWorkHistory,
             references: references || [],
             CV: CV || null,
           });
@@ -1201,7 +1193,6 @@ export const useWorkHistoryMutation = () => {
         // Enhanced validation and formatting
         const formattedPayload = {
           workHistory: dataToUse.jobs || [],
-          noWorkHistory: dataToUse.noWorkHistory || false,
           references: dataToUse.references || [],
           CV: dataToUse.CV || null,
         };
@@ -1209,13 +1200,8 @@ export const useWorkHistoryMutation = () => {
         console.log('Sending payload:', formattedPayload); // Debug log
 
         // Additional validation before sending
-        if (
-          !formattedPayload.noWorkHistory &&
-          formattedPayload.workHistory.length === 0
-        ) {
-          throw new Error(
-            'Work history is required unless "No Work History" is selected'
-          );
+        if (formattedPayload.workHistory.length === 0) {
+          throw new Error('At least one work experience is required');
         }
 
         const response =

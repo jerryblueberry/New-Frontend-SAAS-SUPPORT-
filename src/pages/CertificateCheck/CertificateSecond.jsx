@@ -47,7 +47,8 @@ import {
   ReadOutlined,
   ClockCircleOutlined,
   FileOutlined,
-  EyeOutlined
+  EyeOutlined,
+  TagOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import debounce from 'lodash/debounce';
@@ -1910,7 +1911,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
     if (!certType.isEducation) return null;
     const degreeOptions = certType.educationSetting?.degreeOptions || [];
     const allDegreeOptions = [...degreeOptions, 'Other'];
-
+  
     // Handler for degree change
     const handleDegreeChange = (value) => {
       if (value === 'Other') {
@@ -1922,30 +1923,43 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
         setShowCustomDegree(false);
         setCustomDegreeValue('');
         certForm.setFieldsValue({ degree: value });
+        setTimeout(() => {
+          if (document.activeElement) {
+            document.activeElement.blur();
+          }
+        }, 100);
       }
     };
-
+  
     // Handler for custom degree input
     const handleCustomDegreeInput = (e) => {
       setCustomDegreeValue(e.target.value);
     };
-
+  
     // Handler for saving custom degree
     const handleSaveCustomDegree = () => {
       if (customDegreeValue.trim()) {
-        certForm.setFieldsValue({ degree: customDegreeValue.trim() });
+        // Store as 'Other|customDegreeValue'
+        certForm.setFieldsValue({ degree: `Other|${customDegreeValue.trim()}` });
         setShowCustomDegree(false);
         setCustomDegreeValue('');
       }
     };
-
+  
     // Handler for canceling custom degree
     const handleCancelCustomDegree = () => {
       certForm.setFieldsValue({ degree: undefined });
       setShowCustomDegree(false);
       setCustomDegreeValue('');
     };
-
+  
+    // Custom display for Select value
+    const degreeValue = certForm.getFieldValue('degree');
+    let selectDisplayValue = degreeValue;
+    if (typeof degreeValue === 'string' && degreeValue.startsWith('Other|')) {
+      selectDisplayValue = `Other - ${degreeValue.slice(6)}`;
+    }
+  
     return (
       <>
         <Form.Item
@@ -1962,13 +1976,31 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
               option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
             }
             onChange={handleDegreeChange}
-            value={certForm.getFieldValue('degree')}
+            value={degreeValue}
+            optionLabelProp="label"
+            dropdownRender={menu => menu}
           >
             {allDegreeOptions.map((degree) => (
-              <Select.Option key={degree} value={degree}>
+              <Select.Option key={degree} value={degree} label={degree}>
                 {degree}
               </Select.Option>
             ))}
+            {/* Custom label for the selected custom value (not shown in dropdown, but used for display) */}
+            {typeof degreeValue === 'string' && degreeValue.startsWith('Other|') && (
+              <Select.Option
+                key={degreeValue}
+                value={degreeValue}
+                label={
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <TagOutlined style={{ color: '#faad14' }} />
+                    <span>Other - {degreeValue.slice(6)}</span>
+                  </span>
+                }
+                disabled
+              >
+                {/* Not shown in dropdown */}
+              </Select.Option>
+            )}
           </Select>
         </Form.Item>
         {showCustomDegree && (
@@ -2023,7 +2055,6 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
       </>
     );
   };
-
   // Handler for insurance type change (like degree)
   const handleInsuranceTypeChange = (value) => {
     if (value === 'Other') {
@@ -2133,6 +2164,14 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
           {certType.requiredFields.map(field => {
             if (field === 'degree') return null; // Skip degree as it's handled separately
             if (field === 'insuranceType') {
+              // --- Insurance Type: icon only for custom value selection ---
+              const insuranceValue = certForm.getFieldValue('insuranceType');
+              const isCustomInsurance = (
+                typeof insuranceValue === 'string' &&
+                insuranceValue !== '' &&
+                insuranceValue !== 'Other' &&
+                showCustomInsurance === false // Only after custom value is saved
+              );
               return (
                 <React.Fragment key={field}>
                   <Form.Item
@@ -2144,8 +2183,24 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
                     <Select
                       placeholder="Select or enter insurance type"
                       allowClear
-                      value={certForm.getFieldValue('insuranceType')}
-                      onChange={handleInsuranceTypeChange}
+                      value={insuranceValue}
+                      optionLabelProp="label"
+                      onChange={(value) => {
+                        handleInsuranceTypeChange(value);
+                        setTimeout(() => {
+                          if (document.activeElement) {
+                            document.activeElement.blur();
+                          }
+                        }, 100);
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+                            document.activeElement.blur();
+                          }
+                        }, 50);
+                      }}
+                      style={{ transition: 'all 0.3s ease' }}
                     >
                       {PREDEFINED_INSURANCE_TYPES.map((type) => (
                         <Select.Option key={type} value={type}>
@@ -2155,6 +2210,19 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
                       <Select.Option key="Other" value="Other">
                         Other
                       </Select.Option>
+                      {isCustomInsurance && (
+                        <Select.Option
+                          key={insuranceValue}
+                          value={insuranceValue}
+                          label={
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <TagOutlined style={{ color: '#faad14' }} />
+                              <span>Other - {insuranceValue}</span>
+                            </span>
+                          }
+                          disabled
+                        />
+                      )}
                     </Select>
                   </Form.Item>
                   {showCustomInsurance && (
@@ -2287,9 +2355,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
             <Form.Item 
               label={
                 <span>
-                  Documents <span style={{ fontWeight: 'normal', color: '#888', fontSize: 13 }}>
-                    ({uploadFileList.length}/2 uploaded)
-                  </span>
+                  Documents 
                 </span>
               }
               name="documents"

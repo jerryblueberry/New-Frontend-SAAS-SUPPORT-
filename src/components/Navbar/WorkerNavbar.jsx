@@ -22,7 +22,7 @@ const WorkerNavbar = () => {
   return (
     <header className="wrk-dashboard-header">
       <div className="wrk-dashboard-header-content">
-        <div className="wrk-dashboard-logo-wrapper">
+        <div className="wrk-dashboard-logo-wrapper" onClick={() => navigate('/dashboard')}>
           <img 
             src={LogoImg} 
             alt="Aecus Care Logo" 
