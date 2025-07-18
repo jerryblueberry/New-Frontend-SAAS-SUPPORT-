@@ -63,7 +63,7 @@ import {
 import { alpha } from '@mui/material/styles';
 import useOnboardingStore, { useAvailabilityMutation } from '../../stores/useOnboardingStore';
 import { daysOfWeek } from '../../utils/constants';
-import suburbs from '../../data/wa_suburbs.json';
+
 import SuburbSelector from './SuburbSelector';
 
 // Day colors for visual distinction

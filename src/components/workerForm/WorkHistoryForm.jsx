@@ -597,12 +597,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
   return (
     <form onSubmit={handleSubmit} className="wh-form" noValidate>
       <Toaster position="top-right" />
-      {/* Summary error at the top */}
-      {Object.keys(formErrors).length > 0 && (
-        <div className="wh-error-message" style={{ marginBottom: '1rem' }}>
-          Please fix the errors highlighted below.
-        </div>
-      )}
+      {/* Summary error at the top - removed, now handled by toast only */}
       <div className="wh-section wh-header-section">
         <h2>Work History & References</h2>
         <p>

@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import WorkerNavbar from "../../../components/Navbar/WorkerNavbar";
 
 const SIDEBAR_WIDTH = 280;
-const SIDEBAR_GAP = 8; // px
+const SIDEBAR_GAP = 4; // px
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
@@ -24,7 +24,7 @@ const AdminDashboard = () => {
                 left: 0,
                 height: `calc(100vh - 64px)`
             }}>
-                <AdminSidebar topOffset={64} />
+                <AdminSidebar topOffset={64} navigate={navigate} />
             </Box>
             {/* Main Content */}
             <Box

@@ -58,6 +58,8 @@ import DocumentPreview from '../../components/workerForm/Modals/DocumentPreview'
 import { toast } from 'react-hot-toast';
 import api from '../../api/axios';
 import { NATIONALITIES } from '../../utils/constants';
+import RenderEducationFields from '../../components/WorkerCertificateOnboarding/RenderEducationFields';
+import RenderInsuranceField from '../../components/WorkerCertificateOnboarding/RenderInsuranceField';
 
 const { Title, Text, Paragraph } = Typography;
 const { Step } = Steps;
@@ -275,6 +277,10 @@ const PREDEFINED_INSURANCE_TYPES = [
 ];
 
 const CertificateSecond = ({ initialStep = 0 }) => {
+  const customDegreeInputRef = useRef(null);
+  const customInsuranceInputRef = useRef(null);
+  const degreeSelectRef = useRef(null); 
+  const insuranceSelectRef = useRef(null); // <-- Add this line
   const navigate = useNavigate();
   const {
     currentStep: onboardingStep,
@@ -1887,206 +1893,6 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
 
 
 
-  const addCustomDegree = () => {
-    if (customDegreeInput.trim() && !customDegrees.includes(customDegreeInput.trim())) {
-      const newDegree = customDegreeInput.trim();
-      setCustomDegrees([...customDegrees, newDegree]);
-
-      // Auto-select the newly added degree
-      const currentValues = certForm.getFieldValue('degree') || [];
-      certForm.setFieldsValue({
-        degree: [...currentValues, newDegree]
-      });
-
-      setCustomDegreeInput('');
-    }
-  };
-
-  // 1. Add refs for custom input focus at the top of CertificateSecond
-  const customDegreeInputRef = useRef(null);
-  const customInsuranceInputRef = useRef(null);
-
-  // 2. Update renderEducationFields to single-select and custom input with auto-focus
-  const renderEducationFields = (certType, certIndex, showCustomDegree, setShowCustomDegree, customDegreeValue, setCustomDegreeValue) => {
-    if (!certType.isEducation) return null;
-    const degreeOptions = certType.educationSetting?.degreeOptions || [];
-    const allDegreeOptions = [...degreeOptions, 'Other'];
-  
-    // Handler for degree change
-    const handleDegreeChange = (value) => {
-      if (value === 'Other') {
-        setShowCustomDegree(true);
-        setTimeout(() => {
-          if (customDegreeInputRef.current) customDegreeInputRef.current.focus();
-        }, 0);
-      } else {
-        setShowCustomDegree(false);
-        setCustomDegreeValue('');
-        certForm.setFieldsValue({ degree: value });
-        setTimeout(() => {
-          if (document.activeElement) {
-            document.activeElement.blur();
-          }
-        }, 100);
-      }
-    };
-  
-    // Handler for custom degree input
-    const handleCustomDegreeInput = (e) => {
-      setCustomDegreeValue(e.target.value);
-    };
-  
-    // Handler for saving custom degree
-    const handleSaveCustomDegree = () => {
-      if (customDegreeValue.trim()) {
-        // Store as 'Other|customDegreeValue'
-        certForm.setFieldsValue({ degree: `Other|${customDegreeValue.trim()}` });
-        setShowCustomDegree(false);
-        setCustomDegreeValue('');
-      }
-    };
-  
-    // Handler for canceling custom degree
-    const handleCancelCustomDegree = () => {
-      certForm.setFieldsValue({ degree: undefined });
-      setShowCustomDegree(false);
-      setCustomDegreeValue('');
-    };
-  
-    // Custom display for Select value
-    const degreeValue = certForm.getFieldValue('degree');
-    let selectDisplayValue = degreeValue;
-    if (typeof degreeValue === 'string' && degreeValue.startsWith('Other|')) {
-      selectDisplayValue = `Other - ${degreeValue.slice(6)}`;
-    }
-  
-    return (
-      <>
-        <Form.Item
-          label="Degree"
-          name="degree"
-          rules={[{ required: true, message: 'Please select or enter your degree' }]}
-          tooltip="Select your qualification from the list. If not listed, choose 'Other'."
-        >
-          <Select
-            placeholder="Select your degree"
-            showSearch
-            optionFilterProp="children"
-            filterOption={(input, option) =>
-              option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-            }
-            onChange={handleDegreeChange}
-            value={degreeValue}
-            optionLabelProp="label"
-            dropdownRender={menu => menu}
-          >
-            {allDegreeOptions.map((degree) => (
-              <Select.Option key={degree} value={degree} label={degree}>
-                {degree}
-              </Select.Option>
-            ))}
-            {/* Custom label for the selected custom value (not shown in dropdown, but used for display) */}
-            {typeof degreeValue === 'string' && degreeValue.startsWith('Other|') && (
-              <Select.Option
-                key={degreeValue}
-                value={degreeValue}
-                label={
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                    <TagOutlined style={{ color: '#faad14' }} />
-                    <span>Other - {degreeValue.slice(6)}</span>
-                  </span>
-                }
-                disabled
-              >
-                {/* Not shown in dropdown */}
-              </Select.Option>
-            )}
-          </Select>
-        </Form.Item>
-        {showCustomDegree && (
-          <div
-            style={{
-              background: '#f6f8fa',
-              border: '1px solid #e6e6e6',
-              borderRadius: 8,
-              padding: 20,
-              marginBottom: 16,
-              marginTop: -8,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 12,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-            }}
-          >
-            <div style={{ fontWeight: 500, fontSize: 15, marginBottom: 4 }}>
-              Enter your degree
-            </div>
-            <Input
-              ref={customDegreeInputRef}
-              placeholder="Type your degree name"
-              value={customDegreeValue}
-              onChange={handleCustomDegreeInput}
-              maxLength={50}
-              style={{ borderRadius: 6, fontSize: 15 }}
-              autoFocus
-              onPressEnter={handleSaveCustomDegree}
-            />
-            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-              <Button
-                type="primary"
-                onClick={handleSaveCustomDegree}
-                disabled={!customDegreeValue.trim()}
-                style={{ borderRadius: 6 }}
-              >
-                Save
-              </Button>
-              <Button
-                onClick={handleCancelCustomDegree}
-                style={{ borderRadius: 6 }}
-              >
-                Cancel
-              </Button>
-            </div>
-            <div style={{ color: '#888', fontSize: 12 }}>
-              Please enter your degree as it appears on your certificate.
-            </div>
-          </div>
-        )}
-      </>
-    );
-  };
-  // Handler for insurance type change (like degree)
-  const handleInsuranceTypeChange = (value) => {
-    if (value === 'Other') {
-      setShowCustomInsurance(true);
-      setTimeout(() => {
-        if (customInsuranceInputRef.current) customInsuranceInputRef.current.focus();
-      }, 0);
-    } else {
-      setShowCustomInsurance(false);
-      setCustomInsuranceValue('');
-      certForm.setFieldsValue({ insuranceType: value });
-    }
-  };
-
-  const handleCustomInsuranceInput = (e) => {
-    setCustomInsuranceValue(e.target.value);
-  };
-
-  const handleSaveCustomInsurance = () => {
-    if (customInsuranceValue.trim()) {
-      certForm.setFieldsValue({ insuranceType: customInsuranceValue.trim() });
-      setShowCustomInsurance(false);
-      setCustomInsuranceValue('');
-    }
-  };
-
-  const handleCancelCustomInsurance = () => {
-    certForm.setFieldsValue({ insuranceType: undefined });
-    setShowCustomInsurance(false);
-    setCustomInsuranceValue('');
-  };
-
   const renderCertificationForm = useMemo(() => {
     if (!certDetailsVisible) {
       return null;
@@ -2160,123 +1966,31 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
           }}
           onFieldsChange={handleFieldsChange}
         >
-          {renderEducationFields(certType, currentCertIndex, showCustomDegree, setShowCustomDegree, customDegreeValue, setCustomDegreeValue)}
+          <RenderEducationFields
+            certType={certType}
+            certIndex={currentCertIndex}
+            showCustomDegree={showCustomDegree}
+            setShowCustomDegree={setShowCustomDegree}
+            customDegreeValue={customDegreeValue}
+            setCustomDegreeValue={setCustomDegreeValue}
+            certForm={certForm}
+            customDegreeInputRef={customDegreeInputRef}
+            degreeSelectRef={degreeSelectRef}
+          />
+          {/* Insurance Type Field (moved to its own component) */}
+          {certType.requiredFields.includes('insuranceType') && (
+            <RenderInsuranceField
+              showCustomInsurance={showCustomInsurance}
+              setShowCustomInsurance={setShowCustomInsurance}
+              customInsuranceValue={customInsuranceValue}
+              setCustomInsuranceValue={setCustomInsuranceValue}
+              certForm={certForm}
+              customInsuranceInputRef={customInsuranceInputRef}
+              insuranceSelectRef={insuranceSelectRef} // <-- Pass the ref here
+            />
+          )}
           {certType.requiredFields.map(field => {
-            if (field === 'degree') return null; // Skip degree as it's handled separately
-            if (field === 'insuranceType') {
-              // --- Insurance Type: icon only for custom value selection ---
-              const insuranceValue = certForm.getFieldValue('insuranceType');
-              const isCustomInsurance = (
-                typeof insuranceValue === 'string' &&
-                insuranceValue !== '' &&
-                insuranceValue !== 'Other' &&
-                showCustomInsurance === false // Only after custom value is saved
-              );
-              return (
-                <React.Fragment key={field}>
-                  <Form.Item
-                    name={field}
-                    label="Insurance Type"
-                    rules={[{ required: true, message: 'Please select or enter your insurance type' }]}
-                    tooltip="Select your insurance type. If not listed, choose 'Other' to add your own."
-                  >
-                    <Select
-                      placeholder="Select or enter insurance type"
-                      allowClear
-                      value={insuranceValue}
-                      optionLabelProp="label"
-                      onChange={(value) => {
-                        handleInsuranceTypeChange(value);
-                        setTimeout(() => {
-                          if (document.activeElement) {
-                            document.activeElement.blur();
-                          }
-                        }, 100);
-                      }}
-                      onBlur={() => {
-                        setTimeout(() => {
-                          if (document.activeElement && document.activeElement.tagName === 'INPUT') {
-                            document.activeElement.blur();
-                          }
-                        }, 50);
-                      }}
-                      style={{ transition: 'all 0.3s ease' }}
-                    >
-                      {PREDEFINED_INSURANCE_TYPES.map((type) => (
-                        <Select.Option key={type} value={type}>
-                          {type}
-                        </Select.Option>
-                      ))}
-                      <Select.Option key="Other" value="Other">
-                        Other
-                      </Select.Option>
-                      {isCustomInsurance && (
-                        <Select.Option
-                          key={insuranceValue}
-                          value={insuranceValue}
-                          label={
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                              <TagOutlined style={{ color: '#faad14' }} />
-                              <span>Other - {insuranceValue}</span>
-                            </span>
-                          }
-                          disabled
-                        />
-                      )}
-                    </Select>
-                  </Form.Item>
-                  {showCustomInsurance && (
-                    <div
-                      style={{
-                        background: '#f6f8fa',
-                        border: '1px solid #e6e6e6',
-                        borderRadius: 8,
-                        padding: 20,
-                        marginBottom: 16,
-                        marginTop: -8,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 12,
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-                      }}
-                    >
-                      <div style={{ fontWeight: 500, fontSize: 15, marginBottom: 4 }}>
-                        Enter your insurance type
-                      </div>
-                      <Input
-                        ref={customInsuranceInputRef}
-                        placeholder="Type your insurance type"
-                        value={customInsuranceValue}
-                        onChange={handleCustomInsuranceInput}
-                        maxLength={50}
-                        style={{ borderRadius: 6, fontSize: 15 }}
-                        autoFocus
-                        onPressEnter={handleSaveCustomInsurance}
-                      />
-                      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                        <Button
-                          type="primary"
-                          onClick={handleSaveCustomInsurance}
-                          disabled={!customInsuranceValue.trim()}
-                          style={{ borderRadius: 6 }}
-                        >
-                          Save
-                        </Button>
-                        <Button
-                          onClick={handleCancelCustomInsurance}
-                          style={{ borderRadius: 6 }}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                      <div style={{ color: '#888', fontSize: 12 }}>
-                        Please enter your insurance type as it appears on your document.
-                      </div>
-                    </div>
-                  )}
-                </React.Fragment>
-              );
-            }
+            if (field === 'degree' || field === 'insuranceType') return null; // Skip, handled above
             const isDateField = field.toLowerCase().includes('date');
             const fieldLabel = formatFieldLabel(field);
             const fieldTooltip = getFieldTooltip(field);
@@ -2530,7 +2244,6 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
     requiredCerts,
     handleDrawerClose,
     pendingCertTypeId,
-    renderEducationFields,
     setIsFormValid,
     wwccDraft,
     removeCertificationDocument
@@ -2782,16 +2495,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
         </Card>
       )}
 
-      {/* <div style={{ marginBottom: 32,display:'flex',flexDirection:'column',justifyContent:'center',alignItems:'center' }}>
-        <Title level={2} style={{ marginBottom: 8 }}>
-          Certification Manager
-        </Title>
-        <Text type="secondary">
-          {hasExistingCertifications 
-            ? 'Review and update your existing certifications or add new ones as needed.'
-            : 'Complete your profile by adding the required certifications based on your nationality and residency status.'}
-        </Text>
-      </div> */}
+      
 
       <Steps current={currentStep} style={{ marginBottom: 48,marginTop:40,padding:10 }}>
         {steps.map((item) => (

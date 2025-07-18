@@ -14,23 +14,14 @@ import {
   Grid,
   Chip,
   Button,
-  IconButton,
   Divider,
   Card,
-  CardContent,
-  CardHeader,
-  Avatar,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
   Stack,
   Tooltip,
   Alert,
   AlertTitle,
   Tabs,
   Tab,
-  LinearProgress,
   Badge,
   Dialog,
   DialogTitle,
@@ -45,47 +36,33 @@ import {
   Switch,
 } from "@mui/material";
 import {
-  Person as PersonIcon,
-  Email as EmailIcon,
-  Phone as PhoneIcon,
-  CalendarToday as CalendarIcon,
-  AttachMoney as AttachMoneyIcon,
-  ArrowBack as ArrowBackIcon,
-  Download as DownloadIcon,
-  Description as DescriptionIcon,
+  School as SchoolIcon,
+  Edit as EditIcon,
+  DeleteOutline as DeleteOutlineIcon,
   VerifiedUser as VerifiedIcon,
   Warning as WarningIcon,
   Error as ErrorIcon,
-  CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
-  Language as LanguageIcon,
-  Work as WorkIcon,
-  HealthAndSafety as HealthIcon,
-  School as SchoolIcon,
-  Business as BusinessIcon,
   Schedule as ScheduleIcon,
-  Star as StarIcon,
-  StarBorder as StarBorderIcon,
   LocationOn as LocationIcon,
   AccessTime as AccessTimeIcon,
-  Info as InfoIcon,
-  Edit as EditIcon,
-  DeleteOutline as DeleteOutlineIcon,
+  Description as DescriptionIcon,
+  ArrowBack as ArrowBackIcon,
 } from "@mui/icons-material";
-import "./WorkerDetails.css";
 import WorkerDetailsHeader from '../../../components/workerDetails/WorkerDetailsHeader';
 import WorkerDetailTabContent from '../../../components/workerDetails/WorkerDetailTabContent';
+import AdminSidebar from "../../../components/adminSidebar/AdminSidebar";
+import MenuIcon from '@mui/icons-material/Menu';
+import { useTheme, useMediaQuery, IconButton, Drawer } from "@mui/material";
+
+const SIDEBAR_WIDTH = 280;
+const SIDEBAR_GAP = 8;
 
 const getVerificationStatusColor = (status) => {
   switch (status) {
-    case "Fully Verified":
-      return "success";
-    case "Partially Verified":
-      return "warning";
-    case "Unverified":
-      return "error";
-    default:
-      return "default";
+    case "Fully Verified": return "success";
+    case "Partially Verified": return "warning";
+    case "Unverified": return "error";
+    default: return "default";
   }
 };
 
@@ -112,10 +89,9 @@ const WorkerDetails = () => {
   const [verError, setVerError] = useState("");
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const deleteTimeoutRef = useRef(); // For cleanup
+  const deleteTimeoutRef = useRef();
+  // REMOVE: theme, isMobile, mobileSidebarOpen, setMobileSidebarOpen
 
-  console.log("workerData",workerData?.CV);
-  console.log("workerData",workerData);
   useEffect(() => {
     const fetchWorkerDetails = async () => {
       try {
@@ -129,7 +105,6 @@ const WorkerDetails = () => {
         setLoading(false);
       }
     };
-
     fetchWorkerDetails();
   }, [workerId]);
 
@@ -143,107 +118,41 @@ const WorkerDetails = () => {
     }
   }, [workerData]);
 
-  const handleBack = () => {
-    navigate(-1);
-  };
-
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    return format(new Date(dateString), "MMM dd, yyyy");
-  };
-
-  console.log("SELECTED CERTS",selectedCertification?.verificationStatus);
-  console.log("avalability data",workerData?.availability);
+  const handleBack = () => navigate(-1);
+  const handleTabChange = (event, newValue) => setActiveTab(newValue);
+  const formatDate = (dateString) => !dateString ? "N/A" : format(new Date(dateString), "MMM dd, yyyy");
 
   const renderAvailabilitySchedule = () => {
     const { customTimeSlots = [], suburb, kmWillingToTravel } = workerData.availability || {};
-
-    // Group slots by dayOfWeek
-    const daysOfWeek = [
-      "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
-    ];
-    const slotsByDay = daysOfWeek.reduce((acc, day) => {
-      acc[day] = [];
-      return acc;
-    }, {});
-    customTimeSlots.forEach(slot => {
-      if (slotsByDay[slot.dayOfWeek]) {
-        slotsByDay[slot.dayOfWeek].push(slot);
-      }
-    });
-
+    const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    const slotsByDay = daysOfWeek.reduce((acc, day) => { acc[day] = []; return acc; }, {});
+    customTimeSlots.forEach(slot => { if (slotsByDay[slot.dayOfWeek]) slotsByDay[slot.dayOfWeek].push(slot); });
     return (
-      <Card sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3, boxShadow: 4, mb: 2 }}>
+      <Card sx={{ p: 2, borderRadius: 3, boxShadow: 2, mb: 2 }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems={{ xs: 'flex-start', sm: 'center' }} mb={3}>
           <Stack direction="row" spacing={1} alignItems="center">
             <LocationIcon color="primary" />
-            <Typography variant="h6" fontWeight={700} sx={{ color: 'primary.main' }}>
-              {suburb || 'No suburb specified'}
-            </Typography>
+            <Typography variant="h6" fontWeight={700} sx={{ color: 'primary.main' }}>{suburb || 'No suburb specified'}</Typography>
           </Stack>
-          <Chip
-            icon={<AccessTimeIcon />}
-            label={`Willing to travel: ${kmWillingToTravel ? kmWillingToTravel + ' km' : 'N/A'}`}
-            color="secondary"
-            sx={{ fontWeight: 600, fontSize: 16 }}
-          />
+          <Chip icon={<AccessTimeIcon />} label={`Willing to travel: ${kmWillingToTravel ? kmWillingToTravel + ' km' : 'N/A'}`} color="secondary" sx={{ fontWeight: 600, fontSize: 16 }} />
         </Stack>
         <Divider sx={{ mb: 3 }} />
-        <Grid container spacing={3}>
+        <Grid container spacing={2}>
           {daysOfWeek.map(day => (
             <Grid item xs={12} sm={6} md={4} key={day}>
-              <Paper
-                elevation={2}
-                sx={{
-                  p: 2,
-                  minHeight: 120,
-                  bgcolor: slotsByDay[day].length > 0 ? 'primary.light' : 'grey.100',
-                  color: slotsByDay[day].length > 0 ? 'primary.contrastText' : 'text.secondary',
-                  borderRadius: 2,
-                  boxShadow: slotsByDay[day].length > 0 ? 4 : 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  transition: 'box-shadow 0.2s',
-                }}
-              >
+              <Paper elevation={1} sx={{ p: 2, minHeight: 100, bgcolor: slotsByDay[day].length > 0 ? 'primary.light' : 'grey.100', color: slotsByDay[day].length > 0 ? 'primary.contrastText' : 'text.secondary', borderRadius: 2, boxShadow: slotsByDay[day].length > 0 ? 2 : 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                 <Stack direction="row" alignItems="center" spacing={1} mb={1}>
-                  <Typography variant="subtitle1" fontWeight="bold">
-                    {day}
-                  </Typography>
-                  <Badge
-                    badgeContent={slotsByDay[day].length}
-                    color={slotsByDay[day].length > 0 ? 'success' : 'default'}
-                    sx={{ ml: 1 }}
-                  >
-                    <ScheduleIcon fontSize="small" />
-                  </Badge>
+                  <Typography variant="subtitle1" fontWeight="bold">{day}</Typography>
+                  <Badge badgeContent={slotsByDay[day].length} color={slotsByDay[day].length > 0 ? 'success' : 'default'} sx={{ ml: 1 }}><ScheduleIcon fontSize="small" /></Badge>
                 </Stack>
                 {slotsByDay[day].length > 0 ? (
                   <Stack direction="row" spacing={1} flexWrap="wrap">
                     {slotsByDay[day].map((slot, idx) => (
-                      <Chip
-                        key={idx}
-                        icon={<AccessTimeIcon fontSize="small" />}
-                        label={`${slot.startTime} - ${slot.endTime}`}
-                        size="small"
-                        sx={{
-                          bgcolor: 'rgba(255,255,255,0.25)',
-                          color: 'primary.main',
-                          fontWeight: 600,
-                          mb: 1,
-                        }}
-                      />
+                      <Chip key={idx} icon={<AccessTimeIcon fontSize="small" />} label={`${slot.startTime} - ${slot.endTime}`} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.25)', color: 'primary.main', fontWeight: 600, mb: 1 }} />
                     ))}
                   </Stack>
                 ) : (
-                  <Typography variant="body2" color="text.secondary" mt={1}>
-                    No availability
-                  </Typography>
+                  <Typography variant="body2" color="text.secondary" mt={1}>No availability</Typography>
                 )}
               </Paper>
             </Grid>
@@ -418,171 +327,151 @@ const WorkerDetails = () => {
 
   if (loading) {
     return (
-      <Box className="worker-details-loading">
+      <Box minHeight="100vh" display="flex" alignItems="center" justifyContent="center" bgcolor="#f7fafd">
         <LoadingSpinner size="lg" text="Loading worker details..." fullPage={true} />
       </Box>
     );
   }
-
   if (error) {
     return (
-      <Box className="worker-details-error">
-        <Alert severity="error" sx={{ mb: 2 }}>
-          <AlertTitle>Error Loading Worker Details</AlertTitle>
-          {error}
-        </Alert>
-        <Button
-          variant="contained"
-          startIcon={<ArrowBackIcon />}
-          onClick={handleBack}
-        >
-          Go Back
-        </Button>
+      <Box minHeight="100vh" display="flex" alignItems="center" justifyContent="center" bgcolor="#f7fafd">
+        <Card sx={{ p: 4, maxWidth: 400, mx: 'auto' }}>
+          <Alert severity="error" sx={{ mb: 2 }}>
+            <AlertTitle>Error Loading Worker Details</AlertTitle>
+            {error}
+          </Alert>
+          <Button variant="contained" startIcon={<ArrowBackIcon />} onClick={handleBack} fullWidth>Go Back</Button>
+        </Card>
       </Box>
     );
   }
-
   if (!workerData) {
     return (
-      <Box className="worker-details-not-found">
-        <Alert severity="info" sx={{ mb: 2 }}>
-          <AlertTitle>Worker Not Found</AlertTitle>
-          The requested worker details could not be found.
-        </Alert>
-        <Button
-          variant="contained"
-          startIcon={<ArrowBackIcon />}
-          onClick={handleBack}
-        >
-          Go Back
-        </Button>
+      <Box minHeight="100vh" display="flex" alignItems="center" justifyContent="center" bgcolor="#f7fafd">
+        <Card sx={{ p: 4, maxWidth: 400, mx: 'auto' }}>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <AlertTitle>Worker Not Found</AlertTitle>
+            The requested worker details could not be found.
+          </Alert>
+          <Button variant="contained" startIcon={<ArrowBackIcon />} onClick={handleBack} fullWidth>Go Back</Button>
+        </Card>
       </Box>
     );
   }
 
   return (
-    <>
-    <WorkerNavbar/>
-      <Container maxWidth="xl" sx={{ py: 4,mt:6 }}>
-      {/* Enhanced Header Section with Profile Summary */}
-      <WorkerDetailsHeader 
-        workerData={workerData} 
-        handleBack={handleBack} 
-        getVerificationStatusColor={getVerificationStatusColor} 
-      />
-
-      {/* Main Content Tabs */}
-      <Box sx={{ mb: 4 }}>
-        <Tabs
-          value={activeTab}
-          onChange={handleTabChange}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{ borderBottom: 1, borderColor: "divider" }}
+    <Box sx={{ minHeight: '100vh', backgroundColor: '#f7fafd' }}>
+      <WorkerNavbar />
+      {/* Mobile menu icon */}
+      {/* REMOVE: isMobile && (
+        <IconButton
+          color="inherit"
+          aria-label="open drawer"
+          edge="start"
+          onClick={() => setMobileSidebarOpen(true)}
+          sx={{
+            position: 'fixed',
+            top: 16,
+            left: 16,
+            zIndex: 1300,
+            backgroundColor: 'white',
+            boxShadow: 2,
+            '&:hover': { backgroundColor: '#f5f5f5' }
+          }}
         >
-          <Tab label="Overview" />
-          <Tab label="Certifications" />
-          <Tab label="Availability" />
-          <Tab label="Health Information" />
-          <Tab label="References & Work History" />
-        </Tabs>
+          <MenuIcon />
+        </IconButton>
+      ) */}
+      {/* Sidebar - let AdminSidebar handle all responsiveness */}
+      <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f7fafd' }}>
+        {/* Sidebar - let AdminSidebar handle all responsiveness */}
+        <Box sx={{
+          width: { xs: '0px', md: `${SIDEBAR_WIDTH}px` },
+          flexShrink: 0,
+          zIndex: 1200,
+          position: 'fixed',
+          top: { xs: 56, md: 64 }, // adjust if your navbar height is different
+          left: 0,
+          height: `calc(100vh - 64px)`
+        }}>
+          <AdminSidebar topOffset={64} navigate={navigate} />
+        </Box>
+        {/* Main Content */}
+        <Box
+          sx={{
+            flexGrow: 1,
+            width: '100%',
+            ml: { md: `${SIDEBAR_WIDTH + SIDEBAR_GAP}px`, xs: 0 },
+            p: { xs: 2, sm: 3, md: 4 },
+            mt: { xs: 8, md: 3 },
+            minHeight: '100vh',
+            transition: 'margin-left 0.2s',
+          }}
+        >
+          <Container maxWidth="lg" sx={{ p: 0 }}>
+            {/* Header Card */}
+            <Card sx={{ mb: 3, p: { xs: 2, md: 3 }, borderRadius: 4, boxShadow: 4 }}>
+              <WorkerDetailsHeader workerData={workerData} handleBack={handleBack} getVerificationStatusColor={getVerificationStatusColor} />
+            </Card>
+            {/* Tabs Card */}
+            <Card sx={{ mb: 3, borderRadius: 4, boxShadow: 3 }}>
+              <Box sx={{ px: { xs: 1, md: 2 }, pt: 2 }}>
+                <Tabs value={activeTab} onChange={handleTabChange} variant="scrollable" scrollButtons="auto" sx={{ borderBottom: 1, borderColor: "divider" }}>
+                  <Tab label="Overview" />
+                  <Tab label="Certifications" />
+                  <Tab label="Availability" />
+                  <Tab label="Health Information" />
+                  <Tab label="References & Work History" />
+                </Tabs>
+              </Box>
+              <Box sx={{ p: { xs: 1, md: 3 } }}>
+                <WorkerDetailTabContent
+                  activeTab={activeTab}
+                  workerData={workerData}
+                  setSelectedCertification={setSelectedCertification}
+                  setSelectedDocument={setSelectedDocument}
+                  renderAvailabilitySchedule={renderAvailabilitySchedule}
+                  formatDate={formatDate}
+                />
+              </Box>
+            </Card>
+            {/* Status & Delete Cards */}
+            <Grid container spacing={3} sx={{ mb: 3 }}>
+              <Grid item xs={12} md={6}>
+                <Tooltip title="Click to update verification status">
+                  <Card sx={{ p: 2, borderRadius: 4, boxShadow: 3, display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer', transition: 'box-shadow 0.2s, background 0.2s', '&:hover': { boxShadow: 6, background: '#f5f5f5' } }} onClick={() => setVerModalOpen(true)}>
+                    <Chip
+                      label={workerData.verificationStatus.overall}
+                      color={getVerificationStatusColor(workerData.verificationStatus.overall)}
+                      icon={workerData.verificationStatus.overall === "Fully Verified" ? <VerifiedIcon /> : workerData.verificationStatus.overall === "Partially Verified" ? <WarningIcon /> : <ErrorIcon />}
+                      sx={{ fontWeight: 'bold', fontSize: 16, px: 2, py: 1 }}
+                    />
+                    <Box>
+                      <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 500 }}>Verification Status</Typography>
+                      <Typography variant="body2" color="text.secondary">Click to update</Typography>
+                    </Box>
+                    <EditIcon color="action" />
+                  </Card>
+                </Tooltip>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Tooltip title="Delete this worker profile">
+                  <Card sx={{ p: 2, borderRadius: 4, boxShadow: 3, display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer', transition: 'box-shadow 0.2s, background 0.2s', '&:hover': { boxShadow: 6, background: '#fff0f0' } }} onClick={() => setDeleteModalOpen(true)}>
+                    <DeleteOutlineIcon sx={{ color: '#ff1744', fontSize: 32 }} />
+                    <Box>
+                      <Typography variant="subtitle2" color="#ff1744" sx={{ fontWeight: 700 }}>Delete Profile</Typography>
+                      <Typography variant="body2" color="text.secondary">Permanently remove this worker and all their information</Typography>
+                    </Box>
+                  </Card>
+                </Tooltip>
+              </Grid>
+            </Grid>
+          </Container>
+          {/* Modals and Dialogs (unchanged) */}
+          {/* ... Place all your Dialogs and DocumentPreview here, outside Container for full width overlay ... */}
+        </Box>
       </Box>
-
-      {/* Verification Status Card (responsive, beautiful) */}
-      <Box
-        sx={{
-          mb: 4,
-          display: 'flex',
-          flexDirection: { xs: 'column', sm: 'row' },
-          gap: 3,
-          alignItems: { xs: 'stretch', sm: 'center' },
-          justifyContent: { xs: 'center', sm: 'flex-start' },
-          width: '100%',
-          flexWrap: 'wrap',
-        }}
-      >
-        {/* Verification Status Card */}
-        <Tooltip title="Click to update verification status">
-          <Card
-            sx={{
-              p: 2,
-              minWidth: { xs: '100%', sm: 320 },
-              maxWidth: 440,
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
-              cursor: 'pointer',
-              boxShadow: 4,
-              borderRadius: 3,
-              transition: 'box-shadow 0.2s, background 0.2s',
-              '&:hover': { boxShadow: 8, background: '#f5f5f5' },
-              background: 'linear-gradient(90deg, #e3f2fd 0%, #fce4ec 100%)',
-              border: '1.5px solid #90caf9',
-            }}
-            onClick={handleVerModalOpen}
-          >
-            <Chip
-              label={workerData.verificationStatus.overall}
-              color={getVerificationStatusColor(workerData.verificationStatus.overall)}
-              icon={
-                workerData.verificationStatus.overall === "Fully Verified" ? (
-                  <VerifiedIcon />
-                ) : workerData.verificationStatus.overall === "Partially Verified" ? (
-                  <WarningIcon />
-                ) : (
-                  <ErrorIcon />
-                )
-              }
-              sx={{ fontWeight: 'bold', fontSize: 16, px: 2, py: 1 }}
-            />
-            <Box>
-              <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                Verification Status
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Click to update
-              </Typography>
-            </Box>
-            <EditIcon color="action" />
-          </Card>
-        </Tooltip>
-
-        {/* Delete Worker Profile Card */}
-        <Tooltip title="Delete this worker profile">
-          <Card
-            sx={{
-              p: 2,
-              minWidth: { xs: '100%', sm: 320 },
-              height:80,
-              maxWidth: 440,
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
-              cursor: 'pointer',
-              boxShadow: 4,
-              borderRadius: 3,
-              transition: 'box-shadow 0.2s, background 0.2s',
-              '&:hover': { boxShadow: 8, background: '#fff0f0' },
-              background: 'linear-gradient(90deg, #fff0f0 0%, #ffe4e1 100%)',
-              border: '1.5px solid #ff1744',
-            }}
-            onClick={() => setDeleteModalOpen(true)}
-          >
-            <DeleteOutlineIcon sx={{ color: '#ff1744', fontSize: 32 }} />
-            <Box>
-              <Typography variant="subtitle2" color="#ff1744" sx={{ fontWeight: 700 }}>
-                Delete Profile
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Permanently remove this worker and all their information
-              </Typography>
-            </Box>
-          </Card>
-        </Tooltip>
-      </Box>
-
+      {/* Dialogs and overlays (keep outside main content for proper overlay) */}
       {/* Modal for updating verification status */}
       <Dialog open={verModalOpen} onClose={handleVerModalClose} maxWidth="xs" fullWidth>
         <DialogTitle>Update Verification Status</DialogTitle>
@@ -627,7 +516,6 @@ const WorkerDetails = () => {
           </Button>
         </DialogActions>
       </Dialog>
-
       {/* Rejection Reason Dialog */}
       <Dialog
         open={showRejectionDialog}
@@ -736,16 +624,6 @@ const WorkerDetails = () => {
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Tab Content */}
-      <WorkerDetailTabContent
-        activeTab={activeTab}
-        workerData={workerData}
-        setSelectedCertification={setSelectedCertification}
-        setSelectedDocument={setSelectedDocument}
-        renderAvailabilitySchedule={renderAvailabilitySchedule}
-        formatDate={formatDate}
-      />
 
       {/* Certification Details Dialog */}
       <Dialog
@@ -964,9 +842,7 @@ const WorkerDetails = () => {
           </Box>
         )}
       </Dialog>
-    </Container>
-    </>
-  
+    </Box>
   );
 };
 

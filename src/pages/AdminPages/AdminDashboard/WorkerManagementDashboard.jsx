@@ -376,7 +376,7 @@ const WorkerManagementDashboard = () => {
     return (
         <Box sx={{ display: 'flex', minHeight: '100vh', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
             <WorkerNavbar />
-            <AdminSidebar topOffset={64} />
+            <AdminSidebar topOffset={64} navigate={navigate} />
             <Box
                 component="main"
                 sx={{

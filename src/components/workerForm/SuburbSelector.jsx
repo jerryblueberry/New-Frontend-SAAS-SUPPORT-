@@ -756,56 +756,7 @@ const SuburbSelector = ({
           </Box>
 
           {/* Enhanced Footer */}
-          <Box 
-            mt={3} 
-            display="flex" 
-            alignItems="center" 
-            justifyContent="space-between"
-            sx={{
-              p: 2,
-              borderRadius: 2,
-              background: alpha(theme.palette.background.default, 0.3),
-              border: `1px solid ${alpha(theme.palette.divider, 0.08)}`
-            }}
-          >
-            <Box flex={1}>
-              <Typography 
-                variant="caption" 
-                color="text.secondary"
-                sx={{ 
-                  fontSize: { xs: '0.75rem', sm: '0.8rem' },
-                  fontWeight: 500
-                }}
-              >
-                {selectedSuburb 
-                  ? `✓ ${selectedSuburb.place_name}${selectedSuburb.custom ? ' (Custom)' : ''}`
-                  : 'Start typing to search locations'
-                }
-              </Typography>
-            </Box>
-            {selectedSuburb && (
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={handleClear}
-                sx={{
-                  textTransform: 'none',
-                  fontSize: { xs: '0.75rem', sm: '0.8rem' },
-                  py: 0.5,
-                  px: 1.5,
-                  borderRadius: 2,
-                  fontWeight: 600,
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    transform: 'translateY(-1px)',
-                    boxShadow: theme.shadows[2]
-                  }
-                }}
-              >
-                Change
-              </Button>
-            )}
-          </Box>
+          
         </CardContent>
       </Card>
     </Grid>

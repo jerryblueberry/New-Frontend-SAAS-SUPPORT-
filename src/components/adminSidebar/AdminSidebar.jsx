@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Drawer,
@@ -18,6 +18,7 @@ import {
   useMediaQuery,
   alpha
 } from '@mui/material';
+import { useLocation } from 'react-router-dom';
 import {
   Dashboard,
   Analytics,
@@ -63,9 +64,10 @@ import {
 // Add a prop for top offset (navbar height)
 const DEFAULT_TOP_OFFSET = 64; // px
 
-const AdminSidebar = ({ topOffset = DEFAULT_TOP_OFFSET }) => {
+const AdminSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openMenus, setOpenMenus] = useState({});
   const [selectedItem, setSelectedItem] = useState('dashboard');
@@ -81,27 +83,82 @@ const AdminSidebar = ({ topOffset = DEFAULT_TOP_OFFSET }) => {
     }));
   };
 
-  const handleItemClick = (itemId) => {
+  const handleItemClick = (itemId, path) => {
     setSelectedItem(itemId);
+    if (path && navigate) {
+      navigate(path);
+    }
     if (isMobile) {
       setMobileOpen(false);
     }
   };
+
+  // Update selected item based on current route
+  useEffect(() => {
+    const currentPath = location.pathname;
+    
+    // Find the menu item that matches the current path
+    const findMenuItemByPath = (items, path) => {
+      for (const item of items) {
+        if (item.path === path) {
+          return item.id;
+        }
+        if (item.children) {
+          const childMatch = findMenuItemByPath(item.children, path);
+          if (childMatch) return childMatch;
+        }
+      }
+      return null;
+    };
+
+    const matchingItemId = findMenuItemByPath(menuItems, currentPath);
+    if (matchingItemId) {
+      setSelectedItem(matchingItemId);
+      
+      // Also open the parent menu if it's a child item
+      const findParentMenu = (items, childId) => {
+        for (const item of items) {
+          if (item.children && item.children.some(child => child.id === childId)) {
+            return item.id;
+          }
+        }
+        return null;
+      };
+
+      const parentMenuId = findParentMenu(menuItems, matchingItemId);
+      if (parentMenuId) {
+        setOpenMenus(prev => ({ ...prev, [parentMenuId]: true }));
+      }
+    } else {
+      // Fallback: if no exact match, try to find partial matches
+      if (currentPath.includes('admin-dashboard')) {
+        setSelectedItem('dashboard');
+      } else if (currentPath.includes('admin-reference')) {
+        setSelectedItem('questionnaire');
+      }
+    }
+  }, [location.pathname]);
 
   const menuItems = [
     {
       id: 'dashboard',
       label: 'Dashboard',
       icon: <Dashboard />,
-      path: '/dashboard'
+      path: '/admin-dashboard'
     },
     {
-      id: 'analytics',
-      label: 'Analytics',
+      id: 'questionnaire',
+      label: 'Manage Questionnaire',
+      icon: <Assignment />,
+      path: '/admin-reference/questions'
+    },
+    {
+      id: 'Reference',
+      label: 'Reference',
       icon: <Analytics />,
       badge: 'New',
       children: [
-        { id: 'overview', label: 'Overview', icon: <TrendingUp />, path: '/analytics/overview' },
+       
         { id: 'reports', label: 'Reports', icon: <Assignment />, path: '/analytics/reports' },
         { id: 'insights', label: 'Insights', icon: <Speed />, path: '/analytics/insights' }
       ]
@@ -278,7 +335,7 @@ const AdminSidebar = ({ topOffset = DEFAULT_TOP_OFFSET }) => {
             <Box key={item.id}>
               <ListItem disablePadding sx={{ mb: 0.5 }}>
                 <ListItemButton
-                  onClick={() => item.children ? handleMenuClick(item.id) : handleItemClick(item.id)}
+                  onClick={() => item.children ? handleMenuClick(item.id) : handleItemClick(item.id, item.path)}
                   selected={selectedItem === item.id}
                   sx={{
                     borderRadius: 2,
@@ -288,11 +345,12 @@ const AdminSidebar = ({ topOffset = DEFAULT_TOP_OFFSET }) => {
                     color: '#2d3748',
                     '& .MuiListItemIcon-root': { color: '#667eea' },
                     '&.Mui-selected': {
-                      backgroundColor: '#f3f6fa',
-                      color: '#2d3748',
-                      '& .MuiListItemIcon-root': { color: '#5a67d8' },
+                      backgroundColor: '#e3f2fd',
+                      color: '#1976d2',
+                      borderLeft: '4px solid #1976d2',
+                      '& .MuiListItemIcon-root': { color: '#1976d2' },
                       '&:hover': {
-                        backgroundColor: '#e9ecef',
+                        backgroundColor: '#bbdefb',
                       }
                     },
                     '&:hover': {
@@ -344,7 +402,7 @@ const AdminSidebar = ({ topOffset = DEFAULT_TOP_OFFSET }) => {
                     {item.children.map((child) => (
                       <ListItem key={child.id} disablePadding sx={{ mb: 0.2 }}>
                         <ListItemButton
-                          onClick={() => handleItemClick(child.id)}
+                          onClick={() => handleItemClick(child.id, child.path)}
                           selected={selectedItem === child.id}
                           sx={{
                             borderRadius: 2,
@@ -355,11 +413,12 @@ const AdminSidebar = ({ topOffset = DEFAULT_TOP_OFFSET }) => {
                             color: '#2d3748',
                             '& .MuiListItemIcon-root': { color: '#667eea' },
                             '&.Mui-selected': {
-                              backgroundColor: '#f3f6fa',
-                              color: '#2d3748',
-                              '& .MuiListItemIcon-root': { color: '#5a67d8' },
+                              backgroundColor: '#e3f2fd',
+                              color: '#1976d2',
+                              borderLeft: '4px solid #1976d2',
+                              '& .MuiListItemIcon-root': { color: '#1976d2' },
                               '&:hover': {
-                                backgroundColor: '#e9ecef',
+                                backgroundColor: '#bbdefb',
                               }
                             },
                             '&:hover': {
@@ -404,7 +463,7 @@ const AdminSidebar = ({ topOffset = DEFAULT_TOP_OFFSET }) => {
         backgroundColor: '#f8fafc',
       }}>
         <ListItemButton
-          onClick={() => handleItemClick('logout')}
+          onClick={() => handleItemClick('logout', '/logout')}
           sx={{
             borderRadius: 2,
             px: 2,
