@@ -1,7 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import './css/LoadingSpinner.css';
-import LogoImg from '../../assets/AECUS LOGO.webp'
+import LogoImg from '../../assets/AECUS LOGO.png'
 
 const LoadingSpinner = ({
   size = 'lg',

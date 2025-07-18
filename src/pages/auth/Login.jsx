@@ -7,7 +7,7 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { googleAuth } from '../../api/auth';
 import Toast from '../../components/common/Toast';
 import { FaUserFriends, FaChartLine, FaHandshake, FaCalendarAlt } from 'react-icons/fa';
-import AECUSLogo from '../../assets/AECUS LOGO.webp';
+import AECUSLogo from '../../assets/AECUS LOGO.png';
 import './css/Login.css';
 
 const LoadingSpinner = () => (

@@ -35,7 +35,7 @@ import {
   Visibility,
   VisibilityOff
 } from '@mui/icons-material';
-import Logo from '../../assets/AECUS LOGO.webp';
+import Logo from '../../assets/AECUS LOGO.png';
 import { useState, useMemo } from 'react';
 
 const Register = () => {
