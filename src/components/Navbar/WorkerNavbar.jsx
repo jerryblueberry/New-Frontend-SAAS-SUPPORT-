@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import LogoImg from '../../assets/Aecus LOGO.png';
+import LogoImg from '../../assets/aecus-logo.png';
 import './css/WorkerNavbar.css';
 
 const WorkerNavbar = () => {
