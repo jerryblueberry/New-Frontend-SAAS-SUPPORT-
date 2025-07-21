@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import './css/LoadingSpinner.css';
 import LogoImg from '../../assets/aecus-logo.png'
-
+  
 const LoadingSpinner = ({
   size = 'lg',
   color = 'secondary',
