@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import './DocumentPreview.css';
 import { useMediaQuery } from '@mui/material';
 
-const DocumentPreview = ({ document, onClose, onDelete, certificateData }) => {
+const DocumentPreview = ({ document, onClose, certificateData }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [rotation, setRotation] = useState(0);
@@ -12,13 +12,11 @@ const DocumentPreview = ({ document, onClose, onDelete, certificateData }) => {
   const pdfIframeRef = useRef(null);
   const pdfLoadTimeoutRef = useRef(null);
   
-  // Determine file type
   const isPdf = document?.fileType === 'application/pdf';
   const isImage = document?.fileType?.includes('image');
-  
-  // Ensure URL is properly encoded for special characters
   const encodedUrl = document?.url?.replace(/\(/g, '%28').replace(/\)/g, '%29').replace(/ /g, '%20');
-  
+  const isDesktop = useMediaQuery('(min-width:768px)');
+
   // Handle ESC key press to close modal
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -33,45 +31,6 @@ const DocumentPreview = ({ document, onClose, onDelete, certificateData }) => {
     };
   }, [onClose]);
 
-  // Add touch events for swipe to close on mobile
-  useEffect(() => {
-    const modal = modalRef.current;
-    if (!modal) return;
-
-    let touchStartY = 0;
-    let touchEndY = 0;
-    const minSwipeDistance = 100;
-
-    const handleTouchStart = (e) => {
-      touchStartY = e.touches[0].clientY;
-    };
-
-    const handleTouchMove = (e) => {
-      touchEndY = e.touches[0].clientY;
-    };
-
-    const handleTouchEnd = () => {
-      if (touchStartY - touchEndY > minSwipeDistance) {
-        // Swipe up - no action
-      } else if (touchEndY - touchStartY > minSwipeDistance) {
-        // Swipe down - close the preview
-        onClose();
-      }
-      touchStartY = 0;
-      touchEndY = 0;
-    };
-
-    modal.addEventListener('touchstart', handleTouchStart);
-    modal.addEventListener('touchmove', handleTouchMove);
-    modal.addEventListener('touchend', handleTouchEnd);
-
-    return () => {
-      modal.removeEventListener('touchstart', handleTouchStart);
-      modal.removeEventListener('touchmove', handleTouchMove);
-      modal.removeEventListener('touchend', handleTouchEnd);
-    };
-  }, [onClose]);
-  
   // Reset zoom and rotation when document changes
   useEffect(() => {
     setZoomLevel(1);
@@ -80,7 +39,6 @@ const DocumentPreview = ({ document, onClose, onDelete, certificateData }) => {
     setIsLoading(true);
     setPdfViewerFailed(false);
     
-    // Clear any existing timeouts
     if (pdfLoadTimeoutRef.current) {
       clearTimeout(pdfLoadTimeoutRef.current);
     }
@@ -89,7 +47,6 @@ const DocumentPreview = ({ document, onClose, onDelete, certificateData }) => {
   // For PDFs, set up timeout to detect loading failures
   useEffect(() => {
     if (isPdf && isLoading) {
-      // Set a timeout to detect if PDF loading takes too long (8 seconds)
       pdfLoadTimeoutRef.current = setTimeout(() => {
         if (isLoading) {
           setPdfViewerFailed(true);
@@ -105,16 +62,13 @@ const DocumentPreview = ({ document, onClose, onDelete, certificateData }) => {
     };
   }, [isPdf, isLoading]);
   
-  // Handle content load completion
   const handleContentLoad = () => {
-    // Clear the timeout as content has loaded
     if (pdfLoadTimeoutRef.current) {
       clearTimeout(pdfLoadTimeoutRef.current);
     }
     setIsLoading(false);
   };
 
-  // Handle iframe error
   const handlePdfError = () => {
     setPdfViewerFailed(true);
     setIsLoading(false);
@@ -127,26 +81,13 @@ const DocumentPreview = ({ document, onClose, onDelete, certificateData }) => {
   const zoomIn = () => setZoomLevel(prev => Math.min(prev + 0.25, 3));
   const zoomOut = () => setZoomLevel(prev => Math.max(prev - 0.25, 0.5));
   const resetZoom = () => setZoomLevel(1);
-  
-  // Rotation function
   const rotateClockwise = () => setRotation(prev => (prev + 90) % 360);
-  
-  // For PDFs with pagination
-  const changePage = (offset) => {
-    setPageNumber(prev => Math.max(1, prev + offset));
-  };
+  const changePage = (offset) => setPageNumber(prev => Math.max(1, prev + offset));
 
-  // Prevent modal click from propagating to overlay
-  const handleModalClick = (e) => {
-    e.stopPropagation();
-  };
-
-  // Try to reload the PDF viewer
   const retryPdfLoad = () => {
     setPdfViewerFailed(false);
     setIsLoading(true);
     
-    // Force iframe reload by temporarily removing it from the DOM
     const iframe = pdfIframeRef.current;
     if (iframe) {
       const parent = iframe.parentNode;
@@ -157,7 +98,6 @@ const DocumentPreview = ({ document, onClose, onDelete, certificateData }) => {
     }
   };
 
-  // Render file type icon based on document type
   const renderFileIcon = () => {
     if (isImage) {
       return (
@@ -187,24 +127,18 @@ const DocumentPreview = ({ document, onClose, onDelete, certificateData }) => {
     }
   };
 
-  // Get PDF direct embed URL
   const getPdfViewerUrl = () => {
-    // Try using PDF.js viewer first (more reliable than Google Docs viewer)
     try {
       return `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(document.url)}`;
     } catch (e) {
-      // Fall back to Google Docs viewer
       return `https://docs.google.com/viewer?url=${encodeURIComponent(document.url)}&embedded=true`;
     }
   };
 
-  const isDesktop = useMediaQuery('(min-width:900px)');
-
-  // Helper to format date/time in 12-hour format for user readability
   const formatDateTime = (value) => {
     if (!value) return '-';
     const date = new Date(value);
-    if (isNaN(date.getTime())) return value; // fallback if not a valid date
+    if (isNaN(date.getTime())) return value;
     return date.toLocaleString(undefined, {
       year: 'numeric',
       month: 'short',
@@ -215,46 +149,78 @@ const DocumentPreview = ({ document, onClose, onDelete, certificateData }) => {
     });
   };
 
-  // Certificate summary panel
-  const renderCertificateSummary = () => {
+  const renderCertificateDetails = () => {
     if (!certificateData) return null;
+    
     return (
-      <div style={{
-        minWidth: isDesktop ? 320 : '100%',
-        maxWidth: 400,
-        background: '#f7f9fa',
-        borderRadius: 12,
-        padding: 24,
-        marginBottom: isDesktop ? 0 : 24,
-        marginRight: isDesktop ? 24 : 0,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-        flex: '0 0 auto',
-        maxHeight: certificateData && isDesktop ? '70vh' : undefined,
-        overflow: certificateData && isDesktop ? 'auto' : undefined,
-      }}>
-        <h4 style={{marginTop:0,marginBottom:16,fontWeight:700}}>Certificate Details</h4>
-        <div style={{marginBottom:8}}><b>Name:</b> {certificateData.certificationType?.name || '-'}</div>
+      <div className="doc-preview__sidebar">
+        <h4 className="doc-preview__certificate-title">Certificate Details</h4>
+        
+        <div className="doc-preview__detail-row">
+          <span className="doc-preview__detail-label">Name:</span>
+          <span className="doc-preview__detail-value">{certificateData.certificationType?.name || '-'}</span>
+        </div>
 
         {(certificateData.number && certificateData.certificationType?.name === 'Driving License') ? (
-          <div style={{marginBottom:8}}><b>License No:</b> {certificateData.number}</div>
+          <div className="doc-preview__detail-row">
+            <span className="doc-preview__detail-label">License No:</span>
+            <span className="doc-preview__detail-value">{certificateData.number}</span>
+          </div>
         ) : certificateData.number ? (
-          <div style={{marginBottom:8}}><b>Number:</b> {certificateData.number}</div>
+          <div className="doc-preview__detail-row">
+            <span className="doc-preview__detail-label">Number:</span>
+            <span className="doc-preview__detail-value">{certificateData.number}</span>
+          </div>
         ) : null}
-        {certificateData.country ? (
-          <div style={{marginBottom:8}}><b>Country:</b> {certificateData.country}</div>
-        ) : null}
-        {certificateData.issuer && <div style={{marginBottom:8}}><b>Issuer:</b> {certificateData.issuer}</div>}
-        {certificateData.issuedDate && <div style={{marginBottom:8}}><b>Issued:</b> {formatDateTime(certificateData.issuedDate)}</div>}
-        {certificateData.expiryDate && <div style={{marginBottom:8}}><b>Expires:</b> {formatDateTime(certificateData.expiryDate)}</div>}
-        {(
-          certificateData.degree &&
-          !(Array.isArray(certificateData.degree) && certificateData.degree.length === 0) &&
-          certificateData.degree !== ''
-        ) ? (
-          <div style={{marginBottom:8}}><b>Degree:</b> {certificateData.degree}</div>
-        ) : null}
-        {certificateData.verificationStatus && <div style={{marginBottom:8}}><b>Status:</b> {certificateData.verificationStatus}</div>}
-        {certificateData.rejectionReason && <div style={{marginBottom:8}}><b>Rejection Reason:</b> {certificateData.rejectionReason}</div>}
+        
+        {certificateData.country && (
+          <div className="doc-preview__detail-row">
+            <span className="doc-preview__detail-label">Country:</span>
+            <span className="doc-preview__detail-value">{certificateData.country}</span>
+          </div>
+        )}
+        
+        {certificateData.issuer && (
+          <div className="doc-preview__detail-row">
+            <span className="doc-preview__detail-label">Issuer:</span>
+            <span className="doc-preview__detail-value">{certificateData.issuer}</span>
+          </div>
+        )}
+        
+        {certificateData.issuedDate && (
+          <div className="doc-preview__detail-row">
+            <span className="doc-preview__detail-label">Issued:</span>
+            <span className="doc-preview__detail-value">{formatDateTime(certificateData.issuedDate)}</span>
+          </div>
+        )}
+        
+        {certificateData.expiryDate && (
+          <div className="doc-preview__detail-row">
+            <span className="doc-preview__detail-label">Expires:</span>
+            <span className="doc-preview__detail-value">{formatDateTime(certificateData.expiryDate)}</span>
+          </div>
+        )}
+        
+        {typeof certificateData.degree === 'string' && certificateData.degree.trim() !== '' && (
+          <div className="doc-preview__detail-row">
+            <span className="doc-preview__detail-label">Degree:</span>
+            <span className="doc-preview__detail-value">{certificateData.degree}</span>
+          </div>
+        )}
+        
+        {certificateData.verificationStatus && (
+          <div className="doc-preview__detail-row">
+            <span className="doc-preview__detail-label">Status:</span>
+            <span className="doc-preview__detail-value">{certificateData.verificationStatus}</span>
+          </div>
+        )}
+        
+        {certificateData.rejectionReason && (
+          <div className="doc-preview__detail-row">
+            <span className="doc-preview__detail-label">Rejection Reason:</span>
+            <span className="doc-preview__detail-value">{certificateData.rejectionReason}</span>
+          </div>
+        )}
       </div>
     );
   };
@@ -266,26 +232,9 @@ const DocumentPreview = ({ document, onClose, onDelete, certificateData }) => {
   return (
     <div className="doc-preview">
       <div className="doc-preview__overlay" onClick={onClose}></div>
-      <div className="doc-preview__container" ref={modalRef} onClick={handleModalClick}>
-        {/* Mobile close indicator */}
-        <div className="doc-preview__mobile-close-indicator">
-          <div className="doc-preview__drag-handle"></div>
-          <span className="doc-preview__mobile-close-text">Swipe down to close</span>
-        </div>
-        
+      <div className="doc-preview__container" ref={modalRef}>
         <div className="doc-preview__header">
           <div className="doc-preview__title">
-            <button 
-              type="button" 
-              className="doc-preview__back-btn" 
-              onClick={onClose} 
-              aria-label="Close preview"
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="19" y1="12" x2="5" y2="12"></line>
-                <polyline points="12 19 5 12 12 5"></polyline>
-              </svg>
-            </button>
             <span className="doc-preview__icon">
               {renderFileIcon()}
             </span>
@@ -375,88 +324,92 @@ const DocumentPreview = ({ document, onClose, onDelete, certificateData }) => {
           </div>
         </div>
         
-        <div 
-          className="doc-preview__content" 
-          style={{
-            display: certificateData && isDesktop ? 'flex' : 'block',
-            flexDirection: 'row',
-            alignItems: 'flex-start',
-            maxHeight: '80vh',
-            overflow: 'auto',
-            paddingRight: 8,
-          }}>
-          {certificateData && renderCertificateSummary()}
-          <div style={{flex:1,minWidth:0}}>
-          {isLoading && (
-            <div className="doc-preview__loading" aria-live="polite">
-              <div className="doc-preview__spinner" aria-hidden="true"></div>
-              <span>Loading document...</span>
-            </div>
-          )}
+        <div className="doc-preview__main-content">
+          {isDesktop && renderCertificateDetails()}
           
-          {isImage ? (
-            <div 
-              className="doc-preview__image-container"
-              style={{ 
-                transform: `scale(${zoomLevel}) rotate(${rotation}deg)`,
-                opacity: isLoading ? 0 : 1
-              }}
-            >
-              <img 
-                src={document.url} 
-                alt={document.fileName}
-                onLoad={handleContentLoad}
-                className="doc-preview__image"
-              />
-            </div>
-          ) : isPdf ? (
-            <div className="doc-preview__pdf-container">
-              {!pdfViewerFailed ? (
-                <iframe 
-                  ref={pdfIframeRef}
-                  src={getPdfViewerUrl()}
-                  title={document.fileName}
-                  className="doc-preview__pdf"
+          <div className="doc-preview__document-container">
+            {isLoading && (
+              <div className="doc-preview__loading" aria-live="polite">
+                <div className="doc-preview__spinner" aria-hidden="true"></div>
+                <span>Loading document...</span>
+              </div>
+            )}
+            
+            {isImage ? (
+              <div 
+                className="doc-preview__image-container"
+                style={{ 
+                  transform: `scale(${zoomLevel}) rotate(${rotation}deg)`,
+                  opacity: isLoading ? 0 : 1
+                }}
+              >
+                <img 
+                  src={document.url} 
+                  alt={document.fileName}
                   onLoad={handleContentLoad}
-                  onError={handlePdfError}
-                  sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                  className="doc-preview__image"
                 />
-              ) : (
-                <div className="doc-preview__pdf-fallback">
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                    <polyline points="10 9 9 9 8 9"></polyline>
-                  </svg>
-                  <h4>PDF viewer could not load</h4>
-                  <p>The PDF viewer experienced an issue loading this document.</p>
-                  <div className="doc-preview__fallback-actions">
+              </div>
+            ) : isPdf ? (
+              <div className="doc-preview__pdf-container">
+                {!pdfViewerFailed ? (
+                  <>
+                    <iframe 
+                      ref={pdfIframeRef}
+                      src={getPdfViewerUrl()}
+                      title={document.fileName}
+                      className="doc-preview__pdf"
+                      onLoad={handleContentLoad}
+                      onError={handlePdfError}
+                      sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                    />
+                    <div className="doc-preview__pdf-controls">
+                      <button 
+                        className="doc-preview__page-btn"
+                        onClick={() => changePage(-1)}
+                        disabled={pageNumber <= 1}
+                        aria-label="Previous page"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                      </button>
+                      <div className="doc-preview__page-control">
+                        Page {pageNumber}
+                      </div>
+                      <button 
+                        className="doc-preview__page-btn"
+                        onClick={() => changePage(1)}
+                        aria-label="Next page"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="doc-preview__unsupported">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="16" y1="13" x2="8" y2="13"></line>
+                      <line x1="16" y1="17" x2="8" y2="17"></line>
+                      <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <h4>PDF viewer could not load</h4>
+                    <p>The PDF viewer experienced an issue loading this document.</p>
                     <button 
                       type="button"
-                      className="doc-preview__retry-btn"
+                      className="doc-preview__download-btn"
                       onClick={retryPdfLoad}
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M23 4v6h-6"></path>
                         <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
                       </svg>
-                      Retry
+                      Retry Loading
                     </button>
-                    <a 
-                      href={document.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="doc-preview__pdf-link"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                        <polyline points="15 3 21 3 21 9"></polyline>
-                        <line x1="10" y1="14" x2="21" y2="3"></line>
-                      </svg>
-                      Open in new tab
-                    </a>
                     <a 
                       href={document.url} 
                       download={document.fileName}
@@ -467,64 +420,34 @@ const DocumentPreview = ({ document, onClose, onDelete, certificateData }) => {
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                       </svg>
-                      Download
+                      Download PDF
                     </a>
                   </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="doc-preview__unsupported">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-                <polyline points="13 2 13 9 20 9"></polyline>
-              </svg>
-              <h4>Preview not available</h4>
-              <p>This file type cannot be previewed. Please download the file to view it.</p>
-              <a 
-                href={document.url} 
-                download={document.fileName}
-                className="doc-preview__download-btn"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7 10 12 15 17 10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                )}
+              </div>
+            ) : (
+              <div className="doc-preview__unsupported">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                  <polyline points="13 2 13 9 20 9"></polyline>
                 </svg>
-                Download File
-              </a>
-            </div>
-          )}
+                <h4>Preview not available</h4>
+                <p>This file type cannot be previewed. Please download the file to view it.</p>
+                <a 
+                  href={document.url} 
+                  download={document.fileName}
+                  className="doc-preview__download-btn"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  Download File
+                </a>
+              </div>
+            )}
           </div>
-        </div>
-        
-        {/* Mobile action bar at bottom for easy access */}
-        <div className="doc-preview__mobile-actions">
-          <button 
-            type="button" 
-            className="doc-preview__mobile-action-btn" 
-            onClick={onClose}
-            aria-label="Close preview"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-            Close
-          </button>
-          
-          <a 
-            href={document.url} 
-            download={document.fileName}
-            className="doc-preview__mobile-action-btn"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="7 10 12 15 17 10"></polyline>
-              <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-            Download
-          </a>
         </div>
       </div>
     </div>

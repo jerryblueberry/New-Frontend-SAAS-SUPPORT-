@@ -4,6 +4,12 @@ import useOnboardingStore from '../../stores/useOnboardingStore';
 import { shallow } from 'zustand/shallow';
 import './css/WorkHistoryForm.css';
 import { Toaster, toast } from 'react-hot-toast';
+import { deleteCloudinaryImage } from '../../api/cloudinary';
+import DocumentPreview from './Modals/DocumentPreview';
+import OnboardingCV from '../WorkerCv/OnboardingCV/onboardingCV';
+import OnboardingJobExperience from '../WorkerJobExperience/OnboardingJobExperience/OnboardingJobExperience';
+import WorkerOnboardingReferences from '../WorkerReferences/workerOnboardingReferences/workerOnboardingReferences';
+import { Grid, useMediaQuery, useTheme, Paper } from '@mui/material';
 const WorkHistoryForm = ({ onNextStep }) => {
   // Access store state with selectors for targeted re-renders
   const workHistory = useOnboardingStore((state) => state.workHistory, shallow);
@@ -31,12 +37,21 @@ const WorkHistoryForm = ({ onNextStep }) => {
   const [expandedReference, setExpandedReference] = useState(null);
   const [formErrors, setFormErrors] = useState({});
   const [isUploading, setIsUploading] = useState(false);
+  const [showCVPreview, setShowCVPreview] = useState(false);
+
+  const theme = useTheme();
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
   // Initialize local state from store
   useEffect(() => {
     if (workHistory) {
       setLocalWorkHistory({
-        jobs: workHistory.jobs || [],
+        jobs: (workHistory.jobs || []).map(job => ({
+          ...job,
+          startDate: job.startDate ? new Date(job.startDate) : null,
+          endDate: job.endDate ? new Date(job.endDate) : null,
+          currentlyWorking: job.currentlyWorking ?? job.current ?? false,
+        })),
         noWorkHistory: workHistory.noWorkHistory || false,
         references: workHistory.references || [],
         CV: CV || workHistory.CV || null,
@@ -112,23 +127,8 @@ const WorkHistoryForm = ({ onNextStep }) => {
     [updateWorkHistory, localWorkHistory, formErrors]
   );
 
-  // Work history checkbox handler
-  const handleNoWorkHistoryChange = useCallback(
-    (e) => {
-      const value = e.target.checked;
+  
 
-      updateWorkHistory({
-        ...localWorkHistory,
-        noWorkHistory: value,
-      });
-
-      setLocalWorkHistory((prev) => ({
-        ...prev,
-        noWorkHistory: value,
-      }));
-    },
-    [updateWorkHistory, localWorkHistory]
-  );
 
   // References management
   // const handleHasReferencesChange = useCallback(
@@ -461,8 +461,8 @@ const WorkHistoryForm = ({ onNextStep }) => {
       );
 
       const data = await response.json();
-      if (data.secure_url) {
-        // Update both local and global state
+      if (data.secure_url && data.public_id) {
+        // Only store the URL string, not the object
         updateCV(data.secure_url);
         setLocalWorkHistory((prev) => ({ ...prev, CV: data.secure_url }));
         toast.success('CV uploaded successfully!');
@@ -505,7 +505,8 @@ const WorkHistoryForm = ({ onNextStep }) => {
           phone: ref.phone ? ref.phone.trim() : '',
           email: ref.email ? ref.email.trim().toLowerCase() : '',
         })),
-        CV: localWorkHistory.CV || CV,
+        // Only send the CV url string
+        CV: typeof (localWorkHistory.CV || CV) === 'string' ? (localWorkHistory.CV || CV) : (localWorkHistory.CV || CV)?.url,
       };
 
       console.log('Submitting work history data:', formattedData);
@@ -592,730 +593,123 @@ const WorkHistoryForm = ({ onNextStep }) => {
     return /^\d{9}$/.test(digits);
   };
 
+  // Helper to get CV document object for preview
+  const getCVDocument = () => {
+    const cvObj = localWorkHistory.CV || CV;
+    if (!cvObj) return null;
+    // Support both string and object (for backward compatibility)
+    const url = typeof cvObj === 'string' ? cvObj : cvObj.url;
+    const fileName = url?.split('/').pop()?.split('?')[0] || 'CV Document';
+    let fileType = '';
+    if (url?.endsWith('.pdf')) fileType = 'application/pdf';
+    else if (url?.match(/\.(jpg|jpeg|png)$/i)) fileType = `image/${url.split('.').pop().toLowerCase()}`;
+    else fileType = '';
+    return { url, fileName, fileType };
+  };
+
   console.log('ONBORDING DTA', workHistory);
 
   return (
     <form onSubmit={handleSubmit} className="wh-form" noValidate>
       <Toaster position="top-right" />
       {/* Summary error at the top - removed, now handled by toast only */}
-      <div className="wh-section wh-header-section">
-        <h2>Work History & References</h2>
-        <p>
-          Share your professional background and references to help employers
-          get to know you better
-        </p>
-      </div>
+   
 
-      {/* For the CV */}
-      <div className="wh-section wh-cv-section">
-        <div className="wh-section-header">
-          <h3>Upload Your CV *</h3>
-          <p>Upload your resume or CV in PDF or image format</p>
-        </div>
-
-        <div className="wh-cv-upload-container">
-          {localWorkHistory.CV || CV ? (
-            <div className="wh-cv-preview">
-              <div className="wh-cv-preview-content">
-                {(localWorkHistory.CV || CV).endsWith('.pdf') ? (
-                  <div className="wh-cv-pdf-preview">
-                    <svg
-                      width="48"
-                      height="48"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                    >
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                      <polyline points="14 2 14 8 20 8"></polyline>
-                      <path d="M10 9H8v6h2a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2z"></path>
-                      <line x1="16" y1="13" x2="16" y2="15"></line>
-                    </svg>
-                    <span>PDF Document</span>
-                  </div>
-                ) : (
-                  <img
-                    src={localWorkHistory.CV || CV}
-                    alt="CV Preview"
-                    className="wh-cv-image-preview"
-                  />
-                )}
-                <a
-                  href={localWorkHistory.CV || CV}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="wh-cv-download"
-                >
-                  View/Download
-                </a>
-              </div>
-              <button
-                type="button"
-                className="wh-btn wh-btn-danger wh-cv-remove"
-                onClick={() => {
-                  updateCV(null);
-                  setLocalWorkHistory((prev) => ({ ...prev, CV: null }));
-                }}
-                disabled={isUploading}
-              >
-                Remove CV
-              </button>
-            </div>
-          ) : (
-            <div className="wh-cv-upload-area">
-              <input
-                type="file"
-                id="cv-upload"
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    handleCVUpload(e.target.files[0]);
-                  }
-                }}
-                disabled={isUploading}
-                style={{ display: 'none' }}
-              />
-              <label htmlFor="cv-upload" className="wh-cv-upload-label">
-                {isUploading ? (
-                  <>
-                    <span className="wh-spinner"></span>
-                    <span>Uploading...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg
-                      width="48"
-                      height="48"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                    >
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                      <polyline points="17 8 12 3 7 8"></polyline>
-                      <line x1="12" y1="3" x2="12" y2="15"></line>
-                    </svg>
-                    <span>Click to upload or drag and drop</span>
-                    <span className="wh-cv-upload-hint">
-                      PDF, JPG, or PNG (Max 5MB)
-                    </span>
-                  </>
-                )}
-              </label>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Work History Section */}
-      <div className="wh-section wh-work-history-section">
-        <div className="wh-section-header">
-          <h3>Work Experience</h3>
-        </div>
-
-        {formErrors.jobs && (
-          <div className="wh-error-message">{formErrors.jobs}</div>
-        )}
-
-        <div className="wh-job-list">
-          {localWorkHistory.jobs.length === 0 ? (
-            <div className="wh-empty-state">
-              <div className="wh-empty-icon">💼</div>
-              <p>You haven't added any work experience yet</p>
-              <button
-                type="button"
-                className="wh-btn wh-btn-secondary"
-                onClick={addNewJob}
-              >
-                Add Your Work Experience
-              </button>
-            </div>
-          ) : (
-            localWorkHistory.jobs.map((job, index) => (
-              <div
-                key={index}
-                id={`wh-job-card-${index}`}
-                className={`wh-card wh-job-card ${expandedJob === index ? 'wh-expanded' : ''}`}
-              >
-                <div
-                  className="wh-card-header"
-                  onClick={() => toggleExpandJob(index)}
-                >
-                  <div className="wh-card-title">
-                    <h4>{job.company || 'Company Name'}</h4>
-                    {job.title && <span>{job.title}</span>}
-                  </div>
-                  <div className="wh-card-dates">
-                    {job.startDate && (
-                      <span>
-                        {new Date(job.startDate).toLocaleDateString(
-                          undefined,
-                          { year: 'numeric', month: 'short' }
-                        )}
-                        {job.currentlyWorking
-                          ? ' - Present'
-                          : job.endDate
-                            ? ` - ${new Date(job.endDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })}`
-                            : ''}
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    className="wh-expand-toggle"
-                    aria-label="Toggle details"
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <polyline
-                        points={
-                          expandedJob === index
-                            ? '18 15 12 9 6 15'
-                            : '6 9 12 15 18 9'
-                        }
-                      ></polyline>
-                    </svg>
-                  </button>
-                </div>
-
-                {expandedJob === index && (
-                  <div className="wh-card-content">
-                    <div className="wh-form-row">
-                      <div className="wh-form-group">
-                        <label htmlFor={`company-${index}`}>
-                          Company Name{' '}
-                          <span className="wh-required">*</span>
-                        </label>
-                        <input
-                          id={`company-${index}`}
-                          name={`job${index}_company`}
-                          type="text"
-                          value={job.company}
-                          onChange={(e) =>
-                            handleUpdateJob(
-                              index,
-                              'company',
-                              e.target.value
-                            )
-                          }
-                          placeholder="Enter company name"
-                          className={
-                            formErrors[`job${index}_company`]
-                              ? 'wh-error-field'
-                              : ''
-                          }
-                          required
-                          aria-invalid={!!formErrors[`job${index}_company`]}
-                          aria-describedby={formErrors[`job${index}_company`] ? `error-job${index}_company` : undefined}
-                        />
-                        {formErrors[`job${index}_company`] && (
-                          <div
-                            className="wh-field-error"
-                            id={`error-job${index}_company`}
-                            role="alert"
-                          >
-                            {formErrors[`job${index}_company`]}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="wh-form-group">
-                        <label htmlFor={`title-${index}`}>
-                          Title<span className="wh-required">*</span>
-                        </label>
-                        <input
-                          id={`title-${index}`}
-                          name={`job${index}_title`}
-                          type="text"
-                          value={job.title}
-                          onChange={(e) =>
-                            handleUpdateJob(index, 'title', e.target.value)
-                          }
-                          placeholder="Your job title"
-                          className={
-                            formErrors[`job${index}_title`]
-                              ? 'wh-error-field'
-                              : ''
-                          }
-                          required
-                          aria-invalid={!!formErrors[`job${index}_title`]}
-                          aria-describedby={formErrors[`job${index}_title`] ? `error-job${index}_title` : undefined}
-                        />
-                        {formErrors[`job${index}_title`] && (
-                          <div
-                            className="wh-field-error"
-                            id={`error-job${index}_title`}
-                            role="alert"
-                          >
-                            {formErrors[`job${index}_title`]}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="wh-form-row">
-                      <div className="wh-form-group">
-                        <label htmlFor={`startDate-${index}`}>
-                          Start Date <span className="wh-required">*</span>
-                        </label>
-                        <input
-                          id={`startDate-${index}`}
-                          name={`job${index}_startDate`}
-                          type="date"
-                          value={formatDateForInput(job.startDate)}
-                          onChange={(e) =>
-                            handleUpdateJob(
-                              index,
-                              'startDate',
-                              e.target.value
-                            )
-                          }
-                          className={
-                            formErrors[`job${index}_startDate`]
-                              ? 'wh-error-field'
-                              : ''
-                          }
-                          required
-                          aria-invalid={!!formErrors[`job${index}_startDate`]}
-                          aria-describedby={formErrors[`job${index}_startDate`] ? `error-job${index}_startDate` : undefined}
-                        />
-                        {formErrors[`job${index}_startDate`] && (
-                          <div
-                            className="wh-field-error"
-                            id={`error-job${index}_startDate`}
-                            role="alert"
-                          >
-                            {formErrors[`job${index}_startDate`]}
-                          </div>
-                        )}
-                      </div>
-                      <div className="wh-form-group">
-                        <label htmlFor={`endDate-${index}`}>
-                          End Date{' '}
-                          {!job.currentlyWorking && (
-                            <span className="wh-required">*</span>
-                          )}
-                        </label>
-                        <input
-                          id={`endDate-${index}`}
-                          name={`job${index}_endDate`}
-                          type="date"
-                          value={formatDateForInput(job.endDate)}
-                          onChange={(e) =>
-                            handleUpdateJob(
-                              index,
-                              'endDate',
-                              e.target.value
-                            )
-                          }
-                          disabled={job.currentlyWorking}
-                          className={
-                            formErrors[`job${index}_endDate`]
-                              ? 'wh-error-field'
-                              : ''
-                          }
-                          required={!job.currentlyWorking}
-                          aria-invalid={!!formErrors[`job${index}_endDate`]}
-                          aria-describedby={formErrors[`job${index}_endDate`] ? `error-job${index}_endDate` : undefined}
-                        />
-                        {formErrors[`job${index}_endDate`] && (
-                          <div
-                            className="wh-field-error"
-                            id={`error-job${index}_endDate`}
-                            role="alert"
-                          >
-                            {formErrors[`job${index}_endDate`]}
-                          </div>
-                        )}
-
-                        <label className="wh-checkbox-container wh-current-job">
-                          <input
-                            type="checkbox"
-                            checked={job.currentlyWorking}
-                            onChange={(e) =>
-                              handleUpdateJob(
-                                index,
-                                'currentlyWorking',
-                                e.target.checked
-                              )
-                            }
-                            className="wh-checkbox"
-                          />
-                          <span className="wh-checkmark"></span>
-                          <span>I currently work here</span>
-                        </label>
-                      </div>
-                    </div>
-
-                    <div className="wh-form-group">
-                      <label htmlFor={`description-${index}`}>
-                        Job Description
-                      </label>
-                      <textarea
-                        id={`description-${index}`}
-                        value={job.description || ''}
-                        onChange={(e) =>
-                          handleUpdateJob(
-                            index,
-                            'description',
-                            e.target.value
-                          )
-                        }
-                        placeholder="Describe your responsibilities and achievements at this job"
-                        rows={4}
-                      />
-                    </div>
-
-                    <div className="wh-card-actions">
-                      <button
-                        type="button"
-                        className="wh-btn wh-btn-danger"
-                        onClick={() => handleRemoveJob(index)}
-                      >
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <polyline points="3 6 5 6 21 6"></polyline>
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                        Remove Job
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-
-        {localWorkHistory.jobs.length > 0 && (
-          <button
-            type="button"
-            className="wh-btn wh-btn-secondary wh-add-btn"
-            onClick={addNewJob}
+      {/* Responsive Grid Layout for CV and Work Experience */}
+      <Grid
+        container
+        spacing={4}
+        alignItems="stretch" // Ensure both columns stretch to same height
+        sx={{
+          width: '100%',
+          margin: '0 auto',
+          padding: { xs: 0, sm: 2, md: 3 },
+          minHeight: { md:   10, xs: 'auto' }, // Increased minHeight for desktop
+          flexDirection: { xs: 'column', md: 'row' },
+          gap: { md: 4, xs: 0 },
+        }}
+      >
+        <Grid
+          item
+          xs={12}
+          md={4}
+          lg={3}
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            height: { md: '100%', xs: 'auto' }, // Stretch on desktop, auto on mobile
+          }}
+        >
+          <Paper
+            elevation={3}
+            sx={{
+              width: '100%',
+              height: '100%', // Fill parent height
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              p: { xs: 2, sm: 3 },
+              boxSizing: 'border-box',
+              transition: 'min-height 0.3s',
+            }}
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="16"></line>
-              <line x1="8" y1="12" x2="16" y2="12"></line>
-            </svg>
-            Add Another Experience
-          </button>
-        )}
-      </div>
+            <OnboardingCV cvError={formErrors.CV} />
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={8} lg={9} sx={{ display: 'flex', justifyContent: 'center', flexGrow: 1 }}>
+          <Paper
+            elevation={3} 
+            sx={{
+              width: '100%',
+              maxWidth: 900,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'flex-start',
+              alignItems: 'stretch',
+            
+              p: { xs: 2, sm: 3},
+              // minHeight: { md: 500, xs: 'auto' }, // Match minHeight with CV section
+              height: { md: '100%', xs: 'auto' },
+              boxSizing: 'border-box',
+              flexGrow: 1,
+              transition: 'min-height 0.3s',
+            }}
+          >
+            <OnboardingJobExperience
+              jobs={localWorkHistory.jobs}
+              formErrors={formErrors}
+              expandedJob={expandedJob}
+              onAddJob={addNewJob}
+              onRemoveJob={handleRemoveJob}
+              onUpdateJob={handleUpdateJob}
+              onToggleExpandJob={toggleExpandJob}
+              formatDateForInput={formatDateForInput}
+            />
+          </Paper>
+        </Grid>
+      </Grid>
 
       {/* References Section */}
-      <div className="wh-section wh-references-section">
-        <div className="wh-section-header">
-          <h3>Professional References</h3>
-          <p>Add two professional references who can vouch for your skills and work ethic</p>
-        </div>
+      <WorkerOnboardingReferences
+        references={localWorkHistory.references}
+        formErrors={formErrors}
+        expandedReference={expandedReference}
+        onAddReference={addReference}
+        onRemoveReference={removeReference}
+        onUpdateReference={handleUpdateReference}
+        onToggleExpandReference={toggleExpandReference}
+        formatAustralianPhone={formatAustralianPhone}
+        maxReferences={2}
+      />
 
-        <div className="wh-references-list">
-          {formErrors.refLimit && (
-            <div className="wh-error-message">{formErrors.refLimit}</div>
-          )}
-
-          {localWorkHistory.references.length === 0 ? (
-            <div className="wh-empty-state">
-              <div className="wh-empty-icon">👤</div>
-              <p>You haven't added any references yet</p>
-              <button
-                type="button"
-                className="wh-btn wh-btn-secondary"
-                onClick={addReference}
-              >
-                Add Your First Reference
-              </button>
-            </div>
-          ) : (
-            <>
-              {localWorkHistory.references.map((ref, index) => (
-                <div
-                  key={index}
-                  id={`wh-ref-card-${index}`}
-                  className={`wh-card wh-reference-card ${expandedReference === index ? 'wh-expanded' : ''}`}
-                >
-                  <div
-                    className="wh-card-header"
-                    onClick={() => toggleExpandReference(index)}
-                  >
-                    <div className="wh-card-title">
-                      <h4>{ref.name || `Reference ${index + 1}`}</h4>
-                      {ref.company && <span>{ref.company}</span>}
-                    </div>
-                    <button
-                      type="button"
-                      className="wh-expand-toggle"
-                      aria-label="Toggle details"
-                    >
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <polyline
-                          points={
-                            expandedReference === index
-                              ? '18 15 12 9 6 15'
-                              : '6 9 12 15 18 9'
-                          }
-                        ></polyline>
-                      </svg>
-                    </button>
-                  </div>
-
-                  {expandedReference === index && (
-                    <div className="wh-card-content">
-                      <div className="wh-form-row">
-                        <div className="wh-form-group">
-                          <label htmlFor={`ref-name-${index}`}>
-                            Full Name <span className="wh-required">*</span>
-                          </label>
-                          <input
-                            id={`ref-name-${index}`}
-                            name={`ref${index}_name`}
-                            type="text"
-                            value={ref.name}
-                            onChange={(e) =>
-                              handleUpdateReference(
-                                index,
-                                'name',
-                                e.target.value
-                              )
-                            }
-                            placeholder="Enter reference's name"
-                            className={
-                              formErrors[`ref${index}_name`]
-                                ? 'wh-error-field'
-                                : ''
-                            }
-                            required
-                            aria-invalid={!!formErrors[`ref${index}_name`]}
-                            aria-describedby={formErrors[`ref${index}_name`] ? `error-ref${index}_name` : undefined}
-                          />
-                          {formErrors[`ref${index}_name`] && (
-                            <div
-                              className="wh-field-error"
-                              id={`error-ref${index}_name`}
-                              role="alert"
-                            >
-                              {formErrors[`ref${index}_name`]}
-                            </div>
-                          )}
-                        </div>
-                        <div className="wh-form-group">
-                          <label htmlFor={`ref-position-${index}`}>
-                            Position <span className="wh-required">*</span>
-                          </label>
-                          <input
-                            id={`ref-position-${index}`}
-                            name={`ref${index}_position`}
-                            type="text"
-                            value={ref.position || ''}
-                            onChange={(e) =>
-                              handleUpdateReference(
-                                index,
-                                'position',
-                                e.target.value
-                              )
-                            }
-                            placeholder="Reference's position"
-                            className={
-                              formErrors[`ref${index}_position`]
-                                ? 'wh-error-field'
-                                : ''
-                            }
-                            required
-                            aria-invalid={!!formErrors[`ref${index}_position`]}
-                            aria-describedby={formErrors[`ref${index}_position`] ? `error-ref${index}_position` : undefined}
-                          />
-                          {formErrors[`ref${index}_position`] && (
-                            <div
-                              className="wh-field-error"
-                              id={`error-ref${index}_position`}
-                              role="alert"
-                            >
-                              {formErrors[`ref${index}_position`]}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="wh-form-group">
-                          <label htmlFor={`ref-company-${index}`}>
-                            Company
-                          </label>
-                          <input
-                            id={`ref-company-${index}`}
-                            name={`ref${index}_company`}
-                            type="text"
-                            value={ref.company || ''}
-                            onChange={(e) =>
-                              handleUpdateReference(
-                                index,
-                                'company',
-                                e.target.value
-                              )
-                            }
-                            placeholder="Enter company name"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="wh-form-row">
-                        <div className="wh-form-group">
-                          <label htmlFor={`ref-phone-${index}`}>
-                            Phone Number{' '}
-                            <span className="wh-required">*</span>
-                          </label>
-                          <div className="wh-phone-input-group">
-                            <span className="wh-country-code-prefix" tabIndex={-1} aria-hidden="true">🇦🇺 +61</span>
-                            <input
-                              id={`ref-phone-${index}`}
-                              name={`ref${index}_phone`}
-                              type="tel"
-                              value={formatAustralianPhone(ref.phone || '')}
-                              onChange={(e) => {
-                                // Only allow digits and spaces
-                                let raw = e.target.value.replace(/[^\d ]/g, '');
-                                // Format as user types
-                                const formatted = formatAustralianPhone(raw);
-                                handleUpdateReference(index, 'phone', formatted);
-                              }}
-                              placeholder="412 345 678"
-                              className={
-                                formErrors[`ref${index}_phone`]
-                                  ? 'wh-error-field'
-                                  : ''
-                              }
-                              required
-                              aria-invalid={!!formErrors[`ref${index}_phone`]}
-                              aria-describedby={formErrors[`ref${index}_phone`] ? `error-ref${index}_phone` : undefined}
-                              pattern="\\d{3} \\d{3} \\d{3}"
-                              maxLength={11} // 9 digits + 2 spaces
-                              style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
-                            />
-                          </div>
-                          {/* <span className="wh-cv-upload-hint">Format: 412 345 678</span> */}
-                          {formErrors[`ref${index}_phone`] && (
-                            <div
-                              className="wh-field-error"
-                              id={`error-ref${index}_phone`}
-                              role="alert"
-                            >
-                              {formErrors[`ref${index}_phone`]}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="wh-form-group">
-                          <label htmlFor={`ref-email-${index}`}>
-                            Email <span className="wh-required">*</span>
-                          </label>
-                          <input
-                            id={`ref-email-${index}`}
-                            name={`ref${index}_email`}
-                            type="email"
-                            value={ref.email || ''}
-                            onChange={(e) =>
-                              handleUpdateReference(
-                                index,
-                                'email',
-                                e.target.value
-                              )
-                            }
-                            placeholder="Enter email address"
-                            className={
-                              formErrors[`ref${index}_email`]
-                                ? 'wh-error-field'
-                                : ''
-                            }
-                            required
-                            aria-invalid={!!formErrors[`ref${index}_email`]}
-                            aria-describedby={formErrors[`ref${index}_email`] ? `error-ref${index}_email` : undefined}
-                          />
-                          {formErrors[`ref${index}_email`] && (
-                            <div
-                              className="wh-field-error"
-                              id={`error-ref${index}_email`}
-                              role="alert"
-                            >
-                              {formErrors[`ref${index}_email`]}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="wh-card-actions">
-                        <button
-                          type="button"
-                          className="wh-btn wh-btn-danger"
-                          onClick={() => removeReference(index)}
-                        >
-                          <svg
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                          </svg>
-                          Remove Reference
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              {localWorkHistory.references.length < 2 && (
-                <button
-                  type="button"
-                  className="wh-btn wh-btn-secondary wh-add-btn"
-                  onClick={addReference}
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="8" x2="12" y2="16"></line>
-                    <line x1="8" y1="12" x2="16" y2="12"></line>
-                  </svg>
-                  Add Another Reference
-                </button>
-              )}
-            </>
-          )}
-        </div>
-      </div>
+      {/* DocumentPreview modal for CV */}
+      {showCVPreview && (
+        <DocumentPreview
+          document={getCVDocument()}
+          onClose={() => setShowCVPreview(false)}
+        />
+      )}
 
       {/* Form Controls */}
       <div className="wh-form-actions">

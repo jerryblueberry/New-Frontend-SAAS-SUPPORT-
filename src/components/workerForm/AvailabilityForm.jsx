@@ -714,7 +714,7 @@ const AvailabilityForm = () => {
                       Travel Distance
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Max distance you're willing to travel
+                    How many km are you willing to travel from your place of residence 
                     </Typography>
                   </Box>
                 </Box>
@@ -820,7 +820,7 @@ const AvailabilityForm = () => {
           sx={{ 
             p: 3,
             borderRadius: 3,
-            bgcolor: 'background.default',
+        
           }}
         >
           <Button

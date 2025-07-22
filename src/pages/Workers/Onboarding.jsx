@@ -279,7 +279,7 @@ const Onboarding = () => {
           nextAvailableStep={nextAvailableStep}
         />
       </div>
-      <div className="onboarding-content">
+      <div className="onboarding-content" style={{marginTop:'70px'}}>
         {stepComponents[currentStep] || <div>Unknown Step</div>}
       </div>
     </div>
