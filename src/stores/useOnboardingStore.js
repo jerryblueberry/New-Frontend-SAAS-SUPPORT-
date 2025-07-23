@@ -123,6 +123,7 @@ const initialState = {
     // notes: '',
     kmWillingToTravel: 20,
     suburb: '',
+    holidaySelections: {},
   },
 
   certifications: [],
@@ -274,6 +275,15 @@ const useOnboardingStore = create(
       updateAvailability: (availabilityData) => {
         set((state) => ({
           availability: { ...state.availability, ...availabilityData },
+        }));
+      },
+
+      setHolidaySelections: (holidaySelections) => {
+        set((state) => ({
+          availability: {
+            ...state.availability,
+            holidaySelections,
+          },
         }));
       },
 
@@ -573,6 +583,14 @@ const useOnboardingStore = create(
             customTimeSlots: profile?.availability?.customTimeSlots || get().availability.customTimeSlots,
             kmWillingToTravel: profile?.availability?.kmWillingToTravel || 20,
             suburb: profile?.availability?.suburb || '',
+            holidaySelections: Array.isArray(profile?.availability?.holidaySelections)
+              ? Object.fromEntries(
+                  profile.availability.holidaySelections.map(sel => [
+                    sel.holidayId,
+                    { selected: sel.selected, note: sel.note }
+                  ])
+                )
+              : {},
           },
           certifications: profile?.certifications || [],
           residencyStatus: profile?.residencyStatus || '',
@@ -648,7 +666,7 @@ const useOnboardingStore = create(
       saveAvailabilityStep: async () => {
         try {
           set({ isLoading: true, error: null });
-          const { customTimeSlots, kmWillingToTravel, suburb } = get().availability;
+          const { customTimeSlots, kmWillingToTravel, suburb, holidaySelections } = get().availability;
 
           // Local validation
           if (!customTimeSlots || customTimeSlots.length === 0) {
@@ -670,6 +688,7 @@ const useOnboardingStore = create(
               customTimeSlots,
               kmWillingToTravel,
               suburb: suburb.trim(),
+              holidaySelections: holidaySelections || {},
             },
           });
 
@@ -933,7 +952,7 @@ export const useAvailabilityMutation = () => {
     mutationFn: (availabilityData) => {
       // Direct state access
       const { availability } = useOnboardingStore.getState();
-      const { customTimeSlots, kmWillingToTravel, suburb } = availabilityData || availability;
+      const { customTimeSlots, kmWillingToTravel, suburb, holidaySelections } = availabilityData || availability;
 
       // Local validation
       if (!customTimeSlots || customTimeSlots.length === 0) {
@@ -955,6 +974,7 @@ export const useAvailabilityMutation = () => {
           customTimeSlots,
           kmWillingToTravel,
           suburb: suburb.trim(),
+          holidaySelections: holidaySelections || {},       
         },
       });
     },

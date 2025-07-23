@@ -32,6 +32,7 @@ import CompleteReferenceCheck from './pages/ReferenceCheck/CompleteReferenceChec
 import ReferenceQuestion from './pages/AdminPages/ReferenceQuestonnaire/ReferenceQuestion';
 import AdminReference from './pages/AdminPages/ReferenceSection/AdminReference';
 import WorkerManagementDashboard from './pages/AdminPages/AdminDashboard/WorkerManagementDashboard';
+import TermsandConditions from './pages/TermsandConditions/TermsandConditions';
 
 
 // Create React Query client with optimized settings
@@ -113,6 +114,13 @@ function AppRoutes() {
         <Route path='/reference-check/:token' element ={
           <PublicRoute>
             <CompleteReferenceCheck/>
+          </PublicRoute>
+        }
+        />
+        {/*  For terms and conditions */}
+        <Route path='/terms-and-conditions' element = {
+          <PublicRoute>
+            <TermsandConditions/>
           </PublicRoute>
         }
         />

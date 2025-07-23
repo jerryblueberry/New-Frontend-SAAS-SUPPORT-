@@ -40,7 +40,8 @@ import {
   ListItemIcon,
   InputAdornment,
   ClickAwayListener,
-  Popper
+  Popper,
+  Switch
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -63,8 +64,11 @@ import {
 import { alpha } from '@mui/material/styles';
 import useOnboardingStore, { useAvailabilityMutation } from '../../stores/useOnboardingStore';
 import { daysOfWeek } from '../../utils/constants';
+import { useQuery } from '@tanstack/react-query';
+import { fetchUpcomingHolidays } from '../../api/holidays';
 
 import SuburbSelector from './SuburbSelector';
+import api from '../../api/axios';
 
 // Day colors for visual distinction
 const DAY_COLORS = {
@@ -77,10 +81,12 @@ const DAY_COLORS = {
   Sunday: '#5d4037'
 };
 
+
+
 // Enhanced custom time slot card with better visual design
 const CustomTimeSlotCard = ({ slot, index, onEdit, onRemove, disabled }) => {
   const theme = useTheme();
-  
+
   const formatTime = (timeString) => {
     const [hours, minutes] = timeString.split(':');
     const hour = parseInt(hours, 10);
@@ -106,9 +112,9 @@ const CustomTimeSlotCard = ({ slot, index, onEdit, onRemove, disabled }) => {
 
   return (
     <Fade in timeout={300}>
-      <Card 
-        variant="outlined" 
-        sx={{ 
+      <Card
+        variant="outlined"
+        sx={{
           mb: 2,
           borderLeft: `4px solid ${dayColor}`,
           borderRadius: '8px',
@@ -124,17 +130,17 @@ const CustomTimeSlotCard = ({ slot, index, onEdit, onRemove, disabled }) => {
             <Typography variant="subtitle2" sx={{ fontWeight: 600, color: dayColor }}>
               {slot.dayOfWeek}
             </Typography>
-            <Chip 
+            <Chip
               label={calculateDuration(slot.startTime, slot.endTime)}
-              size="small" 
-              sx={{ 
+              size="small"
+              sx={{
                 bgcolor: alpha(dayColor, 0.1),
                 color: dayColor,
                 fontWeight: 500
-              }} 
+              }}
             />
           </Box>
-          
+
           <Box display="flex" alignItems="center" gap={1.5} mb={1}>
             <AccessTimeIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
             <Typography variant="body1" sx={{ fontWeight: 500 }}>
@@ -142,18 +148,18 @@ const CustomTimeSlotCard = ({ slot, index, onEdit, onRemove, disabled }) => {
             </Typography>
           </Box>
         </CardContent>
-        
+
         <CardActions sx={{ pt: 0, pb: 1, px: 2, justifyContent: 'flex-end' }}>
           <Tooltip title="Edit time slot" arrow>
-            <IconButton 
-              size="small" 
-              onClick={() => onEdit(slot, index)} 
+            <IconButton
+              size="small"
+              onClick={() => onEdit(slot, index)}
               disabled={disabled}
-              sx={{ 
+              sx={{
                 color: 'text.secondary',
-                '&:hover': { 
+                '&:hover': {
                   color: dayColor,
-                  bgcolor: alpha(dayColor, 0.1) 
+                  bgcolor: alpha(dayColor, 0.1)
                 }
               }}
             >
@@ -161,15 +167,15 @@ const CustomTimeSlotCard = ({ slot, index, onEdit, onRemove, disabled }) => {
             </IconButton>
           </Tooltip>
           <Tooltip title="Remove time slot" arrow>
-            <IconButton 
-              size="small" 
-              onClick={() => onRemove(index)} 
+            <IconButton
+              size="small"
+              onClick={() => onRemove(index)}
               disabled={disabled}
-              sx={{ 
+              sx={{
                 color: 'text.secondary',
-                '&:hover': { 
+                '&:hover': {
                   color: theme.palette.error.main,
-                  bgcolor: alpha(theme.palette.error.main, 0.1) 
+                  bgcolor: alpha(theme.palette.error.main, 0.1)
                 }
               }}
             >
@@ -207,34 +213,34 @@ const TimeSlotDialog = ({ open, onClose, onSave, initialData, daysOfWeek, existi
 
   const validateForm = (data) => {
     const newErrors = {};
-    
+
     // Time validation
     if (data.startTime >= data.endTime) {
       newErrors.endTime = 'End time must be after start time';
     }
-    
+
     // Duration validation (minimum 30 minutes)
     const [startHour, startMinute] = data.startTime.split(':').map(Number);
     const [endHour, endMinute] = data.endTime.split(':').map(Number);
     const startMinutes = startHour * 60 + startMinute;
     const endMinutes = endHour * 60 + endMinute;
     const durationMinutes = endMinutes - startMinutes;
-    
+
     if (durationMinutes < 30) {
       newErrors.endTime = 'Time slot must be at least 30 minutes long';
     }
-    
+
     // Overlap validation
     const isOverlapping = existingSlots?.some((slot, idx) => {
       if (editingIndex !== null && idx === editingIndex) return false;
       if (slot.dayOfWeek !== data.dayOfWeek) return false;
       return data.startTime < slot.endTime && data.endTime > slot.startTime;
     });
-    
+
     if (isOverlapping) {
       newErrors.general = 'This time slot overlaps with an existing slot for this day';
     }
-    
+
     return newErrors;
   };
 
@@ -242,7 +248,7 @@ const TimeSlotDialog = ({ open, onClose, onSave, initialData, daysOfWeek, existi
     const newData = { ...formData, [field]: value };
     setFormData(newData);
     setTouched(prev => ({ ...prev, [field]: true }));
-    
+
     // Real-time validation
     const newErrors = validateForm(newData);
     setErrors(newErrors);
@@ -253,7 +259,7 @@ const TimeSlotDialog = ({ open, onClose, onSave, initialData, daysOfWeek, existi
     const newErrors = validateForm(formData);
     setErrors(newErrors);
     setTouched({ dayOfWeek: true, startTime: true, endTime: true });
-    
+
     if (Object.keys(newErrors).length === 0) {
       onSave(formData);
     }
@@ -262,10 +268,10 @@ const TimeSlotDialog = ({ open, onClose, onSave, initialData, daysOfWeek, existi
   const dayColor = DAY_COLORS[formData.dayOfWeek] || theme.palette.primary.main;
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose} 
-      maxWidth="sm" 
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
       fullWidth
       PaperProps={{
         sx: {
@@ -290,7 +296,7 @@ const TimeSlotDialog = ({ open, onClose, onSave, initialData, daysOfWeek, existi
             </Box>
           </Box>
         </DialogTitle>
-        
+
         <DialogContent dividers sx={{ px: 3, py: 2 }}>
           <Stack spacing={3}>
             <FormControl fullWidth error={touched.dayOfWeek && errors.dayOfWeek}>
@@ -303,13 +309,13 @@ const TimeSlotDialog = ({ open, onClose, onSave, initialData, daysOfWeek, existi
                 {daysOfWeek.map((day) => (
                   <MenuItem key={day} value={day}>
                     <Box display="flex" alignItems="center" gap={1}>
-                      <Box 
-                        sx={{ 
-                          width: 12, 
-                          height: 12, 
-                          borderRadius: '50%', 
-                          bgcolor: DAY_COLORS[day] || theme.palette.primary.main 
-                        }} 
+                      <Box
+                        sx={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: '50%',
+                          bgcolor: DAY_COLORS[day] || theme.palette.primary.main
+                        }}
                       />
                       {day}
                     </Box>
@@ -350,16 +356,16 @@ const TimeSlotDialog = ({ open, onClose, onSave, initialData, daysOfWeek, existi
             )}
           </Stack>
         </DialogContent>
-        
+
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={onClose} color="inherit" size="large">
             Cancel
           </Button>
-          <Button 
-            type="submit" 
-            variant="contained" 
+          <Button
+            type="submit"
+            variant="contained"
             size="large"
-            sx={{ 
+            sx={{
               minWidth: 100,
               bgcolor: dayColor,
               '&:hover': { bgcolor: alpha(dayColor, 0.8) }
@@ -377,12 +383,13 @@ const AvailabilityForm = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
-  
+
   const availability = useOnboardingStore((state) => state.availability);
   const updateAvailability = useOnboardingStore((state) => state.updateAvailability);
   const addCustomTimeSlot = useOnboardingStore((state) => state.addCustomTimeSlot);
   const removeCustomTimeSlot = useOnboardingStore((state) => state.removeCustomTimeSlot);
   const prevStep = useOnboardingStore((state) => state.prevStep);
+  const setHolidaySelections = useOnboardingStore((state) => state.setHolidaySelections);
   const { mutate: saveAvailability, isPending, error: mutationError } = useAvailabilityMutation();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -424,24 +431,24 @@ const AvailabilityForm = () => {
   // Validation functions
   const validateForm = () => {
     const newErrors = {};
-    
+
     // Time slots validation
     if (!availability.customTimeSlots || availability.customTimeSlots.length === 0) {
       newErrors.timeSlots = 'Please add at least one time slot to continue';
     }
-    
+
     // Travel distance validation
     if (isNaN(travelDistance) || travelDistance < 1 || travelDistance > 100) {
       newErrors.travelDistance = 'Travel distance must be between 1 and 100 km';
     }
-    
+
     // Suburb validation
     if (!suburb || !suburb.trim()) {
       newErrors.suburb = 'Please enter your suburb';
     } else if (suburb.trim().length < 2) {
       newErrors.suburb = 'Suburb name must be at least 2 characters long';
     }
-    
+
     return newErrors;
   };
 
@@ -450,7 +457,7 @@ const AvailabilityForm = () => {
     e.preventDefault();
     const formErrors = validateForm();
     setErrors(formErrors);
-    
+
     if (Object.keys(formErrors).length === 0) {
       saveAvailability(availability);
     }
@@ -492,8 +499,42 @@ const AvailabilityForm = () => {
     }
   }, [removeCustomTimeSlot, availability.customTimeSlots]);
 
+  const handleHolidaySelect = (holidayId, selected) => {
+    setHolidaySelections({
+      ...availability.holidaySelections,
+      [holidayId]: {
+        ...(availability.holidaySelections?.[holidayId] || {}),
+        selected,
+      },
+    });
+  };
+
+  const handleHolidayNoteChange = (holidayId, note) => {
+    setHolidaySelections({
+      ...availability.holidaySelections,
+      [holidayId]: {
+        ...(availability.holidaySelections?.[holidayId] || {}),
+        note,
+      },
+    });
+  };
+
+  // Add TanStack Query for holidays
+  const {
+    data: upcomingHolidays = [],
+    isLoading: holidaysLoading,
+    isError: holidaysError,
+    refetch: refetchHolidays,
+  } = useQuery({
+    queryKey: ['upcomingHolidays'],
+    queryFn: fetchUpcomingHolidays,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    cacheTime: 1000 * 60 * 30, // 30 minutes
+    refetchOnWindowFocus: false,
+  });
+
   return (
-    <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 } }}>
+    <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 } }}>
       {/* <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
           Set Your Availability
@@ -506,9 +547,9 @@ const AvailabilityForm = () => {
 
       <form onSubmit={handleSubmit}>
         {/* Time Slots Section - Full Width */}
-        <Card 
-          elevation={0} 
-          sx={{ 
+        <Card
+          elevation={0}
+          sx={{
             mb: 4,
             borderRadius: 3,
             border: errors.timeSlots ? `2px solid ${theme.palette.error.main}` : '1px solid',
@@ -518,10 +559,10 @@ const AvailabilityForm = () => {
           }}
         >
           <CardContent sx={{ p: { xs: 2, md: 3 } }}>
-            <Box 
-              display="flex" 
-              alignItems="center" 
-              justifyContent="space-between" 
+            <Box
+              display="flex"
+              alignItems="center"
+              justifyContent="space-between"
               mb={3}
               flexWrap="wrap"
               gap={2}
@@ -545,7 +586,7 @@ const AvailabilityForm = () => {
                 onClick={handleAddCustomSlot}
                 disabled={isPending}
                 size={isMobile ? 'medium' : 'large'}
-                sx={{ 
+                sx={{
                   borderRadius: 3,
                   fontWeight: 600,
                   minWidth: isMobile ? '100%' : 180,
@@ -568,19 +609,19 @@ const AvailabilityForm = () => {
                   {daysOfWeek.filter(day => groupedCustomSlots[day]?.length).map(day => (
                     <Box key={day} mb={4}>
                       <Box display="flex" alignItems="center" gap={2} mb={2}>
-                        <Box 
-                          sx={{ 
-                            width: 16, 
-                            height: 16, 
-                            borderRadius: '50%', 
-                            bgcolor: DAY_COLORS[day] || theme.palette.primary.main 
-                          }} 
+                        <Box
+                          sx={{
+                            width: 16,
+                            height: 16,
+                            borderRadius: '50%',
+                            bgcolor: DAY_COLORS[day] || theme.palette.primary.main
+                          }}
                         />
                         <Typography variant="h6" sx={{ fontWeight: 600 }}>
                           {day}
                         </Typography>
-                        <Badge 
-                          badgeContent={groupedCustomSlots[day].length} 
+                        <Badge
+                          badgeContent={groupedCustomSlots[day].length}
                           color="primary"
                           sx={{ ml: 1 }}
                         />
@@ -602,10 +643,10 @@ const AvailabilityForm = () => {
                   ))}
                 </Box>
               ) : (
-                <Paper 
-                  variant="outlined" 
-                  sx={{ 
-                    p: 4, 
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 4,
                     textAlign: 'center',
                     bgcolor: 'background.paper',
                     borderRadius: 3,
@@ -613,13 +654,13 @@ const AvailabilityForm = () => {
                   }}
                 >
                   <Box sx={{ maxWidth: 400, mx: 'auto' }}>
-                    <Avatar sx={{ 
-                      bgcolor: alpha(theme.palette.primary.main, 0.1), 
+                    <Avatar sx={{
+                      bgcolor: alpha(theme.palette.primary.main, 0.1),
                       color: theme.palette.primary.main,
-                      width: 64, 
-                      height: 64, 
-                      mx: 'auto', 
-                      mb: 2 
+                      width: 64,
+                      height: 64,
+                      mx: 'auto',
+                      mb: 2
                     }}>
                       <AccessTimeIcon sx={{ fontSize: 32 }} />
                     </Avatar>
@@ -629,9 +670,9 @@ const AvailabilityForm = () => {
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                       Add your first time slot to get started
                     </Typography>
-                    <Button 
-                      variant="contained" 
-                      startIcon={<AddIcon />} 
+                    <Button
+                      variant="contained"
+                      startIcon={<AddIcon />}
                       onClick={handleAddCustomSlot}
                       size="large"
                       sx={{ borderRadius: 3 }}
@@ -645,21 +686,20 @@ const AvailabilityForm = () => {
           </CardContent>
         </Card>
 
-        {/* Preferences Section - Two cards side by side on desktop, stacked on mobile */}
-               {/* Suburb Card */}
-
+        {/* Preferences Section - Three cards side by side on desktop, stacked on mobile */}
         <Grid
           container
-          spacing={{ xs: 2, md: 5 }}
+          spacing={{ xs: 2, md: 4 }}
           sx={{
             mt: { xs: 2, md: 4 },
             mb: { xs: 2, md: 4 },
             px: { xs: 0, md: 2 },
             display: 'flex',
-            alignItems: 'stretch'
+            alignItems: 'stretch',
           }}
         >
-<Grid item xs={12} md={6} sx={{ display: 'flex' }}>
+          {/* Suburb Card */}
+          <Grid item xs={12} md={4} sx={{ display: 'flex' }}>
             <Card
               elevation={0}
               sx={{
@@ -670,7 +710,8 @@ const AvailabilityForm = () => {
                 boxShadow: theme.shadows[1],
                 flex: 1,
                 display: 'flex',
-                flexDirection: 'column'
+                flexDirection: 'column',
+                minWidth: 0,
               }}
             >
               <CardContent sx={{ p: { xs: 2, md: 3 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -686,7 +727,7 @@ const AvailabilityForm = () => {
           </Grid>
 
           {/* Travel Distance Card */}
-          <Grid item xs={12} md={6} sx={{ display: 'flex', width: { xs: '100%', md: 'auto' } }}>
+          <Grid item xs={12} md={4} sx={{ display: 'flex' }}>
             <Card
               elevation={0}
               sx={{
@@ -698,12 +739,12 @@ const AvailabilityForm = () => {
                 flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
-                width: { xs: '100%', md: 'auto' },
+                minWidth: 0,
               }}
             >
               <CardContent sx={{ p: { xs: 2, md: 3 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <Box display="flex" alignItems="center" gap={2} mb={3}>
-                  <Avatar sx={{ 
+                  <Avatar sx={{
                     bgcolor: alpha(theme.palette.success.main, 0.1),
                     color: theme.palette.success.main
                   }}>
@@ -714,16 +755,16 @@ const AvailabilityForm = () => {
                       Travel Distance
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                    How many km are you willing to travel from your place of residence 
+                      How many km are you willing to travel from your place of residence
                     </Typography>
                   </Box>
                 </Box>
 
                 <Box mb={3}>
-                  <Typography 
-                    variant="h4" 
-                    sx={{ 
-                      fontWeight: 700, 
+                  <Typography
+                    variant="h4"
+                    sx={{
+                      fontWeight: 700,
                       color: theme.palette.success.main,
                       mb: 2,
                       textAlign: 'center'
@@ -731,7 +772,7 @@ const AvailabilityForm = () => {
                   >
                     {travelDistance} km
                   </Typography>
-                  
+
                   <Slider
                     value={travelDistance}
                     onChange={(_, val) => {
@@ -785,7 +826,7 @@ const AvailabilityForm = () => {
                       },
                     }}
                   />
-                  
+
                   <Box display="flex" justifyContent="space-between" mt={1}>
                     <Typography variant="caption" color="text.secondary">
                       1 km
@@ -805,22 +846,96 @@ const AvailabilityForm = () => {
             </Card>
           </Grid>
 
-   
-          
+          {/* Upcoming Holidays Card */}
+          <Grid item xs={12} md={4} sx={{ display: 'flex' }}>
+            <Card
+              elevation={0}
+              sx={{
+                borderRadius: 3,
+                border: '1px solid',
+                borderColor: 'divider',
+                height: '100%',
+                boxShadow: theme.shadows[1],
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                minWidth: 0,
+              }}
+            >
+              <CardContent sx={{ p: { xs: 2, md: 3 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>Upcoming Holidays</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    We will notify you about upcoming holidays. For now, we have added some holidays for you to select from.
+                  </Typography>
+                  {/* Holidays List UI remains unchanged, already responsive */}
+                  {holidaysLoading && <LinearProgress sx={{ my: 2 }} />}
+                  {holidaysError && <Alert severity="error" sx={{ my: 2 }}>Failed to load holidays</Alert>}
+                  {!holidaysLoading && !holidaysError && (
+                    <List>
+                      {upcomingHolidays.length === 0 ? (
+                        <ListItem>
+                          <ListItemText primary="No upcoming holidays found." />
+                        </ListItem>
+                      ) : (
+                        upcomingHolidays.map((holiday) => {
+                          const selection = availability.holidaySelections?.[holiday._id] || { selected: false, note: '' };
+                          return (
+                            <ListItem
+                              key={holiday._id}
+                              alignItems="flex-start"
+                              sx={{ flexDirection: 'column', alignItems: 'stretch', mb: 2, borderRadius: 2, boxShadow: 1, bgcolor: selection.selected ? 'action.selected' : 'background.paper' }}
+                            >
+                              <Box display="flex" alignItems="center" justifyContent="space-between">
+                                <Box display="flex" alignItems="center" gap={2}>
+                                  <CalendarIcon color={selection.selected ? 'primary' : 'action'} />
+                                  <ListItemText
+                                    primary={holiday.name || holiday.title || 'Unnamed Holiday'}
+                                    secondary={holiday.date ? new Date(holiday.date).toLocaleDateString() : ''}
+                                  />
+                                </Box>
+                                <Switch
+                                  checked={selection.selected}
+                                  onChange={e => handleHolidaySelect(holiday._id, e.target.checked)}
+                                  color="primary"
+                                  inputProps={{ 'aria-label': 'Select holiday' }}
+                                />
+                              </Box>
+                              {selection.selected && (
+                                <TextField
+                                  label="Special Note"
+                                  value={selection.note || ''}
+                                  onChange={e => handleHolidayNoteChange(holiday._id, e.target.value)}
+                                  placeholder="Add a note for this holiday (optional)"
+                                  fullWidth
+                                  margin="dense"
+                                  sx={{ mt: 1 }}
+                                />
+                              )}
+                            </ListItem>
+                          );
+                        })
+                      )}
+                    </List>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
 
         {/* Form Actions */}
-        <Box 
-          display="flex" 
+        <Box
+          display="flex"
           flexDirection={{ xs: 'column-reverse', sm: 'column-reverse' }}
-          justifyContent="space-between" 
+          justifyContent="space-between"
           alignItems="center"
           mt={4}
           gap={2}
-          sx={{ 
+          sx={{
             p: 3,
             borderRadius: 3,
-        
+
           }}
         >
           <Button
@@ -829,12 +944,12 @@ const AvailabilityForm = () => {
             onClick={prevStep}
             disabled={isPending}
             size="large"
-            sx={{ 
-              borderRadius: 3, 
-              minWidth: isMobile ? '100%' : 180 
+            sx={{
+              borderRadius: 3,
+              minWidth: isMobile ? '100%' : 180
             }}
           >
-            Back to Profile
+            Back to Work History
           </Button>
           <Button
             type="submit"
@@ -842,7 +957,7 @@ const AvailabilityForm = () => {
             endIcon={!isPending && <ArrowForwardIcon />}
             disabled={isPending}
             size="large"
-            sx={{ 
+            sx={{
               minWidth: isMobile ? '100%' : 220,
               borderRadius: 3,
               fontWeight: 700,
@@ -877,9 +992,9 @@ const AvailabilityForm = () => {
         {/* Global Error Display */}
         {mutationError && (
           <Box mt={3}>
-            <Alert 
-              severity="error" 
-              sx={{ 
+            <Alert
+              severity="error"
+              sx={{
                 borderRadius: 3,
                 '& .MuiAlert-message': {
                   fontWeight: 500

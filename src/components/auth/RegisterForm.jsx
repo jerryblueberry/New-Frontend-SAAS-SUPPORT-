@@ -21,7 +21,9 @@ import {
   IconButton,
   InputAdornment,
   Divider,
-  Paper
+  Paper,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
@@ -114,7 +116,8 @@ const RegisterForm = ({
     phone: '', // Only digits, no +61
     password: '',
     confirmPassword: '',
-  });
+    termsAndConditionsAccepted: false
+    });
 
   const [validationErrors, setValidationErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -207,6 +210,11 @@ const RegisterForm = ({
       const error = validateField(key, formData[key]);
       if (error) errors[key] = error;
     });
+
+    // Terms and Conditions validation
+    if (!formData.termsAndConditionsAccepted) {
+      errors.termsAndConditionsAccepted = 'You must agree to the Terms and Conditions to register.';
+    }
 
     setValidationErrors(errors);
 
@@ -467,8 +475,8 @@ const RegisterForm = ({
           )}
         </Grid>
 
-        {/* Confirm Password */}
-        <Grid item xs={12}>
+        
+        <Grid item xs={12} sm={16}>
           <TextField
             fullWidth
             variant="outlined"
@@ -515,7 +523,28 @@ const RegisterForm = ({
             }}
           />
         </Grid>
+       
+        
       </Grid>
+      <Grid item xs={12}>
+          <FormControlLabel
+              control={<Checkbox color="primary" checked={formData.termsAndConditionsAccepted} onChange={(e) => setFormData({ ...formData, termsAndConditionsAccepted: e.target.checked })}         />}
+            label={
+              <Typography variant="body2" sx={{ pl: 0, m: 0, display: 'inline' }}>
+                I've read and agree to the{' '}
+                <Link href="/terms-and-conditions" color="primary" underline="hover" target="_blank" rel="noopener">
+                  Terms and Conditions
+                </Link>
+              </Typography>
+            }
+            sx={{ alignItems: 'center', pl: 0, ml: 0, mt: 1 }}
+          />
+          {touched.termsAndConditionsAccepted && validationErrors.termsAndConditionsAccepted && (
+            <Typography variant="caption" color="error" sx={{ ml: 1 }}>
+              {validationErrors.termsAndConditionsAccepted}
+            </Typography>
+          )}
+        </Grid>
 
       {/* Password Requirements */}
       <Collapse in={showRequirements && formData.password.length > 0}>
