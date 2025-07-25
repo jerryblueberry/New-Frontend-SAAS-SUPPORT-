@@ -52,7 +52,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import debounce from 'lodash/debounce';
-import useOnboardingStore, { useCertificationsMutation } from '../../stores/useOnboardingStore';
+import useOnboardingStore, { useCertificationsMutation, useOtherCertificatesMutation } from '../../stores/useOnboardingStore';
 import { useOnboardingQuery } from '../../stores/useOnboardingStore';
 import DocumentPreview from '../../components/workerForm/Modals/DocumentPreview';
 import { toast } from 'react-hot-toast';
@@ -294,11 +294,16 @@ const CertificateSecond = ({ initialStep = 0 }) => {
     removeCertificationDocument,
 
     updateResidencyStatus,
-    updateCertifications
+    updateCertifications,
+    otherCertifications,
+    addOtherCertificate,
+    removeOtherCertificate,
+    updateOtherCertificates
   } = useOnboardingStore();
 
   const { data: onboardingData, isLoading: isLoadingOnboardingData, isError: isOnboardingError } = useOnboardingQuery();
   const { mutate: submitCertifications, isLoading: isSubmitting } = useCertificationsMutation();
+  const { mutate: saveOtherCertificate } = useOtherCertificatesMutation();
 
   // Local state
   const [customDegrees, setCustomDegrees] = useState([]);
@@ -574,149 +579,159 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
     setSearchQuery(value);
   }, 300);
 
-  const handleSubmit = () => {
+  const [submitLoading, setSubmitLoading] = useState(false);
+
+  // Function to save document tracking data to database (best practice: send full doc objects)
+  const saveDocumentTrackingToDatabase = async (documents) => {
+    if (!Array.isArray(documents) || documents.length === 0) {
+      throw new Error('No documents to save');
+    }
+    // Transform to backend-expected format
+    const transformedDocs = documents.map((doc, idx) => {
+      // If already in correct format, use as is
+      if (typeof doc === 'object' && typeof doc.documentUrl === 'string') {
+        return doc;
+      }
+      // If doc is a tracked object with publicId
+      if (doc.publicId) {
+        return {
+          documentName: doc.fileName || `Document ${idx + 1}`,
+          documentType: 'Support Worker',
+          documentUrl: doc.url || doc.publicId, // must be a string
+          publicId: doc.publicId,
+          fileName: doc.fileName || '',
+          fileType: doc.fileType || '',
+          uploadDate: doc.uploadedAt || doc.trackedAt || new Date(),
+          isVerified: false,
+          additionalInfo: {}
+        };
+      }
+      // If doc is a string (publicId)
+      if (typeof doc === 'string') {
+        return {
+          documentName: `Document ${idx + 1}`,
+          documentType: 'Support Worker',
+          documentUrl: doc,
+          publicId: doc,
+          fileName: '',
+          fileType: '',
+          uploadDate: new Date(),
+          isVerified: false,
+          additionalInfo: {}
+        };
+      }
+      // Fallback: skip
+      return null;
+    }).filter(Boolean);
+
+    if (transformedDocs.length === 0) {
+      throw new Error('No valid documents found');
+    }
+    const response = await api.post('/documents-tracking/save', {
+      documents: transformedDocs
+    });
+    if (!response || !response.data || !response.data.success) {
+      throw new Error(response?.data?.message || 'Failed to save document tracking');
+    }
+    return response.data;
+  };
+
+  const handleSubmit = async () => {
     if (!allRequiredCertsAdded() || progress < 100) {
       message.warning('Please complete all required certifications before submitting');
       return;
     }
+    setSubmitLoading(true);
+    // Gather tracked document objects from localStorage
+    const trackedDocsObj = DocumentTrackingService.getTrackedDocuments();
+    const trackedDocs = Object.values(trackedDocsObj);
 
-    // Ensure we're sending just the ID for certificationType
-    const certsToSubmit = selectedCerts.map(cert => ({
-      ...cert,
-      degree: cert.degree ? (Array.isArray(cert.degree) ? cert.degree : [cert.degree]) : [],
-      insuranceType: cert.insuranceType ? (Array.isArray(cert.insuranceType) ? cert.insuranceType : [cert.insuranceType]) : [],
-      certificationType: cert.certificationType // Already normalized to just the ID
-    }));
-
-    // Get all tracked document public IDs from localStorage
-    const trackedDocuments = DocumentTrackingService.getTrackedDocuments();
-    const documentPublicIds = Object.keys(trackedDocuments);
-
-    // Save document tracking to database first (if there are documents)
-    const saveDocumentTracking = async () => {
-      if (documentPublicIds.length > 0) {
-        try {
-          await saveDocumentTrackingToDatabase(documentPublicIds);
-          console.log('Document tracking saved to database successfully');
-          // Clear localStorage after successful database save
-          DocumentTrackingService.clearAllTrackedDocuments();
-        } catch (error) {
-          console.error('Document tracking save failed:', error);
-          // Don't block the main submission, just log the error
-          message.warning('Certifications will be saved but document tracking failed. Please contact support.');
-        }
+    // Helper: upload other certificates sequentially
+    const uploadOtherCertificates = async () => {
+      for (const cert of otherCertifications) {
+        await new Promise((resolve) => {
+          saveOtherCertificate(cert, {
+            onSuccess: () => {
+              // Remove tracked docs for this cert from localStorage
+              if (Array.isArray(cert.documents)) {
+                cert.documents.forEach(doc => {
+                  if (doc.publicId) {
+                    DocumentTrackingService.removeTrackedDocument(doc.publicId);
+                  }
+                });
+              }
+              resolve();
+            },
+            onError: () => resolve(), // Don't block main submit
+          });
+        });
       }
     };
 
-    // Execute document tracking save in parallel with certification submission
-    const documentTrackingPromise = saveDocumentTracking();
-
-    // Submit certifications using the mutation
-    submitCertifications({
-      certifications: certsToSubmit,
-      // nationality,
-      residencyStatus,
-      allCertificationTypes: certificationTypes, // Pass the full list of certification types
-    }, {
-      onSuccess: async (data) => {
-        // Wait for document tracking to complete
-        try {
-          await documentTrackingPromise;
-        } catch (error) {
-          // Document tracking error already handled above
-        }
-
-        // Handle certification submission success
-        if (data.success && data.data) {
-          toast.success("Submitted Successfully");
-
-          // Update profile completeness in the store
-          const { updateProfileCompleteness } = useOnboardingStore.getState();
-          updateProfileCompleteness(data.data);
-
-          // Use the store's nextStep function instead of onboardingNextStep
-          const { nextStep } = useOnboardingStore.getState();
-          nextStep();
-
-          message.success('Certifications submitted successfully!');
-        } else {
-          // Handle case where data.success is false but no error was thrown
-          message.warning('Submission successful but profile update incomplete.');
-        }
-      },
-      onError: (error) => {
-        message.error(error.message || 'Failed to submit certifications');
-      }
-    });
-  };
-
-  // Function to save document tracking data to database
-  const saveDocumentTrackingToDatabase = async (documentPublicIds) => {
-    try {
-      console.log('Saving document tracking to database:', documentPublicIds);
-
-      // Validate input
-      if (!Array.isArray(documentPublicIds) || documentPublicIds.length === 0) {
-        throw new Error('No document public IDs to save');
-      }
-
-      // Filter out any invalid public IDs
-      const validPublicIds = documentPublicIds.filter(id => 
-        id && typeof id === 'string' && id.trim().length > 0
-      );
-
-      if (validPublicIds.length === 0) {
-        throw new Error('No valid document public IDs found');
-      }
-
-      const response = await api.post('/documents-tracking/save', {
-        documents: validPublicIds
+    // Helper: upload main certifications
+    const uploadCertifications = () => {
+      return new Promise((resolve, reject) => {
+        submitCertifications({
+          certifications: selectedCerts.map(cert => ({
+            ...cert,
+            degree: cert.degree ? (Array.isArray(cert.degree) ? cert.degree : [cert.degree]) : [],
+            insuranceType: cert.insuranceType ? (Array.isArray(cert.insuranceType) ? cert.insuranceType : [cert.insuranceType]) : [],
+            subclass: Array.isArray(cert.subclass) ? cert.subclass[0] : cert.subclass,
+            certificationType: cert.certificationType
+          })),
+          residencyStatus,
+          allCertificationTypes: certificationTypes,
+        }, {
+          onSuccess: () => resolve(),
+          onError: (error) => reject(error),
+        });
       });
+    };
 
-      // Validate response
-      if (!response || !response.data) {
-        throw new Error('Invalid response from server');
+    // Helper: upload tracked documents
+    const uploadTrackedDocuments = async () => {
+      if (trackedDocs.length > 0) {
+        await saveDocumentTrackingToDatabase(trackedDocs);
+        DocumentTrackingService.clearAllTrackedDocuments();
+      }
+    };
+
+    try {
+      // Run all three in parallel
+      const results = await Promise.allSettled([
+        uploadOtherCertificates(),
+        uploadCertifications(),
+        uploadTrackedDocuments()
+      ]);
+
+      // User feedback for each
+      if (results[0].status === 'fulfilled') {
+        message.success('Other certificates uploaded successfully!');
+      } else {
+        message.error('Failed to upload some other certificates.');
+      }
+      if (results[1].status === 'fulfilled') {
+        message.success('Certifications submitted successfully!');
+      } else {
+        message.error(results[1].reason?.message || 'Failed to submit certifications');
+      }
+      if (results[2].status === 'fulfilled') {
+        message.success('Tracked documents uploaded and cleared from localStorage.');
+      } else {
+        message.error('Failed to upload tracked documents: ' + (results[2].reason?.message || results[2].reason));
       }
 
-      if (response.data.success) {
-        console.log('Document tracking saved successfully:', response.data);
-        return response.data;
-      } else {
-        throw new Error(response.data.message || 'Failed to save document tracking');
+      // Final overall success if all succeeded
+      if (results.every(r => r.status === 'fulfilled')) {
+        message.success('All onboarding data submitted successfully!');
       }
     } catch (error) {
-      console.error('Error saving document tracking to database:', error);
-
-      // Provide more specific error messages based on error type
-      if (error.response) {
-        // Server responded with error status
-        const status = error.response.status;
-        const message = error.response.data?.message || 'Server error';
-
-        if (status === 401) {
-          throw new Error('Authentication required for document tracking');
-        } else if (status === 403) {
-          throw new Error('Permission denied for document tracking');
-        } else if (status === 400) {
-          throw new Error(`Invalid request: ${message}`);
-        } else if (status >= 500) {
-          throw new Error('Server error while saving document tracking');
-        } else {
-          throw new Error(`Document tracking failed: ${message}`);
-        }
-      } else if (error.request) {
-        // Network error
-        throw new Error('Network error while saving document tracking');
-      } else {
-        // Other error
-        throw new Error('Document tracking save failed: ' + error.message);
-      }
+      message.error(error.message || 'Failed to submit onboarding data');
+    } finally {
+      setSubmitLoading(false);
     }
   };
 
-  console.log("REquired Certs",requiredCerts.map((certs) =>(
-    certs.name
-  )))
   // Add new state for pending add/edit
   const [pendingCertTypeId, setPendingCertTypeId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -1324,6 +1339,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
   ), [residencyStatus, formErrors, updateResidencyStatus]);
 
   const renderAddCertificationsStep = useMemo(() => (
+    
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40 }}>
@@ -1856,11 +1872,11 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
           type="primary" 
           size="large"
           onClick={handleSubmit}
-          loading={isSubmitting}
-          disabled={selectedCerts.length === 0 || progress < 100 || !allRequiredCertsAdded()}
+          loading={submitLoading}
+          disabled={selectedCerts.length === 0 || progress < 100 || !allRequiredCertsAdded() || submitLoading}
           style={{ minWidth: 200, height: 48 }}
         >
-          {isSubmitting ? 'Submitting...' : 'Submit Certifications'}
+          {submitLoading ? 'Submitting...' : 'Submit Certifications'}
         </Button>
         {(progress < 100 || !allRequiredCertsAdded()) && (
           <div style={{ marginTop: 16 }}>
@@ -1887,7 +1903,8 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
     handleRemoveCertification,
     isWorkingWithChildrenCheckType,
     formatFieldLabel,
-    isDegreeMissing
+    isDegreeMissing,
+    submitLoading
   ]);
 
 
@@ -2044,10 +2061,31 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
                   </Select>
                 ) : field === 'subclass' ? (
                   <Select
-                    mode="tags"
                     placeholder="Select or enter visa subclass"
-                    tokenSeparators={[',']}
-                    defaultValue={cert[field] ? [cert[field]] : []}
+                    showSearch
+                    allowClear
+                    value={cert[field] || undefined}
+                    onChange={value => certForm.setFieldsValue({ subclass: value })}
+                    style={{ width: '100%' }}
+                    optionFilterProp="children"
+                    // Allow user to type a custom value
+                    dropdownRender={menu => (
+                      <>
+                        {menu}
+                        <div style={{ display: 'flex', flexWrap: 'nowrap', padding: 8 }}>
+                          <Input
+                            style={{ flex: 'auto' }}
+                            placeholder="Enter custom subclass"
+                            onPressEnter={e => {
+                              const val = e.target.value;
+                              if (val) {
+                                certForm.setFieldsValue({ subclass: val });
+                              }
+                            }}
+                          />
+                        </div>
+                      </>
+                    )}
                   >
                     {certType.visaSettings?.subclassOptions?.map(option => (
                       <Option key={option} value={option}>
@@ -2421,6 +2459,24 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
     }
   }, [certDetailsVisible, certForm]);
 
+  // Other Certificate Drawer state
+  const [otherCertDrawerOpen, setOtherCertDrawerOpen] = useState(false);
+  const [otherCertTitle, setOtherCertTitle] = useState('');
+  const [otherCertDocs, setOtherCertDocs] = useState([]);
+  const [isSavingOtherCert, setIsSavingOtherCert] = useState(false);
+
+  const handleRemoveOtherCertificate = (index) => {
+    const cert = otherCertifications[index];
+    if (Array.isArray(cert.documents)) {
+      cert.documents.forEach(doc => {
+        if (doc.publicId) {
+          DocumentTrackingService.removeTrackedDocument(doc.publicId);
+        }
+      });
+    }
+    removeOtherCertificate(index);
+  };
+
   if (isOnboardingError) {
     return (
       <div style={{ padding: 24, textAlign: 'center' }}>
@@ -2543,6 +2599,119 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
         onClose={() => setPreviewDocument(null)}
         onDelete={handleDocumentDeleteFromPreview}
       />
+      <Button type="dashed" onClick={() => setOtherCertDrawerOpen(true)} style={{ marginTop: 24, width: '100%' }}>
+        Add Other Certificate
+      </Button>
+      {/* List existing other certificates */}
+      {otherCertifications.length > 0 && (
+        <Card title="Other Certificates" style={{ marginTop: 16 }}>
+          <List
+            dataSource={otherCertifications}
+            renderItem={(cert, idx) => (
+              <List.Item
+                actions={[
+                  <Button danger size="small" onClick={() => handleRemoveOtherCertificate(idx)}>Remove</Button>
+                ]}
+              >
+                <List.Item.Meta
+                  title={cert.certificationTitle}
+                  description={cert.documents && cert.documents.length > 0 ? `${cert.documents.length} document(s)` : 'No documents'}
+                />
+              </List.Item>
+            )}
+          />
+        </Card>
+      )}
+      {/* Drawer for adding other certificate */}
+      <Drawer
+        title="Add Other Certificate"
+        open={otherCertDrawerOpen}
+        onClose={() => {
+          setOtherCertDrawerOpen(false);
+          setOtherCertTitle('');
+          setOtherCertDocs([]);
+        }}
+        width={480}
+        footer={
+          <div style={{ textAlign: 'right' }}>
+            <Button onClick={() => setOtherCertDrawerOpen(false)} style={{ marginRight: 8 }}>Cancel</Button>
+            <Button type="primary" loading={isSavingOtherCert} onClick={async () => {
+              if (!otherCertTitle.trim()) {
+                message.error('Certificate title is required');
+                return;
+              }
+              if (!otherCertDocs.length) {
+                message.error('At least one document is required');
+                return;
+              }
+              setIsSavingOtherCert(true);
+              // Only add to Zustand, do not call backend here
+              addOtherCertificate({ certificationTitle: otherCertTitle, documents: otherCertDocs });
+              message.success('Other certificate added locally');
+              setOtherCertDrawerOpen(false);
+              setOtherCertTitle('');
+              setOtherCertDocs([]);
+              setIsSavingOtherCert(false);
+            }}>Save</Button>
+          </div>
+        }
+      >
+        <Input
+          placeholder="Certificate Title"
+          value={otherCertTitle}
+          onChange={e => setOtherCertTitle(e.target.value)}
+          maxLength={100}
+          style={{ marginBottom: 16 }}
+        />
+        {/* Reuse upload logic, but for otherCertDocs */}
+        <Upload
+          accept=".pdf,.jpg,.jpeg,.png"
+          fileList={otherCertDocs}
+          onRemove={file => {
+            setOtherCertDocs(prev => prev.filter(d => d.uid !== file.uid));
+            // Remove from tracking if publicId exists
+            if (file.publicId) {
+              DocumentTrackingService.removeTrackedDocument(file.publicId);
+            }
+          }}
+          beforeUpload={async (file, fileList) => {
+            // Validate file type and size
+            const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+            const maxFileSize = 5 * 1024 * 1024;
+            if (!allowedFileTypes.includes(file.type)) {
+              message.error('Only PDF, JPG, PNG files are allowed');
+              return Upload.LIST_IGNORE;
+            }
+            if (file.size > maxFileSize) {
+              message.error('Each file must be less than 5MB');
+              return Upload.LIST_IGNORE;
+            }
+            // Upload to Cloudinary (reuse uploadToCloudinary)
+            const uploaded = await uploadToCloudinary(file, 'otherCert');
+            if (uploaded) {
+              setOtherCertDocs(prev => [...prev, uploaded]);
+              // Track publicId for this document
+              if (uploaded.publicId) {
+                DocumentTrackingService.addTrackedDocument(uploaded.publicId);
+              }
+            }
+            return false;
+          }}
+          multiple
+          listType="picture-card"
+          showUploadList={{ showPreviewIcon: true, showRemoveIcon: true }}
+        >
+          {otherCertDocs.length >= 2 ? null : (
+            <div>
+              <PlusOutlined />
+              <div style={{ marginTop: 8 }}>Upload</div>
+            </div>
+          )}
+        </Upload>
+        <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+          Accepted formats: PDF, JPG, PNG (Max 5MB each, 1-2 documents required)
+        </Text>
+      </Drawer>
     </div>
   );
 };

@@ -127,6 +127,8 @@ const initialState = {
   },
 
   certifications: [],
+  // Add otherCertifications for additional certificates
+  otherCertifications: [],
 
   // Added nationality and residencyStatus fields for certifications
   // nationality: '',
@@ -593,6 +595,7 @@ const useOnboardingStore = create(
               : {},
           },
           certifications: profile?.certifications || [],
+          otherCertifications: profile?.otherCertifications || [], // Hydrate otherCertifications
           residencyStatus: profile?.residencyStatus || '',
           healthInformation: profile?.healthInformation || {},
           workHistory: {
@@ -862,6 +865,15 @@ const useOnboardingStore = create(
           set({ isLoading: false });
         }
       },
+
+      // Other Certifications actions
+      addOtherCertificate: (cert) => set((state) => ({
+        otherCertifications: [...state.otherCertifications, cert],
+      })),
+      removeOtherCertificate: (index) => set((state) => ({
+        otherCertifications: state.otherCertifications.filter((_, i) => i !== index),
+      })),
+      updateOtherCertificates: (certs) => set({ otherCertifications: certs }),
     }),
     {
       name: 'onboarding-storage',
@@ -871,6 +883,7 @@ const useOnboardingStore = create(
         profile: state.profile,
         availability: state.availability,
         certifications: state.certifications,
+        otherCertifications: state.otherCertifications, // persist otherCertifications
         healthInformation: state.healthInformation,
         // nationality: state.nationality,
         residencyStatus: state.residencyStatus,
@@ -1339,6 +1352,21 @@ export const useCompleteOnboardingMutation = () => {
         duration: 4000,
         position: 'top-right',
       });
+    },
+  });
+};
+
+// Mutation hook for saving other certificates
+export const useOtherCertificatesMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data) => {
+      const response = await api.post('/onboarding/other-certifications', data);
+      if (!response.data.success) throw new Error(response.data.message);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['onboarding'] });
     },
   });
 };
