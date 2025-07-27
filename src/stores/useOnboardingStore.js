@@ -93,6 +93,16 @@ export const onboardingApi = {
       throw new Error(errorMessage);
     }
   },
+
+  fetchUserUpcomingHolidays: async () => {
+    const response = await api.get(`/upcoming-holidays/my`);
+    return response.data;
+  },
+
+  createUserUpcomingHoliday: async (holidayData) => {
+    const response = await api.post(`/upcoming-holidays/create`, holidayData);
+    return response.data;
+  },
 };
 
 // Initial state object for reuse
@@ -170,15 +180,235 @@ const initialState = {
       workHistory: false,
     },
   },
+  upcomingHolidays: [], // Add this for holidays
 };
 
-// Create store with Zustand
+// Add document tracking functionality to the store
 const useOnboardingStore = create(
   persist(
     (set, get) => ({
       ...initialState,
       isLoading: false,
       error: null,
+
+      // Document tracking state
+      documentTracking: {
+        trackedDocuments: {},
+        lastSync: null,
+        isSyncing: false
+      },
+
+      // Document tracking actions
+      addTrackedDocument: async (publicId, documentData = {}) => {
+        try {
+          const state = get();
+          const updatedTracking = {
+            ...state.documentTracking.trackedDocuments,
+            [publicId]: {
+              publicId,
+              trackedAt: new Date().toISOString(),
+              ...documentData
+            }
+          };
+
+          // Update local state immediately
+          set((state) => ({
+            documentTracking: {
+              ...state.documentTracking,
+              trackedDocuments: updatedTracking
+            }
+          }));
+
+          // Sync to database in background
+          get().syncDocumentTrackingToDatabase();
+          
+          return true;
+        } catch (error) {
+          console.error('Error adding tracked document:', error);
+          return false;
+        }
+      },
+
+      removeTrackedDocument: async (publicId) => {
+        try {
+          const state = get();
+          const updatedTracking = { ...state.documentTracking.trackedDocuments };
+          delete updatedTracking[publicId];
+
+          // Update local state immediately
+          set((state) => ({
+            documentTracking: {
+              ...state.documentTracking,
+              trackedDocuments: updatedTracking
+            }
+          }));
+
+          // Sync to database in background
+          get().syncDocumentTrackingToDatabase();
+          
+          return true;
+        } catch (error) {
+          console.error('Error removing tracked document:', error);
+          return false;
+        }
+      },
+
+      getTrackedDocuments: () => {
+        const state = get();
+        return state.documentTracking.trackedDocuments;
+      },
+
+      isDocumentTracked: (publicId) => {
+        const state = get();
+        return state.documentTracking.trackedDocuments.hasOwnProperty(publicId);
+      },
+
+      // Sync document tracking with database
+      syncDocumentTrackingToDatabase: async () => {
+        try {
+          const state = get();
+          if (state.documentTracking.isSyncing) return; // Prevent concurrent syncs
+
+          set((state) => ({
+            documentTracking: {
+              ...state.documentTracking,
+              isSyncing: true
+            }
+          }));
+
+          const trackedDocs = state.documentTracking.trackedDocuments;
+          const documents = Object.values(trackedDocs).map(doc => ({
+            documentName: doc.documentName || `Document ${doc.publicId}`,
+            documentType: doc.documentType || 'Support Worker',
+            documentUrl: doc.publicId,
+            publicId: doc.publicId,
+            fileName: doc.fileName || '',
+            fileType: doc.fileType || '',
+            uploadDate: doc.trackedAt || new Date(),
+            isVerified: false,
+            additionalInfo: doc.additionalInfo || {}
+          }));
+
+          if (documents.length > 0) {
+            await api.post('/documents-tracking/save', { documents });
+          }
+
+          set((state) => ({
+            documentTracking: {
+              ...state.documentTracking,
+              lastSync: new Date().toISOString(),
+              isSyncing: false
+            }
+          }));
+
+          console.log('Document tracking synced to database');
+        } catch (error) {
+          console.error('Error syncing document tracking to database:', error);
+          set((state) => ({
+            documentTracking: {
+              ...state.documentTracking,
+              isSyncing: false
+            }
+          }));
+        }
+      },
+
+      // Load document tracking from database
+      loadDocumentTrackingFromDatabase: async () => {
+        try {
+          const response = await api.get('/documents-tracking/user');
+          if (response.data.success && response.data.data) {
+            const documents = response.data.data.overAlldocuments || [];
+            const trackedDocs = {};
+            
+            documents.forEach(doc => {
+              if (doc.documentUrl) {
+                trackedDocs[doc.documentUrl] = {
+                  publicId: doc.documentUrl,
+                  documentName: doc.documentName,
+                  documentType: doc.documentType,
+                  fileName: doc.fileName,
+                  fileType: doc.fileType,
+                  trackedAt: doc.uploadDate,
+                  additionalInfo: doc.additionalInfo || {}
+                };
+              }
+            });
+
+            set((state) => ({
+              documentTracking: {
+                ...state.documentTracking,
+                trackedDocuments: trackedDocs,
+                lastSync: new Date().toISOString()
+              }
+            }));
+
+            console.log('Document tracking loaded from database');
+          }
+        } catch (error) {
+          console.error('Error loading document tracking from database:', error);
+        }
+      },
+
+      // Cleanup orphaned documents
+      cleanupOrphanedDocuments: async () => {
+        try {
+          const state = get();
+          const trackedDocs = state.documentTracking.trackedDocuments;
+          const currentDocs = state.certifications.flatMap(cert => 
+            cert.documents?.map(doc => doc.publicId).filter(Boolean) || []
+          );
+
+          // Find orphaned documents
+          const orphanedDocs = Object.keys(trackedDocs).filter(
+            publicId => !currentDocs.includes(publicId)
+          );
+
+          // Remove orphaned documents
+          for (const publicId of orphanedDocs) {
+            await get().removeTrackedDocument(publicId);
+          }
+
+          if (orphanedDocs.length > 0) {
+            console.log(`Cleaned up ${orphanedDocs.length} orphaned documents`);
+          }
+        } catch (error) {
+          console.error('Error cleaning up orphaned documents:', error);
+        }
+      },
+
+      // Get document tracking statistics
+      getDocumentTrackingStats: () => {
+        const state = get();
+        const trackedDocs = state.documentTracking.trackedDocuments;
+        const publicIds = Object.keys(trackedDocs);
+
+        return {
+          totalTracked: publicIds.length,
+          publicIds: publicIds,
+          lastSync: state.documentTracking.lastSync,
+          isSyncing: state.documentTracking.isSyncing
+        };
+      },
+
+      // Clear all document tracking
+      clearAllDocumentTracking: async () => {
+        try {
+          set((state) => ({
+            documentTracking: {
+              trackedDocuments: {},
+              lastSync: null,
+              isSyncing: false
+            }
+          }));
+
+          // Also clear from database
+          await api.delete('/documents-tracking/clear');
+          console.log('All document tracking cleared');
+        } catch (error) {
+          console.error('Error clearing document tracking:', error);
+        }
+      },
 
       // Navigation actions
       nextStep: () => {
@@ -874,6 +1104,26 @@ const useOnboardingStore = create(
         otherCertifications: state.otherCertifications.filter((_, i) => i !== index),
       })),
       updateOtherCertificates: (certs) => set({ otherCertifications: certs }),
+
+      // --- Upcoming Holidays Actions ---
+      fetchAndSetUpcomingHolidays: async () => {
+        try {
+          const holidays = await onboardingApi.fetchUserUpcomingHolidays();
+          holidays.sort((a, b) => new Date(a.startDate) - new Date(b.startDate) || new Date(a.endDate) - new Date(b.endDate));
+          set({ upcomingHolidays: holidays });
+        } catch (error) {
+          set({ upcomingHolidays: [] });
+        }
+      },
+      addUpcomingHoliday: async (holidayData) => {
+        const newHoliday = await onboardingApi.createUserUpcomingHoliday(holidayData);
+        set((state) => ({
+          upcomingHolidays: [...state.upcomingHolidays, newHoliday].sort(
+            (a, b) => new Date(a.startDate) - new Date(b.startDate) || new Date(a.endDate) - new Date(b.endDate)
+          ),
+        }));
+      },
+      // --- End Upcoming Holidays Actions ---
     }),
     {
       name: 'onboarding-storage',
@@ -889,6 +1139,8 @@ const useOnboardingStore = create(
         residencyStatus: state.residencyStatus,
         workHistory: state.workHistory,
         profileCompleteness: state.profileCompleteness,
+        upcomingHolidays: state.upcomingHolidays,
+        documentTracking: state.documentTracking, // persist document tracking
       }),
     }
   )

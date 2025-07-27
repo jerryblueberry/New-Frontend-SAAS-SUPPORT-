@@ -30,6 +30,21 @@ import { toast } from 'react-hot-toast';
 import { deleteCloudinaryImage } from '../../../api/cloudinary';
 import useOnboardingStore from '../../../stores/useOnboardingStore';
 
+// Helper to extract Cloudinary public_id from a URL
+const extractCloudinaryPublicId = (url) => {
+  if (!url) return null;
+  // Remove query params
+  const cleanUrl = url.split('?')[0];
+  // Find the part after '/upload/'
+  const uploadIdx = cleanUrl.indexOf('/upload/');
+  if (uploadIdx === -1) return null;
+  const afterUpload = cleanUrl.substring(uploadIdx + 8 + 1); // +1 to skip the final '/'
+  // Remove file extension
+  const lastDot = afterUpload.lastIndexOf('.');
+  const publicId = lastDot !== -1 ? afterUpload.substring(0, lastDot) : afterUpload;
+  return publicId;
+};
+
 const OnboardingCV = ({ cvError }) => {
   const updateCV = useOnboardingStore((state) => state.updateCV);
   const CV = useOnboardingStore((state) => state.workHistory?.CV);
@@ -138,11 +153,15 @@ const OnboardingCV = ({ cvError }) => {
                       const cvObj = typeof (localCV || CV) === 'string'
                         ? { url: localCV || CV }
                         : (localCV || CV);
-                      if (cvObj && cvObj.public_id) {
+                      let publicId = cvObj && cvObj.public_id;
+                      if (!publicId && cvObj && cvObj.url) {
+                        publicId = extractCloudinaryPublicId(cvObj.url);
+                      }
+                      if (publicId) {
                         setIsUploading(true);
                         try {
                           await toast.promise(
-                            deleteCloudinaryImage(cvObj.public_id),
+                            deleteCloudinaryImage(publicId),
                             {
                               loading: 'Deleting CV...',
                               success: 'CV removed successfully!',

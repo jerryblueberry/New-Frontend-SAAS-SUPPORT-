@@ -64,8 +64,8 @@ import {
 import { alpha } from '@mui/material/styles';
 import useOnboardingStore, { useAvailabilityMutation } from '../../stores/useOnboardingStore';
 import { daysOfWeek } from '../../utils/constants';
-import { useQuery } from '@tanstack/react-query';
-import { fetchUpcomingHolidays } from '../../api/holidays';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchUserUpcomingHolidays, createUserUpcomingHoliday, deleteUserUpcomingHoliday, updateUserUpcomingHoliday } from '../../api/holidays';
 
 import SuburbSelector from './SuburbSelector';
 import api from '../../api/axios';
@@ -81,6 +81,41 @@ const DAY_COLORS = {
   Sunday: '#5d4037'
 };
 
+// Helper function to group and sort holidays by month
+const groupHolidaysByMonth = (holidays) => {
+  if (!holidays || holidays.length === 0) return [];
+
+  // Sort holidays by start date (earliest first)
+  const sortedHolidays = [...holidays].sort((a, b) => {
+    const dateA = new Date(a.startDate);
+    const dateB = new Date(b.startDate);
+    return dateA - dateB;
+  });
+
+  // Group by month
+  const grouped = sortedHolidays.reduce((acc, holiday) => {
+    const startDate = new Date(holiday.startDate);
+    const monthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
+    const monthName = startDate.toLocaleDateString('en-US', { 
+      month: 'long', 
+      year: 'numeric' 
+    });
+
+    if (!acc[monthKey]) {
+      acc[monthKey] = {
+        monthKey,
+        monthName,
+        holidays: []
+      };
+    }
+    acc[monthKey].holidays.push(holiday);
+    return acc;
+  }, {});
+
+  // Convert to array and sort by month key (chronological order)
+  return Object.values(grouped).sort((a, b) => a.monthKey.localeCompare(b.monthKey));
+};
+
 
 
 // Enhanced custom time slot card with better visual design
@@ -92,7 +127,7 @@ const CustomTimeSlotCard = ({ slot, index, onEdit, onRemove, disabled }) => {
     const hour = parseInt(hours, 10);
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const displayHour = hour % 12 || 12;
-    return `${displayHour}:${minutes} ${ampm}`;
+    return `${displayHour}:${minutes.padStart(2, '0')} ${ampm}`;
   };
 
   const calculateDuration = (startTime, endTime) => {
@@ -188,7 +223,7 @@ const CustomTimeSlotCard = ({ slot, index, onEdit, onRemove, disabled }) => {
   );
 };
 
-// Enhanced time slot dialog with better validation
+// Enhanced time slot dialog with simple and intuitive time picker
 const TimeSlotDialog = ({ open, onClose, onSave, initialData, daysOfWeek, existingSlots, editingIndex }) => {
   const theme = useTheme();
   const [formData, setFormData] = useState(
@@ -200,6 +235,43 @@ const TimeSlotDialog = ({ open, onClose, onSave, initialData, daysOfWeek, existi
   );
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
+
+  // Time conversion utilities
+  const convert24To12 = (time24) => {
+    const [hours, minutes] = time24.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHour = hours % 12 || 12;
+    return {
+      hours: displayHour,
+      minutes,
+      period
+    };
+  };
+
+  const convert12To24 = (hours, minutes, period) => {
+    let hour24 = hours;
+    if (period === 'PM' && hours !== 12) hour24 += 12;
+    if (period === 'AM' && hours === 12) hour24 = 0;
+    return `${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  };
+
+  // Generate time options for 12-hour format
+  const generateTimeOptions = () => {
+    const options = [];
+    for (let hour = 6; hour <= 22; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const time24 = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        const time12 = convert24To12(time24);
+        options.push({
+          value: time24,
+          label: `${time12.hours}:${time12.minutes.toString().padStart(2, '0')} ${time12.period}`
+        });
+      }
+    }
+    return options;
+  };
+
+  const timeOptions = useMemo(() => generateTimeOptions(), []);
 
   useEffect(() => {
     if (initialData) {
@@ -267,6 +339,20 @@ const TimeSlotDialog = ({ open, onClose, onSave, initialData, daysOfWeek, existi
 
   const dayColor = DAY_COLORS[formData.dayOfWeek] || theme.palette.primary.main;
 
+  // Calculate duration for display
+  const calculateDuration = () => {
+    const [startHour, startMinute] = formData.startTime.split(':').map(Number);
+    const [endHour, endMinute] = formData.endTime.split(':').map(Number);
+    const startMinutes = startHour * 60 + startMinute;
+    const endMinutes = endHour * 60 + endMinute;
+    const durationMinutes = endMinutes - startMinutes;
+    const hours = Math.floor(durationMinutes / 60);
+    const minutes = durationMinutes % 60;
+    if (hours === 0) return `${minutes}m`;
+    if (minutes === 0) return `${hours}h`;
+    return `${hours}h ${minutes}m`;
+  };
+
   return (
     <Dialog
       open={open}
@@ -299,12 +385,20 @@ const TimeSlotDialog = ({ open, onClose, onSave, initialData, daysOfWeek, existi
 
         <DialogContent dividers sx={{ px: 3, py: 2 }}>
           <Stack spacing={3}>
+            {/* Day Selection */}
             <FormControl fullWidth error={touched.dayOfWeek && errors.dayOfWeek}>
               <InputLabel>Day of Week</InputLabel>
               <Select
                 value={formData.dayOfWeek}
                 onChange={(e) => handleChange('dayOfWeek', e.target.value)}
                 label="Day of Week"
+                sx={{
+                  '& .MuiSelect-select': {
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }
+                }}
               >
                 {daysOfWeek.map((day) => (
                   <MenuItem key={day} value={day}>
@@ -324,34 +418,155 @@ const TimeSlotDialog = ({ open, onClose, onSave, initialData, daysOfWeek, existi
               </Select>
             </FormControl>
 
-            <Stack direction="row" spacing={2}>
-              <TextField
-                label="Start Time"
-                type="time"
-                value={formData.startTime}
-                onChange={(e) => handleChange('startTime', e.target.value)}
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-                inputProps={{ step: 300 }}
-                error={touched.startTime && errors.startTime}
-                helperText={touched.startTime && errors.startTime}
-              />
-              <TextField
-                label="End Time"
-                type="time"
-                value={formData.endTime}
-                onChange={(e) => handleChange('endTime', e.target.value)}
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-                inputProps={{ step: 300 }}
-                error={touched.endTime && errors.endTime}
-                helperText={touched.endTime && errors.endTime}
-              />
-            </Stack>
+            {/* Quick Time Presets */}
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: 'text.primary' }}>
+                Quick Presets
+              </Typography>
+              <Box display="flex" gap={1} flexWrap="wrap">
+                {[
+                  { label: 'Morning', start: '08:00', end: '12:00' },
+                  { label: 'Afternoon', start: '12:00', end: '17:00' },
+                  { label: 'Evening', start: '17:00', end: '21:00' },
+                  { label: 'Full Day', start: '09:00', end: '17:00' },
+                  { label: 'Half Day', start: '09:00', end: '13:00' },
+                ].map((preset) => (
+                  <Chip
+                    key={preset.label}
+                    label={preset.label}
+                    onClick={() => {
+                      handleChange('startTime', preset.start);
+                      handleChange('endTime', preset.end);
+                    }}
+                    sx={{
+                      cursor: 'pointer',
+                      '&:hover': {
+                        bgcolor: alpha(dayColor, 0.2),
+                        color: dayColor
+                      }
+                    }}
+                    variant="outlined"
+                  />
+                ))}
+              </Box>
+            </Box>
 
-            {errors.general && (
+            {/* Simple Time Selection */}
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: 'text.primary' }}>
+                Time Range
+              </Typography>
+              
+              <Grid container spacing={2}>
+                {/* Start Time */}
+                <Grid item xs={6}>
+                  <FormControl fullWidth error={touched.startTime && errors.startTime}>
+                    <InputLabel>Start Time</InputLabel>
+                    <Select
+                      value={formData.startTime}
+                      onChange={(e) => handleChange('startTime', e.target.value)}
+                      label="Start Time"
+                      MenuProps={{
+                        PaperProps: {
+                          sx: {
+                            maxHeight: 300,
+                            '& .MuiMenuItem-root': {
+                              fontSize: '0.875rem',
+                              padding: '8px 16px'
+                            }
+                          }
+                        }
+                      }}
+                    >
+                      {timeOptions.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <AccessTimeIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                            {option.label}
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    {touched.startTime && errors.startTime && (
+                      <FormHelperText error>{errors.startTime}</FormHelperText>
+                    )}
+                  </FormControl>
+                </Grid>
+
+                {/* End Time */}
+                <Grid item xs={6}>
+                  <FormControl fullWidth error={touched.endTime && errors.endTime}>
+                    <InputLabel>End Time</InputLabel>
+                    <Select
+                      value={formData.endTime}
+                      onChange={(e) => handleChange('endTime', e.target.value)}
+                      label="End Time"
+                      MenuProps={{
+                        PaperProps: {
+                          sx: {
+                            maxHeight: 300,
+                            '& .MuiMenuItem-root': {
+                              fontSize: '0.875rem',
+                              padding: '8px 16px'
+                            }
+                          }
+                        }
+                      }}
+                    >
+                      {timeOptions.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <AccessTimeIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                            {option.label}
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    {touched.endTime && errors.endTime && (
+                      <FormHelperText error>{errors.endTime}</FormHelperText>
+                    )}
+                  </FormControl>
+                </Grid>
+              </Grid>
+
+              {/* Duration Display */}
+              {formData.startTime && formData.endTime && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: alpha(dayColor, 0.1),
+                    border: `1px solid ${alpha(dayColor, 0.2)}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 1
+                  }}
+                >
+                  <Box display="flex" alignItems="center" gap={2}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: dayColor }}>
+                      {convert24To12(formData.startTime).hours}:{convert24To12(formData.startTime).minutes.toString().padStart(2, '0')} {convert24To12(formData.startTime).period}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      to
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: dayColor }}>
+                      {convert24To12(formData.endTime).hours}:{convert24To12(formData.endTime).minutes.toString().padStart(2, '0')} {convert24To12(formData.endTime).period}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: dayColor }}>
+                    Duration: {calculateDuration()}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+
+            {/* Error Display */}
+            {(errors.startTime || errors.endTime || errors.general) && (
               <Alert severity="error" sx={{ mt: 1 }}>
-                {errors.general}
+                {errors.startTime || errors.endTime || errors.general}
               </Alert>
             )}
           </Stack>
@@ -384,12 +599,153 @@ const AvailabilityForm = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const availability = useOnboardingStore((state) => state.availability);
+  // Use these throughout the component
+  const {
+    availability,
+  } = useOnboardingStore();
+
+  // Remove holidays from Zustand, use TanStack Query instead
+  const queryClient = useQueryClient();
+  const { data: upcomingHolidays = [], isLoading: holidaysLoading, isError: holidaysError } = useQuery({
+    queryKey: ['userHolidays'],
+    queryFn: fetchUserUpcomingHolidays,
+    staleTime: 1000 * 60 * 5,
+    cacheTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: true,
+  });
+  const { mutate: createHoliday, isPending: isCreating, error: createError } = useMutation({
+    mutationFn: createUserUpcomingHoliday,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userHolidays'] });
+    },
+  });
+  const { mutate: deleteHoliday } = useMutation({
+    mutationFn: deleteUserUpcomingHoliday,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['userHolidays'] }),
+  });
+  const { mutate: editHoliday } = useMutation({
+    mutationFn: ({ id, data }) => updateUserUpcomingHoliday(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['userHolidays'] }),
+  });
+
+  // Holiday dialog state
+  const [openHolidayDialog, setOpenHolidayDialog] = useState(false);
+  const [newHoliday, setNewHoliday] = useState({
+    name: '',
+    startDate: '',
+    endDate: '',
+    description: '',
+  });
+  const [holidayError, setHolidayError] = useState('');
+  const [editingHoliday, setEditingHoliday] = useState(null);
+  const [dateOverlapWarning, setDateOverlapWarning] = useState('');
+
+  // Helper function to check for date overlaps
+  const checkDateOverlap = useCallback((startDate, endDate, excludeHolidayId = null) => {
+    if (!startDate || !endDate) return false;
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    return upcomingHolidays.some(holiday => {
+      if (excludeHolidayId && holiday._id === excludeHolidayId) {
+        return false;
+      }
+      
+      const existingStart = new Date(holiday.startDate);
+      const existingEnd = new Date(holiday.endDate);
+      
+      return (
+        (start <= existingEnd && end >= existingStart) ||
+        (existingStart <= end && existingEnd >= start)
+      );
+    });
+  }, [upcomingHolidays]);
+
+  useEffect(() => {
+    if (editingHoliday) {
+      setNewHoliday({
+        name: editingHoliday.name,
+        startDate: editingHoliday.startDate.slice(0, 10),
+        endDate: editingHoliday.endDate.slice(0, 10),
+        description: editingHoliday.description || '',
+      });
+    } else {
+      setNewHoliday({ name: '', startDate: '', endDate: '', description: '' });
+    }
+    // Clear errors when dialog opens/closes or when editing changes
+    setHolidayError('');
+    setDateOverlapWarning('');
+  }, [editingHoliday, openHolidayDialog]);
+
+  const handleCreateOrEditHoliday = () => {
+    // Clear any previous errors first
+    setHolidayError('');
+    
+    if (!newHoliday.name || !newHoliday.startDate || !newHoliday.endDate) {
+      setHolidayError('Name, start date, and end date are required.');
+      return;
+    }
+    
+    if (new Date(newHoliday.endDate) < new Date(newHoliday.startDate)) {
+      setHolidayError('End date cannot be before start date.');
+      return;
+    }
+
+    // Check for date overlap with existing holidays
+    const startDate = new Date(newHoliday.startDate);
+    const endDate = new Date(newHoliday.endDate);
+    
+    const hasOverlap = upcomingHolidays.some(holiday => {
+      // Skip the current holiday being edited
+      if (editingHoliday && holiday._id === editingHoliday._id) {
+        return false;
+      }
+      
+      const existingStart = new Date(holiday.startDate);
+      const existingEnd = new Date(holiday.endDate);
+      
+      // Check if the new date range overlaps with existing date range
+      return (
+        (startDate <= existingEnd && endDate >= existingStart) ||
+        (existingStart <= endDate && existingEnd >= startDate)
+      );
+    });
+
+    if (hasOverlap) {
+      setHolidayError('This date range overlaps with an existing holiday. Please choose different dates.');
+      return;
+    }
+
+    if (editingHoliday) {
+      editHoliday(
+        { id: editingHoliday._id, data: newHoliday },
+        {
+          onSuccess: () => {
+            setOpenHolidayDialog(false);
+            setEditingHoliday(null);
+            setNewHoliday({ name: '', startDate: '', endDate: '', description: '' });
+            setHolidayError('');
+          },
+          onError: () => setHolidayError('Failed to update holiday.'),
+        }
+      );
+    } else {
+      createHoliday(newHoliday, {
+        onSuccess: () => {
+          setOpenHolidayDialog(false);
+          setNewHoliday({ name: '', startDate: '', endDate: '', description: '' });
+          setHolidayError('');
+        },
+        onError: () => setHolidayError('Failed to create holiday.'),
+      });
+    }
+  };
+
   const updateAvailability = useOnboardingStore((state) => state.updateAvailability);
   const addCustomTimeSlot = useOnboardingStore((state) => state.addCustomTimeSlot);
   const removeCustomTimeSlot = useOnboardingStore((state) => state.removeCustomTimeSlot);
   const prevStep = useOnboardingStore((state) => state.prevStep);
-  const setHolidaySelections = useOnboardingStore((state) => state.setHolidaySelections);
   const { mutate: saveAvailability, isPending, error: mutationError } = useAvailabilityMutation();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -423,6 +779,11 @@ const AvailabilityForm = () => {
     });
     return groups;
   }, [availability.customTimeSlots]);
+
+  // Group holidays by month for display
+  const groupedHolidays = useMemo(() => {
+    return groupHolidaysByMonth(upcomingHolidays);
+  }, [upcomingHolidays]);
 
   const totalSlots = availability.customTimeSlots?.length || 0;
   const travelDistance = availability.kmWillingToTravel || 20;
@@ -499,39 +860,7 @@ const AvailabilityForm = () => {
     }
   }, [removeCustomTimeSlot, availability.customTimeSlots]);
 
-  const handleHolidaySelect = (holidayId, selected) => {
-    setHolidaySelections({
-      ...availability.holidaySelections,
-      [holidayId]: {
-        ...(availability.holidaySelections?.[holidayId] || {}),
-        selected,
-      },
-    });
-  };
-
-  const handleHolidayNoteChange = (holidayId, note) => {
-    setHolidaySelections({
-      ...availability.holidaySelections,
-      [holidayId]: {
-        ...(availability.holidaySelections?.[holidayId] || {}),
-        note,
-      },
-    });
-  };
-
-  // Add TanStack Query for holidays
-  const {
-    data: upcomingHolidays = [],
-    isLoading: holidaysLoading,
-    isError: holidaysError,
-    refetch: refetchHolidays,
-  } = useQuery({
-    queryKey: ['upcomingHolidays'],
-    queryFn: fetchUpcomingHolidays,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    cacheTime: 1000 * 60 * 30, // 30 minutes
-    refetchOnWindowFocus: false,
-  });
+  // Remove handleHolidaySelect, handleHolidayNoteChange, setHolidaySelections, and all selection/note logic for holidays
 
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 } }}>
@@ -866,61 +1195,449 @@ const AvailabilityForm = () => {
                 <Box>
                   <Typography variant="h6" sx={{ fontWeight: 700 }}>Upcoming Holidays</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    We will notify you about upcoming holidays. For now, we have added some holidays for you to select from.
+                    We will notify you about upcoming holidays. You can also add your own holidays below.
                   </Typography>
-                  {/* Holidays List UI remains unchanged, already responsive */}
-                  {holidaysLoading && <LinearProgress sx={{ my: 2 }} />}
-                  {holidaysError && <Alert severity="error" sx={{ my: 2 }}>Failed to load holidays</Alert>}
-                  {!holidaysLoading && !holidaysError && (
-                    <List>
+                  <Button onClick={() => setOpenHolidayDialog(true)} variant="outlined" sx={{ my: 2 }}>
+                    Add Upcoming Holiday
+                  </Button>
+                  {holidaysLoading ? (
+                    <LinearProgress sx={{ my: 2 }} />
+                  ) : holidaysError ? (
+                    <Alert severity="error" sx={{ my: 2 }}>Failed to load holidays</Alert>
+                  ) : (
+                    <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
                       {upcomingHolidays.length === 0 ? (
-                        <ListItem>
-                          <ListItemText primary="No upcoming holidays found." />
-                        </ListItem>
+                        <Paper
+                          variant="outlined"
+                          sx={{
+                            p: 3,
+                            textAlign: 'center',
+                            bgcolor: 'background.paper',
+                            borderRadius: 2,
+                            borderStyle: 'dashed'
+                          }}
+                        >
+                          <CalendarIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
+                          <Typography variant="body2" color="text.secondary">
+                            No upcoming holidays found.
+                          </Typography>
+                        </Paper>
                       ) : (
-                        upcomingHolidays.map((holiday) => {
-                          const selection = availability.holidaySelections?.[holiday._id] || { selected: false, note: '' };
-                          return (
-                            <ListItem
-                              key={holiday._id}
-                              alignItems="flex-start"
-                              sx={{ flexDirection: 'column', alignItems: 'stretch', mb: 2, borderRadius: 2, boxShadow: 1, bgcolor: selection.selected ? 'action.selected' : 'background.paper' }}
+                        groupedHolidays.map((monthGroup) => (
+                          <Box key={monthGroup.monthKey} sx={{ mb: 3 }}>
+                            {/* Month Header */}
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                mb: 2,
+                                p: 1,
+                                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                borderRadius: 2,
+                                border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
+                              }}
                             >
-                              <Box display="flex" alignItems="center" justifyContent="space-between">
-                                <Box display="flex" alignItems="center" gap={2}>
-                                  <CalendarIcon color={selection.selected ? 'primary' : 'action'} />
-                                  <ListItemText
-                                    primary={holiday.name || holiday.title || 'Unnamed Holiday'}
-                                    secondary={holiday.date ? new Date(holiday.date).toLocaleDateString() : ''}
-                                  />
-                                </Box>
-                                <Switch
-                                  checked={selection.selected}
-                                  onChange={e => handleHolidaySelect(holiday._id, e.target.checked)}
-                                  color="primary"
-                                  inputProps={{ 'aria-label': 'Select holiday' }}
-                                />
-                              </Box>
-                              {selection.selected && (
-                                <TextField
-                                  label="Special Note"
-                                  value={selection.note || ''}
-                                  onChange={e => handleHolidayNoteChange(holiday._id, e.target.value)}
-                                  placeholder="Add a note for this holiday (optional)"
-                                  fullWidth
-                                  margin="dense"
-                                  sx={{ mt: 1 }}
-                                />
-                              )}
-                            </ListItem>
-                          );
-                        })
+                              <CalendarIcon sx={{ fontSize: 20, color: theme.palette.primary.main }} />
+                              <Typography
+                                variant="subtitle1"
+                                sx={{
+                                  fontWeight: 600,
+                                  color: theme.palette.primary.main
+                                }}
+                              >
+                                {monthGroup.monthName}
+                              </Typography>
+                              <Chip
+                                label={monthGroup.holidays.length}
+                                size="small"
+                                sx={{
+                                  ml: 'auto',
+                                  bgcolor: theme.palette.primary.main,
+                                  color: 'white',
+                                  fontWeight: 600
+                                }}
+                              />
+                            </Box>
+
+                            {/* Holidays in this month */}
+                            <List sx={{ p: 0 }}>
+                              {monthGroup.holidays.map((holiday) => {
+                                const start = new Date(holiday.startDate);
+                                const end = new Date(holiday.endDate);
+                                const isSingleDay = start.toDateString() === end.toDateString();
+                                const isToday = start.toDateString() === new Date().toDateString();
+                                const isPast = start < new Date();
+                                
+                                return (
+                                  <ListItem
+                                    key={holiday._id}
+                                    sx={{
+                                      flexDirection: 'column',
+                                      alignItems: 'stretch',
+                                      mb: 1.5,
+                                      borderRadius: 2,
+                                      boxShadow: 1,
+                                      bgcolor: 'background.paper',
+                                      border: isToday ? `2px solid ${theme.palette.warning.main}` : '1px solid',
+                                      borderColor: isToday ? theme.palette.warning.main : 'divider',
+                                      opacity: isPast ? 0.7 : 1,
+                                      transition: 'all 0.2s ease-in-out',
+                                      '&:hover': {
+                                        boxShadow: theme.shadows[3],
+                                        transform: 'translateY(-1px)'
+                                      }
+                                    }}
+                                  >
+                                    <Box display="flex" alignItems="center" gap={2} justifyContent="space-between" width="100%">
+                                      <Box display="flex" alignItems="center" gap={2} flex={1}>
+                                        <Box
+                                          sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            width: 40,
+                                            height: 40,
+                                            borderRadius: '50%',
+                                            bgcolor: isToday 
+                                              ? alpha(theme.palette.warning.main, 0.1)
+                                              : alpha(theme.palette.primary.main, 0.1),
+                                            color: isToday 
+                                              ? theme.palette.warning.main
+                                              : theme.palette.primary.main
+                                          }}
+                                        >
+                                          <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                            {start.getDate()}
+                                          </Typography>
+                                        </Box>
+                                        <Box flex={1}>
+                                          <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                                            <Typography
+                                              variant="subtitle2"
+                                              sx={{ fontWeight: 600 }}
+                                            >
+                                              {holiday.name}
+                                            </Typography>
+                                            {isToday && (
+                                              <Chip
+                                                label="Today"
+                                                size="small"
+                                                sx={{
+                                                  bgcolor: theme.palette.warning.main,
+                                                  color: 'white',
+                                                  fontSize: '0.7rem',
+                                                  height: 20
+                                                }}
+                                              />
+                                            )}
+                                            {isPast && (
+                                              <Chip
+                                                label="Past"
+                                                size="small"
+                                                sx={{
+                                                  bgcolor: theme.palette.grey[500],
+                                                  color: 'white',
+                                                  fontSize: '0.7rem',
+                                                  height: 20
+                                                }}
+                                              />
+                                            )}
+                                          </Box>
+                                          <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                            sx={{ fontWeight: 500 }}
+                                          >
+                                            {isSingleDay
+                                              ? start.toLocaleDateString('en-US', {
+                                                  weekday: 'short',
+                                                  month: 'short',
+                                                  day: 'numeric'
+                                                })
+                                              : `${start.toLocaleDateString('en-US', {
+                                                  month: 'short',
+                                                  day: 'numeric'
+                                                })} - ${end.toLocaleDateString('en-US', {
+                                                  month: 'short',
+                                                  day: 'numeric'
+                                                })}`
+                                            }
+                                          </Typography>
+                                          {holiday.description && (
+                                            <Typography
+                                              variant="caption"
+                                              color="text.secondary"
+                                              sx={{
+                                                display: 'block',
+                                                mt: 0.5,
+                                                fontStyle: 'italic'
+                                              }}
+                                            >
+                                              {holiday.description}
+                                            </Typography>
+                                          )}
+                                        </Box>
+                                      </Box>
+                                      <Box display="flex" gap={0.5}>
+                                        <Tooltip title="Edit holiday" arrow>
+                                          <IconButton
+                                            aria-label="edit"
+                                            onClick={() => {
+                                              setEditingHoliday(holiday);
+                                              setOpenHolidayDialog(true);
+                                            }}
+                                            size="small"
+                                            sx={{
+                                              color: 'text.secondary',
+                                              '&:hover': {
+                                                color: theme.palette.primary.main,
+                                                bgcolor: alpha(theme.palette.primary.main, 0.1)
+                                              }
+                                            }}
+                                          >
+                                            <EditIcon fontSize="small" />
+                                          </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="Delete holiday" arrow>
+                                          <IconButton
+                                            aria-label="delete"
+                                            onClick={() => deleteHoliday(holiday._id)}
+                                            size="small"
+                                            sx={{
+                                              color: 'text.secondary',
+                                              '&:hover': {
+                                                color: theme.palette.error.main,
+                                                bgcolor: alpha(theme.palette.error.main, 0.1)
+                                              }
+                                            }}
+                                          >
+                                            <DeleteIcon fontSize="small" />
+                                          </IconButton>
+                                        </Tooltip>
+                                      </Box>
+                                    </Box>
+                                  </ListItem>
+                                );
+                              })}
+                            </List>
+                          </Box>
+                        ))
                       )}
-                    </List>
+                    </Box>
                   )}
                 </Box>
               </CardContent>
             </Card>
+            {/* Holiday Creation Dialog */}
+            <Dialog 
+              open={openHolidayDialog} 
+              onClose={() => { setOpenHolidayDialog(false); setEditingHoliday(null); }}
+              maxWidth="sm"
+              fullWidth
+              PaperProps={{
+                sx: {
+                  borderRadius: 3,
+                  boxShadow: theme.shadows[10]
+                }
+              }}
+            >
+              <DialogTitle sx={{ pb: 1 }}>
+                <Box display="flex" alignItems="center" gap={2}>
+                  <Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), color: theme.palette.primary.main }}>
+                    <CalendarIcon />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      {editingHoliday ? 'Edit Holiday' : 'Add Holiday'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {editingHoliday ? 'Update your holiday details' : 'Add a new upcoming holiday'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </DialogTitle>
+              
+              <DialogContent dividers sx={{ px: 3, py: 2 }}>
+                <Stack spacing={3}>
+                  <TextField
+                    label="Holiday Name"
+                    value={newHoliday.name}
+                    onChange={e => {
+                      setNewHoliday({ ...newHoliday, name: e.target.value });
+                      if (holidayError) setHolidayError('');
+                    }}
+                    fullWidth
+                    required
+                    placeholder="e.g., Christmas Break, Summer Vacation"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <CalendarIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                  
+                  <Stack direction="row" spacing={2}>
+                    <TextField
+                      label="Start Date"
+                      type="date"
+                      value={newHoliday.startDate}
+                      onChange={e => {
+                        const newStartDate = e.target.value;
+                        setNewHoliday({ ...newHoliday, startDate: newStartDate });
+                        if (holidayError) setHolidayError('');
+                        
+                        // Check for overlap in real-time
+                        if (newStartDate && newHoliday.endDate) {
+                          const hasOverlap = checkDateOverlap(
+                            newStartDate, 
+                            newHoliday.endDate, 
+                            editingHoliday?._id
+                          );
+                          setDateOverlapWarning(
+                            hasOverlap ? 'Warning: This date range overlaps with an existing holiday' : ''
+                          );
+                        } else {
+                          setDateOverlapWarning('');
+                        }
+                      }}
+                      fullWidth
+                      required
+                      InputLabelProps={{ shrink: true }}
+                      inputProps={{
+                        min: new Date().toISOString().split('T')[0]
+                      }}
+                    />
+                    <TextField
+                      label="End Date"
+                      type="date"
+                      value={newHoliday.endDate}
+                      onChange={e => {
+                        const newEndDate = e.target.value;
+                        setNewHoliday({ ...newHoliday, endDate: newEndDate });
+                        if (holidayError) setHolidayError('');
+                        
+                        // Check for overlap in real-time
+                        if (newHoliday.startDate && newEndDate) {
+                          const hasOverlap = checkDateOverlap(
+                            newHoliday.startDate, 
+                            newEndDate, 
+                            editingHoliday?._id
+                          );
+                          setDateOverlapWarning(
+                            hasOverlap ? 'Warning: This date range overlaps with an existing holiday' : ''
+                          );
+                        } else {
+                          setDateOverlapWarning('');
+                        }
+                      }}
+                      fullWidth
+                      required
+                      InputLabelProps={{ shrink: true }}
+                      inputProps={{
+                        min: newHoliday.startDate || new Date().toISOString().split('T')[0]
+                      }}
+                    />
+                  </Stack>
+                  
+                  <TextField
+                    label="Description (Optional)"
+                    value={newHoliday.description}
+                    onChange={e => {
+                      setNewHoliday({ ...newHoliday, description: e.target.value });
+                      if (holidayError) setHolidayError('');
+                    }}
+                    fullWidth
+                    multiline
+                    rows={3}
+                    placeholder="Add any additional details about your holiday..."
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <InfoIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                  
+                  {dateOverlapWarning && (
+                    <Alert 
+                      severity="warning" 
+                      sx={{ 
+                        mt: 1,
+                        animation: 'fadeIn 0.3s ease-in-out',
+                        '@keyframes fadeIn': {
+                          '0%': { opacity: 0, transform: 'translateY(-10px)' },
+                          '100%': { opacity: 1, transform: 'translateY(0)' }
+                        }
+                      }}
+                      onClose={() => setDateOverlapWarning('')}
+                    >
+                      {dateOverlapWarning}
+                    </Alert>
+                  )}
+                  
+                  {(holidayError || createError) && (
+                    <Alert 
+                      severity="error" 
+                      sx={{ 
+                        mt: 1,
+                        animation: 'fadeIn 0.3s ease-in-out',
+                        '@keyframes fadeIn': {
+                          '0%': { opacity: 0, transform: 'translateY(-10px)' },
+                          '100%': { opacity: 1, transform: 'translateY(0)' }
+                        }
+                      }}
+                      onClose={() => setHolidayError('')}
+                    >
+                      {holidayError || createError?.message}
+                    </Alert>
+                  )}
+                </Stack>
+              </DialogContent>
+              
+              <DialogActions sx={{ px: 3, py: 2 }}>
+                <Button 
+                  onClick={() => { setOpenHolidayDialog(false); setEditingHoliday(null); }}
+                  color="inherit"
+                  size="large"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleCreateOrEditHoliday} 
+                  variant="contained" 
+                  disabled={isCreating || !newHoliday.name || !newHoliday.startDate || !newHoliday.endDate}
+                  size="large"
+                  sx={{ minWidth: 100 }}
+                >
+                  {isCreating ? (
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Box
+                        sx={{
+                          width: 16,
+                          height: 16,
+                          border: '2px solid',
+                          borderColor: 'currentColor',
+                          borderTopColor: 'transparent',
+                          borderRadius: '50%',
+                          animation: 'spin 1s linear infinite',
+                          '@keyframes spin': {
+                            '0%': { transform: 'rotate(0deg)' },
+                            '100%': { transform: 'rotate(360deg)' }
+                          }
+                        }}
+                      />
+                      {editingHoliday ? 'Updating...' : 'Creating...'}
+                    </Box>
+                  ) : (
+                    editingHoliday ? 'Update Holiday' : 'Add Holiday'
+                  )}
+                </Button>
+              </DialogActions>
+            </Dialog>
           </Grid>
         </Grid>
 

@@ -9,7 +9,7 @@ import DocumentPreview from './Modals/DocumentPreview';
 import OnboardingCV from '../WorkerCv/OnboardingCV/onboardingCV';
 import OnboardingJobExperience from '../WorkerJobExperience/OnboardingJobExperience/OnboardingJobExperience';
 import WorkerOnboardingReferences from '../WorkerReferences/workerOnboardingReferences/workerOnboardingReferences';
-import { Grid, useMediaQuery, useTheme, Paper } from '@mui/material';
+import { Grid, useMediaQuery, useTheme, Paper, Typography, Box, Chip } from '@mui/material';
 const WorkHistoryForm = ({ onNextStep }) => {
   // Access store state with selectors for targeted re-renders
   const workHistory = useOnboardingStore((state) => state.workHistory, shallow);
@@ -299,6 +299,23 @@ const WorkHistoryForm = ({ onNextStep }) => {
 
       updateWorkHistory(updatedWorkHistory);
       setLocalWorkHistory(updatedWorkHistory);
+
+      // Check if all references are now complete and show success toast
+      const allComplete = updatedReferences.every(ref => 
+        ref.name && ref.position && ref.phone && ref.email
+      );
+      
+      if (allComplete && updatedReferences.length === 2) {
+        toast.success('All references completed! You can now proceed to the next step.', {
+          position: 'top-right',
+          duration: 3000,
+          style: {
+            background: '#4caf50',
+            color: '#fff',
+            fontWeight: '600',
+          },
+        });
+      }
     },
     [updateWorkHistory, localWorkHistory]
   );
@@ -323,6 +340,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
     const errors = {};
     let isValid = true;
     let firstReferenceErrorIndex = null;
+    let missingFields = [];
 
     // Validate work history
     if (!localWorkHistory.jobs || localWorkHistory.jobs.length === 0) {
@@ -373,51 +391,83 @@ const WorkHistoryForm = ({ onNextStep }) => {
       isValid = false;
     }
 
-    // Validate references - now mandatory
+    // Enhanced references validation - now mandatory with detailed feedback
     if (!localWorkHistory.references || localWorkHistory.references.length !== 2) {
       errors.references = 'Exactly two references are required';
       isValid = false;
+      toast.error('Please add exactly 2 professional references to continue', {
+        position: 'top-right',
+        duration: 4000,
+      });
     } else {
-      // Validate each reference
+      // Validate each reference with detailed field checking
       localWorkHistory.references.forEach((ref, index) => {
+        const refNumber = index + 1;
+        
         if (!ref.name || !ref.name.trim()) {
           errors[`ref${index}_name`] = 'Reference name is required';
           isValid = false;
+          missingFields.push(`Reference ${refNumber} - Name`);
           if (firstReferenceErrorIndex === null) firstReferenceErrorIndex = index;
         }
 
         if (!ref.position || !ref.position.trim()) {
           errors[`ref${index}_position`] = 'Reference position is required';
           isValid = false;
+          missingFields.push(`Reference ${refNumber} - Position`);
           if (firstReferenceErrorIndex === null) firstReferenceErrorIndex = index;
         }
 
         if (!ref.phone || !ref.phone.trim()) {
           errors[`ref${index}_phone`] = 'Reference phone is required';
           isValid = false;
+          missingFields.push(`Reference ${refNumber} - Phone`);
           if (firstReferenceErrorIndex === null) firstReferenceErrorIndex = index;
         } else if (!isValidAustralianPhone(ref.phone)) {
           errors[`ref${index}_phone`] = 'Enter a valid Australian phone (e.g. 412 345 678)';
           isValid = false;
+          missingFields.push(`Reference ${refNumber} - Phone (invalid format)`);
           if (firstReferenceErrorIndex === null) firstReferenceErrorIndex = index;
         }
 
         if (!ref.email || !ref.email.trim()) {
           errors[`ref${index}_email`] = 'Reference email is required';
           isValid = false;
+          missingFields.push(`Reference ${refNumber} - Email`);
           if (firstReferenceErrorIndex === null) firstReferenceErrorIndex = index;
         } else if (!/\S+@\S+\.\S+/.test(ref.email.trim())) {
           errors[`ref${index}_email`] = 'Please provide a valid email address';
           isValid = false;
+          missingFields.push(`Reference ${refNumber} - Email (invalid format)`);
           if (firstReferenceErrorIndex === null) firstReferenceErrorIndex = index;
         }
       });
     }
 
     setFormErrors(errors);
+    
     // Expand the first reference card with an error
     if (firstReferenceErrorIndex !== null) {
       setExpandedReference(firstReferenceErrorIndex);
+    }
+
+    // Show detailed toast notification for missing reference fields
+    if (!isValid && missingFields.length > 0) {
+      const missingFieldsText = missingFields.slice(0, 3).join(', ');
+      const remainingCount = missingFields.length - 3;
+      const toastMessage = remainingCount > 0 
+        ? `Missing required fields: ${missingFieldsText} and ${remainingCount} more...`
+        : `Missing required fields: ${missingFieldsText}`;
+      
+      toast.error(toastMessage, {
+        position: 'top-right',
+        duration: 5000,
+        style: {
+          background: '#f44336',
+          color: '#fff',
+          fontWeight: '600',
+        },
+      });
     }
 
     // Auto-scroll to the first error field
@@ -482,9 +532,26 @@ const WorkHistoryForm = ({ onNextStep }) => {
       e.preventDefault();
 
       if (!validateForm()) {
-        toast.error('Please fix all validation errors before submitting', {
-          position: 'top-right',
-        });
+        // Check specifically for reference validation failures
+        const hasReferenceErrors = Object.keys(formErrors).some(key => 
+          key.startsWith('ref') || key === 'references'
+        );
+        
+        if (hasReferenceErrors) {
+          toast.error('Please complete all required reference fields to continue', {
+            position: 'top-right',
+            duration: 4000,
+            style: {
+              background: '#f44336',
+              color: '#fff',
+              fontWeight: '600',
+            },
+          });
+        } else {
+          toast.error('Please fix all validation errors before submitting', {
+            position: 'top-right',
+          });
+        }
         return;
       }
 
@@ -691,6 +758,46 @@ const WorkHistoryForm = ({ onNextStep }) => {
       </Grid>
 
       {/* References Section */}
+      <Box sx={{ mt: 4, mb: 2 }}>
+        <Typography 
+          variant="h6" 
+          sx={{ 
+            fontWeight: 600, 
+            mb: 2, 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 1,
+            color: 'text.primary',
+            '&::before': {
+              content: '""',
+              width: '4px',
+              height: '24px',
+              background: 'linear-gradient(45deg, #f44336, #ff9800)',
+              borderRadius: '2px',
+            }
+          }}
+        >
+          Professional References
+          <Chip 
+            label="MANDATORY" 
+            size="small" 
+            color="error" 
+            variant="filled"
+            sx={{ 
+              fontWeight: 700, 
+              fontSize: '0.7rem',
+              ml: 1,
+              animation: 'pulse 2s infinite',
+              '@keyframes pulse': {
+                '0%': { opacity: 1 },
+                '50%': { opacity: 0.7 },
+                '100%': { opacity: 1 },
+              }
+            }}
+          />
+        </Typography>
+      </Box>
+      
       <WorkerOnboardingReferences
         references={localWorkHistory.references}
         formErrors={formErrors}

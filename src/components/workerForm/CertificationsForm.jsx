@@ -124,11 +124,7 @@ const CertificationsForm = () => {
     const cert = localCertifications[certIndex];
     const docToRemove = cert.documents[docIndex];
     
-    if (docToRemove.url && docToRemove.url.includes('cloudinary')) {
-      deleteImageFromCloudinary(docToRemove.url);
-    }
-    
-    // Use the store function instead of directly updating
+    // Update UI state immediately for better UX
     removeCertificationDocument(certIndex, docIndex);
     
     // Update local state for immediate UI update
@@ -141,11 +137,31 @@ const CertificationsForm = () => {
       return updated;
     });
     
-    toast.success('Document removed', {
+    // Show immediate feedback
+    toast.success('Document removed from view', {
       icon: '🗑️',
       duration: 2000,
       position: 'top-right',
     });
+    
+    // Delete from Cloudinary in the background if needed
+    if (docToRemove.url && docToRemove.url.includes('cloudinary')) {
+      deleteImageFromCloudinary(docToRemove.url)
+        .then(() => {
+          toast.success('Document also removed from cloud storage', {
+            icon: '☁️',
+            duration: 2000,
+            position: 'top-right',
+          });
+        })
+        .catch((error) => {
+          console.error('Failed to delete from Cloudinary:', error);
+          toast.error('Document removed locally but failed to delete from cloud storage', {
+            duration: 3000,
+            position: 'top-right',
+          });
+        });
+    }
   }, [localCertifications, removeCertificationDocument]);
 
   const deleteImageFromCloudinary = async (url) => {

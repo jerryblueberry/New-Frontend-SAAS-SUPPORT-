@@ -57,6 +57,7 @@ import { useOnboardingQuery } from '../../stores/useOnboardingStore';
 import DocumentPreview from '../../components/workerForm/Modals/DocumentPreview';
 import { toast } from 'react-hot-toast';
 import api from '../../api/axios';
+import { deleteCloudinaryImage } from '../../api/cloudinary';
 import { NATIONALITIES } from '../../utils/constants';
 import RenderEducationFields from '../../components/WorkerCertificateOnboarding/RenderEducationFields';
 import RenderInsuranceField from '../../components/WorkerCertificateOnboarding/RenderInsuranceField';
@@ -97,6 +98,7 @@ const CATEGORY_ICONS = {
 
 // LocalStorage utility functions for document tracking
 const DOCUMENT_TRACKING_KEY = 'certification_documents_tracking';
+const UNTRACKED_DOCUMENTS_KEY = 'untracked_documents';
 
 const DocumentTrackingService = {
   // Get all tracked document public IDs
@@ -113,8 +115,8 @@ const DocumentTrackingService = {
     }
   },
 
-  // Add a document public ID to tracking
-  addTrackedDocument: (publicId) => {
+  // Add a document public ID to tracking with full document data
+  addTrackedDocument: (publicId, documentData = {}) => {
     try {
       const tracked = DocumentTrackingService.getTrackedDocuments();
 
@@ -124,14 +126,21 @@ const DocumentTrackingService = {
         return false;
       }
 
-      // Add only public ID with minimal metadata
+      // Add document with full metadata
       tracked[publicId] = {
         publicId,
-        trackedAt: new Date().toISOString()
+        url: documentData.url || '',
+        fileName: documentData.fileName || '',
+        fileType: documentData.fileType || '',
+        documentName: documentData.documentName || `Document ${publicId}`,
+        documentType: documentData.documentType || 'Support Worker',
+        trackedAt: new Date().toISOString(),
+        isUsed: false, // Will be set to true when used in certifications
+        ...documentData
       };
 
       localStorage.setItem(DOCUMENT_TRACKING_KEY, JSON.stringify(tracked));
-      console.log(`Document public ID tracked: ${publicId}`);
+      console.log(`Document tracked: ${publicId}`, tracked[publicId]);
       return true;
     } catch (error) {
       console.error('Error adding document to tracking:', error);
@@ -157,7 +166,7 @@ const DocumentTrackingService = {
       if (tracked[publicId]) {
         delete tracked[publicId];
         localStorage.setItem(DOCUMENT_TRACKING_KEY, JSON.stringify(tracked));
-        console.log(`Document public ID removed from tracking: ${publicId}`);
+        console.log(`Document removed from tracking: ${publicId}`);
         return true;
       }
       return false;
@@ -167,19 +176,74 @@ const DocumentTrackingService = {
     }
   },
 
+  // Mark document as used in certifications
+  markDocumentAsUsed: (publicId) => {
+    try {
+      const tracked = DocumentTrackingService.getTrackedDocuments();
+      if (tracked[publicId]) {
+        tracked[publicId].isUsed = true;
+        tracked[publicId].usedAt = new Date().toISOString();
+        localStorage.setItem(DOCUMENT_TRACKING_KEY, JSON.stringify(tracked));
+        console.log(`Document marked as used: ${publicId}`);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error marking document as used:', error);
+      return false;
+    }
+  },
+
   // Get tracking statistics
   getTrackingStats: () => {
     try {
       const tracked = DocumentTrackingService.getTrackedDocuments();
       const publicIds = Object.keys(tracked);
+      const usedDocs = Object.values(tracked).filter(doc => doc.isUsed);
+      const unusedDocs = Object.values(tracked).filter(doc => !doc.isUsed);
 
       return {
         totalTracked: publicIds.length,
-        publicIds: publicIds
+        usedDocuments: usedDocs.length,
+        unusedDocuments: unusedDocs.length,
+        publicIds: publicIds,
+        usedPublicIds: usedDocs.map(doc => doc.publicId),
+        unusedPublicIds: unusedDocs.map(doc => doc.publicId)
       };
     } catch (error) {
       console.error('Error getting tracking statistics:', error);
-      return { totalTracked: 0, publicIds: [] };
+      return { totalTracked: 0, usedDocuments: 0, unusedDocuments: 0, publicIds: [], usedPublicIds: [], unusedPublicIds: [] };
+    }
+  },
+
+  // Get unused documents (untracked documents)
+  getUnusedDocuments: () => {
+    try {
+      const tracked = DocumentTrackingService.getTrackedDocuments();
+      return Object.values(tracked).filter(doc => !doc.isUsed);
+    } catch (error) {
+      console.error('Error getting unused documents:', error);
+      return [];
+    }
+  },
+
+  // Clean up unused documents (called during submit)
+  cleanupUnusedDocuments: () => {
+    try {
+      const tracked = DocumentTrackingService.getTrackedDocuments();
+      const unusedDocs = Object.values(tracked).filter(doc => !doc.isUsed);
+      
+      // Remove unused documents from tracking
+      unusedDocs.forEach(doc => {
+        delete tracked[doc.publicId];
+      });
+
+      localStorage.setItem(DOCUMENT_TRACKING_KEY, JSON.stringify(tracked));
+      console.log(`Cleaned up ${unusedDocs.length} unused documents from tracking`);
+      return unusedDocs.length;
+    } catch (error) {
+      console.error('Error cleaning up unused documents:', error);
+      return 0;
     }
   },
 
@@ -193,7 +257,7 @@ const DocumentTrackingService = {
       let cleanedCount = 0;
       Object.keys(tracked).forEach(publicId => {
         const trackedAt = new Date(tracked[publicId].trackedAt);
-        if (trackedAt < cutoffDate) {
+        if (trackedAt < cutoffDate && !tracked[publicId].isUsed) {
           delete tracked[publicId];
           cleanedCount++;
         }
@@ -201,7 +265,7 @@ const DocumentTrackingService = {
 
       if (cleanedCount > 0) {
         localStorage.setItem(DOCUMENT_TRACKING_KEY, JSON.stringify(tracked));
-        console.log(`Cleaned up ${cleanedCount} old document public IDs from tracking`);
+        console.log(`Cleaned up ${cleanedCount} old unused documents from tracking`);
       }
 
       return cleanedCount;
@@ -215,10 +279,41 @@ const DocumentTrackingService = {
   clearAllTrackedDocuments: () => {
     try {
       localStorage.removeItem(DOCUMENT_TRACKING_KEY);
-      console.log('All tracked document public IDs cleared from localStorage');
+      console.log('All tracked documents cleared from localStorage');
       return true;
     } catch (error) {
       console.error('Error clearing tracked documents:', error);
+      return false;
+    }
+  },
+
+  // Export tracking data for backup
+  exportTrackingData: () => {
+    try {
+      const tracked = DocumentTrackingService.getTrackedDocuments();
+      const stats = DocumentTrackingService.getTrackingStats();
+      return {
+        trackedDocuments: tracked,
+        statistics: stats,
+        exportedAt: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error exporting tracking data:', error);
+      return null;
+    }
+  },
+
+  // Import tracking data from backup
+  importTrackingData: (data) => {
+    try {
+      if (data && data.trackedDocuments) {
+        localStorage.setItem(DOCUMENT_TRACKING_KEY, JSON.stringify(data.trackedDocuments));
+        console.log('Tracking data imported successfully');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error importing tracking data:', error);
       return false;
     }
   }
@@ -298,7 +393,9 @@ const CertificateSecond = ({ initialStep = 0 }) => {
     otherCertifications,
     addOtherCertificate,
     removeOtherCertificate,
-    updateOtherCertificates
+    updateOtherCertificates,
+    
+
   } = useOnboardingStore();
 
   const { data: onboardingData, isLoading: isLoadingOnboardingData, isError: isOnboardingError } = useOnboardingQuery();
@@ -410,18 +507,18 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
     fetchCertTypes();
   }, []);
 
-  // Cleanup old documents on component mount
-  useEffect(() => {
-    // Clean up documents older than 30 days
-    const cleanedCount = DocumentTrackingService.cleanupOldDocuments(30);
-    if (cleanedCount > 0) {
-      console.log(`Cleaned up ${cleanedCount} old documents from tracking`);
-    }
 
-    // Log tracking statistics
-    const stats = DocumentTrackingService.getTrackingStats();
-    console.log('Document tracking statistics:', stats);
-  }, []);
+
+
+
+  // Synchronize local state with Zustand store
+  useEffect(() => {
+    if (certifications && certifications.length > 0) {
+      setSelectedCerts(certifications);
+    }
+  }, [certifications]);
+
+
 
   // Determine required certifications based on residency status
   useEffect(() => {
@@ -641,7 +738,14 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
       message.warning('Please complete all required certifications before submitting');
       return;
     }
-    setSubmitLoading(true);
+        setSubmitLoading(true);
+    
+    // Clean up unused documents before submitting
+    const unusedCount = DocumentTrackingService.cleanupUnusedDocuments();
+    if (unusedCount > 0) {
+      console.log(`Cleaned up ${unusedCount} unused documents before submission`);
+    }
+    
     // Gather tracked document objects from localStorage
     const trackedDocsObj = DocumentTrackingService.getTrackedDocuments();
     const trackedDocs = Object.values(trackedDocsObj);
@@ -984,6 +1088,13 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
         };
         setSelectedCerts(updatedCerts);
         updateCertifications(updatedCerts);
+        
+        // Mark uploaded documents as used in tracking
+        successfulUploads.forEach(doc => {
+          if (doc.publicId) {
+            DocumentTrackingService.markDocumentAsUsed(doc.publicId);
+          }
+        });
       }
       const uploadMessage = successfulUploads.length === 1 ?
         `Uploaded ${successfulUploads.length} document` :
@@ -1031,12 +1142,19 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
       console.log('Certificate Index:', certIndex);
       console.log('================================');
 
-      // Track only the public ID in localStorage
-      const trackingSuccess = DocumentTrackingService.addTrackedDocument(data.public_id);
+      // Track document in localStorage with full metadata
+      const trackingSuccess = DocumentTrackingService.addTrackedDocument(data.public_id, {
+        url: data.secure_url,
+        fileName: file.name,
+        fileType: file.type,
+        documentName: file.name,
+        documentType: 'Support Worker',
+        uploadedAt: new Date().toISOString()
+      });
       if (trackingSuccess) {
-        console.log(`Document public ID ${data.public_id} tracked in localStorage`);
+        console.log(`Document ${data.public_id} tracked in localStorage`);
       } else {
-        console.warn(`Failed to track document public ID ${data.public_id} in localStorage`);
+        console.warn(`Failed to track document ${data.public_id} in localStorage`);
       }
 
       return {
@@ -1073,11 +1191,16 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
     });
 
     function performDocumentRemoval(certIndex, docIndex) {
-      // Only update the Zustand store, do not touch localStorage tracking
-      removeCertificationDocument(certIndex, docIndex);
-      message.info(`Document removed`);
+      const cert = selectedCerts[certIndex];
+      const document = cert.documents[docIndex];
+      
+      // Show immediate feedback
+      message.info('Document removed from view. Cleaning up cloud storage...');
+      
+      // Use centralized removal function
+      removeDocumentFromAllStates(certIndex, docIndex, document?.publicId);
     }
-  }, [removeCertificationDocument]);
+  }, [selectedCerts, removeCertificationDocument]);
 
   const isCertComplete = useCallback((cert) => {
     const type = certificationTypes.find(t => t._id === cert.certificationType);
@@ -1354,13 +1477,38 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
             style={{ boxShadow: 'none', borderRadius: 8 }}
             bodyStyle={{ paddingBottom: 0 }}
           >
-            <Input
-              placeholder="Search certifications by name, description or category..."
-              allowClear
-              onChange={(e) => handleSearch(e.target.value)}
-              style={{ maxWidth: 600 }}
-              prefix={<InfoCircleOutlined />}
-            />
+            <div style={{ 
+              display: 'flex', 
+              gap: 16, 
+              alignItems: 'center',
+              flexWrap: 'wrap'
+            }}>
+              <Input
+                placeholder="Search certifications by name, description or category..."
+                allowClear
+                onChange={(e) => handleSearch(e.target.value)}
+                style={{ flex: 1, minWidth: 300 }}
+                prefix={<InfoCircleOutlined />}
+              />
+              <Button 
+                type="dashed" 
+                onClick={() => setOtherCertDrawerOpen(true)}
+                icon={<PlusOutlined />}
+                style={{ 
+                  whiteSpace: 'nowrap',
+                  height: 40,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  backgroundColor: '#f0f8ff',
+                  borderColor: '#1890ff',
+                  color: '#1890ff',
+                  fontWeight: 500
+                }}
+              >
+                Add Other Certificate
+              </Button>
+            </div>
           </Card>
           {/* {currentStep === 1 && getIncompleteRequiredCerts().length > 0 && (
             <Alert
@@ -2127,25 +2275,21 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
                 accept=".pdf,.jpg,.jpeg,.png"
                 fileList={uploadFileList}
                 onRemove={(file) => {
-                  let newUploadFileList;
                   if (isWWCC) {
-                    newUploadFileList = (wwccDraft?.documents || []).filter(d => d.uid !== file.uid);
+                    // For WWCC draft, handle differently
+                    const newUploadFileList = (wwccDraft?.documents || []).filter(d => d.uid !== file.uid);
                     setWwccDraft(prev => ({
                       ...prev,
                       documents: newUploadFileList
                     }));
+                    certForm.setFieldsValue({ documents: newUploadFileList });
                   } else {
+                    // For regular certifications, use the Cloudinary deletion handler
                     const docIndex = cert.documents.findIndex(d => d.uid === file.uid);
                     if (docIndex >= 0) {
-                      removeCertificationDocument(currentCertIndex, docIndex);
-                      // Sync local state with store so UI updates
-                      const updatedCerts = useOnboardingStore.getState().certifications;
-                      setSelectedCerts(updatedCerts);
+                      handleRemoveDocument(currentCertIndex, docIndex);
                     }
-                    newUploadFileList = cert.documents.filter(d => d.uid !== file.uid);
                   }
-                  // Update form value for documents after every upload/remove
-                  certForm.setFieldsValue({ documents: newUploadFileList });
                 }}
                 beforeUpload={(file, fileList) => {
                   // Calculate total files after upload
@@ -2310,6 +2454,38 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
     setPreviewDocument(document);
   }, []);
 
+  // Centralized document removal function
+  const removeDocumentFromAllStates = useCallback(async (certIndex, docIndex, publicId = null) => {
+    // 1. Remove from Zustand store
+    removeCertificationDocument(certIndex, docIndex);
+    
+    // 2. Update local component state immediately
+    const updatedCerts = [...selectedCerts];
+    updatedCerts[certIndex] = {
+      ...updatedCerts[certIndex],
+      documents: updatedCerts[certIndex].documents.filter((_, i) => i !== docIndex)
+    };
+    setSelectedCerts(updatedCerts);
+    
+    // 3. Remove from localStorage tracking if publicId exists
+    if (publicId) {
+      DocumentTrackingService.removeTrackedDocument(publicId);
+    }
+    
+    // 4. Delete from Cloudinary in background if publicId exists
+    if (publicId) {
+      deleteCloudinaryImage(publicId)
+        .then(() => {
+          console.log(`Document ${publicId} deleted from Cloudinary`);
+          message.success('Document removed successfully from cloud storage');
+        })
+        .catch((error) => {
+          console.error('Failed to delete from Cloudinary:', error);
+          message.warning('Document removed locally but failed to delete from cloud storage');
+        });
+    }
+  }, [selectedCerts, removeCertificationDocument]);
+
   // Function to handle document deletion from preview with tracking
   const handleDocumentDeleteFromPreview = useCallback(() => {
     if (previewDocument) {
@@ -2322,23 +2498,19 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
         );
         if (docIndex >= 0) {
           const publicId = selectedCerts[certIndex].documents[docIndex].publicId;
-
-          // Remove from localStorage tracking
-          if (publicId) {
-            DocumentTrackingService.removeTrackedDocument(publicId);
-          }
-
-          handleRemoveDocument(certIndex, docIndex);
+          
+          // Show immediate feedback
+          message.info('Document removed from view. Cleaning up cloud storage...');
+          
+          // Use centralized removal function
+          removeDocumentFromAllStates(certIndex, docIndex, publicId);
         }
       }
       setPreviewDocument(null);
     }
-  }, [previewDocument, selectedCerts, handleRemoveDocument]);
+  }, [previewDocument, selectedCerts, removeDocumentFromAllStates]);
 
-  // Function to get tracking statistics
-  const getDocumentTrackingStats = useCallback(() => {
-    return DocumentTrackingService.getTrackingStats();
-  }, []);
+
 
   // Utility function to display tracking information (for debugging)
   const displayTrackingInfo = useCallback(() => {
@@ -2346,9 +2518,12 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
     const trackedDocs = DocumentTrackingService.getTrackedDocuments();
 
     console.log('=== Document Tracking Information ===');
-    console.log('Total tracked public IDs:', stats.totalTracked);
-    console.log('Public IDs:', stats.publicIds);
+    console.log('Total tracked documents:', stats.totalTracked);
+    console.log('Used documents:', stats.usedDocuments);
+    console.log('Unused documents:', stats.unusedDocuments);
     console.log('All tracked documents:', trackedDocs);
+    console.log('Used public IDs:', stats.usedPublicIds);
+    console.log('Unused public IDs:', stats.unusedPublicIds);
     console.log('=====================================');
 
     return stats;
@@ -2368,17 +2543,51 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
 
   // Function to export tracking data (for debugging)
   const exportTrackingData = useCallback(() => {
-    const trackedDocs = DocumentTrackingService.getTrackedDocuments();
-    const dataStr = JSON.stringify(trackedDocs, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `document-tracking-${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    console.log('Document tracking data exported');
+    const exportData = DocumentTrackingService.exportTrackingData();
+    if (exportData) {
+      const dataStr = JSON.stringify(exportData, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `document-tracking-${new Date().toISOString().split('T')[0]}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      console.log('Document tracking data exported');
+    } else {
+      toast.error('Failed to export tracking data');
+    }
   }, []);
+
+  // Debug function to show current state vs tracking state
+  const debugDocumentState = useCallback(() => {
+    const trackedDocs = DocumentTrackingService.getTrackedDocuments();
+    const allCurrentDocs = selectedCerts.flatMap(cert => 
+      cert.documents?.map(doc => doc.publicId).filter(Boolean) || []
+    );
+    
+    console.log('=== Document State Debug ===');
+    console.log('Current documents in state:', allCurrentDocs);
+    console.log('Tracked documents in localStorage:', Object.keys(trackedDocs));
+    console.log('Orphaned documents:', Object.keys(trackedDocs).filter(
+      publicId => !allCurrentDocs.includes(publicId)
+    ));
+    console.log('Missing from tracking:', allCurrentDocs.filter(
+      publicId => !trackedDocs[publicId]
+    ));
+    console.log('===========================');
+  }, [selectedCerts]);
+
+  // Force refresh UI state
+  const forceRefreshUI = useCallback(() => {
+    // Re-synchronize with store
+    if (certifications && certifications.length > 0) {
+      setSelectedCerts(certifications);
+    }
+    // Show debug info
+    debugDocumentState();
+    message.info('UI state refreshed');
+  }, [certifications, debugDocumentState]);
 
   // Function to manually save document tracking (for testing/development)
   const manuallySaveDocumentTracking = useCallback(async () => {
@@ -2389,18 +2598,12 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
         return;
       }
 
-      toast.loading('Saving document tracking...');
-      const result = await saveDocumentTrackingToDatabase(stats.publicIds);
+      toast.loading('Saving document tracking to database...');
+      const trackedDocs = DocumentTrackingService.getTrackedDocuments();
+      const documents = Object.values(trackedDocs);
+      await saveDocumentTrackingToDatabase(documents);
       toast.dismiss();
-
-      if (result.success) {
-        toast.success('Document tracking saved successfully!');
-        // Clear localStorage after successful save
-        DocumentTrackingService.clearAllTrackedDocuments();
-        console.log('Document tracking saved and localStorage cleared');
-      } else {
-        toast.error('Failed to save document tracking');
-      }
+      toast.success('Document tracking saved to database successfully!');
     } catch (error) {
       toast.dismiss();
       toast.error('Failed to save document tracking: ' + error.message);
@@ -2418,10 +2621,11 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
       }
 
       toast.loading('Testing document tracking API...');
-      const result = await saveDocumentTrackingToDatabase(stats.publicIds);
+      const trackedDocs = DocumentTrackingService.getTrackedDocuments();
+      const documents = Object.values(trackedDocs);
+      await saveDocumentTrackingToDatabase(documents);
       toast.dismiss();
       toast.success('Document tracking API test successful!');
-      console.log('API test result:', result);
     } catch (error) {
       toast.dismiss();
       toast.error('Document tracking API test failed: ' + error.message);
@@ -2464,17 +2668,134 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
   const [otherCertTitle, setOtherCertTitle] = useState('');
   const [otherCertDocs, setOtherCertDocs] = useState([]);
   const [isSavingOtherCert, setIsSavingOtherCert] = useState(false);
+  const [editingOtherCertIndex, setEditingOtherCertIndex] = useState(null);
+  const [isUploadingOtherCert, setIsUploadingOtherCert] = useState(false);
 
   const handleRemoveOtherCertificate = (index) => {
     const cert = otherCertifications[index];
-    if (Array.isArray(cert.documents)) {
-      cert.documents.forEach(doc => {
-        if (doc.publicId) {
-          DocumentTrackingService.removeTrackedDocument(doc.publicId);
+    
+    confirm({
+      title: 'Remove Other Certificate?',
+      icon: <ExclamationCircleOutlined />,
+      content: `Are you sure you want to remove "${cert.certificationTitle}"? This will also delete all associated documents from cloud storage.`,
+      okText: 'Yes, remove it',
+      okType: 'danger',
+      cancelText: 'No, keep it',
+      onOk() {
+        // Remove from UI state immediately for better UX
+        removeOtherCertificate(index);
+        
+        if (Array.isArray(cert.documents) && cert.documents.length > 0) {
+          // Show immediate feedback
+          message.info('Certificate removed from view. Cleaning up cloud storage...');
+          
+          // Delete all documents from Cloudinary in the background
+          const deletePromises = cert.documents
+            .filter(doc => doc.publicId)
+            .map(doc => 
+              deleteCloudinaryImage(doc.publicId)
+                .then(() => {
+                  console.log(`Document ${doc.publicId} deleted from Cloudinary`);
+                  DocumentTrackingService.removeTrackedDocument(doc.publicId);
+                  return { success: true, publicId: doc.publicId };
+                })
+                .catch((error) => {
+                  console.error(`Failed to delete document ${doc.publicId} from Cloudinary:`, error);
+                  // Still remove from tracking even if Cloudinary delete fails
+                  DocumentTrackingService.removeTrackedDocument(doc.publicId);
+                  return { success: false, publicId: doc.publicId, error };
+                })
+            );
+          
+          // Wait for all deletions to complete (or fail)
+          Promise.allSettled(deletePromises).then((results) => {
+            const successfulDeletes = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+            const failedDeletes = results.filter(r => r.status === 'fulfilled' && !r.value.success).length;
+            const totalDocs = cert.documents.filter(doc => doc.publicId).length;
+            
+            // Show appropriate message
+            if (failedDeletes === 0) {
+              message.success(`Certificate removed successfully. All ${successfulDeletes} document(s) deleted from cloud storage.`);
+            } else if (successfulDeletes > 0) {
+              message.warning(`Certificate removed. ${successfulDeletes}/${totalDocs} document(s) deleted from cloud storage. ${failedDeletes} document(s) failed to delete.`);
+            } else {
+              message.error(`Certificate removed locally but failed to delete any documents from cloud storage.`);
+            }
+          });
+        } else {
+          // No documents to delete, just show success message
+          message.success('Other certificate removed successfully');
+        }
+      }
+    });
+  };
+
+  const handleEditOtherCertificate = (index) => {
+    const cert = otherCertifications[index];
+    setEditingOtherCertIndex(index);
+    setOtherCertTitle(cert.certificationTitle);
+    setOtherCertDocs(cert.documents || []);
+    setOtherCertDrawerOpen(true);
+  };
+
+  const handleOtherCertDocumentUpload = async (files) => {
+    try {
+      setIsUploadingOtherCert(true);
+      // Check for duplicate uploads
+      const duplicateFiles = [];
+      const uniqueFiles = [];
+      files.forEach(file => {
+        const isDuplicate = otherCertDocs.some(doc => doc.fileName === file.name && doc.fileSize === file.size);
+        if (isDuplicate) {
+          duplicateFiles.push(file.name);
+        } else {
+          uniqueFiles.push(file);
         }
       });
+      if (duplicateFiles.length > 0) {
+        toast.error(`Duplicate files detected: ${duplicateFiles.join(', ')}`);
+        if (uniqueFiles.length === 0) {
+          return false;
+        }
+      }
+      // Process all uploads in parallel
+      const uploadPromises = uniqueFiles.map(file => uploadToCloudinary(file, 'otherCert'));
+      const results = await Promise.all(uploadPromises);
+      // Filter out any failed uploads
+      const successfulUploads = results.filter(result => result !== null);
+      if (successfulUploads.length === 0) {
+        toast.error('No documents were uploaded successfully');
+        return false;
+      }
+      // Update state with new documents
+      setOtherCertDocs(prev => [
+        ...prev,
+        ...successfulUploads
+      ].slice(0, maxFiles));
+      
+      // Mark uploaded documents as used in tracking
+      successfulUploads.forEach(doc => {
+        if (doc.publicId) {
+          DocumentTrackingService.markDocumentAsUsed(doc.publicId);
+        }
+      });
+      
+      const uploadMessage = successfulUploads.length === 1 ?
+        `Uploaded ${successfulUploads.length} document` :
+        `Uploaded ${successfulUploads.length} documents`;
+      if (duplicateFiles.length > 0) {
+        toast.success(`${uploadMessage} (${duplicateFiles.length} duplicate(s) skipped)`);
+      } else {
+        toast.success(uploadMessage);
+      }
+      return true;
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload some documents');
+      return false;
+    } finally {
+      setIsUploadingOtherCert(false);
     }
-    removeOtherCertificate(index);
   };
 
   if (isOnboardingError) {
@@ -2545,7 +2866,9 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
               Clear All
             </Button>
             <Text type="secondary">
-              Tracked: {getDocumentTrackingStats().totalTracked} documents
+              Tracked: {DocumentTrackingService.getTrackingStats().totalTracked} documents | 
+              Used: {DocumentTrackingService.getTrackingStats().usedDocuments} | 
+              Unused: {DocumentTrackingService.getTrackingStats().unusedDocuments}
             </Text>
           </Space>
         </Card>
@@ -2566,6 +2889,65 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
       <div className="steps-content" style={{ minHeight: '60vh' }}>
         {steps[currentStep].content}
       </div>
+
+      {/* Show other certificates list above the navigation buttons */}
+      {currentStep === 1 && otherCertifications.length > 0 && (
+        <Card 
+          title="Other Certificates" 
+          style={{ 
+            marginTop: 24, 
+            marginBottom: 16,
+            borderRadius: 8,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+          }}
+        >
+          <List
+            dataSource={otherCertifications}
+            renderItem={(cert, idx) => (
+              <List.Item
+                actions={[
+                  <Button 
+                    type="primary"
+                    size="small" 
+                    onClick={() => handleEditOtherCertificate(idx)}
+                    icon={<EditOutlined />}
+                    style={{ marginRight: 8 }}
+                  >
+                    Edit
+                  </Button>,
+                  <Button 
+                    danger 
+                    size="small" 
+                    onClick={() => handleRemoveOtherCertificate(idx)}
+                    icon={<DeleteOutlined />}
+                  >
+                    Remove
+                  </Button>
+                ]}
+              >
+                <List.Item.Meta
+                  title={
+                    <Text strong style={{ fontSize: 16 }}>
+                      {cert.certificationTitle}
+                    </Text>
+                  }
+                  description={
+                    <Space>
+                      <FileOutlined />
+                      <Text type="secondary">
+                        {cert.documents && cert.documents.length > 0 
+                          ? `${cert.documents.length} document(s) uploaded` 
+                          : 'No documents uploaded'
+                        }
+                      </Text>
+                    </Space>
+                  }
+                />
+              </List.Item>
+            )}
+          />
+        </Card>
+      )}
 
       <div className="steps-action" style={{ marginTop: 24, textAlign: 'center' }}>
         {currentStep > 0 && (
@@ -2599,37 +2981,16 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
         onClose={() => setPreviewDocument(null)}
         onDelete={handleDocumentDeleteFromPreview}
       />
-      <Button type="dashed" onClick={() => setOtherCertDrawerOpen(true)} style={{ marginTop: 24, width: '100%' }}>
-        Add Other Certificate
-      </Button>
-      {/* List existing other certificates */}
-      {otherCertifications.length > 0 && (
-        <Card title="Other Certificates" style={{ marginTop: 16 }}>
-          <List
-            dataSource={otherCertifications}
-            renderItem={(cert, idx) => (
-              <List.Item
-                actions={[
-                  <Button danger size="small" onClick={() => handleRemoveOtherCertificate(idx)}>Remove</Button>
-                ]}
-              >
-                <List.Item.Meta
-                  title={cert.certificationTitle}
-                  description={cert.documents && cert.documents.length > 0 ? `${cert.documents.length} document(s)` : 'No documents'}
-                />
-              </List.Item>
-            )}
-          />
-        </Card>
-      )}
-      {/* Drawer for adding other certificate */}
+      
+      {/* Drawer for adding/editing other certificate */}
       <Drawer
-        title="Add Other Certificate"
+        title={editingOtherCertIndex !== null ? "Edit Other Certificate" : "Add Other Certificate"}
         open={otherCertDrawerOpen}
         onClose={() => {
           setOtherCertDrawerOpen(false);
           setOtherCertTitle('');
           setOtherCertDocs([]);
+          setEditingOtherCertIndex(null);
         }}
         width={480}
         footer={
@@ -2645,14 +3006,26 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
                 return;
               }
               setIsSavingOtherCert(true);
-              // Only add to Zustand, do not call backend here
-              addOtherCertificate({ certificationTitle: otherCertTitle, documents: otherCertDocs });
-              message.success('Other certificate added locally');
+              
+              if (editingOtherCertIndex !== null) {
+                // Update existing certificate
+                const updatedCert = { certificationTitle: otherCertTitle, documents: otherCertDocs };
+                // Remove the old certificate and add the updated one
+                removeOtherCertificate(editingOtherCertIndex);
+                addOtherCertificate(updatedCert);
+                message.success('Other certificate updated successfully');
+              } else {
+                // Add new certificate
+                addOtherCertificate({ certificationTitle: otherCertTitle, documents: otherCertDocs });
+                message.success('Other certificate added successfully');
+              }
+              
               setOtherCertDrawerOpen(false);
               setOtherCertTitle('');
               setOtherCertDocs([]);
+              setEditingOtherCertIndex(null);
               setIsSavingOtherCert(false);
-            }}>Save</Button>
+            }}>{editingOtherCertIndex !== null ? 'Update' : 'Save'}</Button>
           </div>
         }
       >
@@ -2667,39 +3040,138 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
         <Upload
           accept=".pdf,.jpg,.jpeg,.png"
           fileList={otherCertDocs}
-          onRemove={file => {
-            setOtherCertDocs(prev => prev.filter(d => d.uid !== file.uid));
-            // Remove from tracking if publicId exists
-            if (file.publicId) {
-              DocumentTrackingService.removeTrackedDocument(file.publicId);
-            }
+          onRemove={(file) => {
+            confirm({
+              title: 'Remove Document?',
+              icon: <ExclamationCircleOutlined />,
+              content: 'Are you sure you want to remove this document?',
+              okText: 'Yes, remove it',
+              okType: 'danger',
+              cancelText: 'No, keep it',
+              onOk() {
+                if (file.publicId) {
+                  // Delete from Cloudinary first
+                  deleteCloudinaryImage(file.publicId)
+                    .then(() => {
+                      console.log(`Document ${file.publicId} deleted from Cloudinary`);
+                      // Remove from localStorage tracking
+                      DocumentTrackingService.removeTrackedDocument(file.publicId);
+                      // Remove from local state
+                      setOtherCertDocs(prev => prev.filter(d => d.uid !== file.uid));
+                      message.success('Document removed successfully');
+                    })
+                    .catch((error) => {
+                      console.error('Failed to delete from Cloudinary:', error);
+                      // Still remove from local state even if Cloudinary delete fails
+                      DocumentTrackingService.removeTrackedDocument(file.publicId);
+                      setOtherCertDocs(prev => prev.filter(d => d.uid !== file.uid));
+                      message.warning('Document removed locally but failed to delete from cloud storage');
+                    });
+                } else {
+                  // No publicId, just remove from local state
+                  setOtherCertDocs(prev => prev.filter(d => d.uid !== file.uid));
+                  message.info('Document removed');
+                }
+              }
+            });
           }}
-          beforeUpload={async (file, fileList) => {
-            // Validate file type and size
-            const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
-            const maxFileSize = 5 * 1024 * 1024;
+          beforeUpload={(file, fileList) => {
+            // Calculate total files after upload
+            const currentCount = otherCertDocs.length;
+            const newCount = currentCount + fileList.length;
+            if (newCount > maxFiles) {
+              toast.error(`You can only upload ${maxFiles - currentCount} more document(s)`);
+              return Upload.LIST_IGNORE;
+            }
             if (!allowedFileTypes.includes(file.type)) {
-              message.error('Only PDF, JPG, PNG files are allowed');
+              toast.error('Only PDF, JPG, PNG files are allowed');
               return Upload.LIST_IGNORE;
             }
             if (file.size > maxFileSize) {
-              message.error('Each file must be less than 5MB');
+              toast.error('Each file must be less than 5MB');
               return Upload.LIST_IGNORE;
             }
-            // Upload to Cloudinary (reuse uploadToCloudinary)
-            const uploaded = await uploadToCloudinary(file, 'otherCert');
-            if (uploaded) {
-              setOtherCertDocs(prev => [...prev, uploaded]);
-              // Track publicId for this document
-              if (uploaded.publicId) {
-                DocumentTrackingService.addTrackedDocument(uploaded.publicId);
-              }
-            }
-            return false;
+            toast.loading(`Uploading ${fileList.length} document(s)...`);
+            handleOtherCertDocumentUpload(fileList)
+              .then(() => {
+                toast.dismiss();
+              })
+              .catch(() => toast.dismiss());
+            return false; // Prevent default upload
           }}
           multiple
           listType="picture-card"
-          showUploadList={{ showPreviewIcon: true, showRemoveIcon: true }}
+          showUploadList={{
+            showPreviewIcon: true,
+            showRemoveIcon: true,
+            previewIcon: (file) => (
+              <Tooltip title="Preview Document">
+                <button
+                  type="button"
+                  aria-label="Preview Document"
+                  tabIndex={0}
+                  style={{
+                    color: '#fff',
+                    background: 'linear-gradient(135deg, #1890ff 60%, #40a9ff 100%)',
+                    fontSize: 28,
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: 28,
+                    height: 28,
+                    marginRight: 10,
+                    boxShadow: '0 4px 16px rgba(24,144,255,0.18)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    transition: 'box-shadow 0.2s, background 0.2s',
+                  }}
+                  className="upload-action-btn preview-btn"
+                  onMouseOver={e => e.currentTarget.style.boxShadow = '0 6px 24px rgba(24,144,255,0.28)'}
+                  onMouseOut={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(24,144,255,0.18)'}
+                >
+                  <EyeOutlined />
+                </button>
+              </Tooltip>
+            ),
+            removeIcon: (file) => (
+              <Tooltip title="Delete Document">
+                <button
+                  type="button"
+                  aria-label="Delete Document"
+                  tabIndex={0}
+                  style={{
+                    color: '#fff',
+                    background: 'linear-gradient(135deg, #ff4d4f 60%, #ff7875 100%)',
+                    fontSize: 28,
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: 28,
+                    height: 28,
+                    marginLeft: 10,
+                    boxShadow: '0 4px 16px rgba(255,77,79,0.18)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    transition: 'box-shadow 0.2s, background 0.2s',
+                  }}
+                  className="upload-action-btn delete-btn"
+                  onMouseOver={e => e.currentTarget.style.boxShadow = '0 6px 24px rgba(255,77,79,0.28)'}
+                  onMouseOut={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(255,77,79,0.18)'}
+                >
+                  <DeleteOutlined />
+                </button>
+              </Tooltip>
+            ),
+          }}
+          onPreview={(file) => {
+            const doc = otherCertDocs.find(d => d.uid === file.uid);
+            if (doc) handleDocumentPreview(doc);
+          }}
+          disabled={isUploadingOtherCert}
         >
           {otherCertDocs.length >= 2 ? null : (
             <div>

@@ -243,9 +243,8 @@ const Onboarding = () => {
     <div className="onboarding-container">
       <Toaster position="top-right" />
       <WorkerNavbar/>
-      <div className="onboarding-header">
-        <h1>Complete Your Worker Profile</h1>
-        <p>Tell us about yourself so we can help you find the right jobs.</p>
+      <div style={{marginTop:'120px'}}>
+       
         <ProgressBar 
         
           currentStep={currentStep}
