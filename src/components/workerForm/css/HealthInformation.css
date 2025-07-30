@@ -1,189 +1,15 @@
-/* Health Information Form - Production Ready CSS */
-/* Mobile-First Responsive Design with No Backgrounds */
+/* Health Information Component - Material-UI Design */
 
-/* CSS Variables for Design System */
-:root {
-  /* Colors - No background colors used */
-  --primary-color: #2563eb;
-  --primary-dark: #1d4ed8;
-  --primary-hover: #3b82f6;
-  --secondary-color: #64748b;
-  --success-color: #059669;
-  --danger-color: #dc2626;
-  --warning-color: #d97706;
-
-  /* Text Colors */
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --text-light: #94a3b8;
-
-  /* Borders */
-  --border-color: #e2e8f0;
-  --border-hover: #cbd5e1;
-  --border-focus: var(--primary-color);
-  --border-error: var(--danger-color);
-
-  /* Typography */
-  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    system-ui, sans-serif;
-  --font-size-xs: 0.75rem; /* 12px */
-  --font-size-sm: 0.875rem; /* 14px */
-  --font-size-base: 1rem; /* 16px */
-  --font-size-lg: 1.125rem; /* 18px */
-  --font-size-xl: 1.25rem; /* 20px */
-  --font-size-2xl: 1.5rem; /* 24px */
-  --font-size-3xl: 1.875rem; /* 30px */
-
-  /* Optimized Spacing - Reduced for better density */
-  --space-0: 0;
-  --space-1: 0.25rem; /* 4px */
-  --space-2: 0.5rem; /* 8px */
-  --space-3: 0.75rem; /* 12px */
-  --space-4: 1rem; /* 16px */
-  --space-5: 1.25rem; /* 20px */
-  --space-6: 1.5rem; /* 24px */
-  --space-8: 2rem; /* 32px */
-  --space-10: 2.5rem; /* 40px */
-
-  /* Border radius */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
-
-  /* Shadows - Subtle without backgrounds */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-focus: 0 0 0 3px rgba(37, 99, 235, 0.1);
-
-  /* Transitions */
-  --transition: 0.15s ease-in-out;
+/* Remove any conflicting styles and ensure clean Material-UI implementation */
+.health-information-container {
+  /* Container styles handled by Material-UI Container component */
 }
 
-/* Reset and Base Styles */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  font-family: var(--font-family);
-  line-height: 1.5;
-  color: var(--text-primary);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Main Form Container - Compact Mobile Design */
-.wkr-onboard-health-form {
-  width: 100%;
-  max-width: 100%;
-  padding: var(--space-4);
-  margin: 0 auto;
-}
-
-/* Form Header - Minimal spacing */
-.wkr-onboard-health-form-header {
-  text-align: center;
-  margin-bottom: var(--space-6);
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.wkr-onboard-health-form-header h2 {
-  font-size: var(--font-size-xl);
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: var(--space-2);
-  letter-spacing: -0.025em;
-}
-
-.wkr-onboard-health-form-description {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-  line-height: 1.4;
-}
-
-/* Form Sections - Optimized Spacing */
-.wkr-onboard-health-form-section {
-  margin-bottom: var(--space-6);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
-  transition: border-color var(--transition);
-}
-
-.wkr-onboard-health-form-section:hover {
-  border-color: var(--border-hover);
-}
-
-.wkr-onboard-health-form-section h3 {
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: var(--space-4);
-  padding-bottom: var(--space-2);
-  border-bottom: 2px solid var(--primary-color);
-  display: flex;
-  align-items: center;
-}
-
-.wkr-onboard-health-form-section h3::before {
-  content: '';
-  width: 3px;
-  height: 16px;
-  border-radius: var(--radius-sm);
-  border-left: 3px solid var(--primary-color);
-  margin-right: var(--space-2);
-}
-
-.wkr-onboard-health-form-section h4 {
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: var(--space-4) 0 var(--space-3) 0;
-}
-
-.wkr-onboard-health-form-section h5 {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin: var(--space-3) 0 var(--space-2) 0;
-}
-
-/* Section Notes */
-.wkr-onboard-health-section-note {
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
-  font-style: italic;
-  margin-bottom: var(--space-3);
-  padding: var(--space-2);
-  border: 1px solid var(--warning-color);
-  border-radius: var(--radius-md);
-  border-left: 3px solid var(--warning-color);
-}
-
-/* Form Groups - Compact */
-.wkr-onboard-health-form-group {
-  margin-bottom: var(--space-4);
-}
-
-/* Conditional Fields */
-.wkr-onboard-health-conditional-field,
-.wkr-onboard-health-conditional-fields {
-  margin-top: var(--space-3);
-  padding: var(--space-3);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  animation: fadeIn 0.2s ease-out;
-}
-
-@keyframes fadeIn {
+/* Custom animations for enhanced UX */
+@keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
@@ -191,220 +17,10 @@ body {
   }
 }
 
-/* Fieldsets */
-fieldset {
-  border: none;
-  padding: 0;
-  margin: 0;
-}
-
-legend {
-  font-weight: 600;
-  color: var(--text-primary);
-  font-size: var(--font-size-sm);
-  margin-bottom: var(--space-2);
-}
-
-/* Labels */
-label {
-  display: block;
-  font-weight: 500;
-  color: var(--text-secondary);
-  margin-bottom: var(--space-1);
-  font-size: var(--font-size-xs);
-}
-
-/* Radio Groups - Compact Layout */
-.wkr-onboard-health-radio-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-}
-
-.wkr-onboard-health-radio-label {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  transition: all var(--transition);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  min-width: 80px;
-  justify-content: center;
-}
-
-.wkr-onboard-health-radio-label:hover {
-  border-color: var(--primary-color);
-  color: var(--primary-color);
-}
-
-.wkr-onboard-health-radio-label input[type='radio'] {
-  margin-right: var(--space-1);
-  accent-color: var(--primary-color);
-}
-
-.wkr-onboard-health-radio-label:has(input[type='radio']:checked) {
-  border-color: var(--primary-color);
-  color: var(--primary-color);
-  font-weight: 600;
-}
-
-/* Checkbox Labels */
-.wkr-onboard-health-checkbox-label {
-  display: flex !important;
-  align-items: center;
-  cursor: pointer;
-  padding: var(--space-2);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  transition: all var(--transition);
-  margin-bottom: var(--space-2);
-  font-size: var(--font-size-sm);
-}
-
-.wkr-onboard-health-checkbox-label:hover {
-  border-color: var(--primary-color);
-}
-
-.wkr-onboard-health-checkbox-label input[type='checkbox'] {
-  margin-right: var(--space-2);
-  accent-color: var(--primary-color);
-}
-
-.wkr-onboard-health-checkbox-label:has(input[type='checkbox']:checked) {
-  border-color: var(--primary-color);
-  color: var(--primary-color);
-}
-
-/* Input Fields - Clean Design */
-input[type='text'],
-input[type='date'],
-textarea {
-  width: 100%;
-  padding: var(--space-3);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  font-family: var(--font-family);
-  transition: all var(--transition);
-  outline: none;
-}
-
-input[type='text']:focus,
-input[type='date']:focus,
-textarea:focus {
-  border-color: var(--border-focus);
-  box-shadow: var(--shadow-focus);
-}
-
-input[type='text']:disabled,
-input[type='date']:disabled {
-  color: var(--text-light);
-  cursor: not-allowed;
-  border-color: var(--border-color);
-  opacity: 0.6;
-}
-
-textarea {
-  resize: vertical;
-  min-height: 80px;
-  line-height: 1.4;
-}
-
-/* Error States */
-.wkr-onboard-health-error {
-  border-color: var(--border-error) !important;
-}
-
-.wkr-onboard-health-error:focus {
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
-}
-
-.wkr-onboard-health-error-message {
-  display: block;
-  color: var(--danger-color);
-  font-size: var(--font-size-xs);
-  margin-top: var(--space-1);
-  font-weight: 500;
-}
-
-/* Vaccination Section - Compact Design */
-.wkr-onboard-health-vaccine-input-group {
-  padding: var(--space-3);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-3);
-}
-
-.wkr-onboard-health-input-row {
-  display: grid;
-  gap: var(--space-2);
-  grid-template-columns: 1fr;
-  align-items: end;
-}
-
-.wkr-onboard-health-vaccine-name-input {
-  grid-column: 1 / -1;
-}
-
-.wkr-onboard-health-add-vaccine-btn {
-  grid-column: 1 / -1;
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--success-color);
-  color: var(--success-color);
-  border-radius: var(--radius-md);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--transition);
-  font-size: var(--font-size-sm);
-  outline: none;
-}
-
-.wkr-onboard-health-add-vaccine-btn:hover:not(:disabled) {
-  color: white;
-  background: var(--success-color);
-}
-
-.wkr-onboard-health-add-vaccine-btn:disabled {
-  color: var(--text-light);
-  border-color: var(--border-color);
-  cursor: not-allowed;
-}
-
-/* Vaccination List */
-.wkr-onboard-health-vaccine-list {
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-
-.wkr-onboard-health-vaccine-list h5 {
-  padding: var(--space-3);
-  margin: 0;
-  border-bottom: 1px solid var(--border-color);
-  font-weight: 600;
-}
-
-.wkr-onboard-health-vaccine-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-3);
-  border-bottom: 1px solid var(--border-color);
-  animation: slideIn 0.2s ease-out;
-}
-
-.wkr-onboard-health-vaccine-item:last-child {
-  border-bottom: none;
-}
-
-@keyframes slideIn {
+@keyframes slideInLeft {
   from {
     opacity: 0;
-    transform: translateX(-10px);
+    transform: translateX(-20px);
   }
   to {
     opacity: 1;
@@ -412,263 +28,88 @@ textarea {
   }
 }
 
-.wkr-onboard-health-vaccine-info {
-  flex: 1;
+/* Smooth transitions for interactive elements */
+.health-form-transition {
+  transition: all 0.3s ease-in-out;
 }
 
-.wkr-onboard-health-vaccine-name {
-  font-weight: 600;
-  color: var(--text-primary);
-  font-size: var(--font-size-sm);
-  margin-bottom: var(--space-1);
+/* Custom scrollbar for better UX */
+.health-form-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
 }
 
-.wkr-onboard-health-vaccine-status {
-  font-size: var(--font-size-xs);
-  font-weight: 500;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  display: inline-block;
-  margin-bottom: var(--space-1);
+.health-form-scrollbar::-webkit-scrollbar {
+  width: 6px;
 }
 
-.wkr-onboard-health-vaccinated {
-  color: var(--success-color);
-  border: 1px solid var(--success-color);
+.health-form-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.wkr-onboard-health-not-vaccinated {
-  color: var(--warning-color);
-  border: 1px solid var(--warning-color);
+.health-form-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
 }
 
-.wkr-onboard-health-vaccine-date {
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
+.health-form-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.3);
 }
 
-.wkr-onboard-health-remove-vaccine-btn {
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--danger-color);
-  color: var(--danger-color);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-xs);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all var(--transition);
-  margin-left: var(--space-2);
-  outline: none;
-}
-
-.wkr-onboard-health-remove-vaccine-btn:hover {
-  color: white;
-  background: var(--danger-color);
-}
-
-/* Form Actions - Clean Design */
-.wkr-onboard-health-form-actions {
-  display: flex;
-  gap: var(--space-3);
-  justify-content: space-between;
-  margin-top: var(--space-6);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border-color);
-}
-
-.wkr-onboard-health-btn {
-  padding: var(--space-3) var(--space-6);
-  border-radius: var(--radius-md);
-  font-weight: 600;
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  transition: all var(--transition);
-  border: 1px solid;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  flex: 1;
-  outline: none;
-}
-
-.wkr-onboard-health-btn-primary {
-  color: white;
-  border-color: var(--primary-color);
-  background: var(--primary-color);
-}
-
-.wkr-onboard-health-btn-primary:hover:not(:disabled) {
-  background: var(--primary-hover);
-  border-color: var(--primary-hover);
-}
-
-.wkr-onboard-health-btn-secondary {
-  color: var(--text-secondary);
-  border-color: var(--border-color);
-}
-
-.wkr-onboard-health-btn-secondary:hover:not(:disabled) {
-  border-color: var(--border-hover);
-  color: var(--text-primary);
-}
-
-.wkr-onboard-health-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Loading States */
-.wkr-onboard-health-loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 300px;
-  color: var(--text-muted);
-}
-
-.wkr-onboard-health-spinner {
-  width: 32px;
-  height: 32px;
-  border: 2px solid var(--border-color);
-  border-top: 2px solid var(--primary-color);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: var(--space-3);
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
+/* Print styles for accessibility */
+@media print {
+  .health-form-print-hidden {
+    display: none !important;
   }
-  100% {
-    transform: rotate(360deg);
+  
+  .health-form-print-visible {
+    display: block !important;
   }
 }
 
-/* Tablet Responsive - 640px+ */
-@media (min-width: 640px) {
-  .wkr-onboard-health-form {
-    padding: var(--space-6);
-  }
-
-  .wkr-onboard-health-form-header h2 {
-    font-size: var(--font-size-2xl);
-  }
-
-  .wkr-onboard-health-form-section {
-    padding: var(--space-5);
-  }
-
-  .wkr-onboard-health-radio-group {
-    gap: var(--space-3);
-  }
-
-  .wkr-onboard-health-input-row {
-    grid-template-columns: 2fr auto auto auto;
-    align-items: center;
-  }
-
-  .wkr-onboard-health-vaccine-name-input {
-    grid-column: 1;
-  }
-
-  .wkr-onboard-health-add-vaccine-btn {
-    grid-column: 4;
-  }
-
-  .wkr-onboard-health-vaccine-info {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-
-  .wkr-onboard-health-vaccine-name {
-    margin-bottom: 0;
-  }
-
-  .wkr-onboard-health-vaccine-status {
-    margin-bottom: 0;
-  }
-
-  .wkr-onboard-health-form-actions {
-    justify-content: flex-end;
-  }
-
-  .wkr-onboard-health-btn {
-    flex: none;
-    min-width: 120px;
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .health-form-high-contrast {
+    border: 2px solid currentColor;
   }
 }
 
-/* Desktop Responsive - 1024px+ */
-@media (min-width: 1024px) {
-  .wkr-onboard-health-form {
-    max-width: 700px;
-    padding: var(--space-8);
-    margin: var(--space-6) auto;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-md);
-  }
-
-  .wkr-onboard-health-form-header h2 {
-    font-size: var(--font-size-3xl);
-  }
-
-  .wkr-onboard-health-form-section {
-    padding: var(--space-6);
-  }
-
-  .wkr-onboard-health-conditional-field,
-  .wkr-onboard-health-conditional-fields {
-    padding: var(--space-4);
-  }
-}
-
-/* Large Desktop - 1280px+ */
-@media (min-width: 1280px) {
-  .wkr-onboard-health-form {
-    max-width: 800px;
-  }
-}
-
-/* Accessibility & Reduced Motion */
+/* Reduced motion support for accessibility */
 @media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  .health-form-reduced-motion {
+    animation: none !important;
+    transition: none !important;
   }
 }
 
-/* Focus Styles for Keyboard Navigation */
-.wkr-onboard-health-btn:focus-visible,
-input:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid var(--primary-color);
+/* Focus styles for better accessibility */
+.health-form-focus-visible:focus-visible {
+  outline: 2px solid #1976d2;
   outline-offset: 2px;
 }
 
-/* High Contrast Mode Support */
-@media (prefers-contrast: high) {
-  .wkr-onboard-health-form-section,
-  .wkr-onboard-health-btn,
-  input,
-  textarea {
-    border-width: 2px;
-  }
+/* Loading states */
+.health-form-loading {
+  pointer-events: none;
+  opacity: 0.7;
 }
 
-/* Print Styles */
-@media print {
-  .wkr-onboard-health-form {
-    box-shadow: none;
-  }
+/* Error states */
+.health-form-error {
+  border-color: #d32f2f !important;
+}
 
-  .wkr-onboard-health-form-actions,
-  .wkr-onboard-health-remove-vaccine-btn,
-  .wkr-onboard-health-add-vaccine-btn {
-    display: none;
-  }
+/* Success states */
+.health-form-success {
+  border-color: #2e7d32 !important;
+}
+
+/* Warning states */
+.health-form-warning {
+  border-color: #ed6c02 !important;
+}
+
+/* Info states */
+.health-form-info {
+  border-color: #0288d1 !important;
 }

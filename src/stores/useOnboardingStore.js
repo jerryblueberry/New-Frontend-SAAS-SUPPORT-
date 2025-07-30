@@ -11,6 +11,7 @@ import {
 } from '@tanstack/react-query';
 import api from '../api/axios';
 import { daysOfWeek } from '../utils/constants';
+import { toast } from 'react-hot-toast';
 // Create QueryClient to be exported and used in your App provider
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -157,10 +158,7 @@ const initialState = {
     healthClearanceDate: null,
     clearanceNotes: null,
     canLiftPatients: true,
-    hasMobilityIssues: false,
     requiresSpecialAccommodation: false,
-    hasMentalHealthConcerns: false,
-    mentalHealthImpactOnWork: null,
   },
 
   workHistory: {
@@ -827,7 +825,7 @@ const useOnboardingStore = create(
           certifications: profile?.certifications || [],
           otherCertifications: profile?.otherCertifications || [], // Hydrate otherCertifications
           residencyStatus: profile?.residencyStatus || '',
-          healthInformation: profile?.healthInformation || {},
+          healthInformation: profile?.healthInformation || get().healthInformation,
           workHistory: {
             jobs: profile?.workHistory || [],
             references: profile?.references || [],
@@ -1006,13 +1004,10 @@ const useOnboardingStore = create(
             healthClearanceDate: healthInfo.healthClearanceDate || null,
             clearanceNotes: healthInfo.clearanceNotes || null,
             canLiftPatients: healthInfo.canLiftPatients ?? true,
-            hasMobilityIssues: healthInfo.hasMobilityIssues ?? false,
+
             requiresSpecialAccommodation:
               healthInfo.requiresSpecialAccommodation ?? false,
-            hasMentalHealthConcerns:
-              healthInfo.hasMentalHealthConcerns ?? false,
-            mentalHealthImpactOnWork:
-              healthInfo.mentalHealthImpactOnWork || null,
+
           };
 
           const data =
@@ -1412,21 +1407,12 @@ export const useHealthInfoMutation = () => {
               healthData.canLiftPatients !== undefined
                 ? healthData.canLiftPatients
                 : true,
-            hasMobilityIssues:
-              healthData.hasMobilityIssues !== undefined
-                ? healthData.hasMobilityIssues
-                : false,
+
             requiresSpecialAccommodation:
               healthData.requiresSpecialAccommodation !== undefined
                 ? healthData.requiresSpecialAccommodation
                 : false,
-            hasMentalHealthConcerns:
-              healthData.hasMentalHealthConcerns !== undefined
-                ? healthData.hasMentalHealthConcerns
-                : false,
-            mentalHealthImpactOnWork: healthData.hasMentalHealthConcerns
-              ? healthData.mentalHealthImpactOnWork
-              : null,
+
           },
         };
 

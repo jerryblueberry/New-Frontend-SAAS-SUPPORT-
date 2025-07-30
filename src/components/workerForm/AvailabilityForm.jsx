@@ -46,7 +46,7 @@ import {
 import {
   Add as AddIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
+  Delete as DeleteIcon,     
   AccessTime as AccessTimeIcon,
   Info as InfoIcon,
   ArrowBack as ArrowBackIcon,
@@ -57,9 +57,9 @@ import {
   DirectionsCar as CarIcon,
   CheckCircle as CheckIcon,
   Warning as WarningIcon,
-  CalendarMonth as CalendarIcon,
-  Search as SearchIcon,
-  Place as PlaceIcon
+  CalendarMonth as CalendarIcon,        
+  Search as SearchIcon, 
+  Place as PlaceIcon,
 } from '@mui/icons-material';
 import { alpha } from '@mui/material/styles';
 import useOnboardingStore, { useAvailabilityMutation } from '../../stores/useOnboardingStore';
@@ -69,6 +69,8 @@ import { fetchUserUpcomingHolidays, createUserUpcomingHoliday, deleteUserUpcomin
 
 import SuburbSelector from './SuburbSelector';
 import api from '../../api/axios';
+import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
 // Day colors for visual distinction
 const DAY_COLORS = {
@@ -374,10 +376,10 @@ const TimeSlotDialog = ({ open, onClose, onSave, initialData, daysOfWeek, existi
             </Avatar>
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                {initialData ? 'Edit Time Slot' : 'Add Time Slot'}
+                {initialData ? 'Edit Your Availability' : 'Add Your Availability'}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Set your availability for work
+                Set your availability for work.
               </Typography>
             </Box>
           </Box>
@@ -419,7 +421,7 @@ const TimeSlotDialog = ({ open, onClose, onSave, initialData, daysOfWeek, existi
             </FormControl>
 
             {/* Quick Time Presets */}
-            <Box>
+            {/* <Box>
               <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: 'text.primary' }}>
                 Quick Presets
               </Typography>
@@ -449,7 +451,7 @@ const TimeSlotDialog = ({ open, onClose, onSave, initialData, daysOfWeek, existi
                   />
                 ))}
               </Box>
-            </Box>
+            </Box> */}
 
             {/* Simple Time Selection */}
             <Box>
@@ -1193,7 +1195,7 @@ const AvailabilityForm = () => {
             >
               <CardContent sx={{ p: { xs: 2, md: 3 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 700 }}>Upcoming Holidays</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}> Here i am not impotyin the upcoming holdiay componentn  use that Upcoming Holiday</Typography>
                   <Typography variant="body2" color="text.secondary">
                     We will notify you about upcoming holidays. You can also add your own holidays below.
                   </Typography>
@@ -1478,69 +1480,78 @@ const AvailabilityForm = () => {
                       ),
                     }}
                   />
-                  
-                  <Stack direction="row" spacing={2}>
-                    <TextField
-                      label="Start Date"
-                      type="date"
-                      value={newHoliday.startDate}
-                      onChange={e => {
-                        const newStartDate = e.target.value;
-                        setNewHoliday({ ...newHoliday, startDate: newStartDate });
-                        if (holidayError) setHolidayError('');
-                        
-                        // Check for overlap in real-time
-                        if (newStartDate && newHoliday.endDate) {
-                          const hasOverlap = checkDateOverlap(
-                            newStartDate, 
-                            newHoliday.endDate, 
-                            editingHoliday?._id
+                  <LocalizationProvider dateAdapter={AdapterDateFns}>
+                    <Stack direction="row" spacing={2}>
+                      <DatePicker
+                        label="Start Date"
+                        value={newHoliday.startDate ? new Date(newHoliday.startDate) : null}
+                        onChange={(date) => {
+                          const iso = date ? date.toISOString().slice(0, 10) : '';
+                          setNewHoliday({ ...newHoliday, startDate: iso });
+                          if (holidayError) setHolidayError('');
+                          // Check for overlap in real-time
+                          if (iso && newHoliday.endDate) {
+                            const hasOverlap = checkDateOverlap(
+                              iso,
+                              newHoliday.endDate,
+                              editingHoliday?._id
+                            );
+                            setDateOverlapWarning(
+                              hasOverlap ? 'Warning: This date range overlaps with an existing holiday' : ''
+                            );
+                          } else {
+                            setDateOverlapWarning('');
+                          }
+                        }}
+                        inputFormat="yyyy-MM-dd"
+                        mask="____-__-__"
+                        minDate={new Date()}
+                        maxDate={new Date(new Date().getFullYear(), 11, 31)}
+                        shouldDisableMonth={(month) => {
+                          const now = new Date();
+                          return (
+                            month.getFullYear() === now.getFullYear() &&
+                            month.getMonth() < now.getMonth()
                           );
-                          setDateOverlapWarning(
-                            hasOverlap ? 'Warning: This date range overlaps with an existing holiday' : ''
+                        }}
+                        renderInput={(params) => <TextField {...params} fullWidth required InputLabelProps={{ shrink: true }} />}
+                      />
+                      <DatePicker
+                        label="End Date"
+                        value={newHoliday.endDate ? new Date(newHoliday.endDate) : null}
+                        onChange={(date) => {
+                          const iso = date ? date.toISOString().slice(0, 10) : '';
+                          setNewHoliday({ ...newHoliday, endDate: iso });
+                          if (holidayError) setHolidayError('');
+                          // Check for overlap in real-time
+                          if (newHoliday.startDate && iso) {
+                            const hasOverlap = checkDateOverlap(
+                              newHoliday.startDate,
+                              iso,
+                              editingHoliday?._id
+                            );
+                            setDateOverlapWarning(
+                              hasOverlap ? 'Warning: This date range overlaps with an existing holiday' : ''
+                            );
+                          } else {
+                            setDateOverlapWarning('');
+                          }
+                        }}
+                        inputFormat="yyyy-MM-dd"
+                        mask="____-__-__"
+                        minDate={newHoliday.startDate ? new Date(newHoliday.startDate) : new Date()}
+                        maxDate={new Date(new Date().getFullYear(), 11, 31)}
+                        shouldDisableMonth={(month) => {
+                          const now = new Date();
+                          return (
+                            month.getFullYear() === now.getFullYear() &&
+                            month.getMonth() < now.getMonth()
                           );
-                        } else {
-                          setDateOverlapWarning('');
-                        }
-                      }}
-                      fullWidth
-                      required
-                      InputLabelProps={{ shrink: true }}
-                      inputProps={{
-                        min: new Date().toISOString().split('T')[0]
-                      }}
-                    />
-                    <TextField
-                      label="End Date"
-                      type="date"
-                      value={newHoliday.endDate}
-                      onChange={e => {
-                        const newEndDate = e.target.value;
-                        setNewHoliday({ ...newHoliday, endDate: newEndDate });
-                        if (holidayError) setHolidayError('');
-                        
-                        // Check for overlap in real-time
-                        if (newHoliday.startDate && newEndDate) {
-                          const hasOverlap = checkDateOverlap(
-                            newHoliday.startDate, 
-                            newEndDate, 
-                            editingHoliday?._id
-                          );
-                          setDateOverlapWarning(
-                            hasOverlap ? 'Warning: This date range overlaps with an existing holiday' : ''
-                          );
-                        } else {
-                          setDateOverlapWarning('');
-                        }
-                      }}
-                      fullWidth
-                      required
-                      InputLabelProps={{ shrink: true }}
-                      inputProps={{
-                        min: newHoliday.startDate || new Date().toISOString().split('T')[0]
-                      }}
-                    />
-                  </Stack>
+                        }}
+                        renderInput={(params) => <TextField {...params} fullWidth required InputLabelProps={{ shrink: true }} />}
+                      />
+                    </Stack>
+                  </LocalizationProvider>
                   
                   <TextField
                     label="Description (Optional)"

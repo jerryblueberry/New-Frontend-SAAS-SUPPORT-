@@ -674,6 +674,22 @@ const WorkHistoryForm = ({ onNextStep }) => {
     return { url, fileName, fileType };
   };
 
+  // Sort jobs: current jobs first, then by endDate/startDate descending
+  const sortedJobs = React.useMemo(() => {
+    return [...(localWorkHistory.jobs || [])].sort((a, b) => {
+      // Current jobs first
+      if ((a.currentlyWorking || a.current) && !(b.currentlyWorking || b.current)) return -1;
+      if (!(a.currentlyWorking || a.current) && (b.currentlyWorking || b.current)) return 1;
+      // Both current or both not current, compare endDate or startDate
+      const aDate = a.endDate || a.startDate;
+      const bDate = b.endDate || b.startDate;
+      if (!aDate && !bDate) return 0;
+      if (!aDate) return 1;
+      if (!bDate) return -1;
+      return new Date(bDate) - new Date(aDate); // Descending
+    });
+  }, [localWorkHistory.jobs]);
+
   console.log('ONBORDING DTA', workHistory);
 
   return (
@@ -744,7 +760,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
             }}
           >
             <OnboardingJobExperience
-              jobs={localWorkHistory.jobs}
+              jobs={sortedJobs}
               formErrors={formErrors}
               expandedJob={expandedJob}
               onAddJob={addNewJob}
