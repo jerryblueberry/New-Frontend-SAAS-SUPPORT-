@@ -431,6 +431,15 @@ const CertificateSecond = ({ initialStep = 0 }) => {
   const [showCustomInsurance, setShowCustomInsurance] = useState(false);
   const [customInsuranceValue, setCustomInsuranceValue] = useState('');
 
+  // Add at the top of CertificateSecond (with other useState hooks)
+  const [otherCertDrawerOpen, setOtherCertDrawerOpen] = useState(false);
+  const [editingOtherCertIndex, setEditingOtherCertIndex] = useState(null);
+
+  const handleEditOtherCertificateFromReview = (idx) => {
+    setEditingOtherCertIndex(idx);
+    setOtherCertDrawerOpen(true);
+  };
+
   const fileInputRefs = useRef([]);
 console.log("Required Certrs Value",requiredCerts)
 console.log("Has existing ",hasExistingCertifications);
@@ -1479,37 +1488,8 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
         </div>
       ) : (
         <>
-          <Card 
-            title={<Title level={4} style={{ margin: 0 }}>Search Certifications</Title>}
-            bordered={false}
-            style={{ boxShadow: 'none', borderRadius: 8 }}
-            bodyStyle={{ paddingBottom: 0 }}
-          >
-            <div style={{ 
-              display: 'flex', 
-              gap: 16, 
-              alignItems: 'center',
-              flexWrap: 'wrap'
-            }}>
-              <Input
-                placeholder="Search certifications by name, description or category..."
-                allowClear
-                onChange={(e) => handleSearch(e.target.value)}
-                style={{ flex: 1, minWidth: 300 }}
-                prefix={<InfoCircleOutlined />}
-              />
-              {/* AddOtherCertificate button and drawer now handled by the component below */}
-            </div>
-          </Card>
-          <AddOtherCertificate
-            otherCertifications={otherCertifications}
-            addOtherCertificate={addOtherCertificate}
-            removeOtherCertificate={removeOtherCertificate}
-            uploadToCloudinary={uploadToCloudinary}
-            DocumentTrackingService={DocumentTrackingService}
-            deleteCloudinaryImage={deleteCloudinaryImage}
-            currentStep={currentStep}
-          />
+          
+         
           {!allRequiredCertsAdded() && selectedCerts.length > 0 && (
               <Alert 
                 message="Required Certifications Missing" 
@@ -1982,6 +1962,66 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
           }}
         />
       </div>
+      {/* Other Certifications Section */}
+      <Card
+        title={
+          <Space>
+            <SafetyCertificateOutlined style={{ color: '#1890ff' }} />
+            <Text strong>Other Certifications</Text>
+          </Space>
+        }
+        style={{ marginTop: 24, borderRadius: 8 }}
+        bodyStyle={{ padding: 16 }}
+      >
+        {otherCertifications && otherCertifications.length > 0 ? (
+          <List
+            dataSource={otherCertifications}
+            renderItem={(cert, idx) => (
+              <List.Item
+                actions={[
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<EditOutlined />}
+                    onClick={() => handleEditOtherCertificateFromReview(idx)}
+                    style={{ marginLeft: 8 }}
+                  >
+                    Edit
+                  </Button>
+                ]}
+              >
+                <List.Item.Meta
+                  title={cert.certificationTitle}
+                  description={
+                    cert.documents && cert.documents.length > 0 ? (
+                      <Space>
+                        <FileOutlined />
+                        <span>
+                          {cert.documents.length} document(s)
+                        </span>
+                        {cert.documents.map((doc, i) => (
+                          <Tooltip title="Preview Document" key={i}>
+                            <Button
+                              type="link"
+                              icon={<EyeOutlined />}
+                              onClick={() => setPreviewDocument(doc)}
+                              style={{ padding: 0, marginLeft: 8 }}
+                            />
+                          </Tooltip>
+                        ))}
+                      </Space>
+                    ) : (
+                      <Text type="danger">No documents uploaded</Text>
+                    )
+                  }
+                />
+              </List.Item>
+            )}
+          />
+        ) : (
+          <Text type="secondary">No other certifications added.</Text>
+        )}
+      </Card>
       <Divider />
       <div style={{ marginTop: 24, textAlign: 'center' }}>
         <Button 
@@ -2020,7 +2060,8 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
     isWorkingWithChildrenCheckType,
     formatFieldLabel,
     isDegreeMissing,
-    submitLoading
+    submitLoading,
+    otherCertifications
   ]);
 
 
@@ -2722,7 +2763,19 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
       <div className="steps-content" style={{ minHeight: '60vh' }}>
         {steps[currentStep].content}
       </div>
-
+      <AddOtherCertificate
+        otherCertifications={otherCertifications}
+        addOtherCertificate={addOtherCertificate}
+        removeOtherCertificate={removeOtherCertificate}
+        uploadToCloudinary={uploadToCloudinary}
+        DocumentTrackingService={DocumentTrackingService}
+        deleteCloudinaryImage={deleteCloudinaryImage}
+        currentStep={currentStep}
+        otherCertDrawerOpen={otherCertDrawerOpen}
+        setOtherCertDrawerOpen={setOtherCertDrawerOpen}
+        editingOtherCertIndex={editingOtherCertIndex}
+        setEditingOtherCertIndex={setEditingOtherCertIndex}
+      />
       <div className="steps-action" style={{ marginTop: 24, textAlign: 'center' }}>
         {currentStep > 0 && (
           <Button 

@@ -20,7 +20,7 @@ import PageNotFound from './components/common/PageNotFound';
 import Profile from './pages/Workers/Profile';
 // import CertificationManagement from './pages/CertificateCheck/CertificationManagement';
 import CertificateSecond from './pages/CertificateCheck/CertificateSecond';
-import CertificateThird from './pages/CertificateCheck/CertificateThird';
+
 import ForgotPassword from './pages/auth/ForgotPassword';
 import AdminDashboard from './pages/AdminPages/AdminDashboard/AdminDashboard';
 import AdminRoute from './components/common/AdminRoute';
@@ -83,7 +83,7 @@ function AppRoutes() {
         <Route path='/forgot-password' element = {<ForgotPassword/>}/>
         {/* <Route path='/certificate' element  = {<CertificationManagement/>}/> */}
         <Route path='/certificate-2' element = {<CertificateSecond/>}/>
-        <Route path='/certificate-3' element = {<CertificateThird/>}/>
+     
         {/* Auth routes - only accessible when NOT logged in */}
         <Route path="/login" element={
           <PublicRoute>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   List,
@@ -10,7 +10,8 @@ import {
   Space,
   Tooltip,
   Modal,
-  message
+  message,
+  Badge
 } from 'antd';
 import {
   PlusOutlined,
@@ -38,16 +39,34 @@ const AddOtherCertificate = ({
   uploadToCloudinary,
   DocumentTrackingService,
   deleteCloudinaryImage,
-  currentStep
+  currentStep,
+  otherCertDrawerOpen,
+  setOtherCertDrawerOpen,
+  editingOtherCertIndex,
+  setEditingOtherCertIndex,
+  onEditOtherCertificate
 }) => {
-  // Drawer state
-  const [otherCertDrawerOpen, setOtherCertDrawerOpen] = useState(false);
   const [otherCertTitle, setOtherCertTitle] = useState('');
   const [otherCertDocs, setOtherCertDocs] = useState([]);
   const [isSavingOtherCert, setIsSavingOtherCert] = useState(false);
-  const [editingOtherCertIndex, setEditingOtherCertIndex] = useState(null);
   const [isUploadingOtherCert, setIsUploadingOtherCert] = useState(false);
   const [previewDocument, setPreviewDocument] = useState(null);
+
+  useEffect(() => {
+    if (
+      otherCertDrawerOpen &&
+      editingOtherCertIndex !== null &&
+      otherCertifications[editingOtherCertIndex]
+    ) {
+      const cert = otherCertifications[editingOtherCertIndex];
+      setOtherCertTitle(cert.certificationTitle || '');
+      setOtherCertDocs(cert.documents || []);
+    } else if (otherCertDrawerOpen && editingOtherCertIndex === null) {
+      // Reset for add mode
+      setOtherCertTitle('');
+      setOtherCertDocs([]);
+    }
+  }, [otherCertDrawerOpen, editingOtherCertIndex, otherCertifications]);
 
   // Open drawer for add
   const openAddDrawer = () => {
@@ -64,6 +83,7 @@ const AddOtherCertificate = ({
     setOtherCertTitle(cert.certificationTitle);
     setOtherCertDocs(cert.documents || []);
     setOtherCertDrawerOpen(true);
+    if (onEditOtherCertificate) onEditOtherCertificate(index);
   };
 
   // Remove other certificate
@@ -194,88 +214,40 @@ const AddOtherCertificate = ({
     setIsSavingOtherCert(false);
   };
 
+  // Filter out the certificate that is currently being edited
+  const filteredCertifications = otherCertifications.filter((cert, index) => 
+    editingOtherCertIndex === null || index !== editingOtherCertIndex
+  );
+
   return (
     <>
-      {/* Button to open drawer */}
-      <Button
-        type="dashed"
-        onClick={openAddDrawer}
-        icon={<PlusOutlined />}
-        style={{
-          whiteSpace: 'nowrap',
-          height: 40,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          backgroundColor: '#f0f8ff',
-          borderColor: '#1890ff',
-          color: '#1890ff',
-          fontWeight: 500,
-          marginBottom: 16
-        }}
-      >
-        Add Other Certificate
-      </Button>
-
-      {/* List of other certificates */}
-      {currentStep === 1 && otherCertifications.length > 0 && (
-        <Card
-          title="Other Certificates"
-          style={{
-            marginTop: 24,
-            marginBottom: 16,
-            borderRadius: 8,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <List
-            dataSource={otherCertifications}
-            renderItem={(cert, idx) => (
-              <List.Item
-                actions={[
-                  <Button
-                    type="primary"
-                    size="small"
-                    onClick={() => handleEditOtherCertificate(idx)}
-                    icon={<EditOutlined />}
-                    style={{ marginRight: 8 }}
-                  >
-                    Edit
-                  </Button>,
-                  <Button
-                    danger
-                    size="small"
-                    onClick={() => handleRemoveOtherCertificate(idx)}
-                    icon={<DeleteOutlined />}
-                  >
-                    Remove
-                  </Button>
-                ]}
-              >
-                <List.Item.Meta
-                  title={
-                    <Text strong style={{ fontSize: 16 }}>
-                      {cert.certificationTitle}
-                    </Text>
-                  }
-                  description={
-                    <Space>
-                      <FileOutlined />
-                      <Text type="secondary">
-                        {cert.documents && cert.documents.length > 0
-                          ? `${cert.documents.length} document(s) uploaded`
-                          : 'No documents uploaded'}
-                      </Text>
-                    </Space>
-                  }
-                />
-              </List.Item>
-            )}
-          />
-        </Card>
+      {/* Only show Add button on step 1, with badge for count */}
+      {currentStep === 1 && (
+        <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 16, marginTop: 16 }}>
+          <Badge count={otherCertifications.length} offset={[10, 0]} showZero>
+            <Button
+              type="dashed"
+              onClick={openAddDrawer}
+              icon={<PlusOutlined />}
+              style={{
+                whiteSpace: 'nowrap',
+                height: 40,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                backgroundColor: '#f0f8ff',
+                borderColor: '#1890ff',
+                color: '#1890ff',
+                fontWeight: 500,
+                marginBottom: 16
+              }}
+            >
+              Add Other Certificate
+            </Button>
+          </Badge>
+        </div>
       )}
-
-      {/* Drawer for add/edit */}
+      {/* Drawer for add/edit: always rendered, controlled by open prop */}
       <Drawer
         title={editingOtherCertIndex !== null ? 'Edit Other Certificate' : 'Add Other Certificate'}
         open={otherCertDrawerOpen}
@@ -290,6 +262,7 @@ const AddOtherCertificate = ({
           </div>
         }
       >
+        {/* Form fields */}
         <Input
           placeholder="Certificate Title"
           value={otherCertTitle}
@@ -437,6 +410,72 @@ const AddOtherCertificate = ({
           onClose={handleDocumentDeleteFromPreview}
           onDelete={handleDocumentDeleteFromPreview}
         />
+        {/* List of other certifications inside the drawer - exclude the one being edited */}
+        {filteredCertifications.length > 0 && (
+          <Card
+            title="Other Certifications"
+            style={{
+              marginTop: 24,
+              marginBottom: 16,
+              borderRadius: 4,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+            }}
+          >
+            <List
+              dataSource={filteredCertifications}
+              renderItem={(cert, filteredIdx) => {
+                // Get the original index from the full array
+                const originalIndex = otherCertifications.findIndex(
+                  (originalCert, originalIdx) => 
+                    originalCert === cert && 
+                    (editingOtherCertIndex === null || originalIdx !== editingOtherCertIndex)
+                );
+                
+                return (
+                  <List.Item
+                    actions={[
+                      <Button
+                        type="primary"
+                        size="small"
+                        onClick={() => handleEditOtherCertificate(originalIndex)}
+                        icon={<EditOutlined />}
+                        style={{ marginRight: 8 }}
+                      >
+                        Edit
+                      </Button>,
+                      <Button
+                        danger
+                        size="small"
+                        onClick={() => handleRemoveOtherCertificate(originalIndex)}
+                        icon={<DeleteOutlined />}
+                      >
+                        Remove
+                      </Button>
+                    ]}
+                  >
+                    <List.Item.Meta
+                      title={
+                        <Text strong style={{ fontSize: 16 }}>
+                          {cert.certificationTitle}
+                        </Text>
+                      }
+                      description={
+                        <Space>
+                          <FileOutlined />
+                          <Text type="secondary">
+                            {cert.documents && cert.documents.length > 0
+                              ? `${cert.documents.length} document(s) uploaded`
+                              : 'No documents uploaded'}
+                          </Text>
+                        </Space>
+                      }
+                    />
+                  </List.Item>
+                );
+              }}
+            />
+          </Card>
+        )}
       </Drawer>
     </>
   );
