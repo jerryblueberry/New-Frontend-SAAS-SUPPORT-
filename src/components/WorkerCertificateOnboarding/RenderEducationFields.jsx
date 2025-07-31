@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { Form, Select, Input, Button } from 'antd';
-import { TagOutlined } from '@ant-design/icons';
+import { Form, Select, Input, Button, Card, Tag } from 'antd';
+import { TagOutlined, PlusOutlined, EditOutlined } from '@ant-design/icons';
 
 const RenderEducationFields = ({
   certType,
@@ -21,6 +21,8 @@ const RenderEducationFields = ({
   const handleDegreeChange = (value) => {
     if (value === 'Other') {
       setShowCustomDegree(true);
+      // Set the form value to "Other" when user selects Other
+      certForm.setFieldsValue({ degree: 'Other' });
       setTimeout(() => {
         if (customDegreeInputRef.current) customDegreeInputRef.current.focus();
         if (degreeSelectRef.current) {
@@ -58,6 +60,7 @@ const RenderEducationFields = ({
   // Handler for saving custom degree
   const handleSaveCustomDegree = () => {
     if (customDegreeValue.trim()) {
+      // Store the full custom value in the form
       certForm.setFieldsValue({ degree: `Other|${customDegreeValue.trim()}` });
       setShowCustomDegree(false);
       setCustomDegreeValue('');
@@ -104,18 +107,79 @@ const RenderEducationFields = ({
     }, 0);
   };
 
+  // Handler for editing custom degree
+  const handleEditCustomDegree = () => {
+    const currentValue = certForm.getFieldValue('degree');
+    console.log('✏️ Edit handler - Current value:', currentValue);
+    
+    // Handle both array and string formats
+    let stringValue = currentValue;
+    if (Array.isArray(currentValue) && currentValue.length > 0) {
+      stringValue = currentValue[0];
+    }
+    
+    if (typeof stringValue === 'string' && stringValue.startsWith('Other|')) {
+      const customText = stringValue.slice(6);
+      console.log('✏️ Edit handler - Setting custom value:', customText);
+      setCustomDegreeValue(customText);
+      setShowCustomDegree(true);
+      setTimeout(() => {
+        if (customDegreeInputRef.current) customDegreeInputRef.current.focus();
+      }, 0);
+    }
+  };
+
+  // Handler for removing custom degree
+  const handleRemoveCustomDegree = () => {
+    console.log('🗑️ Remove handler - Clearing degree value');
+    certForm.setFieldsValue({ degree: undefined });
+  };
+
+  // Function to parse backend data and separate "Other" from custom value
+  const parseBackendDegreeValue = (value) => {
+    console.log('🔍 parseBackendDegreeValue - Input value:', value);
+    console.log('🔍 parseBackendDegreeValue - Type:', typeof value);
+    console.log('🔍 parseBackendDegreeValue - Is Array:', Array.isArray(value));
+    
+    // Handle array format from backend
+    let stringValue = value;
+    if (Array.isArray(value) && value.length > 0) {
+      stringValue = value[0];
+      console.log('🔍 parseBackendDegreeValue - Extracted from array:', stringValue);
+    }
+    
+    console.log('🔍 parseBackendDegreeValue - Final string value:', stringValue);
+    console.log('🔍 parseBackendDegreeValue - Starts with Other|:', stringValue?.startsWith('Other|'));
+    
+    if (typeof stringValue === 'string' && stringValue.startsWith('Other|')) {
+      const customText = stringValue.slice(6);
+      console.log('🔍 parseBackendDegreeValue - Detected custom degree, customText:', customText);
+      return {
+        isCustom: true,
+        selectValue: 'Other',
+        customText: customText
+      };
+    }
+    
+    console.log('🔍 parseBackendDegreeValue - Regular degree value:', stringValue);
+    return {
+      isCustom: false,
+      selectValue: stringValue,
+      customText: ''
+    };
+  };
+
   // Custom display for Select value
   const degreeValue = certForm.getFieldValue('degree');
-  let selectDisplayValue = degreeValue;
-  const isCustomDegree = typeof degreeValue === 'string' && degreeValue.startsWith('Other|');
-  if (isCustomDegree) {
-    selectDisplayValue = (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-        <TagOutlined style={{ color: '#faad14' }} />
-        <span>Other - {degreeValue.slice(6)}</span>
-      </span>
-    );
-  }
+  console.log('🎓 Degree field - Raw form value:', degreeValue);
+  
+  const { isCustom: isCustomDegree, selectValue: selectDisplayValue, customText: customDegreeText } = parseBackendDegreeValue(degreeValue);
+  
+  console.log('🎓 Degree field - Parsed results:', {
+    isCustomDegree,
+    selectDisplayValue,
+    customDegreeText
+  });
 
   // Add this useEffect to blur the Select when degreeValue changes
   useEffect(() => {
@@ -135,21 +199,44 @@ const RenderEducationFields = ({
     }
   }, [degreeValue, isCustomDegree]);
 
-  // Remove custom class for Select; use default AntD focus style
-  // const selectCustomClass = isCustomDegree ? 'custom-degree-selected' : '';
+  // Ensure the Select shows "Other" when data is loaded from backend
+  useEffect(() => {
+    if (isCustomDegree && degreeValue) {
+      // When a custom degree is loaded from backend, ensure the Select shows "Other"
+      // and the custom value is displayed in the card below
+      setTimeout(() => {
+        if (degreeSelectRef.current) {
+          // Force the Select to display "Other" instead of the full custom value
+          degreeSelectRef.current.blur();
+        }
+      }, 50);
+    }
+  }, [degreeValue, isCustomDegree]);
+
+  // Additional useEffect to handle form initialization with backend data
+  useEffect(() => {
+    const currentValue = certForm.getFieldValue('degree');
+    if (typeof currentValue === 'string' && currentValue.startsWith('Other|')) {
+      // When form is initialized with backend data containing custom degree,
+      // ensure the Select shows "Other" and custom value is displayed
+      setTimeout(() => {
+        if (degreeSelectRef.current) {
+          degreeSelectRef.current.blur();
+        }
+      }, 100);
+    }
+  }, []); // Run only once on component mount
 
   return (
     <>
-      {/* Removed custom styles for always-on yellow border */}
+      {/* Degree Selection */}
       <Form.Item
         label="Degree"
-        name="degree"
         rules={[{ required: true, message: 'Please select or enter your degree' }]}
         tooltip="Select your qualification from the list. If not listed, choose 'Other'."
       >
         <Select
           ref={degreeSelectRef}
-          // className={selectCustomClass} // Removed
           placeholder="Select your degree"
           showSearch
           optionFilterProp="children"
@@ -157,7 +244,7 @@ const RenderEducationFields = ({
             option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
           }
           onChange={handleDegreeChange}
-          value={degreeValue}
+          value={selectDisplayValue}
           optionLabelProp="label"
           dropdownRender={menu => menu}
           dropdownMatchSelectWidth={false}
@@ -170,29 +257,21 @@ const RenderEducationFields = ({
             }, 50);
           }}
         >
+          {console.log('🎓 Select component - Current value:', selectDisplayValue)}
           {allDegreeOptions.map((degree) => (
             <Select.Option key={degree} value={degree} label={degree}>
               {degree}
             </Select.Option>
           ))}
-          {/* Custom label for the selected custom value (not shown in dropdown, but used for display) */}
-          {isCustomDegree && (
-            <Select.Option
-              key={degreeValue}
-              value={degreeValue}
-              label={
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  <TagOutlined style={{ color: '#faad14' }} />
-                  <span>Other - {degreeValue.slice(6)}</span>
-                </span>
-              }
-              disabled
-            >
-              {/* Not shown in dropdown */}
-            </Select.Option>
-          )}
         </Select>
       </Form.Item>
+      
+      {/* Hidden field to store the actual degree value */}
+      <Form.Item name="degree" hidden>
+        <Input />
+      </Form.Item>
+
+      {/* Custom Degree Input Section */}
       {showCustomDegree && (
         <div
           style={{
@@ -220,7 +299,6 @@ const RenderEducationFields = ({
             style={{ borderRadius: 6, fontSize: 15 }}
             autoFocus
             onPressEnter={handleSaveCustomDegree}
-            // className={showCustomDegree ? 'custom-degree-input-focused' : ''} // Removed
           />
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
             <Button
@@ -242,6 +320,55 @@ const RenderEducationFields = ({
             Please enter your degree as it appears on your certificate.
           </div>
         </div>
+      )}
+
+      {/* Custom Degree Display Section */}
+      
+      {isCustomDegree && !showCustomDegree && (
+        <>
+        <p>Custom Degree:</p>
+        <Card
+          size="small"
+          style={{
+            marginBottom: 16,
+            marginTop: 4,
+            border: '1px solid #d9d9d9',
+            borderRadius: 8,
+            background: '#fafafa'
+          }}
+          bodyStyle={{ padding: '12px 16px' }}
+        >
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+
+              <span style={{ fontWeight: 500, fontSize: 14 }}>
+                {customDegreeText}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <Button
+                type="text"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={handleEditCustomDegree}
+                style={{ padding: '4px 8px' }}
+              >
+                Edit
+              </Button>
+              <Button
+                type="text"
+                size="small"
+                danger
+                onClick={handleRemoveCustomDegree}
+                style={{ padding: '4px 8px' }}
+              >
+                Remove
+              </Button>
+            </div>
+          </div>
+        </Card>
+        </>
       )}
     </>
   );
