@@ -61,6 +61,7 @@ import { deleteCloudinaryImage } from '../../api/cloudinary';
 import { NATIONALITIES } from '../../utils/constants';
 import RenderEducationFields from '../../components/WorkerCertificateOnboarding/RenderEducationFields';
 import RenderInsuranceField from '../../components/WorkerCertificateOnboarding/RenderInsuranceField';
+import AddOtherCertificate from '../../components/WorkerCertificateOnboarding/AddOtherCertificate';
 
 const { Title, Text, Paragraph } = Typography;
 const { Step } = Steps;
@@ -440,7 +441,6 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
     if (!isLoadingOnboardingData && onboardingData?.data?.profile) {
       const profile = onboardingData.data.profile;
       const initialCerts = profile.certifications || [];
-
       // Normalize the certifications data to ensure consistent format
       const normalizedCerts = initialCerts.map(cert => ({
         ...cert,
@@ -448,22 +448,30 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
         certTypeName: normalizeCertificationType(cert.certificationType).name
       }));
 
+      // --- Ensure otherCertifications have _id ---
+      const normalizedOtherCerts = (profile.otherCertifications || []).map(cert => ({
+        ...cert,
+        _id: cert._id || cert.id,
+      }));
+      // Set to state/store if you have a setter, e.g. setOtherCertifications(normalizedOtherCerts)
+      // If using Zustand or props, update accordingly
+      if (typeof updateOtherCertificates === 'function') {
+        updateOtherCertificates(normalizedOtherCerts);
+      }
+
       // Check if user has existing certifications
       if (normalizedCerts.length > 0) {
         setHasExistingCertifications(true);
         setSelectedCerts(normalizedCerts);
         updateCertifications(normalizedCerts);
-
-        // Show success message if all required certs are already added
-        if ( profile.residencyStatus) {
-          // updateNationality(profile.nationality);
+        if (profile.residencyStatus) {
           updateResidencyStatus(profile.residencyStatus);
         }
       } else {
         setHasExistingCertifications(false);
       }
     }
-  }, [onboardingData, isLoadingOnboardingData, updateCertifications, updateResidencyStatus]);
+  }, [onboardingData, isLoadingOnboardingData, updateCertifications, updateResidencyStatus, updateOtherCertificates]);
 
   // Fetch certification types from API
   const fetchCertTypes = async () => {
@@ -752,7 +760,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
 
     // Helper: upload other certificates sequentially
     const uploadOtherCertificates = async () => {
-      for (const cert of otherCertifications) {
+      for (const cert of otherCertifications) { 
         await new Promise((resolve) => {
           saveOtherCertificate(cert, {
             onSuccess: () => {
@@ -1490,58 +1498,18 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
                 style={{ flex: 1, minWidth: 300 }}
                 prefix={<InfoCircleOutlined />}
               />
-              <Button 
-                type="dashed" 
-                onClick={() => setOtherCertDrawerOpen(true)}
-                icon={<PlusOutlined />}
-                style={{ 
-                  whiteSpace: 'nowrap',
-                  height: 40,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  backgroundColor: '#f0f8ff',
-                  borderColor: '#1890ff',
-                  color: '#1890ff',
-                  fontWeight: 500
-                }}
-              >
-                Add Other Certificate
-              </Button>
+              {/* AddOtherCertificate button and drawer now handled by the component below */}
             </div>
           </Card>
-          {/* {currentStep === 1 && getIncompleteRequiredCerts().length > 0 && (
-            <Alert
-              type="error"
-              showIcon
-              style={{ marginBottom: 16 }}
-              message="Some required certifications are incomplete"
-              description={
-                <div>
-                  {getIncompleteRequiredCerts().map((item, idx) => (
-                    <div key={idx} style={{ marginBottom: 8 }}>
-                      <b>{item.certTypeName}:</b>
-                      {item.missingFields.map((field, i) => (
-                        <Tag color="red" key={i} style={{ marginLeft: 8 }}>
-                          {formatFieldLabel(field)}
-                        </Tag>
-                      ))}
-                      {item.certIndex !== null && (
-                        <Button
-                          type="link"
-                          size="small"
-                          onClick={() => editCertification(item.certIndex)}
-                          style={{ marginLeft: 8, padding: 0 }}
-                        >
-                          Edit
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              }
-            />
-          )} */}
+          <AddOtherCertificate
+            otherCertifications={otherCertifications}
+            addOtherCertificate={addOtherCertificate}
+            removeOtherCertificate={removeOtherCertificate}
+            uploadToCloudinary={uploadToCloudinary}
+            DocumentTrackingService={DocumentTrackingService}
+            deleteCloudinaryImage={deleteCloudinaryImage}
+            currentStep={currentStep}
+          />
           {!allRequiredCertsAdded() && selectedCerts.length > 0 && (
               <Alert 
                 message="Required Certifications Missing" 
@@ -2663,141 +2631,6 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
     }
   }, [certDetailsVisible, certForm]);
 
-  // Other Certificate Drawer state
-  const [otherCertDrawerOpen, setOtherCertDrawerOpen] = useState(false);
-  const [otherCertTitle, setOtherCertTitle] = useState('');
-  const [otherCertDocs, setOtherCertDocs] = useState([]);
-  const [isSavingOtherCert, setIsSavingOtherCert] = useState(false);
-  const [editingOtherCertIndex, setEditingOtherCertIndex] = useState(null);
-  const [isUploadingOtherCert, setIsUploadingOtherCert] = useState(false);
-
-  const handleRemoveOtherCertificate = (index) => {
-    const cert = otherCertifications[index];
-    
-    confirm({
-      title: 'Remove Other Certificate?',
-      icon: <ExclamationCircleOutlined />,
-      content: `Are you sure you want to remove "${cert.certificationTitle}"? This will also delete all associated documents from cloud storage.`,
-      okText: 'Yes, remove it',
-      okType: 'danger',
-      cancelText: 'No, keep it',
-      onOk() {
-        // Remove from UI state immediately for better UX
-        removeOtherCertificate(index);
-        
-        if (Array.isArray(cert.documents) && cert.documents.length > 0) {
-          // Show immediate feedback
-          message.info('Certificate removed from view. Cleaning up cloud storage...');
-          
-          // Delete all documents from Cloudinary in the background
-          const deletePromises = cert.documents
-            .filter(doc => doc.publicId)
-            .map(doc => 
-              deleteCloudinaryImage(doc.publicId)
-                .then(() => {
-                  console.log(`Document ${doc.publicId} deleted from Cloudinary`);
-                  DocumentTrackingService.removeTrackedDocument(doc.publicId);
-                  return { success: true, publicId: doc.publicId };
-                })
-                .catch((error) => {
-                  console.error(`Failed to delete document ${doc.publicId} from Cloudinary:`, error);
-                  // Still remove from tracking even if Cloudinary delete fails
-                  DocumentTrackingService.removeTrackedDocument(doc.publicId);
-                  return { success: false, publicId: doc.publicId, error };
-                })
-            );
-          
-          // Wait for all deletions to complete (or fail)
-          Promise.allSettled(deletePromises).then((results) => {
-            const successfulDeletes = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
-            const failedDeletes = results.filter(r => r.status === 'fulfilled' && !r.value.success).length;
-            const totalDocs = cert.documents.filter(doc => doc.publicId).length;
-            
-            // Show appropriate message
-            if (failedDeletes === 0) {
-              message.success(`Certificate removed successfully. All ${successfulDeletes} document(s) deleted from cloud storage.`);
-            } else if (successfulDeletes > 0) {
-              message.warning(`Certificate removed. ${successfulDeletes}/${totalDocs} document(s) deleted from cloud storage. ${failedDeletes} document(s) failed to delete.`);
-            } else {
-              message.error(`Certificate removed locally but failed to delete any documents from cloud storage.`);
-            }
-          });
-        } else {
-          // No documents to delete, just show success message
-          message.success('Other certificate removed successfully');
-        }
-      }
-    });
-  };
-
-  const handleEditOtherCertificate = (index) => {
-    const cert = otherCertifications[index];
-    setEditingOtherCertIndex(index);
-    setOtherCertTitle(cert.certificationTitle);
-    setOtherCertDocs(cert.documents || []);
-    setOtherCertDrawerOpen(true);
-  };
-
-  const handleOtherCertDocumentUpload = async (files) => {
-    try {
-      setIsUploadingOtherCert(true);
-      // Check for duplicate uploads
-      const duplicateFiles = [];
-      const uniqueFiles = [];
-      files.forEach(file => {
-        const isDuplicate = otherCertDocs.some(doc => doc.fileName === file.name && doc.fileSize === file.size);
-        if (isDuplicate) {
-          duplicateFiles.push(file.name);
-        } else {
-          uniqueFiles.push(file);
-        }
-      });
-      if (duplicateFiles.length > 0) {
-        toast.error(`Duplicate files detected: ${duplicateFiles.join(', ')}`);
-        if (uniqueFiles.length === 0) {
-          return false;
-        }
-      }
-      // Process all uploads in parallel
-      const uploadPromises = uniqueFiles.map(file => uploadToCloudinary(file, 'otherCert'));
-      const results = await Promise.all(uploadPromises);
-      // Filter out any failed uploads
-      const successfulUploads = results.filter(result => result !== null);
-      if (successfulUploads.length === 0) {
-        toast.error('No documents were uploaded successfully');
-        return false;
-      }
-      // Update state with new documents
-      setOtherCertDocs(prev => [
-        ...prev,
-        ...successfulUploads
-      ].slice(0, maxFiles));
-      
-      // Mark uploaded documents as used in tracking
-      successfulUploads.forEach(doc => {
-        if (doc.publicId) {
-          DocumentTrackingService.markDocumentAsUsed(doc.publicId);
-        }
-      });
-      
-      const uploadMessage = successfulUploads.length === 1 ?
-        `Uploaded ${successfulUploads.length} document` :
-        `Uploaded ${successfulUploads.length} documents`;
-      if (duplicateFiles.length > 0) {
-        toast.success(`${uploadMessage} (${duplicateFiles.length} duplicate(s) skipped)`);
-      } else {
-        toast.success(uploadMessage);
-      }
-      return true;
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast.error('Failed to upload some documents');
-      return false;
-    } finally {
-      setIsUploadingOtherCert(false);
-    }
-  };
-
   if (isOnboardingError) {
     return (
       <div style={{ padding: 24, textAlign: 'center' }}>
@@ -2890,65 +2723,6 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
         {steps[currentStep].content}
       </div>
 
-      {/* Show other certificates list above the navigation buttons */}
-      {currentStep === 1 && otherCertifications.length > 0 && (
-        <Card 
-          title="Other Certificates" 
-          style={{ 
-            marginTop: 24, 
-            marginBottom: 16,
-            borderRadius: 8,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <List
-            dataSource={otherCertifications}
-            renderItem={(cert, idx) => (
-              <List.Item
-                actions={[
-                  <Button 
-                    type="primary"
-                    size="small" 
-                    onClick={() => handleEditOtherCertificate(idx)}
-                    icon={<EditOutlined />}
-                    style={{ marginRight: 8 }}
-                  >
-                    Edit
-                  </Button>,
-                  <Button 
-                    danger 
-                    size="small" 
-                    onClick={() => handleRemoveOtherCertificate(idx)}
-                    icon={<DeleteOutlined />}
-                  >
-                    Remove
-                  </Button>
-                ]}
-              >
-                <List.Item.Meta
-                  title={
-                    <Text strong style={{ fontSize: 16 }}>
-                      {cert.certificationTitle}
-                    </Text>
-                  }
-                  description={
-                    <Space>
-                      <FileOutlined />
-                      <Text type="secondary">
-                        {cert.documents && cert.documents.length > 0 
-                          ? `${cert.documents.length} document(s) uploaded` 
-                          : 'No documents uploaded'
-                        }
-                      </Text>
-                    </Space>
-                  }
-                />
-              </List.Item>
-            )}
-          />
-        </Card>
-      )}
-
       <div className="steps-action" style={{ marginTop: 24, textAlign: 'center' }}>
         {currentStep > 0 && (
           <Button 
@@ -2981,209 +2755,6 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
         onClose={() => setPreviewDocument(null)}
         onDelete={handleDocumentDeleteFromPreview}
       />
-      
-      {/* Drawer for adding/editing other certificate */}
-      <Drawer
-        title={editingOtherCertIndex !== null ? "Edit Other Certificate" : "Add Other Certificate"}
-        open={otherCertDrawerOpen}
-        onClose={() => {
-          setOtherCertDrawerOpen(false);
-          setOtherCertTitle('');
-          setOtherCertDocs([]);
-          setEditingOtherCertIndex(null);
-        }}
-        width={480}
-        footer={
-          <div style={{ textAlign: 'right' }}>
-            <Button onClick={() => setOtherCertDrawerOpen(false)} style={{ marginRight: 8 }}>Cancel</Button>
-            <Button type="primary" loading={isSavingOtherCert} onClick={async () => {
-              if (!otherCertTitle.trim()) {
-                message.error('Certificate title is required');
-                return;
-              }
-              if (!otherCertDocs.length) {
-                message.error('At least one document is required');
-                return;
-              }
-              setIsSavingOtherCert(true);
-              
-              if (editingOtherCertIndex !== null) {
-                // Update existing certificate
-                const updatedCert = { certificationTitle: otherCertTitle, documents: otherCertDocs };
-                // Remove the old certificate and add the updated one
-                removeOtherCertificate(editingOtherCertIndex);
-                addOtherCertificate(updatedCert);
-                message.success('Other certificate updated successfully');
-              } else {
-                // Add new certificate
-                addOtherCertificate({ certificationTitle: otherCertTitle, documents: otherCertDocs });
-                message.success('Other certificate added successfully');
-              }
-              
-              setOtherCertDrawerOpen(false);
-              setOtherCertTitle('');
-              setOtherCertDocs([]);
-              setEditingOtherCertIndex(null);
-              setIsSavingOtherCert(false);
-            }}>{editingOtherCertIndex !== null ? 'Update' : 'Save'}</Button>
-          </div>
-        }
-      >
-        <Input
-          placeholder="Certificate Title"
-          value={otherCertTitle}
-          onChange={e => setOtherCertTitle(e.target.value)}
-          maxLength={100}
-          style={{ marginBottom: 16 }}
-        />
-        {/* Reuse upload logic, but for otherCertDocs */}
-        <Upload
-          accept=".pdf,.jpg,.jpeg,.png"
-          fileList={otherCertDocs}
-          onRemove={(file) => {
-            confirm({
-              title: 'Remove Document?',
-              icon: <ExclamationCircleOutlined />,
-              content: 'Are you sure you want to remove this document?',
-              okText: 'Yes, remove it',
-              okType: 'danger',
-              cancelText: 'No, keep it',
-              onOk() {
-                if (file.publicId) {
-                  // Delete from Cloudinary first
-                  deleteCloudinaryImage(file.publicId)
-                    .then(() => {
-                      console.log(`Document ${file.publicId} deleted from Cloudinary`);
-                      // Remove from localStorage tracking
-                      DocumentTrackingService.removeTrackedDocument(file.publicId);
-                      // Remove from local state
-                      setOtherCertDocs(prev => prev.filter(d => d.uid !== file.uid));
-                      message.success('Document removed successfully');
-                    })
-                    .catch((error) => {
-                      console.error('Failed to delete from Cloudinary:', error);
-                      // Still remove from local state even if Cloudinary delete fails
-                      DocumentTrackingService.removeTrackedDocument(file.publicId);
-                      setOtherCertDocs(prev => prev.filter(d => d.uid !== file.uid));
-                      message.warning('Document removed locally but failed to delete from cloud storage');
-                    });
-                } else {
-                  // No publicId, just remove from local state
-                  setOtherCertDocs(prev => prev.filter(d => d.uid !== file.uid));
-                  message.info('Document removed');
-                }
-              }
-            });
-          }}
-          beforeUpload={(file, fileList) => {
-            // Calculate total files after upload
-            const currentCount = otherCertDocs.length;
-            const newCount = currentCount + fileList.length;
-            if (newCount > maxFiles) {
-              toast.error(`You can only upload ${maxFiles - currentCount} more document(s)`);
-              return Upload.LIST_IGNORE;
-            }
-            if (!allowedFileTypes.includes(file.type)) {
-              toast.error('Only PDF, JPG, PNG files are allowed');
-              return Upload.LIST_IGNORE;
-            }
-            if (file.size > maxFileSize) {
-              toast.error('Each file must be less than 5MB');
-              return Upload.LIST_IGNORE;
-            }
-            toast.loading(`Uploading ${fileList.length} document(s)...`);
-            handleOtherCertDocumentUpload(fileList)
-              .then(() => {
-                toast.dismiss();
-              })
-              .catch(() => toast.dismiss());
-            return false; // Prevent default upload
-          }}
-          multiple
-          listType="picture-card"
-          showUploadList={{
-            showPreviewIcon: true,
-            showRemoveIcon: true,
-            previewIcon: (file) => (
-              <Tooltip title="Preview Document">
-                <button
-                  type="button"
-                  aria-label="Preview Document"
-                  tabIndex={0}
-                  style={{
-                    color: '#fff',
-                    background: 'linear-gradient(135deg, #1890ff 60%, #40a9ff 100%)',
-                    fontSize: 28,
-                    border: 'none',
-                    borderRadius: '50%',
-                    width: 28,
-                    height: 28,
-                    marginRight: 10,
-                    boxShadow: '0 4px 16px rgba(24,144,255,0.18)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    outline: 'none',
-                    transition: 'box-shadow 0.2s, background 0.2s',
-                  }}
-                  className="upload-action-btn preview-btn"
-                  onMouseOver={e => e.currentTarget.style.boxShadow = '0 6px 24px rgba(24,144,255,0.28)'}
-                  onMouseOut={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(24,144,255,0.18)'}
-                >
-                  <EyeOutlined />
-                </button>
-              </Tooltip>
-            ),
-            removeIcon: (file) => (
-              <Tooltip title="Delete Document">
-                <button
-                  type="button"
-                  aria-label="Delete Document"
-                  tabIndex={0}
-                  style={{
-                    color: '#fff',
-                    background: 'linear-gradient(135deg, #ff4d4f 60%, #ff7875 100%)',
-                    fontSize: 28,
-                    border: 'none',
-                    borderRadius: '50%',
-                    width: 28,
-                    height: 28,
-                    marginLeft: 10,
-                    boxShadow: '0 4px 16px rgba(255,77,79,0.18)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    outline: 'none',
-                    transition: 'box-shadow 0.2s, background 0.2s',
-                  }}
-                  className="upload-action-btn delete-btn"
-                  onMouseOver={e => e.currentTarget.style.boxShadow = '0 6px 24px rgba(255,77,79,0.28)'}
-                  onMouseOut={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(255,77,79,0.18)'}
-                >
-                  <DeleteOutlined />
-                </button>
-              </Tooltip>
-            ),
-          }}
-          onPreview={(file) => {
-            const doc = otherCertDocs.find(d => d.uid === file.uid);
-            if (doc) handleDocumentPreview(doc);
-          }}
-          disabled={isUploadingOtherCert}
-        >
-          {otherCertDocs.length >= 2 ? null : (
-            <div>
-              <PlusOutlined />
-              <div style={{ marginTop: 8 }}>Upload</div>
-            </div>
-          )}
-        </Upload>
-        <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-          Accepted formats: PDF, JPG, PNG (Max 5MB each, 1-2 documents required)
-        </Text>
-      </Drawer>
     </div>
   );
 };

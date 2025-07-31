@@ -149,7 +149,7 @@ const RenderEducationFields = ({
     }
     
     console.log('🔍 parseBackendDegreeValue - Final string value:', stringValue);
-    console.log('🔍 parseBackendDegreeValue - Starts with Other|:', stringValue?.startsWith('Other|'));
+    console.log('🔍 parseBackendDegreeValue - Starts with Other|:', typeof stringValue === 'string' && stringValue.startsWith('Other|'));
     
     if (typeof stringValue === 'string' && stringValue.startsWith('Other|')) {
       const customText = stringValue.slice(6);
