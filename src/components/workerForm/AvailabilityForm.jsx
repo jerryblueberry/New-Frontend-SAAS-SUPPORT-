@@ -43,10 +43,12 @@ import {
   Popper,
   Switch
 } from '@mui/material';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import {
   Add as AddIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,     
+  Delete as DeleteIcon,
   AccessTime as AccessTimeIcon,
   Info as InfoIcon,
   ArrowBack as ArrowBackIcon,
@@ -57,8 +59,8 @@ import {
   DirectionsCar as CarIcon,
   CheckCircle as CheckIcon,
   Warning as WarningIcon,
-  CalendarMonth as CalendarIcon,        
-  Search as SearchIcon, 
+  CalendarMonth as CalendarIcon,
+  Search as SearchIcon,
   Place as PlaceIcon,
 } from '@mui/icons-material';
 import { alpha } from '@mui/material/styles';
@@ -69,8 +71,9 @@ import { fetchUserUpcomingHolidays, createUserUpcomingHoliday, deleteUserUpcomin
 
 import SuburbSelector from './SuburbSelector';
 import api from '../../api/axios';
-import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
+// import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import UpcomingHolidayDatePicker from '../AvailabilityComponent/DatePicker/UpcomingHolidayDatePicker';
 
 // Day colors for visual distinction
 const DAY_COLORS = {
@@ -98,9 +101,9 @@ const groupHolidaysByMonth = (holidays) => {
   const grouped = sortedHolidays.reduce((acc, holiday) => {
     const startDate = new Date(holiday.startDate);
     const monthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
-    const monthName = startDate.toLocaleDateString('en-US', { 
-      month: 'long', 
-      year: 'numeric' 
+    const monthName = startDate.toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric'
     });
 
     if (!acc[monthKey]) {
@@ -458,7 +461,7 @@ const TimeSlotDialog = ({ open, onClose, onSave, initialData, daysOfWeek, existi
               <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: 'text.primary' }}>
                 Time Range
               </Typography>
-              
+
               <Grid container spacing={2}>
                 {/* Start Time */}
                 <Grid item xs={6}>
@@ -596,6 +599,59 @@ const TimeSlotDialog = ({ open, onClose, onSave, initialData, daysOfWeek, existi
   );
 };
 
+// Custom format function to remove year padding
+const formatDateWithoutYearPadding = (date) => {
+  if (!date) return '';
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const year = String(date.getFullYear()); // No padding for year
+  return `${month}/${day}/${year}`;
+};
+
+// Custom DatePicker with TextField override
+const CustomDatePicker = ({ value, onChange, label, ...props }) => {
+  const [inputValue, setInputValue] = useState(
+    value ? formatDateWithoutYearPadding(value) : ''
+  );
+
+  const handleInputChange = (event) => {
+    const newValue = event.target.value;
+    setInputValue(newValue);
+
+    // Try to parse and update the actual date value
+    const parsedDate = parseDateInput(newValue);
+    if (parsedDate || newValue === '') {
+      onChange(parsedDate);
+    }
+  };
+
+  const handleDatePickerChange = (newDate) => {
+    onChange(newDate);
+    setInputValue(newDate ? formatDateWithoutYearPadding(newDate) : '');
+  };
+
+  return (
+    <DatePicker
+      value={value}
+      onChange={handleDatePickerChange}
+      label={label}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          value={inputValue}
+          onChange={handleInputChange}
+          placeholder="MM/DD/YYYY"
+          inputProps={{
+            ...params.inputProps,
+            placeholder: "MM/DD/YYYY"
+          }}
+        />
+      )}
+      {...props}
+    />
+  );
+};
+
 const AvailabilityForm = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -621,7 +677,7 @@ const AvailabilityForm = () => {
       queryClient.invalidateQueries({ queryKey: ['userHolidays'] });
     },
   });
-  const { mutate: deleteHoliday } = useMutation({
+  const { mutate: deleteHoliday, isPending: isDeleting } = useMutation({
     mutationFn: deleteUserUpcomingHoliday,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['userHolidays'] }),
   });
@@ -645,18 +701,18 @@ const AvailabilityForm = () => {
   // Helper function to check for date overlaps
   const checkDateOverlap = useCallback((startDate, endDate, excludeHolidayId = null) => {
     if (!startDate || !endDate) return false;
-    
+
     const start = new Date(startDate);
     const end = new Date(endDate);
-    
+
     return upcomingHolidays.some(holiday => {
       if (excludeHolidayId && holiday._id === excludeHolidayId) {
         return false;
       }
-      
+
       const existingStart = new Date(holiday.startDate);
       const existingEnd = new Date(holiday.endDate);
-      
+
       return (
         (start <= existingEnd && end >= existingStart) ||
         (existingStart <= end && existingEnd >= start)
@@ -683,12 +739,12 @@ const AvailabilityForm = () => {
   const handleCreateOrEditHoliday = () => {
     // Clear any previous errors first
     setHolidayError('');
-    
+
     if (!newHoliday.name || !newHoliday.startDate || !newHoliday.endDate) {
       setHolidayError('Name, start date, and end date are required.');
       return;
     }
-    
+
     if (new Date(newHoliday.endDate) < new Date(newHoliday.startDate)) {
       setHolidayError('End date cannot be before start date.');
       return;
@@ -697,16 +753,16 @@ const AvailabilityForm = () => {
     // Check for date overlap with existing holidays
     const startDate = new Date(newHoliday.startDate);
     const endDate = new Date(newHoliday.endDate);
-    
+
     const hasOverlap = upcomingHolidays.some(holiday => {
       // Skip the current holiday being edited
       if (editingHoliday && holiday._id === editingHoliday._id) {
         return false;
       }
-      
+
       const existingStart = new Date(holiday.startDate);
       const existingEnd = new Date(holiday.endDate);
-      
+
       // Check if the new date range overlaps with existing date range
       return (
         (startDate <= existingEnd && endDate >= existingStart) ||
@@ -862,7 +918,11 @@ const AvailabilityForm = () => {
     }
   }, [removeCustomTimeSlot, availability.customTimeSlots]);
 
-  // Remove handleHolidaySelect, handleHolidayNoteChange, setHolidaySelections, and all selection/note logic for holidays
+
+
+
+
+
 
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 } }}>
@@ -1195,7 +1255,7 @@ const AvailabilityForm = () => {
             >
               <CardContent sx={{ p: { xs: 2, md: 3 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 700 }}> Here i am not impotyin the upcoming holdiay componentn  use that Upcoming Holiday</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>Upcoming Holiday</Typography>
                   <Typography variant="body2" color="text.secondary">
                     We will notify you about upcoming holidays. You can also add your own holidays below.
                   </Typography>
@@ -1270,7 +1330,7 @@ const AvailabilityForm = () => {
                                 const isSingleDay = start.toDateString() === end.toDateString();
                                 const isToday = start.toDateString() === new Date().toDateString();
                                 const isPast = start < new Date();
-                                
+
                                 return (
                                   <ListItem
                                     key={holiday._id}
@@ -1301,10 +1361,10 @@ const AvailabilityForm = () => {
                                             width: 40,
                                             height: 40,
                                             borderRadius: '50%',
-                                            bgcolor: isToday 
+                                            bgcolor: isToday
                                               ? alpha(theme.palette.warning.main, 0.1)
                                               : alpha(theme.palette.primary.main, 0.1),
-                                            color: isToday 
+                                            color: isToday
                                               ? theme.palette.warning.main
                                               : theme.palette.primary.main
                                           }}
@@ -1353,17 +1413,17 @@ const AvailabilityForm = () => {
                                           >
                                             {isSingleDay
                                               ? start.toLocaleDateString('en-US', {
-                                                  weekday: 'short',
-                                                  month: 'short',
-                                                  day: 'numeric'
-                                                })
+                                                weekday: 'short',
+                                                month: 'short',
+                                                day: 'numeric'
+                                              })
                                               : `${start.toLocaleDateString('en-US', {
-                                                  month: 'short',
-                                                  day: 'numeric'
-                                                })} - ${end.toLocaleDateString('en-US', {
-                                                  month: 'short',
-                                                  day: 'numeric'
-                                                })}`
+                                                month: 'short',
+                                                day: 'numeric'
+                                              })} - ${end.toLocaleDateString('en-US', {
+                                                month: 'short',
+                                                day: 'numeric'
+                                              })}`
                                             }
                                           </Typography>
                                           {holiday.description && (
@@ -1406,6 +1466,7 @@ const AvailabilityForm = () => {
                                             aria-label="delete"
                                             onClick={() => deleteHoliday(holiday._id)}
                                             size="small"
+                                            disabled={isDeleting}
                                             sx={{
                                               color: 'text.secondary',
                                               '&:hover': {
@@ -1414,7 +1475,34 @@ const AvailabilityForm = () => {
                                               }
                                             }}
                                           >
-                                            <DeleteIcon fontSize="small" />
+                                            {isDeleting ? (
+                                              <Box
+                                                sx={{
+                                                  width: 20,
+                                                  height: 20,
+                                                  display: 'flex',
+                                                  alignItems: 'center',
+                                                  justifyContent: 'center'
+                                                }}
+                                              >
+                                                <Box
+                                                  sx={{
+                                                    width: 16,
+                                                    height: 16,
+                                                    border: `2px solid ${theme.palette.error.main}`,
+                                                    borderTopColor: 'transparent',
+                                                    borderRadius: '50%',
+                                                    animation: 'spin 1s linear infinite',
+                                                    '@keyframes spin': {
+                                                      '0%': { transform: 'rotate(0deg)' },
+                                                      '100%': { transform: 'rotate(360deg)' }
+                                                    }
+                                                  }}
+                                                />
+                                              </Box>
+                                            ) : (
+                                              <DeleteIcon fontSize="small" />
+                                            )}
                                           </IconButton>
                                         </Tooltip>
                                       </Box>
@@ -1432,8 +1520,8 @@ const AvailabilityForm = () => {
               </CardContent>
             </Card>
             {/* Holiday Creation Dialog */}
-            <Dialog 
-              open={openHolidayDialog} 
+            <Dialog
+              open={openHolidayDialog}
               onClose={() => { setOpenHolidayDialog(false); setEditingHoliday(null); }}
               maxWidth="sm"
               fullWidth
@@ -1459,7 +1547,7 @@ const AvailabilityForm = () => {
                   </Box>
                 </Box>
               </DialogTitle>
-              
+
               <DialogContent dividers sx={{ px: 3, py: 2 }}>
                 <Stack spacing={3}>
                   <TextField
@@ -1480,79 +1568,17 @@ const AvailabilityForm = () => {
                       ),
                     }}
                   />
-                  <LocalizationProvider dateAdapter={AdapterDateFns}>
-                    <Stack direction="row" spacing={2}>
-                      <DatePicker
-                        label="Start Date"
-                        value={newHoliday.startDate ? new Date(newHoliday.startDate) : null}
-                        onChange={(date) => {
-                          const iso = date ? date.toISOString().slice(0, 10) : '';
-                          setNewHoliday({ ...newHoliday, startDate: iso });
-                          if (holidayError) setHolidayError('');
-                          // Check for overlap in real-time
-                          if (iso && newHoliday.endDate) {
-                            const hasOverlap = checkDateOverlap(
-                              iso,
-                              newHoliday.endDate,
-                              editingHoliday?._id
-                            );
-                            setDateOverlapWarning(
-                              hasOverlap ? 'Warning: This date range overlaps with an existing holiday' : ''
-                            );
-                          } else {
-                            setDateOverlapWarning('');
-                          }
-                        }}
-                        inputFormat="yyyy-MM-dd"
-                        mask="____-__-__"
-                        minDate={new Date()}
-                        maxDate={new Date(new Date().getFullYear(), 11, 31)}
-                        shouldDisableMonth={(month) => {
-                          const now = new Date();
-                          return (
-                            month.getFullYear() === now.getFullYear() &&
-                            month.getMonth() < now.getMonth()
-                          );
-                        }}
-                        renderInput={(params) => <TextField {...params} fullWidth required InputLabelProps={{ shrink: true }} />}
-                      />
-                      <DatePicker
-                        label="End Date"
-                        value={newHoliday.endDate ? new Date(newHoliday.endDate) : null}
-                        onChange={(date) => {
-                          const iso = date ? date.toISOString().slice(0, 10) : '';
-                          setNewHoliday({ ...newHoliday, endDate: iso });
-                          if (holidayError) setHolidayError('');
-                          // Check for overlap in real-time
-                          if (newHoliday.startDate && iso) {
-                            const hasOverlap = checkDateOverlap(
-                              newHoliday.startDate,
-                              iso,
-                              editingHoliday?._id
-                            );
-                            setDateOverlapWarning(
-                              hasOverlap ? 'Warning: This date range overlaps with an existing holiday' : ''
-                            );
-                          } else {
-                            setDateOverlapWarning('');
-                          }
-                        }}
-                        inputFormat="yyyy-MM-dd"
-                        mask="____-__-__"
-                        minDate={newHoliday.startDate ? new Date(newHoliday.startDate) : new Date()}
-                        maxDate={new Date(new Date().getFullYear(), 11, 31)}
-                        shouldDisableMonth={(month) => {
-                          const now = new Date();
-                          return (
-                            month.getFullYear() === now.getFullYear() &&
-                            month.getMonth() < now.getMonth()
-                          );
-                        }}
-                        renderInput={(params) => <TextField {...params} fullWidth required InputLabelProps={{ shrink: true }} />}
-                      />
-                    </Stack>
-                  </LocalizationProvider>
-                  
+                  <UpcomingHolidayDatePicker
+                    newHoliday={newHoliday}
+                    setNewHoliday={setNewHoliday}
+                    editingHoliday={editingHoliday}
+
+                    setHolidayError={setHolidayError}
+                    dateOverlapWarning={dateOverlapWarning}
+                    setDateOverlapWarning={setDateOverlapWarning}
+                    checkDateOverlap={checkDateOverlap}
+                  />
+
                   <TextField
                     label="Description (Optional)"
                     value={newHoliday.description}
@@ -1572,11 +1598,11 @@ const AvailabilityForm = () => {
                       ),
                     }}
                   />
-                  
+
                   {dateOverlapWarning && (
-                    <Alert 
-                      severity="warning" 
-                      sx={{ 
+                    <Alert
+                      severity="warning"
+                      sx={{
                         mt: 1,
                         animation: 'fadeIn 0.3s ease-in-out',
                         '@keyframes fadeIn': {
@@ -1589,11 +1615,11 @@ const AvailabilityForm = () => {
                       {dateOverlapWarning}
                     </Alert>
                   )}
-                  
+
                   {(holidayError || createError) && (
-                    <Alert 
-                      severity="error" 
-                      sx={{ 
+                    <Alert
+                      severity="error"
+                      sx={{
                         mt: 1,
                         animation: 'fadeIn 0.3s ease-in-out',
                         '@keyframes fadeIn': {
@@ -1608,18 +1634,18 @@ const AvailabilityForm = () => {
                   )}
                 </Stack>
               </DialogContent>
-              
+
               <DialogActions sx={{ px: 3, py: 2 }}>
-                <Button 
+                <Button
                   onClick={() => { setOpenHolidayDialog(false); setEditingHoliday(null); }}
                   color="inherit"
                   size="large"
                 >
                   Cancel
                 </Button>
-                <Button 
-                  onClick={handleCreateOrEditHoliday} 
-                  variant="contained" 
+                <Button
+                  onClick={handleCreateOrEditHoliday}
+                  variant="contained"
                   disabled={isCreating || !newHoliday.name || !newHoliday.startDate || !newHoliday.endDate}
                   size="large"
                   sx={{ minWidth: 100 }}

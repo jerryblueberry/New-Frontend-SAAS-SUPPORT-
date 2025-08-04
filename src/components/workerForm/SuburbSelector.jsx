@@ -193,10 +193,11 @@ const SuburbSelector = ({
   const showNoResults = !hasResults && suburbInput.length > 0 && !isLoading;
 
   return (
-    <Grid item xs={12} md={6}>
+    <Grid item xs={12} md={6} >
       <Card 
         elevation={0}
         sx={{
+          
         //   borderRadius: { xs: 3, sm: 4 },
         //   border: errors.suburb ? `2px solid ${theme.palette.error.main}` : '1px solid',
         //   borderColor: errors.suburb ? theme.palette.error.main : alpha(theme.palette.divider, 0.12),
@@ -228,7 +229,7 @@ const SuburbSelector = ({
         //   }
         }}
       >
-        <CardContent sx={{ p: { xs: 2.5, sm: 3, md: 4 } }}>
+        <CardContent sx={{ p: { xs: 2.5, sm: 3, md: 1 } }}>
           {/* Enhanced Header */}
           <Box display="flex" alignItems="center" gap={2} mb={3}>
             <Avatar sx={{ 
@@ -245,34 +246,28 @@ const SuburbSelector = ({
             <Box flex={1}>
               <Typography variant="h6" sx={{ 
                 fontWeight: 700,
-                fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.4rem' },
+                fontSize: { xs: '1rem', sm: '1.25rem', md: '1.4rem' },
                 color: 'text.primary',
                 letterSpacing: '-0.02em'
               }}>
                 Your Location
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ 
-                fontSize: { xs: '0.875rem', sm: '0.9rem' },
-                fontWeight: 500
+                fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                fontWeight: 500,
+                minWidth:{xs:'220px'}
               }}>
                 {selectedSuburb ? 'Perfect! Location confirmed' : 'Where are you based?'}
               </Typography>
             </Box>
-            {selectedSuburb && (
-              <Tooltip title="Location confirmed" arrow>
-                <CheckCircleIcon 
-                  color="success" 
-                  sx={{ 
-                    fontSize: { xs: 24, sm: 28 },
-                    animation: 'fadeIn 0.5s ease-in-out'
-                  }} 
-                />
-              </Tooltip>
-            )}
+            
           </Box>
 
           {/* Enhanced Search Input */}
-          <Box position="relative">
+          <Box position="relative" sx={{
+            // backgroundColor:'red',
+            minWidth:{xs:'200px'}
+          }}>
             <TextField
               fullWidth
               value={suburbInput}
