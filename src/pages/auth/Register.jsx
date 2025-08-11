@@ -45,6 +45,8 @@ const Register = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsError, setTermsError] = useState('');
 
   // Regular email/password registration mutation
   const { mutate: registerUser, error: registerError } = useMutation({
@@ -108,12 +110,21 @@ const Register = () => {
   });
 
   const handleRegister = (formData) => {
+    if (!termsAccepted) {
+      setTermsError('You must agree to the Terms and Conditions to register.');
+      return;
+    }
     setLoadingMessage('Creating your account...');
     setIsLoading(true);
     registerUser(formData);
   };
 
   const handleGoogleRegister = () => {
+    if (!termsAccepted) {
+      setTermsError('You must agree to the Terms and Conditions to register.');
+      return;
+    }
+    
     googleLogin();
   };
 
@@ -331,6 +342,9 @@ const Register = () => {
             loading={isLoading}
             loadingMessage={loadingMessage}
             error={errorMessage}
+            termsAccepted={termsAccepted}
+            onTermsChange={setTermsAccepted}
+            termsError={termsError}
           />
 
           <Box sx={{ mt: 3, textAlign: 'center' }}>

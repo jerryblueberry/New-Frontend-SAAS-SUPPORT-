@@ -406,66 +406,34 @@ const HealthInformation = ({ onComplete, onError }) => {
             <Avatar
               sx={{
                 bgcolor: 'primary.main',
-                width: 56,
-                height: 56
+                width: 46,
+                height: 46,
               }}
             >
-              <HealthIcon fontSize="large" />
+              <HealthIcon fontSize="medium" />
             </Avatar>
             <Box>
-              <Typography variant="h4" component="h1" fontWeight="700" gutterBottom>
+              <Typography variant="h4" component="h1" fontWeight="700" gutterBottom sx = {{
+                fontSize:{xs:'1.5rem',md:'2rem'}
+              }}>
                 Health Information
               </Typography>
-              <Typography variant="body1" color="text.secondary">
-                Please provide accurate health information to ensure we can match you with appropriate opportunities
-              </Typography>
+              
             </Box>
           </Stack>
 
-          {/* Progress Stepper */}
-          <Stepper 
-            activeStep={activeStep} 
-            alternativeLabel 
-            sx={{ 
-              mt: 4,
-              display: { xs: 'none', md: 'flex' }
-            }}
-          >
-            {steps.map((step, index) => (
-              <Step key={step.key}>
-                <StepLabel 
-                  icon={step.icon}
-                  sx={{
-                    '& .MuiStepLabel-label': {
-                      fontSize: '0.875rem',
-                      fontWeight: 500
-                    }
-                  }}
-                >
-                  {step.label}
-                </StepLabel>
-              </Step>
-            ))}
-          </Stepper>
+     
 
-          {/* Mobile Progress */}
-          <Box sx={{ display: { xs: 'block', md: 'none' }, mt: 3 }}>
-            <LinearProgress 
-              variant="determinate" 
-              value={(activeStep / (steps.length - 1)) * 100}
-              sx={{ height: 8, borderRadius: 4 }}
-            />
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1, textAlign: 'center' }}>
-              Step {activeStep + 1} of {steps.length}
-            </Typography>
-          </Box>
+         
         </Box>
 
         {/* Form */}
         <form onSubmit={handleSubmit} noValidate>
           <Grid container spacing={3}>
             {/* Medical Conditions Section */}
-            <Grid item xs={12}>
+            <Grid item xs={12} sx={{
+              width:'100%'
+            }}>
               <StyledCard>
                 <CardContent>
                   <StyledSection title="Medical Conditions" icon={<MedicalIcon />}>
@@ -534,9 +502,11 @@ const HealthInformation = ({ onComplete, onError }) => {
             </Grid>
 
             {/* Workers Compensation Section */}
-            <Grid item xs={12}>
+            <Grid item xs={12} sx={{
+              width:'100%'
+            }}>
               <StyledCard>
-                <CardContent>
+                <CardContent sx={{}}>
                   <StyledSection title="Workers Compensation" icon={<WorkIcon />}>
                     <FormControl component="fieldset" error={!!formErrors.hasWorkersCompensation} fullWidth>
                       <Typography variant="h6" gutterBottom>
@@ -574,7 +544,9 @@ const HealthInformation = ({ onComplete, onError }) => {
             </Grid>
 
             {/* Vaccinations Section */}
-            <Grid item xs={12}>
+            <Grid item xs={12} sx={{
+              width:'100%'
+            }}>
               <StyledCard>
                 <CardContent>
                   <StyledSection title="Vaccinations" icon={<VaccineIcon />}>
@@ -731,7 +703,9 @@ const HealthInformation = ({ onComplete, onError }) => {
             </Grid>
 
             {/* Physical Abilities Section */}
-            <Grid item xs={12}>
+            <Grid item xs={12} sx={{
+              width:'100%'
+            }}>
               <StyledCard>
                 <CardContent>
                   <StyledSection title="Physical Abilities" icon={<FitnessIcon />}>
@@ -794,7 +768,9 @@ const HealthInformation = ({ onComplete, onError }) => {
             </Grid>
 
             {/* Health Clearance Section */}
-            <Grid item xs={12}>
+            <Grid item xs={12} sx={{
+              width:'100%'
+            }}>
               <StyledCard>
                 <CardContent>
                   <StyledSection title="Health Clearance" icon={<SecurityIcon />}>
@@ -883,22 +859,37 @@ const HealthInformation = ({ onComplete, onError }) => {
             </Button>
 
             <LoadingButton
-              type="submit"
-              variant="contained"
-              loading={isSaving}
-              disabled={isLoading}
-              startIcon={isSaving ? <CircularProgress size={20} /> : <SaveIcon />}
-              size="large"
-              sx={{ 
-                minWidth: 200,
-                background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
-                '&:hover': {
-                  background: 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)',
-                }
-              }}
-            >
-              {isSaving ? 'Saving...' : 'Save and Complete Profile'}
-            </LoadingButton>
+  type="submit"
+  variant="contained"
+  loading={isSaving}
+  disabled={isLoading}
+  startIcon={isSaving ? <CircularProgress size={20} /> : <SaveIcon />}
+  size="large"
+  sx={{
+    minWidth: { xs: '100%', sm: 220 },
+    px: { xs: 2, sm: 4 },
+    py: 1.5,
+    fontWeight: 600,
+    fontSize: { xs: '0.9rem', sm: '1rem' },
+    color: '#fff',
+    borderRadius: '12px',
+    background: 'linear-gradient(135deg, #1976d2, #42a5f5)',
+    backdropFilter: 'blur(8px)',
+    boxShadow: '0px 4px 20px rgba(25, 118, 210, 0.4)',
+    transition: 'all 0.3s ease',
+    '&:hover': {
+      transform: 'scale(1.05)',
+      background: 'linear-gradient(135deg, #1565c0, #1976d2)',
+      boxShadow: '0px 6px 25px rgba(25, 118, 210, 0.6)',
+    },
+    '&:disabled': {
+      background: 'rgba(100, 100, 100, 0.4)',
+      color: '#ddd',
+    }
+  }}
+>
+  {isSaving ? 'Saving...' : 'Save and Complete Profile'}
+</LoadingButton>
           </Box>
         </form>
       </Container>

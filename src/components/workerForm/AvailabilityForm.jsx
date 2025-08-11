@@ -1,5 +1,7 @@
 // src/components/Onboarding/AvailabilityForm.jsx
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import EventRepeatIcon from '@mui/icons-material/EventRepeat';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import {
   Box,
   Grid,
@@ -74,6 +76,7 @@ import api from '../../api/axios';
 // import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import UpcomingHolidayDatePicker from '../AvailabilityComponent/DatePicker/UpcomingHolidayDatePicker';
+import HolidayDisplaySection from '../AvailabilityComponent/UpcomingHoliday/HolidayDisplaySection';
 
 // Day colors for visual distinction
 const DAY_COLORS = {
@@ -86,42 +89,69 @@ const DAY_COLORS = {
   Sunday: '#5d4037'
 };
 
-// Helper function to group and sort holidays by month
+
 const groupHolidaysByMonth = (holidays) => {
   if (!holidays || holidays.length === 0) return [];
 
-  // Sort holidays by start date (earliest first)
-  const sortedHolidays = [...holidays].sort((a, b) => {
-    const dateA = new Date(a.startDate);
-    const dateB = new Date(b.startDate);
-    return dateA - dateB;
+  // Create a map to hold our month groups
+  const monthMap = new Map();
+
+  holidays.forEach(holiday => {
+    const startDate = new Date(holiday.startDate);
+    const endDate = new Date(holiday.endDate);
+
+    // If it's a single day or within the same month
+    if (startDate.getMonth() === endDate.getMonth() &&
+      startDate.getFullYear() === endDate.getFullYear()) {
+      const monthKey = `${startDate.getFullYear()}-${startDate.getMonth()}`;
+
+      if (!monthMap.has(monthKey)) {
+        monthMap.set(monthKey, {
+          monthKey,
+          monthName: startDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+          holidays: []
+        });
+      }
+
+      monthMap.get(monthKey).holidays.push(holiday);
+    } else {
+      // For multi-month holidays, we need to split them
+      let currentDate = new Date(startDate);
+
+      while (currentDate <= endDate) {
+        const monthKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
+
+        if (!monthMap.has(monthKey)) {
+          monthMap.set(monthKey, {
+            monthKey,
+            monthName: currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+            holidays: []
+          });
+        }
+
+        // Only add if not already present (to avoid duplicates)
+        if (!monthMap.get(monthKey).holidays.some(h => h._id === holiday._id)) {
+          monthMap.get(monthKey).holidays.push(holiday);
+        }
+
+        // Move to next month
+        currentDate = new Date(
+          currentDate.getFullYear(),
+          currentDate.getMonth() + 1,
+          1
+        );
+      }
+    }
   });
 
-  // Group by month
-  const grouped = sortedHolidays.reduce((acc, holiday) => {
-    const startDate = new Date(holiday.startDate);
-    const monthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
-    const monthName = startDate.toLocaleDateString('en-US', {
-      month: 'long',
-      year: 'numeric'
-    });
 
-    if (!acc[monthKey]) {
-      acc[monthKey] = {
-        monthKey,
-        monthName,
-        holidays: []
-      };
-    }
-    acc[monthKey].holidays.push(holiday);
-    return acc;
-  }, {});
-
-  // Convert to array and sort by month key (chronological order)
-  return Object.values(grouped).sort((a, b) => a.monthKey.localeCompare(b.monthKey));
+  // Convert map to array and sort by date
+  return Array.from(monthMap.values()).sort((a, b) => {
+    const [aYear, aMonth] = a.monthKey.split('-').map(Number);
+    const [bYear, bMonth] = b.monthKey.split('-').map(Number);
+    return aYear === bYear ? aMonth - bMonth : aYear - bYear;
+  });
 };
-
-
 
 // Enhanced custom time slot card with better visual design
 const CustomTimeSlotCard = ({ slot, index, onEdit, onRemove, disabled }) => {
@@ -662,6 +692,56 @@ const AvailabilityForm = () => {
     availability,
   } = useOnboardingStore();
 
+  // Helper function to check if a date is within a range
+  const isDateInRange = (date, start, end) => {
+    return date >= start && date <= end;
+  };
+
+  // Improved date range formatting
+  const formatDateRange = (start, end) => {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    const isSameDay = startDate.toDateString() === endDate.toDateString();
+    const isSameMonth = startDate.getMonth() === endDate.getMonth() &&
+      startDate.getFullYear() === endDate.getFullYear();
+
+    const dayDifference = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+    const formatOptions = (date, options) =>
+      date.toLocaleDateString('en-US', options);
+
+    if (isSameDay) {
+      return formatOptions(startDate, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    }
+
+    if (isSameMonth) {
+      return `${formatOptions(startDate, {
+        month: 'short',
+        day: 'numeric'
+      })} - ${formatOptions(endDate, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      })} (${dayDifference} days)`;
+    }
+
+    return `${formatOptions(startDate, {
+      month: 'short',
+      day: 'numeric'
+    })} - ${formatOptions(endDate, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    })} (${dayDifference} days)`;
+  };
+
+
   // Remove holidays from Zustand, use TanStack Query instead
   const queryClient = useQueryClient();
   const { data: upcomingHolidays = [], isLoading: holidaysLoading, isError: holidaysError } = useQuery({
@@ -680,6 +760,7 @@ const AvailabilityForm = () => {
   const { mutate: deleteHoliday, isPending: isDeleting } = useMutation({
     mutationFn: deleteUserUpcomingHoliday,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['userHolidays'] }),
+
   });
   const { mutate: editHoliday } = useMutation({
     mutationFn: ({ id, data }) => updateUserUpcomingHoliday(id, data),
@@ -1239,286 +1320,15 @@ const AvailabilityForm = () => {
 
           {/* Upcoming Holidays Card */}
           <Grid item xs={12} md={4} sx={{ display: 'flex' }}>
-            <Card
-              elevation={0}
-              sx={{
-                borderRadius: 3,
-                border: '1px solid',
-                borderColor: 'divider',
-                height: '100%',
-                boxShadow: theme.shadows[1],
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                minWidth: 0,
-              }}
-            >
-              <CardContent sx={{ p: { xs: 2, md: 3 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 700 }}>Upcoming Holiday</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    We will notify you about upcoming holidays. You can also add your own holidays below.
-                  </Typography>
-                  <Button onClick={() => setOpenHolidayDialog(true)} variant="outlined" sx={{ my: 2 }}>
-                    Add Upcoming Holiday
-                  </Button>
-                  {holidaysLoading ? (
-                    <LinearProgress sx={{ my: 2 }} />
-                  ) : holidaysError ? (
-                    <Alert severity="error" sx={{ my: 2 }}>Failed to load holidays</Alert>
-                  ) : (
-                    <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
-                      {upcomingHolidays.length === 0 ? (
-                        <Paper
-                          variant="outlined"
-                          sx={{
-                            p: 3,
-                            textAlign: 'center',
-                            bgcolor: 'background.paper',
-                            borderRadius: 2,
-                            borderStyle: 'dashed'
-                          }}
-                        >
-                          <CalendarIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
-                          <Typography variant="body2" color="text.secondary">
-                            No upcoming holidays found.
-                          </Typography>
-                        </Paper>
-                      ) : (
-                        groupedHolidays.map((monthGroup) => (
-                          <Box key={monthGroup.monthKey} sx={{ mb: 3 }}>
-                            {/* Month Header */}
-                            <Box
-                              sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 1,
-                                mb: 2,
-                                p: 1,
-                                bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                borderRadius: 2,
-                                border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
-                              }}
-                            >
-                              <CalendarIcon sx={{ fontSize: 20, color: theme.palette.primary.main }} />
-                              <Typography
-                                variant="subtitle1"
-                                sx={{
-                                  fontWeight: 600,
-                                  color: theme.palette.primary.main
-                                }}
-                              >
-                                {monthGroup.monthName}
-                              </Typography>
-                              <Chip
-                                label={monthGroup.holidays.length}
-                                size="small"
-                                sx={{
-                                  ml: 'auto',
-                                  bgcolor: theme.palette.primary.main,
-                                  color: 'white',
-                                  fontWeight: 600
-                                }}
-                              />
-                            </Box>
-
-                            {/* Holidays in this month */}
-                            <List sx={{ p: 0 }}>
-                              {monthGroup.holidays.map((holiday) => {
-                                const start = new Date(holiday.startDate);
-                                const end = new Date(holiday.endDate);
-                                const isSingleDay = start.toDateString() === end.toDateString();
-                                const isToday = start.toDateString() === new Date().toDateString();
-                                const isPast = start < new Date();
-
-                                return (
-                                  <ListItem
-                                    key={holiday._id}
-                                    sx={{
-                                      flexDirection: 'column',
-                                      alignItems: 'stretch',
-                                      mb: 1.5,
-                                      borderRadius: 2,
-                                      boxShadow: 1,
-                                      bgcolor: 'background.paper',
-                                      border: isToday ? `2px solid ${theme.palette.warning.main}` : '1px solid',
-                                      borderColor: isToday ? theme.palette.warning.main : 'divider',
-                                      opacity: isPast ? 0.7 : 1,
-                                      transition: 'all 0.2s ease-in-out',
-                                      '&:hover': {
-                                        boxShadow: theme.shadows[3],
-                                        transform: 'translateY(-1px)'
-                                      }
-                                    }}
-                                  >
-                                    <Box display="flex" alignItems="center" gap={2} justifyContent="space-between" width="100%">
-                                      <Box display="flex" alignItems="center" gap={2} flex={1}>
-                                        <Box
-                                          sx={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            width: 40,
-                                            height: 40,
-                                            borderRadius: '50%',
-                                            bgcolor: isToday
-                                              ? alpha(theme.palette.warning.main, 0.1)
-                                              : alpha(theme.palette.primary.main, 0.1),
-                                            color: isToday
-                                              ? theme.palette.warning.main
-                                              : theme.palette.primary.main
-                                          }}
-                                        >
-                                          <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                                            {start.getDate()}
-                                          </Typography>
-                                        </Box>
-                                        <Box flex={1}>
-                                          <Box display="flex" alignItems="center" gap={1} mb={0.5}>
-                                            <Typography
-                                              variant="subtitle2"
-                                              sx={{ fontWeight: 600 }}
-                                            >
-                                              {holiday.name}
-                                            </Typography>
-                                            {isToday && (
-                                              <Chip
-                                                label="Today"
-                                                size="small"
-                                                sx={{
-                                                  bgcolor: theme.palette.warning.main,
-                                                  color: 'white',
-                                                  fontSize: '0.7rem',
-                                                  height: 20
-                                                }}
-                                              />
-                                            )}
-                                            {isPast && (
-                                              <Chip
-                                                label="Past"
-                                                size="small"
-                                                sx={{
-                                                  bgcolor: theme.palette.grey[500],
-                                                  color: 'white',
-                                                  fontSize: '0.7rem',
-                                                  height: 20
-                                                }}
-                                              />
-                                            )}
-                                          </Box>
-                                          <Typography
-                                            variant="body2"
-                                            color="text.secondary"
-                                            sx={{ fontWeight: 500 }}
-                                          >
-                                            {isSingleDay
-                                              ? start.toLocaleDateString('en-US', {
-                                                weekday: 'short',
-                                                month: 'short',
-                                                day: 'numeric'
-                                              })
-                                              : `${start.toLocaleDateString('en-US', {
-                                                month: 'short',
-                                                day: 'numeric'
-                                              })} - ${end.toLocaleDateString('en-US', {
-                                                month: 'short',
-                                                day: 'numeric'
-                                              })}`
-                                            }
-                                          </Typography>
-                                          {holiday.description && (
-                                            <Typography
-                                              variant="caption"
-                                              color="text.secondary"
-                                              sx={{
-                                                display: 'block',
-                                                mt: 0.5,
-                                                fontStyle: 'italic'
-                                              }}
-                                            >
-                                              {holiday.description}
-                                            </Typography>
-                                          )}
-                                        </Box>
-                                      </Box>
-                                      <Box display="flex" gap={0.5}>
-                                        <Tooltip title="Edit holiday" arrow>
-                                          <IconButton
-                                            aria-label="edit"
-                                            onClick={() => {
-                                              setEditingHoliday(holiday);
-                                              setOpenHolidayDialog(true);
-                                            }}
-                                            size="small"
-                                            sx={{
-                                              color: 'text.secondary',
-                                              '&:hover': {
-                                                color: theme.palette.primary.main,
-                                                bgcolor: alpha(theme.palette.primary.main, 0.1)
-                                              }
-                                            }}
-                                          >
-                                            <EditIcon fontSize="small" />
-                                          </IconButton>
-                                        </Tooltip>
-                                        <Tooltip title="Delete holiday" arrow>
-                                          <IconButton
-                                            aria-label="delete"
-                                            onClick={() => deleteHoliday(holiday._id)}
-                                            size="small"
-                                            disabled={isDeleting}
-                                            sx={{
-                                              color: 'text.secondary',
-                                              '&:hover': {
-                                                color: theme.palette.error.main,
-                                                bgcolor: alpha(theme.palette.error.main, 0.1)
-                                              }
-                                            }}
-                                          >
-                                            {isDeleting ? (
-                                              <Box
-                                                sx={{
-                                                  width: 20,
-                                                  height: 20,
-                                                  display: 'flex',
-                                                  alignItems: 'center',
-                                                  justifyContent: 'center'
-                                                }}
-                                              >
-                                                <Box
-                                                  sx={{
-                                                    width: 16,
-                                                    height: 16,
-                                                    border: `2px solid ${theme.palette.error.main}`,
-                                                    borderTopColor: 'transparent',
-                                                    borderRadius: '50%',
-                                                    animation: 'spin 1s linear infinite',
-                                                    '@keyframes spin': {
-                                                      '0%': { transform: 'rotate(0deg)' },
-                                                      '100%': { transform: 'rotate(360deg)' }
-                                                    }
-                                                  }}
-                                                />
-                                              </Box>
-                                            ) : (
-                                              <DeleteIcon fontSize="small" />
-                                            )}
-                                          </IconButton>
-                                        </Tooltip>
-                                      </Box>
-                                    </Box>
-                                  </ListItem>
-                                );
-                              })}
-                            </List>
-                          </Box>
-                        ))
-                      )}
-                    </Box>
-                  )}
-                </Box>
-              </CardContent>
-            </Card>
+            <HolidayDisplaySection 
+              upcomingHolidays={upcomingHolidays}
+              holidaysLoading={holidaysLoading}
+              holidaysError={holidaysError}
+              setOpenHolidayDialog={setOpenHolidayDialog}
+              setEditingHoliday={setEditingHoliday}
+              deleteHoliday={deleteHoliday}
+              theme={theme}
+            />
             {/* Holiday Creation Dialog */}
             <Dialog
               open={openHolidayDialog}

@@ -104,6 +104,9 @@ const RegisterForm = ({
   onGoogleRegister,
   loading = false, 
   loadingMessage = 'Creating Account...',
+  termsAccepted,
+  onTermsChange,
+  termsError,
   error 
 }) => {
   const theme = useTheme();
@@ -528,7 +531,17 @@ const RegisterForm = ({
       </Grid>
       <Grid item xs={12}>
           <FormControlLabel
-              control={<Checkbox color="primary" checked={formData.termsAndConditionsAccepted} onChange={(e) => setFormData({ ...formData, termsAndConditionsAccepted: e.target.checked })}         />}
+              control={
+                <Checkbox 
+                color="primary" 
+                checked={termsAccepted} 
+                onChange={(e) => {
+                  onTermsChange(e.target.checked);
+                  if (termsError) setTermsError('');
+                }}
+              />
+            
+            }
             label={
               <Typography variant="body2" sx={{ pl: 0, m: 0, display: 'inline' }}>
                 I've read and agree to the{' '}
@@ -539,6 +552,11 @@ const RegisterForm = ({
             }
             sx={{ alignItems: 'center', pl: 0, ml: 0, mt: 1 }}
           />
+            {termsError && (
+          <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5, ml: 4.5 }}>
+            {termsError}
+          </Typography>
+        )}
           {touched.termsAndConditionsAccepted && validationErrors.termsAndConditionsAccepted && (
             <Typography variant="caption" color="error" sx={{ ml: 1 }}>
               {validationErrors.termsAndConditionsAccepted}
@@ -645,7 +663,7 @@ const RegisterForm = ({
         variant="outlined"
         size="large"
         onClick={onGoogleRegister}
-        disabled={loading}
+        disabled={loading }
         startIcon={<GoogleIcon />}
         sx={{
           py: 1.5,

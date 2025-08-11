@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Alert, 
-  Button, 
-  Card, 
-  Form, 
-  Select, 
-  DatePicker, 
-  Input, 
-  Upload, 
-  Typography, 
-  Steps, 
+import {
+  Alert,
+  Button,
+  Card,
+  Form,
+  Select,
+  DatePicker,
+  Input,
+  Upload,
+  Typography,
+  Steps,
   message,
   Spin,
   List,
@@ -26,9 +26,9 @@ import {
   Image,
   Modal
 } from 'antd';
-import { 
-  PlusOutlined, 
-  UploadOutlined, 
+import {
+  PlusOutlined,
+  UploadOutlined,
   CheckCircleOutlined,
   DeleteOutlined,
   EditOutlined,
@@ -233,7 +233,7 @@ const DocumentTrackingService = {
     try {
       const tracked = DocumentTrackingService.getTrackedDocuments();
       const unusedDocs = Object.values(tracked).filter(doc => !doc.isUsed);
-      
+
       // Remove unused documents from tracking
       unusedDocs.forEach(doc => {
         delete tracked[doc.publicId];
@@ -375,7 +375,7 @@ const PREDEFINED_INSURANCE_TYPES = [
 const CertificateSecond = ({ initialStep = 0 }) => {
   const customDegreeInputRef = useRef(null);
   const customInsuranceInputRef = useRef(null);
-  const degreeSelectRef = useRef(null); 
+  const degreeSelectRef = useRef(null);
   const insuranceSelectRef = useRef(null); // <-- Add this line
   const navigate = useNavigate();
   const {
@@ -395,7 +395,7 @@ const CertificateSecond = ({ initialStep = 0 }) => {
     addOtherCertificate,
     removeOtherCertificate,
     updateOtherCertificates,
-    
+
 
   } = useOnboardingStore();
 
@@ -441,11 +441,11 @@ const CertificateSecond = ({ initialStep = 0 }) => {
   };
 
   const fileInputRefs = useRef([]);
-console.log("Required Certrs Value",requiredCerts)
-console.log("Has existing ",hasExistingCertifications);
-console.log("Normalized Certs",onboardingData)
-console.log("Onboarding Data",onboardingData?.data?.profile); 
-// Initialize with store data from backend
+  console.log("Required Certrs Value", requiredCerts)
+  console.log("Has existing ", hasExistingCertifications);
+  console.log("Normalized Certs", onboardingData)
+  console.log("Onboarding Data", onboardingData?.data?.profile);
+  // Initialize with store data from backend
   useEffect(() => {
     if (!isLoadingOnboardingData && onboardingData?.data?.profile) {
       const profile = onboardingData.data.profile;
@@ -500,7 +500,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
         setCertificationTypes(normalizedTypes);
 
         // Update certTypeName for existing certifications if needed
-        setSelectedCerts(prevCerts => 
+        setSelectedCerts(prevCerts =>
           prevCerts.map(cert => {
             const certType = normalizedTypes.find(t => t._id === cert.certificationType);
             return {
@@ -614,11 +614,11 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
         // For other visa types, show all visa options that might be applicable
         certificationTypes.forEach(cert => {
           if (cert.isVisa &&
-              !['Student Visa (Subclass 500)',
-                'Temporary Graduate Visa (Subclass 485)',
-                'Temporary Skill Shortage Visa (Subclass 482)',
-                'Bridging Visa'].includes(cert.name) &&
-              !requiredCertIds.has(cert._id)) {
+            !['Student Visa (Subclass 500)',
+              'Temporary Graduate Visa (Subclass 485)',
+              'Temporary Skill Shortage Visa (Subclass 482)',
+              'Bridging Visa'].includes(cert.name) &&
+            !requiredCertIds.has(cert._id)) {
             required.push(cert);
             requiredCertIds.add(cert._id);
           }
@@ -630,13 +630,13 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
     // Add appropriate identity documents based on residency status
     certificationTypes.forEach(cert => {
       if (cert.category === 'Identity') {
-        const isAcceptable = 
-          cert.acceptableFor === 'AllResidents' || 
+        const isAcceptable =
+          cert.acceptableFor === 'AllResidents' ||
           (residencyStatus === 'Citizen' && cert.acceptableFor === 'Citizens') ||
           (residencyStatus === 'NZCitizen' && cert.acceptableFor === 'NZCitizens') ||
           (residencyStatus === 'PermanentResident' && cert.acceptableFor === 'PermanentResidents') ||
-          (['StudentVisa', 'TemporaryGraduateVisa', 'TSS', 'BridgingVisa', 'OtherTemporaryVisa'].includes(residencyStatus) && 
-           cert.acceptableFor === 'Foreigners');
+          (['StudentVisa', 'TemporaryGraduateVisa', 'TSS', 'BridgingVisa', 'OtherTemporaryVisa'].includes(residencyStatus) &&
+            cert.acceptableFor === 'Foreigners');
 
         if (isAcceptable && !requiredCertIds.has(cert._id)) {
           required.push(cert);
@@ -647,12 +647,12 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
 
     // Add standard certifications required for all applicants regardless of residency
     certificationTypes.forEach(cert => {
-      if ((cert.category === 'Professional' || 
-           cert.category === 'Training' || 
-           cert.category === 'Background Check' || 
-           cert.category === 'Insurance') && 
-          cert.acceptableFor === 'AllResidents' && 
-          !requiredCertIds.has(cert._id)) {
+      if ((cert.category === 'Professional' ||
+        cert.category === 'Training' ||
+        cert.category === 'Background Check' ||
+        cert.category === 'Insurance') &&
+        cert.acceptableFor === 'AllResidents' &&
+        !requiredCertIds.has(cert._id)) {
         required.push(cert);
         requiredCertIds.add(cert._id);
       }
@@ -755,21 +755,21 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
       message.warning('Please complete all required certifications before submitting');
       return;
     }
-        setSubmitLoading(true);
-    
+    setSubmitLoading(true);
+
     // Clean up unused documents before submitting
     const unusedCount = DocumentTrackingService.cleanupUnusedDocuments();
     if (unusedCount > 0) {
       console.log(`Cleaned up ${unusedCount} unused documents before submission`);
     }
-    
+
     // Gather tracked document objects from localStorage
     const trackedDocsObj = DocumentTrackingService.getTrackedDocuments();
     const trackedDocs = Object.values(trackedDocsObj);
 
     // Helper: upload other certificates sequentially
     const uploadOtherCertificates = async () => {
-      for (const cert of otherCertifications) { 
+      for (const cert of otherCertifications) {
         await new Promise((resolve) => {
           saveOtherCertificate(cert, {
             onSuccess: () => {
@@ -1105,7 +1105,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
         };
         setSelectedCerts(updatedCerts);
         updateCertifications(updatedCerts);
-        
+
         // Mark uploaded documents as used in tracking
         successfulUploads.forEach(doc => {
           if (doc.publicId) {
@@ -1210,10 +1210,10 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
     function performDocumentRemoval(certIndex, docIndex) {
       const cert = selectedCerts[certIndex];
       const document = cert.documents[docIndex];
-      
+
       // Show immediate feedback
       message.info('Document removed from view. Cleaning up cloud storage...');
-      
+
       // Use centralized removal function
       removeDocumentFromAllStates(certIndex, docIndex, document?.publicId);
     }
@@ -1258,8 +1258,8 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
       number: 'The unique identifier on your certificate or document',
       policeRefNo: 'The unique identifier on your certificate or document',
       dateOfCompletion: 'The date when this certification was completed',
-      workerScreeningId:"The unique identifier for your worker screening id",
-      insuranceType:"Any Insurance Type you have",
+      workerScreeningId: "The unique identifier for your worker screening id",
+      insuranceType: "Any Insurance Type you have",
       issuedDate: 'The date when this certification was issued',
       expiryDate: 'The date when this certification will expire',
       country: 'The country that issued this certification',
@@ -1269,7 +1269,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
     };
     return tooltips[field] || null;
   };
-  console.log("CertForm",certForm)
+  console.log("CertForm", certForm)
   const validateCurrentStep = useCallback(() => {
     if (currentStep === 0) {
       const errors = {};
@@ -1291,7 +1291,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
     return true;
   }, [currentStep,
     //  nationality,
-     residencyStatus, allRequiredCertsAdded]);
+    residencyStatus, allRequiredCertsAdded]);
 
   const nextStep = useCallback(() => {
     if (validateCurrentStep()) {
@@ -1308,7 +1308,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
     if (!searchQuery) return requiredCerts;
 
     const query = searchQuery.toLowerCase();
-    return requiredCerts.filter(cert => 
+    return requiredCerts.filter(cert =>
       cert.name.toLowerCase().includes(query) ||
       cert.description.toLowerCase().includes(query) ||
       cert.category.toLowerCase().includes(query)
@@ -1370,7 +1370,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
 
   // Render functions for each step
   const renderPersonalInfoStep = useMemo(() => (
-    <Card 
+    <Card
       title={<Title level={4} style={{ margin: 0 }}>Personal Information</Title>}
       style={{ maxWidth: 800, margin: '0 auto', borderRadius: 8 }}
       headStyle={{ borderBottom: 'none', padding: '24px 24px 0' }}
@@ -1427,7 +1427,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
         </Form.Item> */}
 
 
-        <Form.Item 
+        <Form.Item
           label={
             <Space>
               <IdcardOutlined />
@@ -1446,8 +1446,8 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
             style={{ width: '100%' }}
           >
             {RESIDENCY_STATUSES.map(option => (
-              <Option 
-                key={option.value} 
+              <Option
+                key={option.value}
                 value={option.value}
                 label={
                   <Space>
@@ -1467,11 +1467,11 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
       </Form>
 
       {residencyStatus && (
-        <Alert 
-          message="Profile Information Saved" 
+        <Alert
+          message="Profile Information Saved"
           description="Your   residency information has been saved. Click Next to continue to certification selection."
-          type="success" 
-          showIcon 
+          type="success"
+          showIcon
           style={{ marginTop: 24, maxWidth: 600 }}
         />
       )}
@@ -1479,7 +1479,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
   ), [residencyStatus, formErrors, updateResidencyStatus]);
 
   const renderAddCertificationsStep = useMemo(() => (
-    
+
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40 }}>
@@ -1488,53 +1488,53 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
         </div>
       ) : (
         <>
-          
-         
+
+
           {!allRequiredCertsAdded() && selectedCerts.length > 0 && (
-              <Alert 
-                message="Required Certifications Missing" 
-                description={
-                  <div>
-                    <p>You still need to add {requiredCerts.length - getRequiredCertsAddedCount()} required certifications.</p>
-                    {/* <Button 
+            <Alert
+              message="Required Certifications Missing"
+              description={
+                <div>
+                  <p>You still need to add {requiredCerts.length - getRequiredCertsAddedCount()} required certifications.</p>
+                  {/* <Button 
                       type="link" 
                       onClick={() => setActiveTab('required')}
                       style={{ padding: 0 }}
                     >
                       View required certifications
                     </Button> */}
-                  </div>
-                } 
-                type="warning" 
-                showIcon
-                style={{ marginTop: 16 }}
-              />
-            )}
-          <Card 
+                </div>
+              }
+              type="warning"
+              showIcon
+              style={{ marginTop: 16 }}
+            />
+          )}
+          <Card
             // title={<Title level={4} style={{ margin: 0 }}>Available Certifications</Title>}
             style={{ borderRadius: 8 }}
             bodyStyle={{ padding: '16px 0' }}
           >
-            <Tabs 
+            <Tabs
               activeKey={activeTab}
               onChange={setActiveTab}
               tabPosition="top"
               style={{ padding: '0 16px' }}
             >
-              <TabPane 
+              <TabPane
                 tab={
                   <span>
                     <IdcardOutlined />
                     Required Certifications
-                    <Badge 
-                      count={`${getRequiredCertsAddedCount()}/${requiredCerts.length}`} 
-                      style={{ 
+                    <Badge
+                      count={`${getRequiredCertsAddedCount()}/${requiredCerts.length}`}
+                      style={{
                         backgroundColor: allRequiredCertsAdded() ? '#52c41a' : '#faad14',
-                        marginLeft: 8 
+                        marginLeft: 8
                       }}
                     />
                   </span>
-                } 
+                }
                 key="required"
               >
                 {hasExistingCertifications && allRequiredCertsAdded() ? (
@@ -1559,9 +1559,9 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
                           actions={[
                             certIsComplete ? (
                               <>
-                                <Button 
-                                  icon={<CheckCircleOutlined />} 
-                                  type="text" 
+                                <Button
+                                  icon={<CheckCircleOutlined />}
+                                  type="text"
                                   style={{ color: '#52c41a' }}
                                   disabled
                                 >
@@ -1581,9 +1581,9 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
                                 </Button> */}
                               </>
                             ) : (
-                              <Button 
+                              <Button
                                 type="primary"
-                                icon={<PlusOutlined />} 
+                                icon={<PlusOutlined />}
                                 onClick={() => {
                                   if (!certInList) {
                                     addCertification(cert._id);
@@ -1599,27 +1599,27 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
                             )
                           ]}
                         >
-                          <List.Item.Meta 
+                          <List.Item.Meta
 
-                                onClick={() => {
-                                  const idx = selectedCerts.findIndex(c => c.certificationType === cert._id);
-                                  editCertification(idx);
-                                }}
+                            onClick={() => {
+                              const idx = selectedCerts.findIndex(c => c.certificationType === cert._id);
+                              editCertification(idx);
+                            }}
                             avatar={
-                              <Avatar 
-                                icon={cert.isVisa ? <GlobalOutlined /> : CATEGORY_ICONS[cert.category] || <SafetyCertificateOutlined />} 
-                                style={{ 
+                              <Avatar
+                                icon={cert.isVisa ? <GlobalOutlined /> : CATEGORY_ICONS[cert.category] || <SafetyCertificateOutlined />}
+                                style={{
                                   backgroundColor: certIsComplete ? '#52c41a' : '#faad14',
                                   color: '#fff'
                                 }}
                               />
                             }
                             title={
-                              <Space 
+                              <Space
 
                               >
                                 <Text strong>{cert.name}</Text>
-                                {!isWorkingWithChildrenCheck(cert) && <p style={{color:'red'}}>*</p>}
+                                {!isWorkingWithChildrenCheck(cert) && <p style={{ color: 'red' }}>*</p>}
                               </Space>
                             }
                             description={
@@ -1634,7 +1634,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
                                         if (
                                           certDetailsVisible &&
                                           ((isEditing && selectedCerts[currentCertIndex]?.certificationType === cert._id) ||
-                                           (!isEditing && pendingCertTypeId === cert._id))
+                                            (!isEditing && pendingCertTypeId === cert._id))
                                         ) {
                                           // Get live form values
                                           userCert = certForm.getFieldsValue();
@@ -1657,7 +1657,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
                                       if (
                                         certDetailsVisible &&
                                         ((isEditing && selectedCerts[currentCertIndex]?.certificationType === cert._id) ||
-                                         (!isEditing && pendingCertTypeId === cert._id))
+                                          (!isEditing && pendingCertTypeId === cert._id))
                                       ) {
                                         userCert = certForm.getFieldsValue();
                                       } else {
@@ -1686,22 +1686,22 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
           </Card>
 
           {
-            onboardingData?.data?.profile?.certifications?.length> 0 ? ( <Card
+            onboardingData?.data?.profile?.certifications?.length > 0 ? (<Card
               title={<Title level={4} style={{ margin: 0 }}>Your Certifications</Title>}
               style={{ borderRadius: 8 }}
 
               extra={
                 <Space>
                   <Tooltip title="Overall completion status">
-                    <Badge 
-                      count={`${progress}%`} 
+                    <Badge
+                      count={`${progress}%`}
                       color={progress === 100 ? '#52c41a' : '#faad14'}
                       style={{ backgroundColor: 'transparent', color: progress === 100 ? '#52c41a' : '#faad14' }}
                     />
                   </Tooltip>
-                  <Progress 
-                    percent={progress} 
-                    status={progress < 100 ? 'active' : 'success'} 
+                  <Progress
+                    percent={progress}
+                    status={progress < 100 ? 'active' : 'success'}
                     showInfo={false}
                     strokeWidth={10}
                     style={{ width: 100 }}
@@ -1710,67 +1710,93 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
               }
             >
               {onboardingData?.data?.profile?.certifications?.length > 0 ? (
-                <List  style={{}}
-                  dataSource={selectedCerts}
-                  renderItem={(cert, index) => {
-                    const type = certificationTypes.find(t => t._id === cert.certificationType);
-                    const isComplete = isCertComplete(cert);
-                    const isRequired = requiredCerts.some(rc => rc._id === cert.certificationType);
-                    return (
-                      <List.Item 
-                        onClick={() => editCertification(index)}
-                        style={{ padding: '12px 24px', cursor: 'pointer', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}
-                      >
-                        <List.Item.Meta
-                          avatar={
-                            <Avatar 
-                              icon={type?.isVisa ? <GlobalOutlined /> : CATEGORY_ICONS[type?.category] || <SafetyCertificateOutlined />}
-                              style={{ 
-                                backgroundColor: isComplete ? '#52c41a' : '#faad14',
-                                color: '#fff'
-                              }}
-                            />
-                          }
-                          title={
-                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 }}>
-                              <span style={{ fontWeight: 600, fontSize: 16, color: '#222' }} className="text_your_cert">{cert.certTypeName}</span>
-                              {isComplete && (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto', color: '#52c41a', fontWeight: 500, fontSize: 15 }}>
-                                  <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 18 }} />
-                                  <span className="completed-label">Completed</span>
-                                </span>
-                              )}
-                            </div>
-                          }
-                          description={
-                            !isComplete && (
-                              <div style={{ marginTop: 4 }}>
-                                <Text type="danger">
-                                  <WarningOutlined /> Missing:&nbsp;
-                                  {type?.requiredFields
-                                    .filter(field => !cert[field])
-                                    .map(field => (
-                                      <Tag color="red" key={field}>{formatFieldLabel(field)}</Tag>
-                                    ))}
-                                  {type?.documentRequired && (!cert.documents || cert.documents.length === 0) && (
-                                    <Tag color="red">Documents</Tag>
-                                  )}
-                                </Text>
+                <div style={{
+                  display:'flex',
+                  flexDirection:'column',
+                 
+                }}>
+                  <List style={{}}
+                    dataSource={selectedCerts}
+                    renderItem={(cert, index) => {
+                      const type = certificationTypes.find(t => t._id === cert.certificationType);
+                      const isComplete = isCertComplete(cert);
+                      const isRequired = requiredCerts.some(rc => rc._id === cert.certificationType);
+                      return (
+                        <List.Item
+                          onClick={() => editCertification(index)}
+                          style={{ padding: '12px 24px', cursor: 'pointer', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}
+                        >
+                          <List.Item.Meta
+                            avatar={
+                              <Avatar
+                                icon={type?.isVisa ? <GlobalOutlined /> : CATEGORY_ICONS[type?.category] || <SafetyCertificateOutlined />}
+                                style={{
+                                  backgroundColor: isComplete ? '#52c41a' : '#faad14',
+                                  color: '#fff'
+                                }}
+                              />
+                            }
+                            title={
+                              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 }}>
+                                <span style={{ fontWeight: 600, fontSize: 16, color: '#222' }} className="text_your_cert">{cert.certTypeName}</span>
+                                {isComplete && (
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto', color: '#52c41a', fontWeight: 500, fontSize: 15 }}>
+                                    <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 18 }} />
+                                    <span className="completed-label">Completed</span>
+                                  </span>
+                                )}
                               </div>
-                            )
-                          }
-                        />
-                      </List.Item>
-                    );
-                  }}
-                />
+                            }
+                            description={
+                              !isComplete && (
+                                <div style={{ marginTop: 4 }}>
+                                  <Text type="danger">
+                                    <WarningOutlined /> Missing:&nbsp;
+                                    {type?.requiredFields
+                                      .filter(field => !cert[field])
+                                      .map(field => (
+                                        <Tag color="red" key={field}>{formatFieldLabel(field)}</Tag>
+                                      ))}
+                                    {type?.documentRequired && (!cert.documents || cert.documents.length === 0) && (
+                                      <Tag color="red">Documents</Tag>
+                                    )}
+                                  </Text>
+                                </div>
+                              )
+                            }
+                          />
+                        </List.Item>
+                      );
+                    }}
+                  />
+                  <div style={{
+                    height:'1.2px',
+                    backgroundColor:'#f2f2f2',
+                    width:'100%'
+                  }}>s</div>
+                  <AddOtherCertificate
+                    otherCertifications={otherCertifications}
+                    addOtherCertificate={addOtherCertificate}
+                    removeOtherCertificate={removeOtherCertificate}
+                    uploadToCloudinary={uploadToCloudinary}
+                    DocumentTrackingService={DocumentTrackingService}
+                    deleteCloudinaryImage={deleteCloudinaryImage}
+                    currentStep={currentStep}
+                    otherCertDrawerOpen={otherCertDrawerOpen}
+                    setOtherCertDrawerOpen={setOtherCertDrawerOpen}
+                    editingOtherCertIndex={editingOtherCertIndex}
+                    setEditingOtherCertIndex={setEditingOtherCertIndex}
+                  />
+
+                </div>
+
               ) : (
                 <div style={{ textAlign: 'center', padding: 20 }}>
                   <Text type="secondary">No certifications added yet</Text>
                   <div style={{ marginTop: 16 }}>
-                    <Button 
-                      type="primary" 
-                      icon={<PlusOutlined />} 
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
                       onClick={() => setActiveTab('required')}
                     >
                       Add Required Certifications
@@ -1780,7 +1806,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
               )}
 
 
-            </Card>): (null)
+            </Card>) : (null)
           }
 
 
@@ -1789,11 +1815,11 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
       )}
     </div>
   ), [
-    loading, 
-    requiredCerts, 
-    selectedCerts, 
-    certificationTypes, 
-    progress, 
+    loading,
+    requiredCerts,
+    selectedCerts,
+    certificationTypes,
+    progress,
     activeTab,
     allRequiredCertsAdded,
     getRequiredCertsAddedCount,
@@ -1807,7 +1833,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
   ]);
 
   const renderReviewSubmitStep = useMemo(() => (
-    <Card 
+    <Card
       title={<Title level={4} style={{ margin: 0 }}>Review & Submit</Title>}
       style={{ maxWidth: 1200, margin: '0 auto', borderRadius: 8 }}
       bodyStyle={{ padding: '24px' }}
@@ -1819,35 +1845,35 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
             {progress}% Complete
           </Text>
         </div>
-        <Progress 
-          percent={progress} 
-          status={progress < 100 ? 'active' : 'success'} 
+        <Progress
+          percent={progress}
+          status={progress < 100 ? 'active' : 'success'}
           strokeColor={progress === 100 ? '#52c41a' : '#1890ff'}
           style={{ marginBottom: 16 }}
         />
         {progress < 100 ? (
-          <Alert 
-            message="Incomplete Information" 
+          <Alert
+            message="Incomplete Information"
             description={
               <div>
                 <p>Some certifications are missing required information.</p>
-                <Button 
-                  type="link" 
+                <Button
+                  type="link"
                   onClick={() => setCurrentStep(1)}
                   style={{ padding: 0 }}
                 >
                   Go back to complete missing information
                 </Button>
               </div>
-            } 
-            type="warning" 
+            }
+            type="warning"
             showIcon
           />
         ) : (
-          <Alert 
-            message="Ready to Submit" 
+          <Alert
+            message="Ready to Submit"
             description="All required information has been provided. Review your certifications below before submitting."
-            type="success" 
+            type="success"
             showIcon
           />
         )}
@@ -1861,7 +1887,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
             const isComplete = isCertComplete(cert);
             const isRequired = requiredCerts.some(rc => rc._id === cert.certificationType);
             return (
-              <Card 
+              <Card
                 key={index}
                 style={{ marginBottom: 16, borderRadius: 8 }}
                 title={
@@ -1874,9 +1900,9 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
                     <Tag color={isComplete ? 'success' : 'warning'}>
                       {isComplete ? 'Complete' : 'Incomplete'}
                     </Tag>
-                    <Button 
+                    <Button
                       size="small"
-                      icon={<EditOutlined />} 
+                      icon={<EditOutlined />}
                       onClick={() => editCertification(index)}
                     >
                       Edit
@@ -1912,9 +1938,9 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
                         <ul style={{ margin: 0, paddingLeft: 20 }}>
                           {cert.documents.map((doc, i) => (
                             <li key={i}>
-                              <a 
-                                href={doc.url} 
-                                target="_blank" 
+                              <a
+                                href={doc.url}
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => {
                                   e.preventDefault();
@@ -2024,8 +2050,8 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
       </Card>
       <Divider />
       <div style={{ marginTop: 24, textAlign: 'center' }}>
-        <Button 
-          type="primary" 
+        <Button
+          type="primary"
           size="large"
           onClick={handleSubmit}
           loading={submitLoading}
@@ -2037,8 +2063,8 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
         {(progress < 100 || !allRequiredCertsAdded()) && (
           <div style={{ marginTop: 16 }}>
             <Text type="secondary">
-              {!allRequiredCertsAdded() 
-                ? `Please add ${requiredCerts.length - getRequiredCertsAddedCount()} more required certifications before submitting` 
+              {!allRequiredCertsAdded()
+                ? `Please add ${requiredCerts.length - getRequiredCertsAddedCount()} more required certifications before submitting`
                 : 'Please complete all required information before submitting'}
             </Text>
           </div>
@@ -2046,11 +2072,11 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
       </div>
     </Card>
   ), [
-    selectedCerts, 
-    certificationTypes, 
-    progress, 
-    isSubmitting, 
-    allRequiredCertsAdded, 
+    selectedCerts,
+    certificationTypes,
+    progress,
+    isSubmitting,
+    allRequiredCertsAdded,
     getRequiredCertsAddedCount,
     requiredCerts.length,
     editCertification,
@@ -2099,7 +2125,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
           <Space>
             <span>{cert.certTypeName || certType?.name || 'Certification'} </span>
 
-            {!isWorkingWithChildrenCheck(cert) && <p style={{color:'red'}}>*</p>}
+            {!isWorkingWithChildrenCheck(cert) && <p style={{ color: 'red' }}>*</p>}
           </Space>
         }
         width={600}
@@ -2110,9 +2136,9 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
             <Button onClick={handleDrawerClose} style={{ marginRight: 8 }}>
               Cancel
             </Button>
-            <Button type="primary" onClick={() => certForm.submit()} 
-            disabled={!isFormValid}
-              >
+            <Button type="primary" onClick={() => certForm.submit()}
+              disabled={!isFormValid}
+            >
               Save
             </Button>
           </div>
@@ -2178,8 +2204,8 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
                 style={{ marginBottom: 16 }}
               >
                 {isDateField ? (
-                  <DatePicker 
-                    style={{ width: '100%' }} 
+                  <DatePicker
+                    style={{ width: '100%' }}
                     format="DD/MM/YYYY"
                     disabledDate={(current) => {
                       if (field === 'issuedDate') {
@@ -2191,7 +2217,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
                     }}
                   />
                 ) : field === 'country' ? (
-                  <Select 
+                  <Select
                     placeholder="Select country"
                     showSearch
                     optionFilterProp="children"
@@ -2251,7 +2277,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
                     ))}
                   </Select>
                 ) : (
-                  <Input 
+                  <Input
                     placeholder={`Enter ${fieldLabel}`}
                     maxLength={field === 'number' ? 50 : 100}
                     pattern={field === 'number' && certType.numberPattern ? certType.numberPattern : undefined}
@@ -2261,10 +2287,10 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
             );
           })}
           {certType.documentRequired && (
-            <Form.Item 
+            <Form.Item
               label={
                 <span>
-                  Documents 
+                  Documents
                 </span>
               }
               name="documents"
@@ -2422,13 +2448,13 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
       </Drawer>
     );
   }, [
-    certDetailsVisible, 
-    isEditing, 
-    currentCertIndex, 
-    selectedCerts, 
-    certificationTypes, 
-    certForm, 
-    updateCertification, 
+    certDetailsVisible,
+    isEditing,
+    currentCertIndex,
+    selectedCerts,
+    certificationTypes,
+    certForm,
+    updateCertification,
     handleDocumentUpload,
     handleRemoveDocument,
     isUploading,
@@ -2467,7 +2493,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
   const removeDocumentFromAllStates = useCallback(async (certIndex, docIndex, publicId = null) => {
     // 1. Remove from Zustand store
     removeCertificationDocument(certIndex, docIndex);
-    
+
     // 2. Update local component state immediately
     const updatedCerts = [...selectedCerts];
     updatedCerts[certIndex] = {
@@ -2475,12 +2501,12 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
       documents: updatedCerts[certIndex].documents.filter((_, i) => i !== docIndex)
     };
     setSelectedCerts(updatedCerts);
-    
+
     // 3. Remove from localStorage tracking if publicId exists
     if (publicId) {
       DocumentTrackingService.removeTrackedDocument(publicId);
     }
-    
+
     // 4. Delete from Cloudinary in background if publicId exists
     if (publicId) {
       deleteCloudinaryImage(publicId)
@@ -2498,7 +2524,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
   // Function to handle document deletion from preview with tracking
   const handleDocumentDeleteFromPreview = useCallback(() => {
     if (previewDocument) {
-      const certIndex = selectedCerts.findIndex(cert => 
+      const certIndex = selectedCerts.findIndex(cert =>
         cert.documents?.some(doc => doc.url === previewDocument.url)
       );
       if (certIndex >= 0) {
@@ -2507,10 +2533,10 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
         );
         if (docIndex >= 0) {
           const publicId = selectedCerts[certIndex].documents[docIndex].publicId;
-          
+
           // Show immediate feedback
           message.info('Document removed from view. Cleaning up cloud storage...');
-          
+
           // Use centralized removal function
           removeDocumentFromAllStates(certIndex, docIndex, publicId);
         }
@@ -2571,10 +2597,10 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
   // Debug function to show current state vs tracking state
   const debugDocumentState = useCallback(() => {
     const trackedDocs = DocumentTrackingService.getTrackedDocuments();
-    const allCurrentDocs = selectedCerts.flatMap(cert => 
+    const allCurrentDocs = selectedCerts.flatMap(cert =>
       cert.documents?.map(doc => doc.publicId).filter(Boolean) || []
     );
-    
+
     console.log('=== Document State Debug ===');
     console.log('Current documents in state:', allCurrentDocs);
     console.log('Tracked documents in localStorage:', Object.keys(trackedDocs));
@@ -2668,7 +2694,7 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
   // Trigger validation when Drawer opens to show missing fields immediately
   useEffect(() => {
     if (certDetailsVisible) {
-      certForm.validateFields().catch(() => {}); // Show errors for missing fields
+      certForm.validateFields().catch(() => { }); // Show errors for missing fields
     }
   }, [certDetailsVisible, certForm]);
 
@@ -2681,8 +2707,8 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
           type="error"
           showIcon
         />
-        <Button 
-          type="primary" 
+        <Button
+          type="primary"
           style={{ marginTop: 16 }}
           onClick={() => window.location.reload()}
         >
@@ -2696,90 +2722,78 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
     <div style={{ padding: '24px 16px', maxWidth: 1400, margin: '0 auto' }}>
       {/* Development Debug Section - Remove in production */}
       {process.env.NODE_ENV === 'development' && (
-        <Card 
-          title="Document Tracking Debug Info" 
+        <Card
+          title="Document Tracking Debug Info"
           style={{ marginBottom: 16, backgroundColor: '#f0f8ff' }}
           size="small"
         >
           <Space wrap>
-            <Button 
-              size="small" 
+            <Button
+              size="small"
               onClick={displayTrackingInfo}
               icon={<InfoCircleOutlined />}
             >
               Log Tracking Info
             </Button>
-            <Button 
-              size="small" 
+            <Button
+              size="small"
               onClick={exportTrackingData}
               icon={<FileOutlined />}
             >
               Export Data
             </Button>
-            <Button 
-              size="small" 
+            <Button
+              size="small"
               onClick={testDocumentTrackingAPI}
               icon={<SafetyCertificateOutlined />}
             >
               Test API
             </Button>
-            <Button 
-              size="small" 
+            <Button
+              size="small"
               type="primary"
               onClick={manuallySaveDocumentTracking}
               icon={<FileDoneOutlined />}
             >
               Save Tracking
             </Button>
-            <Button 
-              size="small" 
-              danger 
+            <Button
+              size="small"
+              danger
               onClick={clearAllTracking}
               icon={<DeleteOutlined />}
             >
               Clear All
             </Button>
             <Text type="secondary">
-              Tracked: {DocumentTrackingService.getTrackingStats().totalTracked} documents | 
-              Used: {DocumentTrackingService.getTrackingStats().usedDocuments} | 
+              Tracked: {DocumentTrackingService.getTrackingStats().totalTracked} documents |
+              Used: {DocumentTrackingService.getTrackingStats().usedDocuments} |
               Unused: {DocumentTrackingService.getTrackingStats().unusedDocuments}
             </Text>
           </Space>
         </Card>
       )}
 
-      
 
-      <Steps current={currentStep} style={{ marginBottom: 48,marginTop:40,padding:10 }}>
+
+      <Steps current={currentStep} style={{ marginBottom: 48, marginTop: 40, padding: 10 }}>
         {steps.map((item) => (
-          <Step 
-            key={item.title} 
-            title={item.title} 
+          <Step
+            key={item.title}
+            title={item.title}
             icon={item.icon}
           />
         ))}
       </Steps>
 
-      <div className="steps-content" style={{ minHeight: '60vh' }}>
+      <div className="steps-content" style={{}}>
         {steps[currentStep].content}
       </div>
-      <AddOtherCertificate
-        otherCertifications={otherCertifications}
-        addOtherCertificate={addOtherCertificate}
-        removeOtherCertificate={removeOtherCertificate}
-        uploadToCloudinary={uploadToCloudinary}
-        DocumentTrackingService={DocumentTrackingService}
-        deleteCloudinaryImage={deleteCloudinaryImage}
-        currentStep={currentStep}
-        otherCertDrawerOpen={otherCertDrawerOpen}
-        setOtherCertDrawerOpen={setOtherCertDrawerOpen}
-        editingOtherCertIndex={editingOtherCertIndex}
-        setEditingOtherCertIndex={setEditingOtherCertIndex}
-      />
+
       <div className="steps-action" style={{ marginTop: 24, textAlign: 'center' }}>
         {currentStep > 0 && (
-          <Button 
-            style={{ marginRight: 8 }} 
+          <Button
+            style={{ marginRight: 8 }}
             onClick={prevStep}
             size="large"
           >
@@ -2787,8 +2801,8 @@ console.log("Onboarding Data",onboardingData?.data?.profile);
           </Button>
         )}
         {currentStep < steps.length - 1 && (
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             onClick={nextStep}
             disabled={
               (currentStep === 0 && (!residencyStatus)) ||

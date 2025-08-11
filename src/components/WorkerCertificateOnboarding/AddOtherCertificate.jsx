@@ -19,7 +19,8 @@ import {
   DeleteOutlined,
   FileOutlined,
   EyeOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  FileDoneOutlined,
 } from '@ant-design/icons';
 import { toast } from 'react-hot-toast';
 import DocumentPreview from '../../components/workerForm/Modals/DocumentPreview';
@@ -215,7 +216,7 @@ const AddOtherCertificate = ({
   };
 
   // Filter out the certificate that is currently being edited
-  const filteredCertifications = otherCertifications.filter((cert, index) => 
+  const filteredCertifications = otherCertifications.filter((cert, index) =>
     editingOtherCertIndex === null || index !== editingOtherCertIndex
   );
 
@@ -223,29 +224,75 @@ const AddOtherCertificate = ({
     <>
       {/* Only show Add button on step 1, with badge for count */}
       {currentStep === 1 && (
-        <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 16, marginTop: 16 }}>
-          <Badge count={otherCertifications.length} offset={[10, 0]} showZero>
-            <Button
-              type="dashed"
-              onClick={openAddDrawer}
-              icon={<PlusOutlined />}
-              style={{
-                whiteSpace: 'nowrap',
-                height: 40,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                backgroundColor: '#f0f8ff',
-                borderColor: '#1890ff',
-                color: '#1890ff',
-                fontWeight: 500,
-                marginBottom: 16
-              }}
-            >
-              Add Other Certificate
-            </Button>
-          </Badge>
-        </div>
+        // <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 16, marginTop: 16 }}>
+        //   <Badge count={otherCertifications.length} offset={[10, 0]} showZero>
+        //     <Button
+        //       // type="dashed"
+        //       onClick={openAddDrawer}
+        //       icon={<PlusOutlined />}
+        //       style={{
+        //         whiteSpace: 'nowrap',
+        //         height: 40,
+        //         display: 'flex',
+        //         alignItems: 'center',
+        //         gap: 8,
+        //         backgroundColor: '#f0f8ff',
+        //         borderColor: '#1890ff',
+        //         color: '#1890ff',
+        //         fontWeight: 500,
+        //         marginBottom: 16
+        //       }}
+        //     >
+        //       Add Other Certificates
+        //     </Button>
+        //   </Badge>
+        // </div>
+        <div
+        onClick={openAddDrawer}
+        role="button"
+        tabIndex={0}
+        style={{
+          padding: '12px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          borderRadius: '8px',
+          backgroundColor: '#fff',
+          // boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease-in-out',
+          maxWidth: '100%',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9f9f9')}
+        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#fff')}
+      >
+        <FileDoneOutlined
+          style={{
+            backgroundColor: 'orange',
+            color: 'white',
+            width: '38px',
+            height: '38px',
+            fontSize: '1.2rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '50%',
+            flexShrink: 0,
+          }}
+        />
+        <p
+          style={{
+            margin: 0,
+            fontWeight: 600,
+            fontSize: '1rem',
+            color: '#333',
+            wordBreak: 'break-word',
+          }}
+        >
+          Other Certificate
+        </p>
+      </div>
+      
       )}
       {/* Drawer for add/edit: always rendered, controlled by open prop */}
       <Drawer
@@ -426,11 +473,11 @@ const AddOtherCertificate = ({
               renderItem={(cert, filteredIdx) => {
                 // Get the original index from the full array
                 const originalIndex = otherCertifications.findIndex(
-                  (originalCert, originalIdx) => 
-                    originalCert === cert && 
+                  (originalCert, originalIdx) =>
+                    originalCert === cert &&
                     (editingOtherCertIndex === null || originalIdx !== editingOtherCertIndex)
                 );
-                
+
                 return (
                   <List.Item
                     actions={[

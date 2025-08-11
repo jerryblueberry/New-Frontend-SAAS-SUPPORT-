@@ -1,5 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
+import BookmarkIcon from '@mui/icons-material/Bookmark';
 import {
   Box,
   Card,
@@ -38,6 +39,7 @@ import {
   Schedule as ScheduleIcon,
   Star as StarIcon
 } from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
 
 const WorkerDetailTabContent = ({
   activeTab,
@@ -47,6 +49,8 @@ const WorkerDetailTabContent = ({
   renderAvailabilitySchedule,
   formatDate
 }) => {
+  const navigate = useNavigate();
+  console.log("WOrker Data",workerData?.user?._id)
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
@@ -59,16 +63,16 @@ const WorkerDetailTabContent = ({
       'Expiring Soon': { color: 'warning', icon: <WarningIcon fontSize="small" /> },
       Pending: { color: 'info', icon: <ScheduleIcon fontSize="small" /> }
     };
-    
+
     const config = statusConfig[status] || { color: 'default', icon: null };
-    
+
     return (
       <Chip
         size="small"
         color={config.color}
         icon={config.icon}
         label={status}
-        sx={{ 
+        sx={{
           fontWeight: 600,
           '& .MuiChip-icon': { ml: 0.5 }
         }}
@@ -79,8 +83,8 @@ const WorkerDetailTabContent = ({
   // Section header component for consistent section styling
   const SectionHeader = ({ icon, title, count, color = 'primary' }) => (
     <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
-      <Avatar sx={{ 
-        bgcolor: `${color}.light`, 
+      <Avatar sx={{
+        bgcolor: `${color}.light`,
         color: `${color}.main`,
         width: 40,
         height: 40
@@ -91,9 +95,9 @@ const WorkerDetailTabContent = ({
         {title}
       </Typography>
       {count !== undefined && (
-        <Chip 
-          label={count} 
-          color={color} 
+        <Chip
+          label={count}
+          color={color}
           variant="outlined"
           size="small"
           sx={{ fontWeight: 600 }}
@@ -124,8 +128,8 @@ const WorkerDetailTabContent = ({
           <LinearProgress
             variant="determinate"
             value={percentage}
-            sx={{ 
-              height: 8, 
+            sx={{
+              height: 8,
               borderRadius: 4,
               backgroundColor: 'divider',
               '& .MuiLinearProgress-bar': {
@@ -176,7 +180,7 @@ const WorkerDetailTabContent = ({
                 key={index}
                 label={skill}
                 size="small"
-                sx={{ 
+                sx={{
                   bgcolor: 'action.selected',
                   '&:hover': {
                     bgcolor: 'primary.light',
@@ -222,9 +226,9 @@ const WorkerDetailTabContent = ({
         titleTypographyProps={{ variant: 'subtitle1', fontWeight: 600 }}
       />
       <CardContent sx={{ pt: 0 }}>
-        <Typography 
-          variant="body2" 
-          sx={{ 
+        <Typography
+          variant="body2"
+          sx={{
             whiteSpace: "pre-line",
             lineHeight: 1.7,
             color: 'text.primary'
@@ -242,7 +246,7 @@ const WorkerDetailTabContent = ({
 
   // Certification card component
   const CertificationCard = ({ cert, onClick, onDocumentClick }) => (
-    <Card 
+    <Card
       variant="outlined"
       sx={{
         '&:hover': {
@@ -256,8 +260,8 @@ const WorkerDetailTabContent = ({
     >
       <CardContent>
         <Stack direction="row" spacing={2} alignItems="flex-start">
-          <Avatar sx={{ 
-            bgcolor: 'primary.light', 
+          <Avatar sx={{
+            bgcolor: 'primary.light',
             color: 'primary.main',
             width: 40,
             height: 40,
@@ -275,7 +279,7 @@ const WorkerDetailTabContent = ({
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 1 }}>
               {cert.certificationType.description}
             </Typography>
-            
+
             <Grid container spacing={1} sx={{ mt: 1 }}>
               {cert.number && (
                 <Grid item xs={12} sm={6}>
@@ -306,7 +310,7 @@ const WorkerDetailTabContent = ({
                 </Grid>
               )}
             </Grid>
-            
+
             {cert.documents?.length > 0 && (
               <Box sx={{ mt: 2 }}>
                 <Typography variant="caption" color="text.secondary">
@@ -323,7 +327,7 @@ const WorkerDetailTabContent = ({
                         e.stopPropagation();
                         onDocumentClick(doc);
                       }}
-                      sx={{ 
+                      sx={{
                         textTransform: 'none',
                         fontSize: '0.75rem'
                       }}
@@ -387,7 +391,7 @@ const WorkerDetailTabContent = ({
     <Card variant="outlined" sx={{ height: '100%' }}>
       <CardContent>
         <Stack direction="row" spacing={2} alignItems="flex-start">
-          <Avatar sx={{ 
+          <Avatar sx={{
             bgcolor: reference.verified ? 'success.light' : 'warning.light',
             color: reference.verified ? 'success.dark' : 'warning.dark',
             width: 40,
@@ -402,7 +406,7 @@ const WorkerDetailTabContent = ({
             <Typography variant="body2" color="primary.main" sx={{ mb: 1 }}>
               {reference.position} at {reference.company}
             </Typography>
-            
+
             <Stack spacing={1}>
               <Stack direction="row" alignItems="center" spacing={1}>
                 <EmailIcon color="action" fontSize="small" />
@@ -413,8 +417,8 @@ const WorkerDetailTabContent = ({
                 <Typography variant="body2">{reference.phone}</Typography>
               </Stack>
             </Stack>
-            
-         
+
+
           </Box>
         </Stack>
       </CardContent>
@@ -437,7 +441,7 @@ const WorkerDetailTabContent = ({
         borderColor: 'background.paper',
         zIndex: 1
       }} />
-      
+
       {/* Timeline line */}
       {index < workerData.workHistory.length - 1 && (
         <Box sx={{
@@ -449,7 +453,7 @@ const WorkerDetailTabContent = ({
           bgcolor: 'divider'
         }} />
       )}
-      
+
       <Card variant="outlined" sx={{ '&:hover': { borderColor: 'primary.main' } }}>
         <CardContent>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
@@ -464,7 +468,7 @@ const WorkerDetailTabContent = ({
                 {job.description}
               </Typography>
             </Box>
-            <Box sx={{ 
+            <Box sx={{
               minWidth: 120,
               bgcolor: 'action.hover',
               borderRadius: 1,
@@ -491,7 +495,7 @@ const WorkerDetailTabContent = ({
   );
 
   return (
-    <Box sx={{ 
+    <Box sx={{
       pt: 2,
       pb: 4,
       ...(isMobile && { px: 1 })
@@ -500,15 +504,15 @@ const WorkerDetailTabContent = ({
       {activeTab === 0 && (
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
-            <ProfileCompleteness 
-              percentage={workerData.profileCompleteness.percentage} 
-              completedSections={workerData.profileCompleteness.completedSections} 
+            <ProfileCompleteness
+              percentage={workerData.profileCompleteness.percentage}
+              completedSections={workerData.profileCompleteness.completedSections}
             />
           </Grid>
           <Grid item xs={12} md={6}>
-            <SkillsLanguagesCard 
-              skills={workerData.skillTags} 
-              languages={workerData.languages} 
+            <SkillsLanguagesCard
+              skills={workerData.skillTags}
+              languages={workerData.languages}
             />
           </Grid>
           <Grid item xs={12}>
@@ -520,7 +524,7 @@ const WorkerDetailTabContent = ({
       {/* Tab 1 - Certifications */}
       {activeTab === 1 && (
         <Box>
-          <SectionHeader 
+          <SectionHeader
             icon={<SchoolIcon />}
             title="Certifications"
             count={workerData.certifications.length}
@@ -551,7 +555,7 @@ const WorkerDetailTabContent = ({
       {/* Tab 2 - Availability */}
       {activeTab === 2 && (
         <Box>
-          <SectionHeader 
+          <SectionHeader
             icon={<ScheduleIcon />}
             title="Availability Schedule"
             color="primary"
@@ -563,7 +567,7 @@ const WorkerDetailTabContent = ({
       {/* Tab 3 - Health */}
       {activeTab === 3 && (
         <Box>
-          <SectionHeader 
+          <SectionHeader
             icon={<MedicalServicesIcon />}
             title="Health Information"
             color="primary"
@@ -574,320 +578,349 @@ const WorkerDetailTabContent = ({
 
       {/* Tab 4 - Professional */}
       {activeTab === 4 && (
-  <Box sx={{
-    width: '100%',
-    px: { xs: 1, md: 0 },
-    py: { xs: 2, md: 3 },
-    maxWidth: 'none',
-    mx: 'auto',
-  }}>
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: { xs: 'column', md: 'row' },
-        gap: { xs: 4, md: 6 },
-        alignItems: 'flex-start',
-        width: '100%',
-      }}
-    >
-      {/* Left: Professional References */}
-      <Box sx={{ flex: { xs: 'unset', md: 2 }, minWidth: 0, width: { xs: '100%', md: '66%' } }}>
         <Box sx={{
-          mb: 3,
-          pb: 2,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
+          width: '100%',
+          px: { xs: 1, md: 0 },
+          py: { xs: 2, md: 3 },
+          maxWidth: 'none',
+          mx: 'auto',
         }}>
-          <Stack direction="row" alignItems="center" spacing={2}>
-            <PersonIcon sx={{ fontSize: 28, color: 'primary.main' }} />
-            <Typography variant="h5" fontWeight={700} sx={{ flexGrow: 1 }}>
-              Professional References
-            </Typography>
-            <Chip 
-              label={workerData.references?.length || 0} 
-              sx={{ fontWeight: 600 }}
-              size="small"
-              color="primary"
-            />
-          </Stack>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Verified professional contacts and recommendations
-          </Typography>
-        </Box>
-        {workerData.references?.length > 0 ? (
           <Box
             sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-              gap: 3,
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              gap: { xs: 4, md: 6 },
+              alignItems: 'flex-start',
+              width: '100%',
             }}
           >
-            {workerData.references.map((ref, index) => (
-              <Box
-                key={index}
-                sx={{
-                  p: 2.5,
+            {/* Left: Professional References */}
+            <Box sx={{ flex: { xs: 'unset', md: 2 }, minWidth: 0, width: { xs: '100%', md: '66%' } }}>
+              <Box sx={{
+                mb: 3,
+                pb: 2,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+              }}>
+                <Stack direction="row" alignItems="center" spacing={0.5} sx={{}}>
+                  <PersonIcon sx={{ fontSize: 28, color: 'primary.main' }} />
+                  <Typography variant="h5" fontWeight={700} 
+                  
+                  >
+                    Professional References
+                  </Typography>
+                  <Chip
+                    label={workerData.references?.length || 0}
+                    sx={{ fontWeight: 600, width: '24px', height: '24px', color: 'white', backgroundColor: 'red', fontSize: '0.7rem' }}
+                    size="small"
+
+                  />
+
+                </Stack>
+
+
+
+                <Button
+                onClick={() => navigate(`/admin-reference/${workerData?.user?._id}`)}
+                  variant="contained"
+                  color="primary"
+                  startIcon={<BookmarkIcon />}
+                  aria-label="Manage References"
+                  sx={{
+                    mt: 1.5,
+                    mb: 1,
+                    px: 2,
+                    py: 1,
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    textTransform: 'none',
+                    borderRadius: 2,
+                    boxShadow: 2,
+                    whiteSpace: 'nowrap',
+                    minWidth: { xs: 'auto', sm: '160px' },
+                  }}
+                >
+                  Reference Management
+                </Button>
+
+
+              </Box>
+
+              {workerData.references?.length > 0 ? (
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                    gap: 3,
+                  }}
+                >
+                  {workerData.references.map((ref, index) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        p: 2.5,
+                        borderRadius: 2,
+                        bgcolor: 'background.default',
+                        boxShadow: 0,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 2,
+                        minHeight: 120,
+                      }}
+                    >
+                      <Avatar sx={{
+                        bgcolor: ref.verified ? 'success.light' : 'warning.light',
+                        color: ref.verified ? 'success.dark' : 'warning.dark',
+                        width: 44,
+                        height: 44,
+                        mt: 0.5
+                      }}>
+                        <PersonIcon fontSize="small" />
+                      </Avatar>
+                      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                        <Typography variant="subtitle1" fontWeight={600} noWrap>
+                          {ref.name}
+                        </Typography>
+                        <Typography variant="body2" color="primary.main" sx={{ mb: 0.5 }} noWrap>
+                          {ref.position} at {ref.company}
+                        </Typography>
+                        <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+                          <Stack direction="row" alignItems="center" spacing={1}>
+                            <EmailIcon color="action" fontSize="small" />
+                            <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>{ref.email}</Typography>
+                          </Stack>
+                          <Stack direction="row" alignItems="center" spacing={1}>
+                            <PhoneIcon color="action" fontSize="small" />
+                            <Typography variant="body2">+61 ({ref.phone})</Typography>
+                          </Stack>
+                        </Stack>
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
+              ) : (
+                <Box sx={{
+                  p: 5,
+                  textAlign: 'center',
+                  border: '2px dashed',
+                  borderColor: 'divider',
                   borderRadius: 2,
                   bgcolor: 'background.default',
-                  boxShadow: 0,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 2,
-                  minHeight: 120,
-                }}
-              >
-                <Avatar sx={{
-                  bgcolor: ref.verified ? 'success.light' : 'warning.light',
-                  color: ref.verified ? 'success.dark' : 'warning.dark',
-                  width: 44,
-                  height: 44,
-                  mt: 0.5
+                  mt: 2
                 }}>
-                  <PersonIcon fontSize="small" />
-                </Avatar>
-                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                  <Typography variant="subtitle1" fontWeight={600} noWrap>
-                    {ref.name}
+                  <PersonIcon sx={{ fontSize: 40, color: 'divider', mb: 1 }} />
+                  <Typography variant="h6" color="text.secondary" fontWeight={500}>
+                    No Professional References
                   </Typography>
-                  <Typography variant="body2" color="primary.main" sx={{ mb: 0.5 }} noWrap>
-                    {ref.position} at {ref.company}
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    Add references to strengthen your profile
                   </Typography>
-                  <Stack spacing={0.5} sx={{ mt: 0.5 }}>
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <EmailIcon color="action" fontSize="small" />
-                      <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>{ref.email}</Typography>
-                    </Stack>
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <PhoneIcon color="action" fontSize="small" />
-                      <Typography variant="body2">{ref.phone}</Typography>
-                    </Stack>
-                  </Stack>
                 </Box>
-              </Box>
-            ))}
-          </Box>
-        ) : (
-          <Box sx={{
-            p: 5,
-            textAlign: 'center',
-            border: '2px dashed',
-            borderColor: 'divider',
-            borderRadius: 2,
-            bgcolor: 'background.default',
-            mt: 2
-          }}>
-            <PersonIcon sx={{ fontSize: 40, color: 'divider', mb: 1 }} />
-            <Typography variant="h6" color="text.secondary" fontWeight={500}>
-              No Professional References
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Add references to strengthen your profile
-            </Typography>
-          </Box>
-        )}
-      </Box>
+              )}
 
-      {/* Right: CV and Profile Summary */}
-      <Box sx={{ flex: { xs: 'unset', md: 1 }, width: { xs: '100%', md: '34%' }, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-        {/* CV Section */}
-        <Box sx={{
-          mb: 0,
-          pb: 2,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-        }}>
-          <Stack direction="row" alignItems="center" spacing={2}>
-            <DescriptionIcon sx={{ fontSize: 22, color: 'primary.main' }} />
-            <Typography variant="h6" fontWeight={600}>
-              Curriculum Vitae
-            </Typography>
-          </Stack>
-          {workerData.CV ? (
-            <Box sx={{ mt: 2 }}>
-              <Button
-                variant="outlined"
-                fullWidth
-                startIcon={<DescriptionIcon />}
-                onClick={() => {
-                  const cvDoc = {
-                    url: workerData.CV,
-                    fileName: 'CV',
-                    fileType: workerData.CV?.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 
+
+            </Box>
+
+            {/* Right: CV and Profile Summary */}
+            <Box sx={{ flex: { xs: 'unset', md: 1 }, width: { xs: '100%', md: '34%' }, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {/* CV Section */}
+              <Box sx={{
+                mb: 0,
+                pb: 2,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+              }}>
+                <Stack direction="row" alignItems="center" spacing={2}>
+                  <DescriptionIcon sx={{ fontSize: 22, color: 'primary.main' }} />
+                  <Typography variant="h6" fontWeight={600}>
+                    Curriculum Vitae
+                  </Typography>
+                </Stack>
+                {workerData.CV ? (
+                  <Box sx={{ mt: 2 }}>
+                    <Button
+                      variant="outlined"
+                      fullWidth
+                      startIcon={<DescriptionIcon />}
+                      onClick={() => {
+                        const cvDoc = {
+                          url: workerData.CV,
+                          fileName: 'CV',
+                          fileType: workerData.CV?.toLowerCase().endsWith('.pdf') ? 'application/pdf' :
                             workerData.CV?.toLowerCase().match(/\.(jpg|jpeg|png|gif)$/) ? 'image' : 'other'
-                  };
-                  setSelectedDocument(cvDoc);
-                }}
-                sx={{
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  borderRadius: 2,
-                  mt: 1
-                }}
-              >
-                View Document
-              </Button>
+                        };
+                        setSelectedDocument(cvDoc);
+                      }}
+                      sx={{
+                        fontWeight: 600,
+                        textTransform: 'none',
+                        borderRadius: 2,
+                        mt: 1
+                      }}
+                    >
+                      View Document
+                    </Button>
+                  </Box>
+                ) : (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                    No CV uploaded yet
+                  </Typography>
+                )}
+              </Box>
+              {/* Profile Summary */}
+              <Box sx={{ mt: 3 }}>
+                <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
+                  <StarIcon sx={{ fontSize: 20, color: 'primary.main' }} />
+                  <Typography variant="h6" fontWeight={600} color="text.primary">
+                    Profile Summary
+                  </Typography>
+                </Stack>
+                <Stack spacing={2.5}>
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    p: 1.5,
+                    bgcolor: 'background.default',
+                    borderRadius: 1,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}>
+                    <Stack direction="row" alignItems="center" spacing={1.5}>
+                      <PersonIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                      <Typography variant="body2" fontWeight={500}>
+                        References
+                      </Typography>
+                    </Stack>
+                    <Chip
+                      label={workerData.references?.length || 0}
+                      size="small"
+                      sx={{
+                        bgcolor: 'primary.main',
+                        color: 'white',
+                        fontWeight: 600,
+                        minWidth: 32
+                      }}
+                    />
+                  </Box>
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    p: 1.5,
+                    bgcolor: 'background.default',
+                    borderRadius: 1,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}>
+                    <Stack direction="row" alignItems="center" spacing={1.5}>
+                      <WorkIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                      <Typography variant="body2" fontWeight={500}>
+                        Work History
+                      </Typography>
+                    </Stack>
+                    <Chip
+                      label={workerData.workHistory?.length || 0}
+                      size="small"
+                      sx={{
+                        bgcolor: 'primary.main',
+                        color: 'white',
+                        fontWeight: 600,
+                        minWidth: 32
+                      }}
+                    />
+                  </Box>
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    p: 1.5,
+                    bgcolor: 'background.default',
+                    borderRadius: 1,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}>
+                    <Stack direction="row" alignItems="center" spacing={1.5}>
+                      <DescriptionIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                      <Typography variant="body2" fontWeight={500}>
+                        CV Status
+                      </Typography>
+                    </Stack>
+                    <Chip
+                      label={workerData.CV ? "Available" : "Missing"}
+                      size="small"
+                      sx={{
+                        bgcolor: workerData.CV ? 'success.main' : 'warning.main',
+                        color: 'white',
+                        fontWeight: 600
+                      }}
+                    />
+                  </Box>
+                </Stack>
+              </Box>
             </Box>
-          ) : (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-              No CV uploaded yet
-            </Typography>
-          )}
-        </Box>
-        {/* Profile Summary */}
-        <Box sx={{ mt: 3 }}>
-          <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
-            <StarIcon sx={{ fontSize: 20, color: 'primary.main' }} />
-            <Typography variant="h6" fontWeight={600} color="text.primary">
-              Profile Summary
-            </Typography>
-          </Stack>
-          <Stack spacing={2.5}>
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              p: 1.5,
-              bgcolor: 'background.default',
-              borderRadius: 1,
-              border: '1px solid',
-              borderColor: 'divider',
-            }}>
-              <Stack direction="row" alignItems="center" spacing={1.5}>
-                <PersonIcon sx={{ fontSize: 16, color: 'primary.main' }} />
-                <Typography variant="body2" fontWeight={500}>
-                  References
-                </Typography>
-              </Stack>
-              <Chip 
-                label={workerData.references?.length || 0} 
-                size="small" 
-                sx={{
-                  bgcolor: 'primary.main',
-                  color: 'white',
-                  fontWeight: 600,
-                  minWidth: 32
-                }}
-              />
-            </Box>
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              p: 1.5,
-              bgcolor: 'background.default',
-              borderRadius: 1,
-              border: '1px solid',
-              borderColor: 'divider',
-            }}>
-              <Stack direction="row" alignItems="center" spacing={1.5}>
-                <WorkIcon sx={{ fontSize: 16, color: 'primary.main' }} />
-                <Typography variant="body2" fontWeight={500}>
-                  Work History
-                </Typography>
-              </Stack>
-              <Chip 
-                label={workerData.workHistory?.length || 0} 
-                size="small" 
-                sx={{
-                  bgcolor: 'primary.main',
-                  color: 'white',
-                  fontWeight: 600,
-                  minWidth: 32
-                }}
-              />
-            </Box>
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              p: 1.5,
-              bgcolor: 'background.default',
-              borderRadius: 1,
-              border: '1px solid',
-              borderColor: 'divider',
-            }}>
-              <Stack direction="row" alignItems="center" spacing={1.5}>
-                <DescriptionIcon sx={{ fontSize: 16, color: 'primary.main' }} />
-                <Typography variant="body2" fontWeight={500}>
-                  CV Status
-                </Typography>
-              </Stack>
-              <Chip 
-                label={workerData.CV ? "Available" : "Missing"} 
-                size="small" 
-                sx={{
-                  bgcolor: workerData.CV ? 'success.main' : 'warning.main',
-                  color: 'white',
-                  fontWeight: 600
-                }}
-              />
-            </Box>
-          </Stack>
-        </Box>
-      </Box>
-    </Box>
+          </Box>
 
-    {/* Work Experience Section */}
-    <Box sx={{ mt: { xs: 5, md: 7 } }}>
-      <Box sx={{
-        mb: 3,
-        pb: 2,
-        borderBottom: '1px solid',
-        borderColor: 'divider',
-      }}>
-        <Stack direction="row" alignItems="center" spacing={2}>
-          <WorkIcon sx={{ fontSize: 28, color: 'primary.main' }} />
-          <Typography variant="h5" fontWeight={700}>
-            Work Experience
-          </Typography>
-          <Chip 
-            label={workerData.workHistory?.length || 0} 
-            sx={{ fontWeight: 600 }}
-            size="small"
-            color="primary"
-          />
-        </Stack>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Professional background and career history
-        </Typography>
-      </Box>
-      {workerData.workHistory?.length > 0 ? (
-        <Box>
-          {workerData.workHistory.map((job, index) => (
-            <Box key={index} sx={{
-              mb: index < workerData.workHistory.length - 1 ? 3 : 0,
-              pb: index < workerData.workHistory.length - 1 ? 3 : 0,
-              borderBottom: index < workerData.workHistory.length - 1 ? '1px solid' : 'none',
+          {/* Work Experience Section */}
+          <Box sx={{ mt: { xs: 5, md: 7 } }}>
+            <Box sx={{
+              mb: 3,
+              pb: 2,
+              borderBottom: '1px solid',
               borderColor: 'divider',
             }}>
-              <WorkHistoryItem job={job} index={index} />
+              <Stack direction="row" alignItems="center" spacing={2}>
+                <WorkIcon sx={{ fontSize: 28, color: 'primary.main' }} />
+                <Typography variant="h5" fontWeight={700}>
+                  Work Experience
+                </Typography>
+                <Chip
+                  label={workerData.workHistory?.length || 0}
+                  sx={{ fontWeight: 600 }}
+                  size="small"
+                  color="primary"
+                />
+              </Stack>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Professional background and career history
+              </Typography>
             </Box>
-          ))}
-        </Box>
-      ) : (
-        <Box sx={{
-          p: 5,
-          textAlign: 'center',
-          border: '2px dashed',
-          borderColor: 'divider',
-          borderRadius: 2,
-          bgcolor: 'background.default',
-          mt: 2
-        }}>
-          <WorkIcon sx={{ fontSize: 40, color: 'divider', mb: 1 }} />
-          <Typography variant="h6" color="text.secondary" fontWeight={500}>
-            No Work Experience
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Add your professional experience to complete your profile
-          </Typography>
+            {workerData.workHistory?.length > 0 ? (
+              <Box>
+                {workerData.workHistory.map((job, index) => (
+                  <Box key={index} sx={{
+                    mb: index < workerData.workHistory.length - 1 ? 3 : 0,
+                    pb: index < workerData.workHistory.length - 1 ? 3 : 0,
+                    borderBottom: index < workerData.workHistory.length - 1 ? '1px solid' : 'none',
+                    borderColor: 'divider',
+                  }}>
+                    <WorkHistoryItem job={job} index={index} />
+                  </Box>
+                ))}
+              </Box>
+            ) : (
+              <Box sx={{
+                p: 5,
+                textAlign: 'center',
+                border: '2px dashed',
+                borderColor: 'divider',
+                borderRadius: 2,
+                bgcolor: 'background.default',
+                mt: 2
+              }}>
+                <WorkIcon sx={{ fontSize: 40, color: 'divider', mb: 1 }} />
+                <Typography variant="h6" color="text.secondary" fontWeight={500}>
+                  No Work Experience
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Add your professional experience to complete your profile
+                </Typography>
+              </Box>
+            )}
+          </Box>
         </Box>
       )}
-    </Box>
-  </Box>
-)}
     </Box>
   );
 };
