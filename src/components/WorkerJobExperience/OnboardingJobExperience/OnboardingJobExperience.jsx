@@ -219,53 +219,134 @@ const OnboardingJobExperience = ({
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <SectionContainer>
+      <SectionContainer sx={{}}>
         {/* Section Header */}
-        <SectionHeader>
-          <HeaderIcon>
-            <WorkIcon fontSize="medium" />
-          </HeaderIcon>
-          <Box>
-            <Typography variant="h4" component="h2">
-              Work Experience
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Showcase your professional journey and skills
-            </Typography>
-    
-          </Box>
-        </SectionHeader>
+        <SectionHeader
+  sx={{
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center", // ✅ centers icon and text vertically
+    gap: { xs: 1.5, md: 2.5 }, // ✅ better spacing between icon & text
+  }}
+>
+  <HeaderIcon
+    sx={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: { xs: "42px", md: "30px" },
+      height: { xs: "42px", md: "30px" },
+        borderRadius: "50%", // ✅ gives a modern rounded look
+        bgcolor: "primary.main", // optional: adds background color for appeal
+        color: "white",
+      // flexShrink: 0,
+      
+    }}
+  >
+    <WorkIcon
+      sx={{
+        width: { xs: "20px", md: "23px" },
+        height: { xs: "20px", md: "23px" },
+      }}
+    />
+  </HeaderIcon>
+
+  <Box>
+    <Typography
+      variant="h4"
+      component="h2"
+      sx={{
+        fontSize: { xs: "1.125rem", md: "1.2rem" },
+        fontWeight: 600,
+      }}
+    >
+      Work Experience
+    </Typography>
+    <Typography
+      variant="body2"
+      color="text.secondary"
+      sx={{ fontSize: { xs: "0.8rem", md: "1rem" } }}
+    >
+      Showcase your professional journey and skills
+    </Typography>
+  </Box>
+</SectionHeader>
+
 
         {/* Form-wide Errors */}
         {formErrors.jobs && (
           <Fade in>
-            <Alert severity="error" sx={{ mb: 3 }}>
-              <Typography fontWeight={600}>{formErrors.jobs}</Typography>
+            <Alert severity="error" sx={{ mb: 1 }}>
+              <Typography fontWeight={600} sx={{
+                color:'red',
+                fontSize:{xs:'0.9rem',md:'1rem'}
+              }}>{formErrors.jobs}</Typography>
             </Alert>
           </Fade>
         )}
 
         {/* Empty State */}
         {jobs.length === 0 ? (
-          <Fade in>
-            <EmptyState elevation={0}>
-              <WorkIcon />
-              <Typography variant="h6" gutterBottom>
-                No work experience added
-              </Typography>
-              <Typography variant="body2" color="text.secondary" paragraph>
-                Add your professional experiences to showcase your career journey.
-              </Typography>
-              <PrimaryButton
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={onAddJob}
-                sx={{ mt: 1 }}
-              >
-                Add First Experience
-              </PrimaryButton>
-            </EmptyState>
-          </Fade>
+          <Fade in >
+          <EmptyState
+            elevation={0}
+            sx={{
+              textAlign: "center",
+              p: { xs: 2, md: 4 },
+              borderRadius: 3,
+              bgcolor: "background.paper",
+              maxWidth: 400,
+              mx: "auto", 
+            }}
+          >
+            <WorkIcon
+              sx={{
+                fontSize: { xs: 40, md: 56 },
+                color: "primary.main",
+                mb: 1.5,
+              }}
+            />
+        
+            <Typography
+              variant="h6"
+              sx={{
+                fontSize: { xs: "1rem", md: "1.25rem" },
+                fontWeight: 600,
+                mb: 0.5,
+              }}
+            >
+              No Work Experience Added
+            </Typography>
+        
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                fontSize: { xs: "0.85rem", md: "0.95rem" },
+                mb: 2,
+              }}
+            >
+              Add your professional experiences to showcase your career journey.
+            </Typography>
+        
+            <PrimaryButton
+              variant="contained"
+              
+              onClick={onAddJob}
+              sx={{
+                fontSize: { xs: "0.75rem", md: "0.9rem" },
+                py: { xs: 0.75, md: 1 },
+                px: { xs: 2, md: 3 },
+                borderRadius: 2,
+                textTransform: "none", // ✅ more modern
+              }}
+            >
+              Add First Experience
+            </PrimaryButton>
+            
+          </EmptyState>
+        </Fade>
+        
         ) : (
           <Stack spacing={3} sx={{ width: '100%', flexGrow: 1, alignItems: 'center' }}>
             {/* Add Another Button (moved to top) */}
@@ -274,7 +355,7 @@ const OnboardingJobExperience = ({
               color="primary"
               startIcon={<AddIcon />}
               onClick={onAddJob}
-              sx={{ width: '100%', borderStyle: 'dashed', mb: { xs: 2, md: 0 } }}
+              sx={{ width: '100%', borderStyle: 'dashed', mb: { xs: 2, md: 0 },  border:'1.2px dashed'}}
             >
               Add Experience
             </SecondaryButton>
@@ -294,7 +375,7 @@ const OnboardingJobExperience = ({
                   <ExperienceCard 
                     isExpanded={expandedJob === index}
                     hasErrors={hasJobErrors}
-                    sx={{ width: '100%', maxWidth: 900, mb: { xs: 2, md: 0 }, p: { xs: 1, sm: 2, md: 3 } }} // Wider, more padding
+                    sx={{ width: '100%', maxWidth: '100%', mb: { xs: 2, md: 0 }, p: { xs: '0px 10px', sm: '0px 10px', md: '0px 10px' } }} // Wider, more padding
                   >
                     <CardHeaderStyled
                       title={job.company || 'New Experience'}

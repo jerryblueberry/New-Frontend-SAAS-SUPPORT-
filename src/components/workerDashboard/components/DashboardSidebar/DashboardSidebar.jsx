@@ -23,7 +23,7 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import HistoryIcon from '@mui/icons-material/History';
 import LogoutIcon from '@mui/icons-material/Logout';
-
+import MoreTimeRoundedIcon from '@mui/icons-material/MoreTimeRounded';
 const drawerWidth = 260;
 
 const navItems = [
@@ -33,6 +33,7 @@ const navItems = [
   { key: 'schedule', label: 'My Schedule', icon: <ScheduleIcon /> },
   { key: 'certifications', label: 'Certifications', icon: <VerifiedIcon /> },
   { key: 'workHistory', label: 'Work History', icon: <HistoryIcon /> },
+  { key: 'timesheet', label: 'Time Sheet', icon: < MoreTimeRoundedIcon/> },
 ];
 
 const DashboardSidebar = ({
@@ -105,11 +106,15 @@ const DashboardSidebar = ({
       {isMobile && (
         <Box
           sx={{
-            position: 'absolute',
-            top: 8,
-            left: 16,
+            // position: 'absolute',
+            position:'fixed',
+            top: 22.5,
+            left: 29,
             zIndex: 1301,
             display: { xs: 'block', md: 'none' },
+            
+            
+          
           }}
         >
           <IconButton
@@ -119,12 +124,13 @@ const DashboardSidebar = ({
             onClick={handleDrawerToggle}
             size="large"
             sx={{
-              bgcolor: 'background.paper',
-              boxShadow: 2,
-              borderRadius: 2,
-              border: '1px solid',
+              // bgcolor: 'red',
+              // boxShadow: 2,
+              // borderRadius: 2,
+              // border: '1px solid',
+              m:'10 2',
               borderColor: 'divider',
-              p: 0.5,
+              p: .5,
             }}
           >
             <MenuIcon fontSize="inherit" />

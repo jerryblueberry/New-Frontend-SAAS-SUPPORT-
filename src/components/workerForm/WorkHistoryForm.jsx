@@ -9,7 +9,9 @@ import DocumentPreview from './Modals/DocumentPreview';
 import OnboardingCV from '../WorkerCv/OnboardingCV/onboardingCV';
 import OnboardingJobExperience from '../WorkerJobExperience/OnboardingJobExperience/OnboardingJobExperience';
 import WorkerOnboardingReferences from '../WorkerReferences/workerOnboardingReferences/workerOnboardingReferences';
-import { Grid, useMediaQuery, useTheme, Paper, Typography, Box, Chip } from '@mui/material';
+import { Container,Grid, useMediaQuery, useTheme, Paper, Typography, Box, Chip,Stack, CircularProgress,Button } from '@mui/material';
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 const WorkHistoryForm = ({ onNextStep }) => {
   // Access store state with selectors for targeted re-renders
   const workHistory = useOnboardingStore((state) => state.workHistory, shallow);
@@ -25,6 +27,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
 
   // Setup mutation for API interaction
   const { mutate: saveWorkHistory, isPending } = useWorkHistoryMutation();
+  
 
   // Local state for form management
   const [localWorkHistory, setLocalWorkHistory] = useState({
@@ -41,7 +44,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
 
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
-
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   // Initialize local state from store
   useEffect(() => {
     if (workHistory) {
@@ -693,198 +696,197 @@ const WorkHistoryForm = ({ onNextStep }) => {
   console.log('ONBORDING DTA', workHistory);
 
   return (
-    <form onSubmit={handleSubmit} className="wh-form" noValidate>
-      <Toaster position="top-right" />
-      {/* Summary error at the top - removed, now handled by toast only */}
-   
+    <Box component="form" onSubmit={handleSubmit} noValidate>
+    <Toaster position="top-right" />
+    
+    {/* CV Onboarding Section - No padding, starts first */}
+    <Box sx={{
+      // backgroundColor:'red',
+      margin:{xs:'1rem',md:"0rem  6rem"},
+      maxHeight:'500px'
+    }}>
+    <OnboardingCV cvError={formErrors.CV} />
+    </Box>
 
-      {/* Responsive Grid Layout for CV and Work Experience */}
-      <Grid
-        container
-        spacing={4}
-        alignItems="stretch" // Ensure both columns stretch to same height
-        sx={{
-          width: '100%',
-          margin: '0 auto',
-          padding: { xs: 0, sm: 2, md: 3 },
-          minHeight: { md:   10, xs: 'auto' }, // Increased minHeight for desktop
-          flexDirection: { xs: 'column', md: 'row' },
-          gap: { md: 4, xs: 0 },
-        }}
-      >
-        <Grid
-          item
-          xs={12}
-          md={4}
-          lg={3}
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            height: { md: '100%', xs: 'auto' }, // Stretch on desktop, auto on mobile
-          }}
-        >
-          <Paper
-            elevation={3}
-            sx={{
-              width: '100%',
-              height: '100%', // Fill parent height
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              p: { xs: 2, sm: 3 },
-              boxSizing: 'border-box',
-              transition: 'min-height 0.3s',
-            }}
-          >
-            <OnboardingCV cvError={formErrors.CV} />
-          </Paper>
-        </Grid>
-        <Grid item xs={12} md={8} lg={9} sx={{ display: 'flex', justifyContent: 'center', flexGrow: 1 }}>
-          <Paper
-            elevation={3} 
-            sx={{
-              width: '100%',
-              maxWidth: 900,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'flex-start',
-              alignItems: 'stretch',
+
+    {/* Main Content Container */}
+    <Container 
+      maxWidth="xl" 
+      sx={{ 
+        py: { xs: 2, md: 1},
+        px: { xs: 1, sm: 2, md: 2 }
+      }}
+    >
+      <Grid container spacing={{ xs: 2, md: 4 }}>
+        {/* Work Experience and References Section */}
+        <Grid item xs={12} md={8} lg={9}>
+          <Stack sx={{
+            display:'flex',
+            flexDirection:{xs:'column',sm:'column', md:'row'},
+            gap:'20px'
             
-              p: { xs: 2, sm: 3},
-              // minHeight: { md: 500, xs: 'auto' }, // Match minHeight with CV section
-              height: { md: '100%', xs: 'auto' },
-              boxSizing: 'border-box',
-              flexGrow: 1,
-              transition: 'min-height 0.3s',
-            }}
-          >
-            <OnboardingJobExperience
-              jobs={sortedJobs}
-              formErrors={formErrors}
-              expandedJob={expandedJob}
-              onAddJob={addNewJob}
-              onRemoveJob={handleRemoveJob}
-              onUpdateJob={handleUpdateJob}
-              onToggleExpandJob={toggleExpandJob}
-              formatDateForInput={formatDateForInput}
-            />
-          </Paper>
+          }} >
+            {/* Work Experience Paper */}
+            <Paper
+              elevation={2}
+              sx={{
+                p: { xs: 2, sm: 3, md: '0px 2rem' },
+                minWidth:'50%',
+                borderRadius: 2,
+                minHeight: { md: 600 },
+                display: 'flex',
+                flexDirection: 'column',
+                transition: theme.transitions.create(['box-shadow', 'transform'], {
+                  duration: theme.transitions.duration.short,
+                }),
+                '&:hover': {
+                  elevation: 4,
+                  transform: 'translateY(-2px)',
+                },
+              }}
+            >
+              <OnboardingJobExperience
+                jobs={sortedJobs}
+                formErrors={formErrors}
+                expandedJob={expandedJob}
+                onAddJob={addNewJob}
+                onRemoveJob={handleRemoveJob}
+                onUpdateJob={handleUpdateJob}
+                onToggleExpandJob={toggleExpandJob}
+                formatDateForInput={formatDateForInput}
+              />
+            </Paper>
+
+            {/* References Section */}
+            <Paper
+              elevation={2}
+              sx={{
+                p: { xs: 2, sm: 3, md: 4 },
+                borderRadius: 2,
+                transition: theme.transitions.create(['box-shadow', 'transform'], {
+                  duration: theme.transitions.duration.short,
+                }),
+                '&:hover': {
+                  elevation: 4,
+                  transform: 'translateY(-2px)',
+                },
+              }}
+            >
+              <WorkerOnboardingReferences
+                references={localWorkHistory.references}
+                formErrors={formErrors}
+                expandedReference={expandedReference}
+                onAddReference={addReference}
+                onRemoveReference={removeReference}
+                onUpdateReference={handleUpdateReference}
+                onToggleExpandReference={toggleExpandReference}
+                formatAustralianPhone={formatAustralianPhone}
+                maxReferences={2}
+              />
+            </Paper>
+          </Stack>
+        </Grid>
+
+        {/* Sidebar for additional content (if needed) */}
+        <Grid item xs={12} md={4} lg={3}>
+          {/* This space can be used for additional components or left empty */}
+          <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+            {/* Placeholder for sidebar content */}
+          </Box>
         </Grid>
       </Grid>
+    </Container>
 
-      {/* References Section */}
-      <Box sx={{ mt: 4, mb: 2 }}>
-        <Typography 
-          variant="h6" 
-          sx={{ 
-            fontWeight: 600, 
-            mb: 2, 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 1,
-            color: 'text.primary',
-            '&::before': {
-              content: '""',
-              width: '4px',
-              height: '24px',
-              background: 'linear-gradient(45deg, #f44336, #ff9800)',
-              borderRadius: '2px',
-            }
-          }}
-        >
-          Professional References
-          <Chip 
-            label="MANDATORY" 
-            size="small" 
-            color="error" 
-            variant="filled"
-            sx={{ 
-              fontWeight: 700, 
-              fontSize: '0.7rem',
-              ml: 1,
-              animation: 'pulse 2s infinite',
-              '@keyframes pulse': {
-                '0%': { opacity: 1 },
-                '50%': { opacity: 0.7 },
-                '100%': { opacity: 1 },
-              }
-            }}
-          />
-        </Typography>
-      </Box>
-      
-      <WorkerOnboardingReferences
-        references={localWorkHistory.references}
-        formErrors={formErrors}
-        expandedReference={expandedReference}
-        onAddReference={addReference}
-        onRemoveReference={removeReference}
-        onUpdateReference={handleUpdateReference}
-        onToggleExpandReference={toggleExpandReference}
-        formatAustralianPhone={formatAustralianPhone}
-        maxReferences={2}
+    {/* Document Preview Modal */}
+    {showCVPreview && (
+      <DocumentPreview
+        document={getCVDocument()}
+        onClose={() => setShowCVPreview(false)}
       />
+    )}
 
-      {/* DocumentPreview modal for CV */}
-      {showCVPreview && (
-        <DocumentPreview
-          document={getCVDocument()}
-          onClose={() => setShowCVPreview(false)}
-        />
-      )}
-
-      {/* Form Controls */}
-      <div className="wh-form-actions">
-        <button
-          type="button"
-          className="wh-btn wh-btn-outline"
-          onClick={prevStep}
-          disabled={isPending}
+    {/* Form Navigation Actions */}
+    <Box
+      component="section"
+      sx={{
+        // position: 'sticky',
+        bottom: 0,
+        bgcolor: 'background.paper',
+        borderTop: `1px solid ${theme.palette.divider}`,
+        py: { xs: 2, md: 3 },
+        px: { xs: 2, md: 4 },
+        mt: 'auto',
+        boxShadow: theme.shadows[4],
+      }}
+    >
+      <Container maxWidth="xl">
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          justifyContent="space-between"
+          alignItems="center"
+          spacing={2}
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
+          {/* Back Button */}
+          <Button
+            variant="outlined"
+            color="primary"
+            startIcon={<ArrowBackIcon />}
+            onClick={prevStep}
+            disabled={isPending}
+            size={isMobile ? 'medium' : 'large'}
+            sx={{
+              minWidth: { xs: '100%', sm: 140 },
+              height: 48,
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600,
+            }}
           >
-            <line x1="19" y1="12" x2="5" y2="12"></line>
-            <polyline points="12 19 5 12 12 5"></polyline>
-          </svg>
-          Back
-        </button>
+            Back
+          </Button>
 
-        <button
-          type="submit"
-          className="wh-btn wh-btn-primary"
-          disabled={isPending}
-        >
-          {isPending ? (
-            <>
-              <span className="wh-spinner"></span>
-              <span>Saving...</span>
-            </>
-          ) : (
-            <>
-              Next: Availability
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-                <polyline points="12 5 19 12 12 19"></polyline>
-              </svg>
-            </>
-          )}
-        </button>
-      </div>
-    </form>
+          {/* Next Button */}
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            disabled={isPending}
+            size={isMobile ? 'medium' : 'large'}
+            endIcon={!isPending && <ArrowForwardIcon />}
+            sx={{
+              minWidth: { xs: '100%', sm: 180 },
+              height: 48,
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600,
+              boxShadow: theme.shadows[2],
+              '&:hover': {
+                boxShadow: theme.shadows[4],
+                transform: 'translateY(-1px)',
+              },
+              '&:disabled': {
+                boxShadow: 'none',
+                transform: 'none',
+              },
+            }}
+          >
+            {isPending ? (
+              <Stack direction="row" spacing={1} alignItems="center">
+                <CircularProgress 
+                  size={20} 
+                  color="inherit"
+                  thickness={4}
+                />
+                <span>Saving...</span>
+              </Stack>
+            ) : (
+              'Next: Availability'
+            )}
+          </Button>
+        </Stack>
+      </Container>
+    </Box>
+  </Box>
   );
 };
 

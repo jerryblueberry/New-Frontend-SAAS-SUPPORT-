@@ -107,6 +107,7 @@ const RegisterForm = ({
   termsAccepted,
   onTermsChange,
   termsError,
+  setTermsError,
   error 
 }) => {
   const theme = useTheme();
@@ -119,7 +120,7 @@ const RegisterForm = ({
     phone: '', // Only digits, no +61
     password: '',
     confirmPassword: '',
-    termsAndConditionsAccepted: false
+    termsAccepted:'',
     });
 
   const [validationErrors, setValidationErrors] = useState({});
@@ -199,6 +200,18 @@ const RegisterForm = ({
     setValidationErrors(prev => ({ ...prev, [name]: error }));
   }, [validateField]);
 
+  const handleTermsChange = (checked) => {
+    onTermsChange(checked);
+    // Clear both parent error and local validation error when checkbox is changed
+    if (setTermsError) {
+      setTermsError('');
+    }
+    setValidationErrors(prev => ({
+      ...prev,
+      termsAndConditionsAccepted: ''
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -215,15 +228,47 @@ const RegisterForm = ({
     });
 
     // Terms and Conditions validation
-    if (!formData.termsAndConditionsAccepted) {
+    if (!termsAccepted) {
       errors.termsAndConditionsAccepted = 'You must agree to the Terms and Conditions to register.';
+      if (setTermsError) {
+        setTermsError('You must agree to the Terms and Conditions to register.');
+      }
     }
 
     setValidationErrors(errors);
 
     if (Object.keys(errors).length === 0) {
-      await onSubmit(formData);
+      await onSubmit({
+        ...formData,
+        termsAndConditionsAccepted: termsAccepted
+      });
     }
+  };
+
+  const handleGoogleRegister = () => {
+    // Check terms before proceeding with Google registration
+    if (!termsAccepted) {
+      const errorMessage = 'You must agree to the Terms and Conditions to register.';
+      setValidationErrors(prev => ({
+        ...prev,
+        termsAndConditionsAccepted: errorMessage
+      }));
+      if (setTermsError) {
+        setTermsError(errorMessage);
+      }
+      return;
+    }
+    
+    // Clear any existing terms errors
+    setValidationErrors(prev => ({
+      ...prev,
+      termsAndConditionsAccepted: ''
+    }));
+    if (setTermsError) {
+      setTermsError('');
+    }
+    
+    onGoogleRegister();
   };
 
   const getFieldError = (fieldName) => {
@@ -529,40 +574,61 @@ const RegisterForm = ({
        
         
       </Grid>
+      
+      {/* Terms and Conditions Checkbox */}
       <Grid item xs={12}>
-          <FormControlLabel
-              control={
-                <Checkbox 
+        <FormControlLabel
+          control={
+            <Checkbox 
+              color="primary" 
+              checked={termsAccepted} 
+              onChange={(e) => handleTermsChange(e.target.checked)}
+            />
+          }
+          label={
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                pl: 0, 
+                m: 0, 
+                display: 'inline',
+                cursor: 'pointer',
+                userSelect: 'none'
+              }}
+              onClick={() => handleTermsChange(!termsAccepted)}
+            >
+              I've read and agree to the{' '}
+              <Link 
+                href="/terms-and-conditions" 
                 color="primary" 
-                checked={termsAccepted} 
-                onChange={(e) => {
-                  onTermsChange(e.target.checked);
-                  if (termsError) setTermsError('');
-                }}
-              />
-            
-            }
-            label={
-              <Typography variant="body2" sx={{ pl: 0, m: 0, display: 'inline' }}>
-                I've read and agree to the{' '}
-                <Link href="/terms-and-conditions" color="primary" underline="hover" target="_blank" rel="noopener">
-                  Terms and Conditions
-                </Link>
-              </Typography>
-            }
-            sx={{ alignItems: 'center', pl: 0, ml: 0, mt: 1 }}
-          />
-            {termsError && (
-          <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5, ml: 4.5 }}>
-            {termsError}
+                underline="hover" 
+                target="_blank" 
+                rel="noopener"
+                onClick={(e) => e.stopPropagation()} // Prevent checkbox toggle when clicking the link
+              >
+                Terms and Conditions
+              </Link>
+            </Typography>
+          }
+          sx={{ alignItems: 'center', pl: 0, ml: 0, mt: 1 }}
+        />
+        
+        {/* Terms Error Display */}
+        {(termsError || validationErrors.termsAndConditionsAccepted) && (
+          <Typography 
+            variant="caption" 
+            color="error" 
+            sx={{ 
+              display: 'block', 
+              mt: 0.5, 
+              ml: 4.5,
+              fontSize: '0.75rem'
+            }}
+          >
+            {termsError || validationErrors.termsAndConditionsAccepted}
           </Typography>
         )}
-          {touched.termsAndConditionsAccepted && validationErrors.termsAndConditionsAccepted && (
-            <Typography variant="caption" color="error" sx={{ ml: 1 }}>
-              {validationErrors.termsAndConditionsAccepted}
-            </Typography>
-          )}
-        </Grid>
+      </Grid>
 
       {/* Password Requirements */}
       <Collapse in={showRequirements && formData.password.length > 0}>
@@ -662,7 +728,7 @@ const RegisterForm = ({
         fullWidth
         variant="outlined"
         size="large"
-        onClick={onGoogleRegister}
+        onClick={handleGoogleRegister}
         disabled={loading }
         startIcon={<GoogleIcon />}
         sx={{

@@ -64,6 +64,7 @@ button {
 
 /* Dashboard Layout */
 .wrk-dashboard-container {
+
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -87,6 +88,7 @@ button {
   align-items: center;
   width: 100%;
   padding: 0 1.75rem;
+  
 }
 
 .wrk-dashboard-logo-wrapper {
@@ -113,6 +115,7 @@ button {
 }
 
 @media (min-width: 768px) {
+ 
   .wrk-dashboard-user-info {
     display: block;
   }
@@ -174,7 +177,7 @@ button {
   left: unset;
   height: 100%;
   width: 260px;
-  background-color: red;
+  
   border-right: 1px solid var(--gray-200);
   overflow: hidden;
   transition: width 0.3s ease;
@@ -182,6 +185,7 @@ button {
 }
 
 @media (min-width: 768px) {
+  
   .wrk-dashboard-content {
     margin-left: 0;
     width: calc(100% - 260px);
@@ -191,7 +195,7 @@ button {
 .wrk-dashboard-nav {
   display: flex;
   flex-direction: column;
-  padding: 1.25rem 0;
+  /* padding: 1.25rem 0; */
 }
 
 .wrk-dashboard-nav-item {
@@ -241,7 +245,8 @@ button {
 /* Content Area */
 .wrk-dashboard-content {
   flex: 1;
-  padding: 1.75rem;
+  padding: 0px 0px;
+  margin-top: 2rem;
   overflow-y: auto;
   background-color: var(--gray-50);
 }

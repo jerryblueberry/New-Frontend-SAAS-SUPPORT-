@@ -33,6 +33,8 @@ import ReferenceQuestion from './pages/AdminPages/ReferenceQuestonnaire/Referenc
 import AdminReference from './pages/AdminPages/ReferenceSection/AdminReference';
 import WorkerManagementDashboard from './pages/AdminPages/AdminDashboard/WorkerManagementDashboard';
 import TermsandConditions from './pages/TermsandConditions/TermsandConditions';
+import ViewAllTimesheets from './pages/AdminPages/Timesheets/ViewAllTimesheets';
+
 
 
 // Create React Query client with optimized settings
@@ -117,6 +119,7 @@ function AppRoutes() {
           </PublicRoute>
         }
         />
+       
         {/*  For terms and conditions */}
         <Route path='/terms-and-conditions' element = {
           <PublicRoute>
@@ -198,6 +201,15 @@ function AppRoutes() {
         <Route path='/certification-types' element = {
           <AdminRoute>
             <CertificationTypes/>
+          </AdminRoute>
+        }
+        />
+
+        {/* For the Timesheets */}
+        {/* Get all Timsheets */}
+        <Route path='/time-sheets' element = {
+          <AdminRoute>
+            <ViewAllTimesheets/>
           </AdminRoute>
         }
         />

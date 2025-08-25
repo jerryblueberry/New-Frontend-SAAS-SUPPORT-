@@ -1546,7 +1546,8 @@ const CertificateSecond = ({ initialStep = 0 }) => {
                     style={{ margin: 16 }}
                   />
                 ) : filteredRequiredCerts.length > 0 ? (
-                  <List
+                  <div>
+                       <List
                     dataSource={filteredRequiredCerts}
 
                     renderItem={cert => {
@@ -1676,6 +1677,24 @@ const CertificateSecond = ({ initialStep = 0 }) => {
                       );
                     }}
                   />
+
+                  {/* nadada */}
+                  <AddOtherCertificate
+                    otherCertifications={otherCertifications}
+                    addOtherCertificate={addOtherCertificate}
+                    removeOtherCertificate={removeOtherCertificate}
+                    uploadToCloudinary={uploadToCloudinary}
+                    DocumentTrackingService={DocumentTrackingService}
+                    deleteCloudinaryImage={deleteCloudinaryImage}
+                    currentStep={currentStep}
+                    otherCertDrawerOpen={otherCertDrawerOpen}
+                    setOtherCertDrawerOpen={setOtherCertDrawerOpen}
+                    editingOtherCertIndex={editingOtherCertIndex}
+                    setEditingOtherCertIndex={setEditingOtherCertIndex}
+                  />
+
+                  </div>
+               
                 ) : (
                   <div style={{ textAlign: 'center', padding: 24 }}>
                     <Text type="secondary">No required certifications found based on your profile</Text>

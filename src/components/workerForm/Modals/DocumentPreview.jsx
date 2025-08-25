@@ -16,6 +16,7 @@ const DocumentPreview = ({ document, onClose, certificateData }) => {
   const isImage = document?.fileType?.includes('image');
   const encodedUrl = document?.url?.replace(/\(/g, '%28').replace(/\)/g, '%29').replace(/ /g, '%20');
   const isDesktop = useMediaQuery('(min-width:768px)');
+  console.log('Certifiacate Data',certificateData)
 
   // Handle ESC key press to close modal
   useEffect(() => {
@@ -158,7 +159,7 @@ const DocumentPreview = ({ document, onClose, certificateData }) => {
         
         <div className="doc-preview__detail-row">
           <span className="doc-preview__detail-label">Name:</span>
-          <span className="doc-preview__detail-value">{certificateData.certificationType?.name || '-'}</span>
+          <span className="doc-preview__detail-value">{certificateData?.certificationType?.name||certificateData?.certificationTitle  || '-'}</span>
         </div>
 
         {(certificateData.number && certificateData.certificationType?.name === 'Driving License') ? (

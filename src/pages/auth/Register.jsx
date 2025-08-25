@@ -93,7 +93,7 @@ const Register = () => {
       setLoadingMessage('Connecting with Google...');
       setIsLoading(true);
       try {
-        const authResult = await googleAuth(response.access_token);
+        const authResult = await googleAuth(response.access_token, { termsAndConditionsAccepted: true });
         await signIn(authResult.data, true, true);
         navigate('/onboarding');
       } catch (error) {
@@ -110,21 +110,14 @@ const Register = () => {
   });
 
   const handleRegister = (formData) => {
-    if (!termsAccepted) {
-      setTermsError('You must agree to the Terms and Conditions to register.');
-      return;
-    }
+    // Terms validation is now handled in the RegisterForm component
     setLoadingMessage('Creating your account...');
     setIsLoading(true);
     registerUser(formData);
   };
 
   const handleGoogleRegister = () => {
-    if (!termsAccepted) {
-      setTermsError('You must agree to the Terms and Conditions to register.');
-      return;
-    }
-    
+    // Terms validation is now handled in the RegisterForm component
     googleLogin();
   };
 
@@ -345,6 +338,7 @@ const Register = () => {
             termsAccepted={termsAccepted}
             onTermsChange={setTermsAccepted}
             termsError={termsError}
+            setTermsError={setTermsError}
           />
 
           <Box sx={{ mt: 3, textAlign: 'center' }}>

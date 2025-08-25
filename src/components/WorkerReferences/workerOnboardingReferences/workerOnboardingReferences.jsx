@@ -1,460 +1,478 @@
 import React from 'react';
-import PropTypes from 'prop-types';
 import {
-  Container,
-  Paper,
   Box,
   Typography,
+  Card,
+  CardContent,
+  TextField,
+  InputAdornment,
+  Grid,
   Chip,
   Alert,
   AlertTitle,
-  Grid,
-  Card,
-  CardContent,
-  Collapse,
-  Divider,
-  Avatar,
   Button,
-  TextField,
-  InputAdornment,
   IconButton,
+  Collapse,
+  Avatar,
+  LinearProgress,
   Stack,
-  Tooltip,
+  Divider,
+  Paper,
   Fade,
+  Tooltip,
   useTheme,
   alpha,
-  LinearProgress,
-  Badge
 } from '@mui/material';
 import {
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
   Person as PersonIcon,
   Business as BusinessIcon,
   Email as EmailIcon,
   Phone as PhoneIcon,
+  Work as WorkIcon,
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
-  Info as InfoIcon,
-  Work as WorkIcon,
-  AccountBox as AccountBoxIcon,
-  ErrorOutline as ErrorIcon,
-  PriorityHigh as PriorityHighIcon
+  Error as ErrorIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  Clear as ClearIcon,
+  PriorityHigh as PriorityHighIcon,
+  Shield as ShieldIcon,
+  Verified as VerifiedIcon,
+  ContactPhone as ContactPhoneIcon,
 } from '@mui/icons-material';
 
 const WorkerOnboardingReferences = ({
   references,
   formErrors,
   expandedReference,
-  onAddReference, // not used anymore
-  onRemoveReference, // still used for clearing
+  onAddReference,
+  onRemoveReference,
   onUpdateReference,
   onToggleExpandReference,
   formatAustralianPhone,
   maxReferences = 2,
 }) => {
   const theme = useTheme();
+  
   // Always show two references (fill with empty objects if needed)
-  const filledReferences = [0, 1].map(i => references[i] || { name: '', position: '', company: '', phone: '', email: '' });
-  const allComplete = filledReferences.every(ref => ref.name && ref.position && ref.company && ref.phone && ref.email);
-  const complete = filledReferences.filter(ref => ref.name && ref.position && ref.company && ref.phone && ref.email).length;
-  const total = maxReferences;
-  const progressPercentage = (complete / total) * 100;
+  const filledReferences = [0, 1].map(i => 
+    references[i] || { name: '', position: '', company: '', phone: '', email: '' }
+  );
+  
+  const allComplete = filledReferences.every(ref => 
+    ref.name && ref.position && ref.company && ref.phone && ref.email
+  );
+  
+  const complete = filledReferences.filter(ref => 
+    ref.name && ref.position && ref.company && ref.phone && ref.email
+  ).length;
+  
+  const progressPercentage = (complete / maxReferences) * 100;
+
+  // Enhanced status calculation
+  const getStatus = (ref) => {
+    const hasErrors = ['name', 'position', 'company', 'phone', 'email'].some(field => 
+      formErrors?.[`ref${filledReferences.indexOf(ref)}_${field}`]
+    );
+    const isComplete = ref.name && ref.position && ref.company && ref.phone && ref.email;
+    const hasContent = Object.values(ref).some(value => value && value.trim());
+
+    if (hasErrors) return 'error';
+    if (isComplete) return 'complete';
+    if (hasContent) return 'incomplete';
+    return 'empty';
+  };
+
+  const getStatusConfig = (status) => {
+    const configs = {
+      complete: {
+        color: theme.palette.success.main,
+        bgColor: alpha(theme.palette.success.main, 0.08),
+        icon: <CheckCircleIcon />,
+        label: 'Complete',
+        chipColor: 'success',
+      },
+      error: {
+        color: theme.palette.error.main,
+        bgColor: alpha(theme.palette.error.main, 0.08),
+        icon: <ErrorIcon />,
+        label: 'Has Errors',
+        chipColor: 'error',
+      },
+      incomplete: {
+        color: theme.palette.warning.main,
+        bgColor: alpha(theme.palette.warning.main, 0.08),
+        icon: <WarningIcon />,
+        label: 'Incomplete',
+        chipColor: 'warning',
+      },
+      empty: {
+        color: theme.palette.grey[400],
+        bgColor: alpha(theme.palette.grey[400], 0.05),
+        icon: <ContactPhoneIcon />,
+        label: 'Add Reference',
+        chipColor: 'default',
+      },
+    };
+    return configs[status];
+  };
 
   return (
-    <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3, md: 4 } }}>
-      <Box sx={{ mx: 'auto' }}>
-        {/* Enhanced Header Section */}
-     
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Header Section */}
+      <Box sx={{ mb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+          <ContactPhoneIcon sx={{ color: 'primary.main', fontSize: '1.5rem' }} />
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              fontWeight: 600,
+              color: 'text.primary',
+            }}
+          >
+            Professional References
+          </Typography>
+          <Chip 
+            label="REQUIRED" 
+            size="small" 
+            color="error" 
+            variant="outlined"
+            sx={{ 
+              fontWeight: 600,
+              fontSize: '0.7rem',
+              ml: 1,
+            }}
+          />
+        </Box>
+        
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1}}>
+          Provide 2 professional references who can verify your work experience.
+        </Typography>
+        
+       
+      </Box>
 
-        {/* Enhanced Requirements Alert */}
-        <Alert 
-          severity={allComplete ? "success" : "warning"}
-          icon={allComplete ? <CheckCircleIcon /> : <PriorityHighIcon />} 
-          sx={{ 
-            mb: 3, 
-            borderRadius: 3,
-            border: `2px solid ${allComplete ? alpha(theme.palette.success.main, 0.3) : alpha(theme.palette.warning.main, 0.3)}`,
-            background: allComplete 
-              ? `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.08)} 0%, ${alpha(theme.palette.success.light, 0.12)} 100%)`
-              : `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.08)} 0%, ${alpha(theme.palette.warning.light, 0.12)} 100%)`,
-            '& .MuiAlert-icon': { fontSize: '1.5rem' },
-            boxShadow: theme.shadows[2],
-          }}
-        >
-          <AlertTitle sx={{ fontWeight: 600, mb: 1, color: allComplete ? 'success.dark' : 'warning.dark' }}>
-            {allComplete ? 'All References Complete!' : 'Reference Requirements & Verification Process'}
-          </AlertTitle>
-          <Typography variant="body2" component="div" sx={{ lineHeight: 1.6 }}>
-            {allComplete ? (
-              '✅ Both references are complete and ready for verification. Your profile will be activated once verification is complete.'
-            ) : (
-              <>
-                • Provide exactly <strong>2 professional references</strong> (former supervisors, managers, or colleagues)<br/>
-                • All fields are <strong>mandatory</strong> for each reference<br/>
-                • References will be contacted within 24-48 hours for verification<br/>
-                • Your profile will be activated once both references are verified
-              </>
-            )}
+      {/* Status Alert */}
+      <Alert 
+        severity={allComplete ? "success" : "info"}
+        sx={{ 
+          mb: 2,
+          borderRadius: 1.5,
+          border: 'none',
+          '& .MuiAlert-icon': { 
+            fontSize: '1.2rem' 
+          },
+        }}
+      >
+        <AlertTitle sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
+          {allComplete ? 'References Complete' : 'Complete Your References'}
+        </AlertTitle>
+        <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+          {allComplete ? (
+            'Both references are ready for verification. We\'ll contact them within 24-48 hours.'
+          ) : (
+            'All fields are required. We\'ll verify references before activating your profile.'
+          )}
+        </Typography>
+      </Alert>
+
+      {/* Form Errors */}
+      {formErrors?.refLimit && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 1.5 }}>
+          <AlertTitle sx={{ fontWeight: 600, fontSize: '0.9rem' }}>Error</AlertTitle>
+          <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+            {formErrors.refLimit}
           </Typography>
         </Alert>
+      )}
 
-        {/* Form Errors */}
-        {formErrors?.refLimit && (
-          <Alert severity="error" sx={{ 
-            mb: 3, 
-            borderRadius: 3,
-            border: `2px solid ${alpha(theme.palette.error.main, 0.3)}`,
-            background: `linear-gradient(135deg, ${alpha(theme.palette.error.main, 0.08)} 0%, ${alpha(theme.palette.error.light, 0.12)} 100%)`,
-            boxShadow: theme.shadows[2],
-          }} icon={<ErrorIcon />}>
-            <AlertTitle sx={{ fontWeight: 600 }}>Error</AlertTitle>
-            {formErrors.refLimit}
-          </Alert>
-        )}
-
-        {/* Always show two reference forms side by side */}
-        <Grid container spacing={{ xs: 2, sm: 3, md: 4 }} sx={{ mb: 4 }}>
+      {/* References List */}
+      <Box sx={{ flex: 1, overflow: 'auto' }}>
+        <Stack spacing={2}>
           {filledReferences.map((ref, index) => {
             const isExpanded = expandedReference === index;
-            const hasErrors = [
-              formErrors?.[`ref${index}_name`],
-              formErrors?.[`ref${index}_position`],
-              formErrors?.[`ref${index}_phone`],
-              formErrors?.[`ref${index}_email`]
-            ].some(Boolean);
-            const isComplete = ref.name && ref.position && ref.company && ref.phone && ref.email;
-            const isRequired = !isComplete && (ref.name || ref.position || ref.phone || ref.email); // Started but not complete
+            const status = getStatus(ref);
+            const statusConfig = getStatusConfig(status);
             
             return (
-              <Grid item xs={12} md={6} key={index}>
-                <Fade in timeout={400 + index * 150}>
-                  <Card
-                    elevation={isExpanded ? 12 : 4}
-                    sx={{
-                      borderRadius: 4,
-                      border: `3px solid ${
-                        hasErrors ? theme.palette.error.main :
-                        isComplete ? theme.palette.success.main : 
-                        isRequired ? theme.palette.warning.main :
-                        alpha(theme.palette.primary.main, 0.2)
-                      }`,
-                      background: isComplete
-                        ? `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.08)} 0%, ${alpha(theme.palette.success.light, 0.15)} 100%)`
-                        : hasErrors
-                        ? `linear-gradient(135deg, ${alpha(theme.palette.error.main, 0.08)} 0%, ${alpha(theme.palette.error.light, 0.15)} 100%)`
-                        : isRequired
-                        ? `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.08)} 0%, ${alpha(theme.palette.warning.light, 0.15)} 100%)`
-                        : `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.secondary.main, 0.08)} 100%)`,
-                      transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                      minHeight: isExpanded ? 'auto' : 140,
-                      position: 'relative',
-                      overflow: 'hidden',
-                      '&:hover': {
-                        boxShadow: theme.shadows[16],
-                        transform: 'translateY(-4px)',
-                        borderColor: isComplete ? theme.palette.success.dark : 
-                                    hasErrors ? theme.palette.error.dark :
-                                    isRequired ? theme.palette.warning.dark :
-                                    theme.palette.primary.main,
-                      },
-                      '&::before': {
-                        content: '""',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        height: '4px',
-                        background: hasErrors 
-                          ? `linear-gradient(90deg, ${theme.palette.error.main}, ${theme.palette.error.light})`
-                          : isComplete
-                          ? `linear-gradient(90deg, ${theme.palette.success.main}, ${theme.palette.success.light})`
-                          : isRequired
-                          ? `linear-gradient(90deg, ${theme.palette.warning.main}, ${theme.palette.warning.light})`
-                          : `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                      }
+              <Card
+                key={index}
+                elevation={0}
+                sx={{
+                  border: `1px solid ${alpha(statusConfig.color, 0.2)}`,
+                  borderRadius: 1.5,
+                  bgcolor: statusConfig.bgColor,
+                  transition: 'all 0.2s ease-in-out',
+                  '&:hover': {
+                    borderColor: alpha(statusConfig.color, 0.4),
+                    transform: 'translateY(-1px)',
+                  },
+                }}
+              >
+                {/* Card Header */}
+                <Box
+                  sx={{
+                    p: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    borderRadius: 1.5,
+                  }}
+                  onClick={() => onToggleExpandReference(index)}
+                >
+                  <Avatar 
+                    sx={{ 
+                      bgcolor: statusConfig.color,
+                      mr: 2,
+                      width: 40,
+                      height: 40,
                     }}
                   >
-                    {/* Card Header */}
-                    <Box
-                      sx={{
-                        p: 2.5,
-                        display: 'flex',
-                        alignItems: 'center',
-                        cursor: 'pointer',
-                        '&:hover': { 
-                          bgcolor: alpha(theme.palette.primary.main, 0.03),
-                          '& .MuiAvatar-root': {
-                            transform: 'scale(1.1)',
-                          }
-                        },
-                        transition: 'all 0.3s ease',
-                      }}
-                      onClick={() => onToggleExpandReference(index)}
-                    >
-                      <Avatar 
+                    {statusConfig.icon}
+                  </Avatar>
+                  
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }} noWrap>
+                        {ref.name || `Reference ${index + 1}`}
+                      </Typography>
+                      <Chip 
+                        label={statusConfig.label}
+                        size="small" 
+                        color={statusConfig.chipColor}
+                        variant="outlined"
                         sx={{ 
-                          bgcolor: hasErrors ? 'error.main' : isComplete ? 'success.main' : isRequired ? 'warning.main' : 'primary.main',
-                          mr: 2,
-                          transition: 'all 0.3s ease',
-                          width: 44,
-                          height: 44,
-                          boxShadow: theme.shadows[3],
+                          fontSize: '0.7rem',
+                          height: 20,
                         }}
-                      >
-                        {hasErrors ? <ErrorIcon /> : isComplete ? <CheckCircleIcon /> : isRequired ? <WarningIcon /> : <PersonIcon />}
-                      </Avatar>
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                          <Typography variant="h6" sx={{ fontWeight: 600 }} noWrap>
-                            {ref.name || `Reference ${index + 1}`}
-                          </Typography>
-                          {isComplete && (
-                            <Chip 
-                              label="Complete" 
-                              size="small" 
-                              color="success" 
-                              variant="filled"
-                              sx={{ fontWeight: 600, fontSize: '0.7rem' }}
-                            />
-                          )}
-                          {hasErrors && !isComplete && (
-                            <Chip 
-                              label="Errors" 
-                              size="small" 
-                              color="error" 
-                              variant="filled"
-                              sx={{ fontWeight: 600, fontSize: '0.7rem' }}
-                            />
-                          )}
-                          {isRequired && !hasErrors && !isComplete && (
-                            <Chip 
-                              label="Incomplete" 
-                              size="small" 
-                              color="warning" 
-                              variant="filled"
-                              sx={{ fontWeight: 600, fontSize: '0.7rem' }}
-                            />
-                          )}
-                        </Box>
-                        <Typography variant="body2" color="text.secondary" noWrap>
-                          {ref.position && ref.company 
-                            ? `${ref.position} at ${ref.company}`
-                            : 'Click to add details'
-                          }
-                        </Typography>
-                      </Box>
-                      <Tooltip title={isExpanded ? 'Collapse' : 'Expand'} arrow>
-                        <IconButton 
+                      />
+                    </Box>
+                    
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }} noWrap>
+                      {ref.position && ref.company 
+                        ? `${ref.position} at ${ref.company}`
+                        : ref.position || ref.company || 'Click to add details'
+                      }
+                    </Typography>
+                    
+                    {ref.phone && (
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                        {ref.phone}
+                      </Typography>
+                    )}
+                  </Box>
+                  
+                  <IconButton 
+                    size="small"
+                    sx={{
+                      bgcolor: alpha(statusConfig.color, 0.1),
+                      '&:hover': {
+                        bgcolor: alpha(statusConfig.color, 0.2),
+                      },
+                    }}
+                  >
+                    {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                  </IconButton>
+                </Box>
+                
+                {/* Expandable Content */}
+                <Collapse in={isExpanded} timeout={300}>
+                  <Divider sx={{ borderColor: alpha(statusConfig.color, 0.1) }} />
+                  <CardContent sx={{ p: 3, pt: 3 }}>
+                    <Grid container spacing={2}>
+                      {/* Full Name */}
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Full Name"
                           size="small"
+                          value={ref.name || ''}
+                          onChange={e => onUpdateReference(index, 'name', e.target.value)}
+                          placeholder="Enter full name"
+                          error={!!formErrors?.[`ref${index}_name`]}
+                          helperText={formErrors?.[`ref${index}_name`]}
+                          required
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <PersonIcon sx={{ fontSize: '1.1rem' }} />
+                              </InputAdornment>
+                            ),
+                          }}
                           sx={{
-                            bgcolor: alpha(theme.palette.primary.main, 0.1),
-                            '&:hover': {
-                              bgcolor: alpha(theme.palette.primary.main, 0.2),
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1,
                             }
                           }}
-                        >
-                          {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                        </IconButton>
-                      </Tooltip>
+                        />
+                      </Grid>
+                      
+                      {/* Position */}
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Job Title"
+                          size="small"
+                          value={ref.position || ''}
+                          onChange={e => onUpdateReference(index, 'position', e.target.value)}
+                          placeholder="e.g. Senior Manager"
+                          error={!!formErrors?.[`ref${index}_position`]}
+                          helperText={formErrors?.[`ref${index}_position`]}
+                          required
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <WorkIcon sx={{ fontSize: '1.1rem' }} />
+                              </InputAdornment>
+                            ),
+                          }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1,
+                            }
+                          }}
+                        />
+                      </Grid>
+                      
+                      {/* Company */}
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Company"
+                          size="small"
+                          value={ref.company || ''}
+                          onChange={e => onUpdateReference(index, 'company', e.target.value)}
+                          placeholder="Enter company name"
+                          required
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <BusinessIcon sx={{ fontSize: '1.1rem' }} />
+                              </InputAdornment>
+                            ),
+                          }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1,
+                            }
+                          }}
+                        />
+                      </Grid>
+                      
+                      {/* Phone */}
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Phone"
+                          size="small"
+                          value={formatAustralianPhone(ref.phone || '')}
+                          onChange={e => {
+                            let raw = e.target.value.replace(/[^\d ]/g, '');
+                            const formatted = formatAustralianPhone(raw);
+                            onUpdateReference(index, 'phone', formatted);
+                          }}
+                          placeholder="0412 345 678"
+                          error={!!formErrors?.[`ref${index}_phone`]}
+                          helperText={formErrors?.[`ref${index}_phone`] || 'Format: 0412 345 678'}
+                          required
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <PhoneIcon sx={{ fontSize: '1.1rem' }} />
+                              </InputAdornment>
+                            ),
+                          }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1,
+                            }
+                          }}
+                        />
+                      </Grid>
+                      
+                      {/* Email */}
+                      <Grid item xs={12}>
+                        <TextField
+                          fullWidth
+                          label="Email Address"
+                          size="small"
+                          type="email"
+                          value={ref.email || ''}
+                          onChange={e => onUpdateReference(index, 'email', e.target.value)}
+                          placeholder="reference@company.com"
+                          error={!!formErrors?.[`ref${index}_email`]}
+                          helperText={formErrors?.[`ref${index}_email`] || 'We\'ll contact them at this email'}
+                          required
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <EmailIcon sx={{ fontSize: '1.1rem' }} />
+                              </InputAdornment>
+                            ),
+                          }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1,
+                            }
+                          }}
+                        />
+                      </Grid>
+                    </Grid>
+                    
+                    {/* Actions */}
+                    <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', fontStyle: 'italic' }}>
+                        💡 Choose someone who knows your work well
+                      </Typography>
+                      
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        onClick={() => onRemoveReference(index)}
+                        startIcon={<ClearIcon />}
+                        sx={{ 
+                          borderRadius: 1,
+                          fontSize: '0.8rem',
+                          px: 2,
+                        }}
+                      >
+                        Clear
+                      </Button>
                     </Box>
-                    {/* Expandable Content */}
-                    <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-                      <Divider />
-                      <CardContent sx={{ p: 3 }}>
-                        <Grid container spacing={2.5}>
-                          {/* Full Name */}
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Full Name *"
-                              value={ref.name}
-                              onChange={e => onUpdateReference(index, 'name', e.target.value)}
-                              placeholder="Enter reference's name"
-                              error={!!formErrors?.[`ref${index}_name`]}
-                              helperText={formErrors?.[`ref${index}_name`] || ' '}
-                              InputProps={{
-                                startAdornment: (
-                                  <InputAdornment position="start">
-                                    <PersonIcon color={formErrors?.[`ref${index}_name`] ? 'error' : 'action'} />
-                                  </InputAdornment>
-                                ),
-                              }}
-                              sx={{ 
-                                '& .MuiFormHelperText-root': { minHeight: '1.25rem' },
-                                '& .MuiOutlinedInput-root': {
-                                  '&.Mui-focused': {
-                                    boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`,
-                                  }
-                                }
-                              }}
-                            />
-                          </Grid>
-                          {/* Email */}
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Email Address *"
-                              type="email"
-                              value={ref.email || ''}
-                              onChange={e => onUpdateReference(index, 'email', e.target.value)}
-                              placeholder="Enter email address"
-                              error={!!formErrors?.[`ref${index}_email`]}
-                              helperText={formErrors?.[`ref${index}_email`] || ' '}
-                              InputProps={{
-                                startAdornment: (
-                                  <InputAdornment position="start">
-                                    <EmailIcon color={formErrors?.[`ref${index}_email`] ? 'error' : 'action'} />
-                                  </InputAdornment>
-                                ),
-                              }}
-                              sx={{ 
-                                '& .MuiFormHelperText-root': { minHeight: '1.25rem' },
-                                '& .MuiOutlinedInput-root': {
-                                  '&.Mui-focused': {
-                                    boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`,
-                                  }
-                                }
-                              }}
-                            />
-                          </Grid>
-                          {/* Phone */}
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Phone Number *"
-                              value={formatAustralianPhone(ref.phone || '')}
-                              onChange={e => {
-                                let raw = e.target.value.replace(/[^\d ]/g, '');
-                                const formatted = formatAustralianPhone(raw);
-                                onUpdateReference(index, 'phone', formatted);
-                              }}
-                              placeholder="412 345 678"
-                              error={!!formErrors?.[`ref${index}_phone`]}
-                              helperText={formErrors?.[`ref${index}_phone`] || 'Format: 0412 345 678'}
-                              InputProps={{
-                                startAdornment: (
-                                  <InputAdornment position="start">
-                                    <PhoneIcon color={formErrors?.[`ref${index}_phone`] ? 'error' : 'action'} />
-                                  </InputAdornment>
-                                ),
-                              }}
-                              sx={{ 
-                                '& .MuiFormHelperText-root': { minHeight: '1.25rem' },
-                                '& .MuiOutlinedInput-root': {
-                                  '&.Mui-focused': {
-                                    boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`,
-                                  }
-                                }
-                              }}
-                            />
-                          </Grid>
-                          {/* Position */}
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Position/Job Title *"
-                              value={ref.position || ''}
-                              onChange={e => onUpdateReference(index, 'position', e.target.value)}
-                              placeholder="Reference's position"
-                              error={!!formErrors?.[`ref${index}_position`]}
-                              helperText={formErrors?.[`ref${index}_position`] || ' '}
-                              InputProps={{
-                                startAdornment: (
-                                  <InputAdornment position="start">
-                                    <WorkIcon color={formErrors?.[`ref${index}_position`] ? 'error' : 'action'} />
-                                  </InputAdornment>
-                                ),
-                              }}
-                              sx={{ 
-                                '& .MuiFormHelperText-root': { minHeight: '1.25rem' },
-                                '& .MuiOutlinedInput-root': {
-                                  '&.Mui-focused': {
-                                    boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`,
-                                  }
-                                }
-                              }}
-                            />
-                          </Grid>
-                          {/* Company */}
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              label="Company Name"
-                              value={ref.company || ''}
-                              onChange={e => onUpdateReference(index, 'company', e.target.value)}
-                              placeholder="Enter company name"
-                              InputProps={{
-                                startAdornment: (
-                                  <InputAdornment position="start">
-                                    <BusinessIcon color="action" />
-                                  </InputAdornment>
-                                ),
-                              }}
-                              sx={{ 
-                                '& .MuiFormHelperText-root': { minHeight: '1.25rem' },
-                                '& .MuiOutlinedInput-root': {
-                                  '&.Mui-focused': {
-                                    boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`,
-                                  }
-                                }
-                              }}
-                            />
-                          </Grid>
-                        </Grid>
-                        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-                          <Button
-                            type="button"
-                            variant="outlined"
-                            color="error"
-                            onClick={() => onRemoveReference(index)}
-                            startIcon={<WarningIcon />}
-                            sx={{ 
-                              borderRadius: 2, 
-                              px: 3, 
-                              fontWeight: 600,
-                              borderWidth: 2,
-                              '&:hover': {
-                                borderWidth: 2,
-                                transform: 'translateY(-1px)',
-                                boxShadow: theme.shadows[4],
-                              }
-                            }}
-                          >
-                            Clear Reference
-                          </Button>
-                        </Box>
-                      </CardContent>
-                    </Collapse>
-                  </Card>
-                </Fade>
-              </Grid>
+                  </CardContent>
+                </Collapse>
+              </Card>
             );
           })}
-        </Grid>
+        </Stack>
       </Box>
-    </Container>
-  );
-};
 
-WorkerOnboardingReferences.propTypes = {
-  references: PropTypes.arrayOf(
-    PropTypes.shape({
-      name: PropTypes.string,
-      position: PropTypes.string,
-      company: PropTypes.string,
-      phone: PropTypes.string,
-      email: PropTypes.string,
-    })
-  ).isRequired,
-  formErrors: PropTypes.object,
-  expandedReference: PropTypes.number,
-  onAddReference: PropTypes.func.isRequired,
-  onRemoveReference: PropTypes.func.isRequired,
-  onUpdateReference: PropTypes.func.isRequired,
-  onToggleExpandReference: PropTypes.func.isRequired,
-  formatAustralianPhone: PropTypes.func.isRequired,
-  maxReferences: PropTypes.number,
+      {/* Completion Summary */}
+      {allComplete && (
+        <Box 
+          sx={{ 
+            mt: 3,
+            p: 2,
+            bgcolor: alpha(theme.palette.success.main, 0.1),
+            border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
+            borderRadius: 1.5,
+            textAlign: 'center',
+          }}
+        >
+          <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
+            <VerifiedIcon sx={{ color: 'success.main', fontSize: '1.2rem' }} />
+            <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.dark' }}>
+              References Complete!
+            </Typography>
+          </Stack>
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+            Ready for verification within 24-48 hours
+          </Typography>
+        </Box>
+      )}
+    </Box>
+  );
 };
 
 export default React.memo(WorkerOnboardingReferences);

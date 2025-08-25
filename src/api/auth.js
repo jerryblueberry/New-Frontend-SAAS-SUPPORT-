@@ -198,7 +198,7 @@ export const verifyEmail = async(token) => {
  * @param {string} accessToken - Google OAuth access token
  * @returns {Promise<Object>} Auth response with user data
  */
-export const googleAuth = async (accessToken) => {
+export const googleAuth = async (accessToken, extra = {}) => {
   try {
     // Validate Google token
     const googleResponse = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`);
@@ -211,7 +211,8 @@ export const googleAuth = async (accessToken) => {
     
     // Backend authentication
     const response = await api.post('/auth/google', { 
-      access_token: accessToken 
+      access_token: accessToken,
+      ...extra
     });
     
     if (response.data?.data?.accessToken) {

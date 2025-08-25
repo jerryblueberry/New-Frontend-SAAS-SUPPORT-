@@ -4,6 +4,18 @@ import useOnboardingStore, {
 } from '../../stores/useOnboardingStore';
 import { shallow } from 'zustand/shallow';
 import './css/WorkerProfileForm.css';
+import {
+  Card, CardContent, Typography, TextField, Box, InputAdornment, Button, Chip, Stack, MenuItem, Alert,
+  Select,
+  FormControl,
+  InputLabel, CircularProgress, IconButton, Grid, Tooltip,
+} from '@mui/material';
+
+import CloseIcon from "@mui/icons-material/Close";
+
+
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Default languages and skills for suggestions
 const DEFAULT_LANGUAGES = [
@@ -21,18 +33,18 @@ const DEFAULT_LANGUAGES = [
 ];
 
 const DEFAULT_SKILLS = [
-  
-  
+
+
   "Personal Care",
   'Meal Preparation',
   "Working with Children",
   "Cleaning",
- 'First Aid',
+  'First Aid',
   'CPR',
-  
 
-  
-  
+
+
+
 ];
 
 // Language proficiency options
@@ -108,7 +120,7 @@ const WorkerProfileForm = React.memo(() => {
         } else {
           const rate = parseFloat(value);
           if (isNaN(rate) || rate < VALIDATION_RULES.expectedHourlyRate.min) {
-            errors.expectedHourlyRate = `Hourly Rate Missing`;
+            errors.expectedHourlyRate = `Please Enter Valid Expected Hourly Rate`;
           } else if (rate > VALIDATION_RULES.expectedHourlyRate.max) {
             errors.expectedHourlyRate = `Hourly rate must not exceed $${VALIDATION_RULES.expectedHourlyRate.max}`;
           }
@@ -132,15 +144,15 @@ const WorkerProfileForm = React.memo(() => {
           // Validate each language has proper structure and proficiency
           const invalidLanguages = value.filter((lang) => {
             if (!lang || typeof lang !== 'object') return true;
-            
+
             // Handle both possible data structures
-            const languageName = typeof lang.language === 'string' 
-              ? lang.language 
+            const languageName = typeof lang.language === 'string'
+              ? lang.language
               : lang.language?.language;
-            
-            return !languageName || 
-                   !lang.proficiency || 
-                   !PROFICIENCY_OPTIONS.some((opt) => opt.value === lang.proficiency);
+
+            return !languageName ||
+              !lang.proficiency ||
+              !PROFICIENCY_OPTIONS.some((opt) => opt.value === lang.proficiency);
           });
 
           if (invalidLanguages.length > 0) {
@@ -148,10 +160,10 @@ const WorkerProfileForm = React.memo(() => {
           }
 
           // Check for duplicate languages
-          const languageNames = value.map(lang => 
+          const languageNames = value.map(lang =>
             typeof lang.language === 'string' ? lang.language : lang.language?.language
           ).filter(Boolean);
-          
+
           const uniqueNames = [...new Set(languageNames)];
           if (languageNames.length !== uniqueNames.length) {
             errors.languages = 'Duplicate languages are not allowed';
@@ -175,14 +187,14 @@ const WorkerProfileForm = React.memo(() => {
       ...validateField('languages', profile.languages || []),
     };
 
-    setFormErrors(allErrors);
-    return Object.keys(allErrors).length === 0;
+    setFormErrors(allErrors); // still shows inline errors
+    return allErrors; // return object instead of boolean
   }, [profile, validateField]);
 
   // Real-time validation for individual fields
   const validateSingleField = useCallback((fieldName, value) => {
     if (!hasAttemptedSubmit) return; // Only validate after first submit attempt
-    
+
     const fieldErrors = validateField(fieldName, value);
     setFormErrors(prev => ({
       ...prev,
@@ -196,9 +208,9 @@ const WorkerProfileForm = React.memo(() => {
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     const processedValue = name === 'expectedHourlyRate' ? parseFloat(value) || 0 : value;
-    
+
     updateProfile({ [name]: processedValue });
-    
+
     // Real-time validation after first submit attempt
     validateSingleField(name, processedValue);
   }, [updateProfile, validateSingleField]);
@@ -206,7 +218,7 @@ const WorkerProfileForm = React.memo(() => {
   // Enhanced skill management
   const addSkill = useCallback(() => {
     const trimmed = newSkill.trim();
-    
+
     if (!trimmed) {
       return;
     }
@@ -222,7 +234,7 @@ const WorkerProfileForm = React.memo(() => {
     }
 
     const currentSkills = profile.skillTags || [];
-    
+
     if (currentSkills.includes(trimmed)) {
       setFormErrors(prev => ({ ...prev, newSkill: 'This skill has already been added' }));
       return;
@@ -236,14 +248,14 @@ const WorkerProfileForm = React.memo(() => {
     const updatedSkills = [...currentSkills, trimmed];
     updateProfile({ skillTags: updatedSkills });
     setNewSkill('');
-    
+
     // Clear any skill-related errors
-    setFormErrors(prev => ({ 
-      ...prev, 
+    setFormErrors(prev => ({
+      ...prev,
       newSkill: undefined,
       ...(updatedSkills.length >= VALIDATION_RULES.skillTags.minCount && { skillTags: undefined })
     }));
-    
+
     validateSingleField('skillTags', updatedSkills);
   }, [newSkill, profile.skillTags, updateProfile, validateSingleField]);
 
@@ -257,7 +269,7 @@ const WorkerProfileForm = React.memo(() => {
   // Enhanced language management
   const addNewLanguage = useCallback(() => {
     const trimmed = newLanguage.trim();
-    
+
     if (!trimmed) {
       return;
     }
@@ -273,11 +285,11 @@ const WorkerProfileForm = React.memo(() => {
     }
 
     const currentLanguages = profile.languages || [];
-    
+
     // Check for duplicates (handle both data structures)
     const languageExists = currentLanguages.some(lang => {
-      const existingName = typeof lang.language === 'string' 
-        ? lang.language 
+      const existingName = typeof lang.language === 'string'
+        ? lang.language
         : lang.language?.language;
       return existingName === trimmed;
     });
@@ -300,14 +312,14 @@ const WorkerProfileForm = React.memo(() => {
     addLanguage(newLangObj);
     setNewLanguage('');
     setLanguageProficiency('fluent');
-    
+
     // Clear any language-related errors
-    setFormErrors(prev => ({ 
-      ...prev, 
+    setFormErrors(prev => ({
+      ...prev,
       newLanguage: undefined,
       ...((currentLanguages.length + 1) >= VALIDATION_RULES.languages.minCount && { languages: undefined })
     }));
-    
+
     validateSingleField('languages', [...currentLanguages, newLangObj]);
   }, [newLanguage, languageProficiency, profile.languages, addLanguage, validateSingleField]);
 
@@ -323,41 +335,57 @@ const WorkerProfileForm = React.memo(() => {
     updateLanguageProficiency(languageName, proficiency);
     validateSingleField('languages', profile.languages);
   }, [updateLanguageProficiency, profile.languages, validateSingleField]);
-
-  // Enhanced form submission with comprehensive validation
+  //  Enhanced form submit 
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
     setHasAttemptedSubmit(true);
-    
-    const isValid = validateForm();
-    
-    if (!isValid) {
+
+    const errors = validateForm();
+    const errorMessages = Object.values(errors);
+
+    if (errorMessages.length > 0) {
+      // Show toast notifications for each error
+      errorMessages.forEach(message => {
+        toast.error(message, {
+          position: "top-center",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+      });
+
       // Scroll to first error
-      const firstErrorField = document.querySelector('.profile_wrkr_basic_input_error, .profile_wrkr_basic_error_text');
+      const firstErrorField = document.querySelector(
+        '.profile_wrkr_basic_input_error, .profile_wrkr_basic_error_text'
+      );
       if (firstErrorField) {
         firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
-      return;
+
+      return; // ⛔ stop submission
     }
 
+    // ✅ No errors → submit
     console.log('Submitting profile:', {
       biography: profile.biography?.trim(),
       skillTags: profile.skillTags,
       expectedHourlyRate: profile.expectedHourlyRate,
       languages: profile.languages,
     });
-    
+
     saveProfile({
       ...profile,
-      biography: profile.biography?.trim(), // Ensure trimmed biography is saved
+      biography: profile.biography?.trim(),
     });
   }, [profile, saveProfile, validateForm]);
 
   // Check if form is valid for enabling/disabling submit button
   const isFormValid = useMemo(() => {
     // biography is now optional, so no check for it
-    if (!profile.expectedHourlyRate || 
-        profile.expectedHourlyRate < VALIDATION_RULES.expectedHourlyRate.min) {
+    if (!profile.expectedHourlyRate ||
+      profile.expectedHourlyRate < VALIDATION_RULES.expectedHourlyRate.min) {
       return false;
     }
     if (!profile.skillTags || profile.skillTags.length < VALIDATION_RULES.skillTags.minCount) {
@@ -368,12 +396,12 @@ const WorkerProfileForm = React.memo(() => {
     }
     // Validate language proficiencies
     const hasInvalidLanguages = profile.languages.some(lang => {
-      const languageName = typeof lang.language === 'string' 
-        ? lang.language 
+      const languageName = typeof lang.language === 'string'
+        ? lang.language
         : lang.language?.language;
-      return !languageName || 
-             !lang.proficiency || 
-             !PROFICIENCY_OPTIONS.some(opt => opt.value === lang.proficiency);
+      return !languageName ||
+        !lang.proficiency ||
+        !PROFICIENCY_OPTIONS.some(opt => opt.value === lang.proficiency);
     });
     return !hasInvalidLanguages;
   }, [profile]);
@@ -381,91 +409,118 @@ const WorkerProfileForm = React.memo(() => {
   // Memoized skill tags display
   const skillTags = useMemo(() => {
     const skills = profile.skillTags || [];
-    
+
     if (skills.length === 0) {
       return null;
     }
 
     return (
-      <div className="profile_wrkr_basic_skills_selected">
-        <div className="profile_wrkr_basic_skills_selected_label">
-          Your Skills ({skills.length}/{VALIDATION_RULES.skillTags.maxCount}):
-        </div>
-        <div className="profile_wrkr_basic_skills_tags">
+      <Box sx={{ mt: 3 }}>
+        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+          Your Skills ({skills.length}/{VALIDATION_RULES.skillTags.maxCount})
+        </Typography>
+        <Stack direction="row" flexWrap="wrap" gap={1}>
           {skills.map((skill) => (
-            <div key={skill} className="profile_wrkr_basic_skill_tag">
-              <span className="profile_wrkr_basic_skill_name">{skill}</span>
-              <button
-                type="button"
-                className="profile_wrkr_basic_skill_remove"
-                onClick={() => removeSkill(skill)}
-                aria-label={`Remove ${skill} skill`}
-                disabled={isPending}
-                title={`Remove ${skill}`}
-              >
-                &times;
-              </button>
-            </div>
+            <Chip
+              key={skill}
+              label={skill}
+              onDelete={() => removeSkill(skill)}
+              disabled={isPending}
+
+              color="primary"
+              variant="outlined"
+              sx={{ borderRadius: 2, fontWeight: 500 }}
+            />
           ))}
-        </div>
-      </div>
+        </Stack>
+      </Box>
+
     );
   }, [profile.skillTags, removeSkill, isPending]);
 
   // Memoized language tags display with proper data structure handling
   const languageTags = useMemo(() => {
     const languages = profile.languages || [];
-    
+
     if (languages.length === 0) {
       return null;
     }
 
     return (
-      <div className="profile_wrkr_basic_languages_selected">
-        <div className="profile_wrkr_basic_languages_selected_label">
-          Your Languages ({languages.length}/{VALIDATION_RULES.languages.maxCount}):
-        </div>
-        <div className="profile_wrkr_basic_languages_tags">
+      <Box sx={{ mt: 3 }}>
+        {/* Heading */}
+        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+          Your Languages ({languages.length}/{VALIDATION_RULES.languages.maxCount})
+        </Typography>
+
+        {/* Responsive Grid */}
+        <Grid container spacing={2}>
           {languages.map((lang, index) => {
-            // Handle both possible data structures
-            const languageName = typeof lang.language === 'string' 
-              ? lang.language 
-              : lang.language?.language || 'Unknown';
-            
+            const languageName =
+              typeof lang.language === "string"
+                ? lang.language
+                : lang.language?.language || "Unknown";
+
             const key = `${languageName}-${index}`;
-            
+
             return (
-              <div key={key} className="profile_wrkr_basic_language_tag">
-                <span className="profile_wrkr_basic_language_name">
-                  {languageName}
-                </span>
-                <select
-                  className="profile_wrkr_basic_language_proficiency"
-                  value={lang.proficiency || 'fluent'}
-                  onChange={(e) => updateProficiency(languageName, e.target.value)}
-                  disabled={isPending}
+              <Grid item xs={12} sm={6} md={4} key={key}>
+                <Card
+                  variant="outlined"
+                  sx={{
+                    borderRadius: 2,
+                    bgcolor: "grey.50",
+                    "&:hover": { boxShadow: 2 },
+                    display: "flex",
+                    alignItems: "center",
+                    // p: 1,
+                  }}
                 >
-                  {PROFICIENCY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  className="profile_wrkr_basic_language_remove"
-                  onClick={() => removeSelectedLanguage(lang)}
-                  aria-label={`Remove ${languageName} language`}
-                  disabled={isPending}
-                  title={`Remove ${languageName}`}
-                >
-                  &times;
-                </button>
-              </div>
+                  <CardContent
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      width: "100%",
+                      p: "8px !important",
+                    }}
+                  >
+                    {/* Language Name */}
+                    <Typography fontWeight={600} flex={1} noWrap>
+                      {languageName}
+                    </Typography>
+
+                    {/* Proficiency Dropdown */}
+                    <Select
+                      value={lang.proficiency || "fluent"}
+                      size="small"
+                      onChange={(e) => updateProficiency(languageName, e.target.value)}
+                      disabled={isPending}
+                      sx={{ minWidth: 120 }}
+                    >
+                      {PROFICIENCY_OPTIONS.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          {option.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+
+                    {/* Remove Button */}
+                    <IconButton
+                      onClick={() => removeSelectedLanguage(lang)}
+                      disabled={isPending}
+                      size="small"
+                      color="error"
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </CardContent>
+                </Card>
+              </Grid>
             );
           })}
-        </div>
-      </div>
+        </Grid>
+      </Box>
     );
   }, [profile.languages, removeSelectedLanguage, updateProficiency, isPending]);
 
@@ -473,7 +528,7 @@ const WorkerProfileForm = React.memo(() => {
   const handleNewSkillChange = useCallback((e) => {
     const value = e.target.value;
     setNewSkill(value);
-    
+
     // Clear previous errors when user starts typing
     if (formErrors.newSkill) {
       setFormErrors(prev => ({ ...prev, newSkill: undefined }));
@@ -483,7 +538,7 @@ const WorkerProfileForm = React.memo(() => {
   const handleNewLanguageChange = useCallback((e) => {
     const value = e.target.value;
     setNewLanguage(value);
-    
+
     // Clear previous errors when user starts typing
     if (formErrors.newLanguage) {
       setFormErrors(prev => ({ ...prev, newLanguage: undefined }));
@@ -493,7 +548,7 @@ const WorkerProfileForm = React.memo(() => {
   // Handle suggested skill/language clicks
   const handleSuggestedSkillClick = useCallback((skill) => {
     const currentSkills = profile.skillTags || [];
-    
+
     if (currentSkills.includes(skill)) {
       removeSkill(skill);
     } else if (currentSkills.length < VALIDATION_RULES.skillTags.maxCount) {
@@ -505,11 +560,11 @@ const WorkerProfileForm = React.memo(() => {
 
   const handleSuggestedLanguageClick = useCallback((language) => {
     const currentLanguages = profile.languages || [];
-    
+
     // Check if language exists
     const existingLang = currentLanguages.find(lang => {
-      const existingName = typeof lang.language === 'string' 
-        ? lang.language 
+      const existingName = typeof lang.language === 'string'
+        ? lang.language
         : lang.language?.language;
       return existingName === language;
     });
@@ -532,297 +587,725 @@ const WorkerProfileForm = React.memo(() => {
   }, []);
 
   return (
-    <form onSubmit={handleSubmit} className="profile_wrkr_basic_form" noValidate>
-      {/* Show summary error if form is invalid after submit */}
-      {hasAttemptedSubmit && Object.keys(formErrors).length > 0 && (
-        <div className="profile_wrkr_basic_error_message" role="alert">
-          Please complete all required fields and fix the errors below to continue.
-        </div>
-      )}
+    <Box
+      component="form"
+      onSubmit={handleSubmit}
+      noValidate
+      sx={{
+
+        mx: 'auto',
+        p: { xs: 2, sm: 3, md: 4 },
+        minHeight: '100vh',
+        bgcolor: '#fafafa',
+      }}
+    >
+      <ToastContainer
+        position="top-center"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
+
+      {/* Header Section */}
+      <Box sx={{ mb: 4, textAlign: 'center' }}>
+        <Typography
+          variant="h4"
+          component="h1"
+          sx={{
+            fontWeight: 700,
+            fontSize: { xs: '1.75rem', sm: '2.125rem' },
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            mb: 1
+          }}
+        >
+          Complete Your Profile
+        </Typography>
+        <Typography
+          variant="body1"
+          color="text.secondary"
+          sx={{ fontSize: '1.1rem', maxWidth: '600px', mx: 'auto' }}
+        >
+          Help us understand your skills and experience to connect you with the right opportunities
+        </Typography>
+      </Box>
+
+      {/* Error Alert */}
       {error && (
-        <div className="profile_wrkr_basic_error_message" role="alert">
+        <Alert
+          severity="error"
+          sx={{
+            mb: 3,
+            borderRadius: 3,
+            '& .MuiAlert-message': { fontSize: '0.95rem' }
+          }}
+        >
           {error.response?.data?.message ||
             'An error occurred while saving your profile. Please try again.'}
-        </div>
+        </Alert>
       )}
 
-      <div className="profile_wrkr_basic_form_section">
-        <h3 className="profile_wrkr_basic_section_title">Basic Information</h3>
-        
-        <div className="profile_wrkr_basic_form_group">
-          <label htmlFor="biography" className="profile_wrkr_basic_form_label">
-            Professional Summary
-          </label>
-          <textarea
+      {/* Professional Summary Section */}
+      <Card
+        elevation={0}
+        sx={{
+          mb: 4,
+          borderRadius: 4,
+          border: '1px solid',
+          borderColor: 'divider',
+          overflow: 'visible',
+          position: 'relative',
+          '&:hover': {
+            boxShadow: '0 8px 25px rgba(0,0,0,0.08)',
+            transform: 'translateY(-1px)',
+            transition: 'all 0.3s ease-in-out'
+          }
+        }}
+      >
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '4px',
+            background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '16px 16px 0 0'
+          }}
+        />
+        <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            <Box
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: 3,
+                background: 'linear-gradient(135deg, #667eea20 0%, #764ba220 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mr: 2
+              }}
+            >
+              <Typography sx={{ fontSize: '1.5rem' }}>👤</Typography>
+            </Box>
+            <Box>
+              <Typography variant="h5" fontWeight={600} color="text.primary">
+                Professional Summary
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Share your experience and what makes you unique
+              </Typography>
+            </Box>
+          </Box>
+
+          <TextField
             id="biography"
             name="biography"
-            className={`profile_wrkr_basic_form_textarea ${
-              formErrors.biography ? 'profile_wrkr_basic_input_error' : ''
-            }`}
+            // label="Tell your story..."
+            multiline
+            rows={5}
+            fullWidth
             value={profile.biography || ''}
             onChange={handleChange}
-            placeholder={`Tell us about your experience, strengths, and what makes you a great care worker...`}
-            rows={4}
-            required={false}
-            maxLength={VALIDATION_RULES.biography.maxLength}
-            aria-describedby={formErrors.biography ? 'biography-error' : 'biography-hint'}
+            placeholder="Describe your experience, key strengths, and what makes you an exceptional care worker. Share your passion for helping others and any specialized skills you bring to your role."
+            error={Boolean(formErrors.biography)}
+            helperText={formErrors.biography || `${(profile.biography || '').length}/${VALIDATION_RULES.biography.maxLength} characters`}
+            inputProps={{
+              maxLength: VALIDATION_RULES.biography.maxLength,
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 3,
+                backgroundColor: '#fafafa',
+                '&:hover': {
+                  backgroundColor: '#f5f5f5',
+                },
+                '&.Mui-focused': {
+                  backgroundColor: 'white',
+                }
+              },
+              '& .MuiInputLabel-root': {
+                fontSize: '1.05rem',
+                fontWeight: 500
+              }
+            }}
           />
-         
-          {formErrors.biography && (
-            <div 
-              id="biography-error" 
-              className="profile_wrkr_basic_error_text" 
-              role="alert"
-            >
-              {formErrors.biography}
-            </div>
-          )}
-        </div>
+        </CardContent>
+      </Card>
 
-        <div className="profile_wrkr_basic_form_group">
-          <label htmlFor="expectedHourlyRate" className="profile_wrkr_basic_form_label">
-            Expected Hourly Rate (AUD)
-            <span className="profile_wrkr_basic_required">*</span>
-          </label>
-          <div className="profile_wrkr_basic_input_with_icon">
-            <span className="profile_wrkr_basic_currency_symbol">$</span>
-            <input
-              type="number"
-              id="expectedHourlyRate"
-              name="expectedHourlyRate"
-              className={`profile_wrkr_basic_form_input profile_wrkr_basic_currency_input ${
-                formErrors.expectedHourlyRate ? 'profile_wrkr_basic_input_error' : ''
-              }`}
-              value={profile.expectedHourlyRate || ''}
-              onChange={handleChange}
-              // placeholder=""
-              min={VALIDATION_RULES.expectedHourlyRate.min}
-              max={VALIDATION_RULES.expectedHourlyRate.max}
-              step={0.5}
-              required
-              aria-describedby={formErrors.expectedHourlyRate ? 'rate-error' : 'rate-hint'}
-              onWheel={e => e.target.blur()}
+      {/* Expected Hourly Rate Section */}
+      <Card
+        elevation={0}
+        sx={{
+          mb: 4,
+          borderRadius: 4,
+          border: '1px solid',
+          borderColor: 'divider',
+          overflow: 'visible',
+          position: 'relative',
+          '&:hover': {
+            boxShadow: '0 8px 25px rgba(0,0,0,0.08)',
+            transform: 'translateY(-1px)',
+            transition: 'all 0.3s ease-in-out'
+          }
+        }}
+      >
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '4px',
+            background: 'linear-gradient(90deg, #4ade80 0%, #22c55e 100%)',
+            borderRadius: '16px 16px 0 0'
+          }}
+        />
+        <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            <Box
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: 3,
+                background: 'linear-gradient(135deg, #4ade8020 0%, #22c55e20 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mr: 2
+              }}
+            >
+              <Typography sx={{ fontSize: '1.5rem' }}>💰</Typography>
+            </Box>
+            <Box>
+              <Typography variant="h5" fontWeight={600} color="text.primary">
+                Expected Hourly Rate
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Set your preferred hourly rate in AUD
+              </Typography>
+            </Box>
+          </Box>
+
+          <TextField
+            id="expectedHourlyRate"
+            name="expectedHourlyRate"
+            label="Your hourly rate"
+            type="number"
+            fullWidth
+            required
+            value={profile.expectedHourlyRate || ''}
+            onChange={handleChange}
+            error={Boolean(formErrors.expectedHourlyRate)}
+            // helperText={formErrors.expectedHourlyRate || `Range: $${VALIDATION_RULES.expectedHourlyRate.min} - $${VALIDATION_RULES.expectedHourlyRate.max} AUD`}
+            inputProps={{
+              min: VALIDATION_RULES.expectedHourlyRate.min,
+              max: VALIDATION_RULES.expectedHourlyRate.max,
+              step: 0.5,
+            }}
+            onWheel={e => e.target.blur()}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Typography sx={{ fontWeight: 600, color: 'primary.main' }}>$</Typography>
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 3,
+                backgroundColor: '#fafafa',
+                fontSize: '1.1rem',
+                '&:hover': {
+                  backgroundColor: '#f5f5f5',
+                },
+                '&.Mui-focused': {
+                  backgroundColor: 'white',
+                }
+              },
+              '& .MuiInputLabel-root': {
+                fontSize: '1.05rem',
+                fontWeight: 500
+              }
+            }}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Skills Section */}
+      <Card
+        elevation={0}
+        sx={{
+          mb: 4,
+          borderRadius: 4,
+          border: '1px solid',
+          borderColor: 'divider',
+          overflow: 'visible',
+          position: 'relative',
+          '&:hover': {
+            boxShadow: '0 8px 25px rgba(0,0,0,0.08)',
+            transform: 'translateY(-1px)',
+            transition: 'all 0.3s ease-in-out'
+          }
+        }}
+      >
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '4px',
+            background: 'linear-gradient(90deg, #f59e0b 0%, #d97706 100%)',
+            borderRadius: '16px 16px 0 0'
+          }}
+        />
+        <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            <Box
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: 3,
+                background: 'linear-gradient(135deg, #f59e0b20 0%, #d9770620 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mr: 2
+              }}
+            >
+              <Typography sx={{ fontSize: '1.5rem' }}>🛠️</Typography>
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="h5" fontWeight={600} color="text.primary">
+                Skills & Expertise
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Select from popular skills or add your own specialized abilities
+              </Typography>
+            </Box>
+            <Chip
+              label={`${(profile.skillTags || []).length}/${VALIDATION_RULES.skillTags.maxCount}`}
+              size="small"
+              color={(profile.skillTags || []).length > 0 ? 'primary' : 'default'}
+              sx={{ fontWeight: 600 }}
             />
-          </div>
-   
-          {formErrors.expectedHourlyRate && (
-            <div 
-              id="rate-error" 
-              className="profile_wrkr_basic_error_text" 
-              role="alert"
-            >
-              {formErrors.expectedHourlyRate}
-            </div>
-          )}
-        </div>
-      </div>
+          </Box>
 
-      <div className="profile_wrkr_basic_form_section">
-        <h3 className="profile_wrkr_basic_section_title">Skills</h3>
-        <p className="profile_wrkr_basic_text_helper">
-          Select your skills or add your own
-        </p>
-        <div className="profile_wrkr_basic_form_group">
-          <label htmlFor="newSkill" className="profile_wrkr_basic_form_label">
-            Add Custom Skill
-          </label>
-          <div className="profile_wrkr_basic_input_group">
-            <input
-              type="text"
+          {/* Add Custom Skill */}
+          <Box sx={{ display: 'flex', gap: 2, mb: 3, flexDirection: { xs: 'column', sm: 'row', md: 'row' }, alignItems: 'flex-start' }}>
+            <TextField
               id="newSkill"
-              className={`profile_wrkr_basic_form_input ${
-                formErrors.newSkill ? 'profile_wrkr_basic_input_error' : ''
-              }`}
+              label="Add your unique skill"
+              variant="outlined"
+              fullWidth
+              size="small"
               value={newSkill}
               onChange={handleNewSkillChange}
-              // placeholder="e.g. Physiotherapy, Diabetes Management"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   addSkill();
                 }
               }}
-              maxLength={50}
+              error={Boolean(formErrors.newSkill)}
+              helperText={formErrors.newSkill || 'Press Enter or click Add to include this skill'}
+              inputProps={{ maxLength: 50 }}
               disabled={
-                isPending || 
+                isPending ||
                 (profile.skillTags || []).length >= VALIDATION_RULES.skillTags.maxCount
               }
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 3,
+                  backgroundColor: '#fafafa',
+                  '&:hover': { backgroundColor: '#f5f5f5' },
+                  '&.Mui-focused': { backgroundColor: 'white' }
+                },
+                // width:'120px'
+              }}
             />
-            <button
-              type="button"
-              className="profile_wrkr_basic_btn_add"
+            <Button
+              variant="contained"
+              color="primary"
               onClick={addSkill}
-              aria-label="Add skill"
               disabled={
-                isPending || 
-                !newSkill.trim() || 
+                isPending ||
+                !newSkill.trim() ||
                 (profile.skillTags || []).length >= VALIDATION_RULES.skillTags.maxCount
               }
-            >
-              <span className="profile_wrkr_basic_btn_icon">+</span>
-              <span className="profile_wrkr_basic_btn_text">Add</span>
-            </button>
-          </div>
-          {formErrors.newSkill && (
-            <div className="profile_wrkr_basic_error_text" role="alert">
-              {formErrors.newSkill}
-            </div>
-          )}
-          {formErrors.skillTags && (
-            <div className="profile_wrkr_basic_error_text" role="alert">
-              {formErrors.skillTags}
-            </div>
-          )}
-        </div>
-        <div className="profile_wrkr_basic_skills_suggestion">
-          
-          {DEFAULT_SKILLS.map((skill) => (
-            <button
-              key={skill}
-              type="button"
-              className={`profile_wrkr_basic_skill_btn ${
-                (profile.skillTags || []).includes(skill) 
-                  ? 'profile_wrkr_basic_skill_selected' 
-                  : ''
-              }`}
-              onClick={() => handleSuggestedSkillClick(skill)}
-              disabled={
-                isPending || 
-                (!((profile.skillTags || []).includes(skill)) && 
-                 (profile.skillTags || []).length >= VALIDATION_RULES.skillTags.maxCount)
-              }
-            >
-              {skill}
-            </button>
-          ))}
-        </div>
-
-        
-
-        {skillTags}
-      </div>
-
-      <div className="profile_wrkr_basic_form_section">
-        <h3 className="profile_wrkr_basic_section_title">Languages Spoken</h3>
-        {/* <p className="profile_wrkr_basic_text_helper">
-          Select languages you're comfortable speaking with clients (minimum {VALIDATION_RULES.languages.minCount}, maximum {VALIDATION_RULES.languages.maxCount})
-        </p> */}
-
-        <div className="profile_wrkr_basic_languages_suggestion">
-          {DEFAULT_LANGUAGES.map((language) => {
-            const isSelected = (profile.languages || []).some(lang => {
-              const existingName = typeof lang.language === 'string' 
-                ? lang.language 
-                : lang.language?.language;
-              return existingName === language;
-            });
-            
-            return (
-              <button
-                key={language}
-                type="button"
-                className={`profile_wrkr_basic_language_btn ${
-                  isSelected ? 'profile_wrkr_basic_language_selected' : ''
-                }`}
-                onClick={() => handleSuggestedLanguageClick(language)}
-                disabled={
-                  isPending || 
-                  (!isSelected && 
-                   (profile.languages || []).length >= VALIDATION_RULES.languages.maxCount)
+              sx={{
+                minWidth: { xs: '100%', sm: 120, },
+                width: '10%',
+                marginRight: '10px',
+                borderRadius: 3,
+                textTransform: 'none',
+                fontWeight: 600,
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                '&:hover': {
+                  boxShadow: '0 6px 16px rgba(102, 126, 234, 0.4)',
                 }
-              >
-                {language}
-              </button>
-            );
-          })}
-        </div>
+              }}
+            >
+              Add Skill
+            </Button>
+          </Box>
 
-        <div className="profile_wrkr_basic_form_group">
-          <label htmlFor="newLanguage" className="profile_wrkr_basic_form_label">
+          {/* Skill Tags Error */}
+          {formErrors.skillTags && (
+            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+              {formErrors.skillTags}
+            </Alert>
+          )}
+
+          {/* Popular Skills */}
+          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2, color: 'text.primary' }}>
+            Popular Skills
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
+            {DEFAULT_SKILLS.map((skill) => (
+              <Chip
+                key={skill}
+                label={skill}
+                clickable
+                color={(profile.skillTags || []).includes(skill) ? 'primary' : 'default'}
+                variant={(profile.skillTags || []).includes(skill) ? 'filled' : 'outlined'}
+                onClick={() => handleSuggestedSkillClick(skill)}
+                disabled={
+                  isPending ||
+                  (!(profile.skillTags || []).includes(skill) &&
+                    (profile.skillTags || []).length >= VALIDATION_RULES.skillTags.maxCount)
+                }
+                sx={{
+                  borderRadius: 3,
+                  height: 40,
+                  fontSize: '0.9rem',
+                  fontWeight: 500,
+                  transition: 'all 0.2s ease-in-out',
+                  '&:hover': {
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  },
+                  '&.MuiChip-filled': {
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                  }
+                }}
+              />
+            ))}
+          </Box>
+
+          {/* Selected Skills Display */}
+          {skillTags && (
+            <Box sx={{ mt: 3 }}>
+
+              {skillTags}
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Languages Section */}
+      <Card
+        elevation={0}
+        sx={{
+          mb: 4,
+          borderRadius: 4,
+          border: '1px solid',
+          borderColor: 'divider',
+          overflow: 'visible',
+          position: 'relative',
+          '&:hover': {
+            boxShadow: '0 8px 25px rgba(0,0,0,0.08)',
+            transform: 'translateY(-1px)',
+            transition: 'all 0.3s ease-in-out'
+          }
+        }}
+      >
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '4px',
+            background: 'linear-gradient(90deg, #8b5cf6 0%, #6366f1 100%)',
+            borderRadius: '16px 16px 0 0'
+          }}
+        />
+        <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            <Box
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: 3,
+                background: 'linear-gradient(135deg, #8b5cf620 0%, #6366f120 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mr: 2
+              }}
+            >
+              <Typography sx={{ fontSize: '1.5rem' }}>🌍</Typography>
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="h5" fontWeight={600} color="text.primary">
+                Languages Spoken
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Communication skills that help you connect with diverse clients
+              </Typography>
+            </Box>
+            <Chip
+              label={`${(profile.languages || []).length}/${VALIDATION_RULES.languages.maxCount}`}
+              size="small"
+              color={(profile.languages || []).length >= VALIDATION_RULES.languages.minCount ? 'primary' : 'warning'}
+              sx={{ fontWeight: 600 }}
+            />
+          </Box>
+
+          <Alert
+            severity="info"
+            sx={{ mb: 3, borderRadius: 2, backgroundColor: '#f0f9ff' }}
+          >
+            <Typography variant="body2">
+              <strong>Minimum {VALIDATION_RULES.languages.minCount} languages required.</strong>
+              {' '}Select languages you're comfortable speaking with clients.
+            </Typography>
+          </Alert>
+
+          {/* Popular Languages */}
+          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2, color: 'text.primary' }}>
+            Popular Languages
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mb: 3 }}>
+            {DEFAULT_LANGUAGES.map((language) => {
+              const isSelected = (profile.languages || []).some((lang) => {
+                const existingName =
+                  typeof lang.language === 'string'
+                    ? lang.language
+                    : lang.language?.language;
+                return existingName === language;
+              });
+
+              return (
+                <Chip
+                  key={language}
+                  label={language}
+                  clickable
+                  color={isSelected ? 'primary' : 'default'}
+                  variant={isSelected ? 'filled' : 'outlined'}
+                  onClick={() => handleSuggestedLanguageClick(language)}
+                  disabled={
+                    isPending ||
+                    (!isSelected &&
+                      (profile.languages || []).length >= VALIDATION_RULES.languages.maxCount)
+                  }
+                  sx={{
+                    borderRadius: 3,
+                    height: 40,
+                    fontSize: '0.9rem',
+                    fontWeight: 500,
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    },
+                    '&.MuiChip-filled': {
+                      background: 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)',
+                      color: 'white',
+                    }
+                  }}
+                />
+              );
+            })}
+          </Box>
+
+          {/* Add Custom Language */}
+          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2, color: 'text.primary' }}>
             Add Custom Language
-          </label>
-          <div className="profile_wrkr_basic_input_group">
-            <input
-              type="text"
+          </Typography>
+          <Box sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: '2fr 1fr auto' },
+            gap: 2,
+            mb: 2
+          }}>
+            <TextField
               id="newLanguage"
-              className={`profile_wrkr_basic_form_input ${
-                formErrors.newLanguage ? 'profile_wrkr_basic_input_error' : ''
-              }`}
+              label="Language name"
+              variant="outlined"
+              fullWidth
+              size="small"
               value={newLanguage}
               onChange={handleNewLanguageChange}
-              // placeholder="e.g. Portuguese, Russian"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   addNewLanguage();
                 }
               }}
-              maxLength={30}
+              inputProps={{ maxLength: 30 }}
+              error={Boolean(formErrors.newLanguage)}
+              helperText={formErrors.newLanguage || ''}
               disabled={
-                isPending || 
+                isPending ||
                 (profile.languages || []).length >= VALIDATION_RULES.languages.maxCount
               }
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 3,
+                  backgroundColor: '#fafafa',
+                  '&:hover': { backgroundColor: '#f5f5f5' },
+                  '&.Mui-focused': { backgroundColor: 'white' }
+                }
+              }}
             />
-            <select
-              className="profile_wrkr_basic_proficiency_select"
-              value={languageProficiency}
-              onChange={(e) => setLanguageProficiency(e.target.value)}
-              disabled={isPending}
-            >
-              {PROFICIENCY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="profile_wrkr_basic_btn_add"
+
+            <FormControl fullWidth size="small" disabled={isPending}>
+              <InputLabel id="proficiency-label">Proficiency Level</InputLabel>
+              <Select
+                labelId="proficiency-label"
+                id="proficiency"
+                value={languageProficiency}
+                onChange={(e) => setLanguageProficiency(e.target.value)}
+                label="Proficiency Level"   // ✅ important: ties label to select
+                MenuProps={{
+                  PaperProps: { style: { maxHeight: 200 } },
+                }}
+                sx={{
+                  borderRadius: 3,
+                  backgroundColor: '#fafafa',
+                  '&:hover': { backgroundColor: '#f5f5f5' },
+                  '&.Mui-focused': { backgroundColor: 'white' }
+                }}
+              >
+                {PROFICIENCY_OPTIONS.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+
+            <Button
+              variant="contained"
+              color="primary"
               onClick={addNewLanguage}
-              aria-label="Add language"
               disabled={
-                isPending || 
-                !newLanguage.trim() || 
+                isPending ||
+                !newLanguage.trim() ||
                 (profile.languages || []).length >= VALIDATION_RULES.languages.maxCount
               }
+              sx={{
+                minWidth: { xs: '100%', sm: 120 },
+                height: '40px',
+                borderRadius: 3,
+                textTransform: 'none',
+                fontWeight: 600,
+                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)',
+                '&:hover': {
+                  boxShadow: '0 6px 16px rgba(139, 92, 246, 0.4)',
+                }
+              }}
             >
-              <span className="profile_wrkr_basic_btn_icon">+</span>
-              <span className="profile_wrkr_basic_btn_text">Add</span>
-            </button>
-          </div>
-          {formErrors.newLanguage && (
-            <div className="profile_wrkr_basic_error_text" role="alert">
-              {formErrors.newLanguage}
-            </div>
-          )}
+              Add
+            </Button>
+          </Box>
+
+          {/* Languages Error */}
           {formErrors.languages && (
-            <div className="profile_wrkr_basic_error_text" role="alert">
+            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
               {formErrors.languages}
-            </div>
+            </Alert>
           )}
-        </div>
 
-        {languageTags}
-      </div>
+          {/* Selected Languages Display */}
+          {languageTags && (
+            <Box sx={{ mt: 3 }}>
 
-      <div className="profile_wrkr_basic_form_actions">
-        <button 
-          type="submit" 
-          className={`profile_wrkr_basic_btn_primary${isPending ? ' profile_wrkr_basic_btn_disabled' : ''}`}
+              {languageTags}
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Submit Button */}
+      <Box sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        mt: 4,
+        mb: 2
+      }}>
+        <Button
+          type="submit"
+          variant="contained"
           disabled={isPending}
           aria-describedby="submit-help"
+          sx={{
+            minWidth: { xs: '100%', sm: 280 },
+            height: 56,
+            fontSize: '1.1rem',
+            fontWeight: 600,
+            borderRadius: 4,
+            textTransform: "none",
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)',
+            '&:hover': {
+              background: 'linear-gradient(135deg, #5a67d8 0%, #6b46a0 100%)',
+              boxShadow: '0 8px 25px rgba(102, 126, 234, 0.5)',
+              transform: 'translateY(-2px)',
+            },
+            '&:disabled': {
+              background: '#e0e0e0',
+              transform: 'none',
+            },
+            transition: 'all 0.3s ease-in-out',
+          }}
         >
           {isPending ? (
-            <>
-              <span className="profile_wrkr_basic_spinner" aria-hidden="true"></span>
-              Saving...
-            </>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <CircularProgress
+                size={24}
+                color="inherit"
+                thickness={4}
+              />
+              <Typography variant="inherit">
+                Saving Your Profile...
+              </Typography>
+            </Box>
           ) : (
-            'Next: Work History'
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="inherit">
+                Continue to Work History
+              </Typography>
+              <Typography sx={{ fontSize: '1.2rem' }}>→</Typography>
+            </Box>
           )}
-        </button>
-      </div>
-    </form>
+        </Button>
+      </Box>
+
+      <Typography
+        variant="body2"
+        color="text.secondary"
+        sx={{
+          textAlign: 'center',
+          fontSize: '0.9rem'
+        }}
+      >
+        Your information is secure and will only be shared with potential clients
+      </Typography>
+    </Box>
   );
 });
 

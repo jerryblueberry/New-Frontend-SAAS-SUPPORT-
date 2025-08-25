@@ -14,6 +14,8 @@ import { Box, Paper, Typography, Button } from '@mui/material';
 import DashboardSidebar from '../../components/workerDashboard/components/DashboardSidebar/DashboardSidebar';
 import WorkerNavbar from '../../components/Navbar/WorkerNavbar';
 import DashboardAvailability from '../../components/workerDashboard/components/WorkerDashboardAvailability/DashboardAvailability';
+import WorkerTimesheet from '../Timesheet/WorkerTimesheet/WorkerTimesheet';
+import DashboardCertification from '../../components/workerDashboard/components/DashboardCertificates/DashboardCertification';
 
 const Dashboard = () => {
   const { signOut, isAuthenticated, user: authUser } = useAuth();
@@ -64,7 +66,7 @@ const Dashboard = () => {
       return failureCount < 2;
     },
   });
-console.log("USer",user);
+  console.log("USer", user);
 
 
   // Worker profile status fetching
@@ -161,7 +163,7 @@ console.log("USer",user);
       availability: 'Availability',
       certifications: 'Certifications',
       healthInformation: 'Health Information',
-    
+
     };
     return Object.entries(completed)
       .filter(([_, done]) => !done)
@@ -217,13 +219,15 @@ console.log("USer",user);
         />
         <main className="wrk-dashboard-content">
           {needsOnboarding && (
-            <>
+            <div style={{
+              marginTop:'2rem'
+            }}>
               <OnboardingPrompt
                 percentage={profileStatus?.profileCompleteness?.percentage || 0}
                 nextStep={getNextOnboardingStep()}
                 onContinue={continueOnboarding}
               />
-            </>
+            </div>
           )}
 
           {activeTab === 'overview' && (
@@ -271,12 +275,12 @@ console.log("USer",user);
                     >
                       {/* Simple SVG illustration (can be replaced with a more complex one) */}
                       <svg width="100%" height="100%" viewBox="0 0 220 140" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <ellipse cx="110" cy="120" rx="80" ry="15" fill="#ede7f6"/>
-                        <rect x="60" y="40" width="100" height="60" rx="16" fill="#b39ddb"/>
-                        <rect x="75" y="55" width="70" height="30" rx="8" fill="#fff"/>
-                        <rect x="90" y="65" width="40" height="10" rx="5" fill="#d1c4e9"/>
-                        <circle cx="110" cy="55" r="8" fill="#7e57c2"/>
-                        <rect x="100" y="90" width="20" height="8" rx="4" fill="#9575cd"/>
+                        <ellipse cx="110" cy="120" rx="80" ry="15" fill="#ede7f6" />
+                        <rect x="60" y="40" width="100" height="60" rx="16" fill="#b39ddb" />
+                        <rect x="75" y="55" width="70" height="30" rx="8" fill="#fff" />
+                        <rect x="90" y="65" width="40" height="10" rx="5" fill="#d1c4e9" />
+                        <circle cx="110" cy="55" r="8" fill="#7e57c2" />
+                        <rect x="100" y="90" width="20" height="8" rx="4" fill="#9575cd" />
                       </svg>
                     </Box>
                   </Box>
@@ -352,12 +356,12 @@ console.log("USer",user);
                     >
                       {/* Partially verified SVG */}
                       <svg width="100%" height="100%" viewBox="0 0 220 140" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <ellipse cx="110" cy="120" rx="80" ry="15" fill="#fffde7"/>
-                        <rect x="60" y="40" width="100" height="60" rx="16" fill="#ffe082"/>
-                        <rect x="75" y="55" width="70" height="30" rx="8" fill="#fffde7"/>
-                        <rect x="90" y="65" width="40" height="10" rx="5" fill="#ffe082"/>
-                        <circle cx="110" cy="55" r="8" fill="#ffd54f"/>
-                        <rect x="100" y="90" width="20" height="8" rx="4" fill="#ffb300"/>
+                        <ellipse cx="110" cy="120" rx="80" ry="15" fill="#fffde7" />
+                        <rect x="60" y="40" width="100" height="60" rx="16" fill="#ffe082" />
+                        <rect x="75" y="55" width="70" height="30" rx="8" fill="#fffde7" />
+                        <rect x="90" y="65" width="40" height="10" rx="5" fill="#ffe082" />
+                        <circle cx="110" cy="55" r="8" fill="#ffd54f" />
+                        <rect x="100" y="90" width="20" height="8" rx="4" fill="#ffb300" />
                       </svg>
                     </Box>
                   </Box>
@@ -399,8 +403,8 @@ console.log("USer",user);
                 <Box sx={{ mt: 8, textAlign: 'center' }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
                     <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <circle cx="60" cy="60" r="56" fill="#e8f5e9" stroke="#43a047" strokeWidth="4"/>
-                      <path d="M40 65l15 15 25-35" stroke="#43a047" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                      <circle cx="60" cy="60" r="56" fill="#e8f5e9" stroke="#43a047" strokeWidth="4" />
+                      <path d="M40 65l15 15 25-35" stroke="#43a047" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
                     </svg>
                   </Box>
                   <Typography variant="h4" color="success.main" fontWeight={700}>
@@ -451,111 +455,20 @@ console.log("USer",user);
           )}
 
           {activeTab === 'certifications' && (
-            <div className="wrk-dashboard-certifications-page">
-              <h1 className="wrk-dashboard-section-title">My Certifications</h1>
-
-              <div className="wrk-dashboard-certifications-container">
-                {onboardingData?.data?.profile?.certifications?.length > 0 ? (
-                  <div className="wrk-dashboard-certifications-list-detailed">
-                    {onboardingData.data.profile.certifications.map(
-                      (cert, index) => (
-                        <div
-                          key={index}
-                          className="wrk-dashboard-certification-item-detailed"
-                        >
-                          <div className="wrk-dashboard-certification-header">
-                            <div>
-                              <h3 className="wrk-dashboard-certification-name-detailed">
-                                {cert.certificationType.name}
-                              </h3>
-                              <p className="wrk-dashboard-certification-number">
-                                Number: {cert.number}
-                              </p>
-                            </div>
-                            <div>
-                              <span
-                                className={`wrk-dashboard-certification-status-detailed wrk-dashboard-certification-status-${cert.verificationStatus.toLowerCase()}`}
-                              >
-                                {cert.verificationStatus}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="wrk-dashboard-certification-details">
-                            <div>
-                              <p className="wrk-dashboard-certification-label">
-                                Issued Date
-                              </p>
-                              <p className="wrk-dashboard-certification-value">
-                                {new Date(cert.issuedDate).toLocaleDateString()}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="wrk-dashboard-certification-label">
-                                Expiry Date
-                              </p>
-                              <p className="wrk-dashboard-certification-value">
-                                {cert.expiryDate
-                                  ? new Date(
-                                      cert.expiryDate
-                                    ).toLocaleDateString()
-                                  : 'N/A'}
-                              </p>
-                            </div>
-                          </div>
-
-                          {cert.documents && cert.documents.length > 0 && (
-                            <div className="wrk-dashboard-certification-documents">
-                              <p className="wrk-dashboard-certification-documents-label">
-                                Documents:
-                              </p>
-                              <div className="wrk-dashboard-certification-documents-list">
-                                {cert.documents.map((doc, docIndex) => (
-                                  <a
-                                    key={docIndex}
-                                    href={doc.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="wrk-dashboard-certification-document"
-                                  >
-                                    <span className="wrk-dashboard-certification-document-icon">
-                                      ◉
-                                    </span>{' '}
-                                    {doc.fileName || `Document ${docIndex + 1}`}
-                                  </a>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    )}
-                  </div>
-                ) : (
-                  <p className="wrk-dashboard-empty-state">
-                    No certifications added yet
-                  </p>
-                )}
-
-                <div className="wrk-dashboard-certifications-actions">
-                  <button
-                    onClick={() => navigate('/onboarding/certifications')}
-                    className="wrk-dashboard-certifications-action-button"
-                  >
-                    {onboardingData?.data?.profile?.certifications?.length > 0
-                      ? 'Update Certifications'
-                      : 'Add Certifications'}
-                  </button>
-                </div>
-              </div>
+            <div style={{
+              margin:'0px',
+              padding:'0px',
+            }}>
+               <DashboardCertification onboardingData={onboardingData} />
             </div>
+           
           )}
 
           {activeTab === 'workHistory' && (
             <div className="wrk-dashboard-wrk-history">
               {/* Work History Section */}
               <h2>Work History</h2>
-              
+
 
               <div className="work-section">
                 {/* CV Section */}
@@ -564,7 +477,7 @@ console.log("USer",user);
                     <h3>CV/Resume</h3>
                     <div className="cv-preview-card">
                       <div className="cv-preview-content">
-                        <div 
+                        <div
                           className="cv-preview-icon"
                           onClick={() => handleDocumentPreviewClick({
                             url: onboardingData.data.profile.CV,
@@ -580,9 +493,9 @@ console.log("USer",user);
                               <line x1="16" y1="13" x2="16" y2="15"></line>
                             </svg>
                           ) : (
-                            <img 
-                              src={onboardingData.data.profile.CV} 
-                              alt="CV Preview" 
+                            <img
+                              src={onboardingData.data.profile.CV}
+                              alt="CV Preview"
                               className="cv-thumbnail"
                             />
                           )}
@@ -644,7 +557,7 @@ console.log("USer",user);
                   onboardingData?.data?.profile?.references?.map(
                     (reference, index) => (
                       <div className="reference-card" key={index}>
-                        <h2>References {index+1}</h2>
+                        <h2>References {index + 1}</h2>
                         <div className="reference-item">
                           <p className="label">Name</p>
                           <p className="value">{reference.name}</p>
@@ -679,6 +592,10 @@ console.log("USer",user);
                 )}
               </div>
             </div>
+          )}
+
+          {activeTab === 'timesheet' && (
+            <WorkerTimesheet activeTab={activeTab} setActiveTab={setActiveTab} handleSignOut={handleSignOut} />
           )}
 
           {/* Document Preview Modal */}

@@ -58,7 +58,9 @@ import {
   Language,
   Palette,
   Speed,
-  Storage
+  Storage,
+  Timelapse,
+  LockClock
 } from '@mui/icons-material';
 
 // Add a prop for top offset (navbar height)
@@ -174,13 +176,13 @@ const AdminSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
       ]
     },
     {
-      id: 'products',
-      label: 'Products',
-      icon: <Inventory />,
+      id: 'timesheet',
+      label: 'Timesheets',
+      icon:  <Timelapse/>,
       children: [
-        { id: 'product-list', label: 'Product List', icon: <Category />, path: '/products/list' },
-        { id: 'inventory', label: 'Inventory', icon: <Storage />, path: '/products/inventory' },
-        { id: 'categories', label: 'Categories', icon: <Category />, path: '/products/categories' }
+        { id: 'all-timesheets', label: 'View All TimeSheets', icon: <LockClock />, path: '/time-sheets' },
+        // { id: 'inventory', label: 'Inventory', icon: <Storage />, path: '/products/inventory' },
+        // { id: 'categories', label: 'Categories', icon: <Category />, path: '/products/categories' }
       ]
     },
     {

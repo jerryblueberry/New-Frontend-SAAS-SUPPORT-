@@ -184,11 +184,21 @@
 @media (max-width: 768px) {
   .wrk-dashboard-header {
     height: 84px;
+    /* background-color: red; */
   }
 
-  .wrk-dashboard-logo-image {
-    height: 150px;
+  .wrk-dashboard-logo-wrapper{
+    display: flex;
+    align-items: center;
+    /* background-color: red; */
+  
   }
+  .wrk-dashboard-logo-image {
+    margin-left: 30%;
+    height: 150px;
+
+  }
+  
 
   .wrk-dashboard-user-name {
     display: none;

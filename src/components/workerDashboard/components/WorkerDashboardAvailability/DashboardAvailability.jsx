@@ -12,9 +12,10 @@ import {
   useMediaQuery,
   Fade,
   Stack,
-  Tooltip,
   Divider,
-  Avatar
+  Avatar,
+  Card,
+  CardContent
 } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
@@ -26,6 +27,17 @@ import EditAvailabilityModal from './EditAvailabilityModal';
 const daysOfWeek = [
   'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
 ];
+
+// Day colors for visual distinction
+const DAY_COLORS = {
+  Monday: '#1976d2',
+  Tuesday: '#388e3c',
+  Wednesday: '#f57c00',
+  Thursday: '#7b1fa2',
+  Friday: '#d32f2f',
+  Saturday: '#0288d1',
+  Sunday: '#5d4037'
+};
 
 function formatTo12Hour(time24) {
   if (!time24) return '';
@@ -62,34 +74,36 @@ const DashboardAvailability = React.memo(function DashboardAvailability({ onboar
   const handleEditClose = () => setEditOpen(false);
   const handleEditConfirm = (newData) => {
     setEditOpen(false);
-    alert('Availability updated!\n' + JSON.stringify(newData, null, 2));
-    // Here you would call the API to update, if needed
+    onEdit(newData);
   };
 
-  // Group slots by day for fast lookup
-  const slotsByDay = useMemo(() => {
-    const map = daysOfWeek.reduce((acc, day) => {
+  // Group slots by day and sort them
+  const groupedSlots = useMemo(() => {
+    const groups = daysOfWeek.reduce((acc, day) => {
       acc[day] = [];
       return acc;
     }, {});
+    
     customTimeSlots.forEach(slot => {
-      if (map[slot.dayOfWeek]) {
-        map[slot.dayOfWeek].push(slot);
+      if (groups[slot.dayOfWeek]) {
+        groups[slot.dayOfWeek].push(slot);
       }
     });
-    return map;
+    
+    // Sort each day's slots by start time
+    daysOfWeek.forEach(day => {
+      groups[day].sort((a, b) => {
+        const [aHour, aMin] = a.startTime.split(':').map(Number);
+        const [bHour, bMin] = b.startTime.split(':').map(Number);
+        return aHour * 60 + aMin - (bHour * 60 + bMin);
+      });
+    });
+    
+    return groups;
   }, [customTimeSlots]);
 
   return (
-    <Box sx={{ width: '100%', mt: { xs: 2, md: 4,lg:7 }, px: { xs: 0, md: 2 }, bgcolor: 'background.default' }}>
-      {/* <Typography
-        variant={isMobile ? 'h5' : 'h4'}
-        fontWeight={800}
-        color="primary"
-        sx={{ mb: 3, textAlign: 'left', letterSpacing: 0.5 }}
-      >
-        My Schedule
-      </Typography> */}
+    <Box sx={{ width: '100%', mt: { xs: 2, md: 4, lg: 7 }, px: { xs: 0, md: 2 }, bgcolor: 'background.default' }}>
       <Paper
         elevation={3}
         sx={{
@@ -149,6 +163,8 @@ const DashboardAvailability = React.memo(function DashboardAvailability({ onboar
           </Button>
         </Box>
         <Divider sx={{ mb: 3 }} />
+        
+        {/* Time Slots Grid */}
         <Grid
           container
           spacing={isMobile ? 2 : 3}
@@ -161,113 +177,130 @@ const DashboardAvailability = React.memo(function DashboardAvailability({ onboar
             transition: 'all 0.3s',
           }}
         >
-          {daysOfWeek.map((day) => (
-            <Grid item xs={1} key={day} zeroMinWidth>
-              <Paper
-                elevation={0}
-                sx={{
-                  borderRadius: 3,
-                  p: { xs: 1.5, sm: 2 },
-                  minHeight: 140,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  bgcolor: theme.palette.mode === 'light' ? '#f7fafd' : 'background.paper',
-                  boxShadow: '0 1px 4px rgba(80,80,120,0.04)',
-                  mb: 1,
-                  transition: 'box-shadow 0.2s',
-                  '&:hover': {
-                    boxShadow: theme.shadows[4],
-                    transform: 'translateY(-2px) scale(1.01)',
-                  },
-                }}
-              >
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                  <Typography
-                    variant="subtitle1"
-                    fontWeight={700}
-                    color="text.primary"
-                    sx={{ letterSpacing: 0.2 }}
-                  >
-                    {day}
-                  </Typography>
-                  <Badge
-                    badgeContent={slotsByDay[day].length}
-                    color={slotsByDay[day].length > 0 ? 'success' : 'default'}
-                    sx={{
-                      position: 'relative',
-                      top: 0,
-                      left: 0,
-                      '& .MuiBadge-badge': {
-                        fontWeight: 600,
-                        fontSize: '0.75rem',
-                        px: 0.3,
-                        py: 0.2,
-                        borderRadius: 1.2,
-                        minWidth: 15,
-                        minHeight: 15,
-                        background: slotsByDay[day].length > 0 ? theme.palette.success.main : theme.palette.grey[400],
-                        color: '#fff',
-                        boxShadow: '0 1px 4px rgba(80,80,120,0.08)',
-                        transition: 'all 0.2s',
-                        ml: 0.7,
-                      },
-                    }}
-                  />
-                </Stack>
-                <Box sx={{ width: '100%', flex: 1 }}>
-                  {slotsByDay[day].length > 0 ? (
-                    <Stack spacing={1}>
-                      {slotsByDay[day].map((slot, idx) => (
-                        <Fade in timeout={400 + idx * 80} key={idx}>
-                          <Chip
-                            icon={<AccessTimeIcon color="primary" />}
-                            label={
-                              <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Typography component="span" fontWeight={600} color="primary.main">
-                                  {formatTo12Hour(slot.startTime)} - {formatTo12Hour(slot.endTime)}
-                                </Typography>
-                                <Typography component="span" color="text.secondary" fontSize="0.95rem">
-                                  ({calculateDuration(slot.startTime, slot.endTime)})
-                                </Typography>
-                              </Box>
-                            }
-                            sx={{
-                              bgcolor: theme.palette.mode === 'light' ? '#fffde7' : 'background.paper',
-                              color: 'primary.main',
-                              fontWeight: 600,
-                              fontSize: '1rem',
-                              borderRadius: 2,
-                              px: 1.5,
-                              py: 0.5,
-                              boxShadow: '0 1px 2px rgba(255,193,7,0.08)',
-                              transition: 'all 0.2s',
-                              '&:hover': {
-                                bgcolor: theme.palette.primary.light,
-                                color: 'primary.contrastText',
-                                transform: 'scale(1.04)',
-                              },
-                            }}
-                          />
-                        </Fade>
-                      ))}
-                    </Stack>
-                  ) : (
-                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 2, opacity: 0.7 }}>
-                      <EventBusyIcon color="disabled" />
-                      <Typography variant="body2" color="text.secondary" fontStyle="italic">
-                        No availability
+          {daysOfWeek.map((day) => {
+            const dayColor = DAY_COLORS[day] || theme.palette.primary.main;
+            const slots = groupedSlots[day];
+            
+            return (
+              <Grid item xs={1} key={day} zeroMinWidth>
+                <Card
+                  variant="outlined"
+                  sx={{
+                    borderRadius: 3,
+                    minHeight: 180,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    borderLeft: `4px solid ${dayColor}`,
+                    transition: 'box-shadow 0.2s',
+                    '&:hover': {
+                      boxShadow: theme.shadows[4],
+                      transform: 'translateY(-2px)',
+                    },
+                  }}
+                >
+                  <CardContent sx={{ p: 2, flexGrow: 1 }}>
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                      <Typography
+                        variant="subtitle1"
+                        fontWeight={700}
+                        color="text.primary"
+                        sx={{ letterSpacing: 0.2 }}
+                      >
+                        {day}
                       </Typography>
+                      <Badge
+                        badgeContent={slots.length}
+                        color={slots.length > 0 ? 'success' : 'default'}
+                        sx={{
+                          position: 'relative',
+                          top: 0,
+                          left: 0,
+                          '& .MuiBadge-badge': {
+                            fontWeight: 600,
+                            fontSize: '0.75rem',
+                            px: 0.3,
+                            py: 0.2,
+                            borderRadius: 1.2,
+                            minWidth: 15,
+                            minHeight: 15,
+                            background: slots.length > 0 ? theme.palette.success.main : theme.palette.grey[400],
+                            color: '#fff',
+                            boxShadow: '0 1px 4px rgba(80,80,120,0.08)',
+                            transition: 'all 0.2s',
+                            ml: 0.7,
+                          },
+                        }}
+                      />
                     </Stack>
-                  )}
-                </Box>
-              </Paper>
-            </Grid>
-          ))}
+                    
+                    {/* Time Slots */}
+                    <Box sx={{ width: '100%', flex: 1 }}>
+                      {slots.length > 0 ? (
+                        <Stack spacing={1.5}>
+                          {slots.map((slot, idx) => (
+                            <Fade in timeout={400 + idx * 80} key={idx}>
+                              <Card
+                                variant="outlined"
+                                sx={{
+                                  p: 1.5,
+                                  borderRadius: 2,
+                                  borderColor: (dayColor, 0.3),
+                                  bgcolor: (dayColor, 0.05),
+                                  transition: 'all 0.2s',
+                                  '&:hover': {
+                                    bgcolor: (dayColor, 0.1),
+                                    transform: 'scale(1.02)',
+                                  },
+                                }}
+                              >
+                                <Stack direction="row" alignItems="center" spacing={1}>
+                                  <AccessTimeIcon 
+                                    fontSize="small" 
+                                    sx={{ color: (dayColor, 0.8) }} 
+                                  />
+                                  <Box>
+                                    <Typography variant="body2" fontWeight={600} sx={{ color: dayColor }}>
+                                      {formatTo12Hour(slot.startTime)} - {formatTo12Hour(slot.endTime)}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      ({calculateDuration(slot.startTime, slot.endTime)})
+                                    </Typography>
+                                  </Box>
+                                </Stack>
+                              </Card>
+                            </Fade>
+                          ))}
+                        </Stack>
+                      ) : (
+                        <Stack 
+                          direction="row" 
+                          alignItems="center" 
+                          justifyContent="center"
+                          spacing={1} 
+                          sx={{ 
+                            height: '100%', 
+                            minHeight: 100,
+                            opacity: 0.7 
+                          }}
+                        >
+                          <EventBusyIcon color="disabled" />
+                          <Typography variant="body2" color="text.secondary" fontStyle="italic">
+                            No availability
+                          </Typography>
+                        </Stack>
+                      )}
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
         </Grid>
+        
         <EditAvailabilityModal
           open={editOpen}
           onClose={handleEditClose}
+          onSave={handleEditConfirm}
           initialData={{
             suburb: availability.suburb || '',
             kmWillingToTravel: availability.kmWillingToTravel || '',
