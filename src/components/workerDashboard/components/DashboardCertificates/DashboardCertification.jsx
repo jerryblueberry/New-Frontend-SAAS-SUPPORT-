@@ -681,7 +681,44 @@ const DashboardCertification = ({ onboardingData }) => {
                     </Stack>
                   }
                 />
+                <Tab
+                  label={
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <School fontSize="small" />
+                      <Typography sx={{ fontSize: { xs: '0.8rem', md: '1rem' } }}>
+                        Expired Certifications
+                      </Typography>
+                      {otherCertifications.length > 0 && (
+                        <Chip
+                          label={otherCertifications.length}
+                          size="small"
+                          color="secondary"
+                          sx={{ height: 20, fontSize: '0.75rem' }}
+                        />
+                      )}
+                    </Stack>
+                  }
+                />
+                      <Tab
+                  label={
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <School fontSize="small" />
+                      <Typography sx={{ fontSize: { xs: '0.8rem', md: '1rem' } }}>
+                        Rejected Certifications
+                      </Typography>
+                      {otherCertifications.length > 0 && (
+                        <Chip
+                          label={otherCertifications.length}
+                          size="small"
+                          color="secondary"
+                          sx={{ height: 20, fontSize: '0.75rem' }}
+                        />
+                      )}
+                    </Stack>
+                  }
+                />
               </Tabs>
+              
             </Paper>
       
             {/* Tab Content */}

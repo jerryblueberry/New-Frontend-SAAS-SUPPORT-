@@ -76,11 +76,15 @@ import {
   Download,
   Visibility,
   Close,
-  Warning
+  Warning,
 } from '@mui/icons-material';
+import EventNoteIcon from '@mui/icons-material/EventNote';
+import ProgressNoteDrawer from '../../../components/ProgressNote/WorkerProgressNote/ProgressNoteDrawer';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../api/axios';
+import DashboardSidebar from '../../../components/workerDashboard/components/DashboardSidebar/DashboardSidebar';
+import WorkerNavbar from '../../../components/Navbar/WorkerNavbar';
 
 
 // Map UI sort to backend-expected sort strings
@@ -270,6 +274,7 @@ const WorkerTimesheet = () => {
   const [selectedTimesheet, setSelectedTimesheet] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
 
+
   // Form states
   const [clockInData, setClockInData] = useState({
     clientName: '',
@@ -300,6 +305,7 @@ const WorkerTimesheet = () => {
   });
   const [openBreakModal, setOpenBreakModal] = useState(false);
   const [savingTimesheet, setSavingTimesheet] = useState(false);
+  const [openProgressDrawer, setOpenProgressDrawer] = useState(false);
 
   // Notification state
   const [notification, setNotification] = useState({
@@ -350,6 +356,7 @@ const WorkerTimesheet = () => {
 
       // Align with backend route mounted at /api/v1/timesheet
       const response = await api.get('/timesheet/my-timesheets', { params });
+
 
       let fetchedTimesheets = response?.data?.data?.timesheets || [];
       if (!mappedSort && sort.field) {
@@ -621,236 +628,937 @@ const WorkerTimesheet = () => {
   const getActiveFiltersCount = () => {
     return Object.values(filters).filter(Boolean).length;
   };
+  console.log("Selected Timesheet", selectedTimesheet?._id)
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'grey.50' }}>
+    <Box>
+      <WorkerNavbar />
+      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'grey.50' }}>
+        <DashboardSidebar />
 
 
-
-      {/* Main Content */}
-      <Box component="main" sx={{
-        flexGrow: 1,
-        mt: { xs: 1, sm: 1 },
-        p: { xs: 2, sm: 1 },
-        // ml: { md: '260px' },
-        minHeight: '100vh'
-      }}>
-        {/* Header */}
-        <Box sx={{
-          display: 'flex',
-          flexDirection: { xs: 'column', sm: 'row' },
-          justifyContent: 'space-between',
-          alignItems: { xs: 'flex-start', sm: 'center' },
-          mb: 2,
-          mt: 6,
-          gap: 2
+        {/* Main Content */}
+        <Box component="main" sx={{
+          flexGrow: 1,
+          mt: { xs: 1, sm: 1 },
+          p: { xs: 2, sm: 1, },
+          // ml: { md: '260px' },
+          minHeight: '100vh'
         }}>
-          <Box>
-            <Typography variant="h4" fontWeight="bold" gutterBottom>
-              Timesheet Management
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Track your work hours and manage timesheets
-            </Typography>
-          </Box>
+          {/* Header */}
+          <Box sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            justifyContent: 'space-between',
+            alignItems: { xs: 'flex-start', sm: 'center' },
+            mb: 2,
+            mt: 10,
+            gap: 2
+          }}>
+            <Box sx={{
+              px:1,
+            }}>
+              <Typography variant="h4" fontWeight="bold" gutterBottom>
+                Timesheet Management
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Track your work hours and manage timesheets
+              </Typography>
+            </Box>
 
-          <Stack direction="row" spacing={1} flexWrap="wrap">
-            <Tooltip title={activeTimesheet ? 'Complete ongoing shift to add a new entry' : ''}>
-              <span>
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              <Tooltip title={activeTimesheet ? 'Complete ongoing shift to add a new entry' : ''}>
+                <span>
+                  <Button
+                    variant="outlined"
+                    startIcon={<Add />}
+                    disabled={Boolean(activeTimesheet)}
+                    onClick={() => {
+                      if (activeTimesheet) {
+                        showNotification('Complete ongoing shift to add a new entry', 'warning');
+                        return;
+                      }
+                      setTimesheetForm({
+                        _id: undefined,
+                        clientName: '',
+                        clockIn: new Date(),
+                        clockOut: null,
+                        workType: 'support',
+                        notes: '',
+                        hourlyRate: 25,
+                        billable: true
+                      });
+                      setOpenTimesheetModal(true);
+                    }}
+                    size={isMobile ? 'small' : 'medium'}
+                  >
+                    {isMobile ? 'Add' : 'New Entry'}
+                  </Button>
+                </span>
+              </Tooltip>
+
+              <Badge color="primary" badgeContent={getActiveFiltersCount()} invisible={getActiveFiltersCount() === 0}>
                 <Button
                   variant="outlined"
-                  startIcon={<Add />}
-                  disabled={Boolean(activeTimesheet)}
-                  onClick={() => {
-                    if (activeTimesheet) {
-                      showNotification('Complete ongoing shift to add a new entry', 'warning');
-                      return;
-                    }
-                    setTimesheetForm({
-                      _id: undefined,
-                      clientName: '',
-                      clockIn: new Date(),
-                      clockOut: null,
-                      workType: 'support',
-                      notes: '',
-                      hourlyRate: 25,
-                      billable: true
-                    });
-                    setOpenTimesheetModal(true);
-                  }}
+                  startIcon={<FilterList />}
+                  onClick={() => setShowFiltersPanel(prev => !prev)}
                   size={isMobile ? 'small' : 'medium'}
                 >
-                  {isMobile ? 'Add' : 'New Entry'}
+                  Filters
                 </Button>
-              </span>
-            </Tooltip>
+              </Badge>
+            </Stack>
+          </Box>
 
-            <Badge color="primary" badgeContent={getActiveFiltersCount()} invisible={getActiveFiltersCount() === 0}>
-              <Button
-                variant="outlined"
-                startIcon={<FilterList />}
-                onClick={() => setShowFiltersPanel(prev => !prev)}
-                size={isMobile ? 'small' : 'medium'}
-              >
-                Filters
-              </Button>
-            </Badge>
-          </Stack>
-        </Box>
+          {/* Active Timesheet Alert */}
+          {activeTimesheet && (
+            <Box
+              sx={{
+                mb: 1.5,
+                px: 1,
+                py: 0.75,
+                borderRadius: 1.5,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 1,
+                flexWrap: 'wrap',
+                bgcolor: 'warning.50',
+                border: '1px solid',
+                borderColor: 'warning.light',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+                {/* Pulsing Dot */}
+                <Box
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    bgcolor: 'error.main',
+                    animation: 'pulseDot 1.6s ease-out infinite',
+                    '@keyframes pulseDot': {
+                      '0%': { boxShadow: '0 0 0 0 rgba(211, 47, 47, 0.7)' },
+                      '70%': { boxShadow: '0 0 0 6px rgba(211, 47, 47, 0)' },
+                      '100%': { boxShadow: '0 0 0 0 rgba(211, 47, 47, 0)' },
+                    },
+                  }}
+                />
+                <Typography variant="caption" color="error.main" fontWeight={700}>
+                  Active
+                </Typography>
+                <Typography variant="caption" sx={{ mx: 0.5, color: 'text.disabled' }}>
+                  •
+                </Typography>
+                <Typography
+                  variant="body2"
+                  fontWeight={600}
+                  noWrap
+                  sx={{
+                    maxWidth: { xs: 140, sm: 220, md: 260 },
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {activeTimesheet.clientName}
+                </Typography>
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  color={getWorkTypeInfo(activeTimesheet.workType)?.color}
+                  label={getWorkTypeInfo(activeTimesheet.workType)?.label}
+                />
+                {activeTimesheet.location?.address && (
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    noWrap
+                    sx={{ maxWidth: { xs: 120, sm: 200, md: 240 } }}
+                  >
+                    📍 {activeTimesheet.location.address}
+                  </Typography>
+                )}
+              </Box>
 
-        {/* Active Timesheet Alert */}
-        {activeTimesheet && (
-          <Box
-            sx={{
-              mb: 1.5,
-              px: 1,
-              py: 0.75,
-              borderRadius: 1.5,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 1,
-              flexWrap: 'wrap',
-              bgcolor: 'warning.50',
-              border: '1px solid',
-              borderColor: 'warning.light',
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
-              {/* Pulsing Dot */}
-              <Box
-                sx={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  bgcolor: 'error.main',
-                  animation: 'pulseDot 1.6s ease-out infinite',
-                  '@keyframes pulseDot': {
-                    '0%': { boxShadow: '0 0 0 0 rgba(211, 47, 47, 0.7)' },
-                    '70%': { boxShadow: '0 0 0 6px rgba(211, 47, 47, 0)' },
-                    '100%': { boxShadow: '0 0 0 0 rgba(211, 47, 47, 0)' },
-                  },
-                }}
-              />
-              <Typography variant="caption" color="error.main" fontWeight={700}>
-                Active
-              </Typography>
-              <Typography variant="caption" sx={{ mx: 0.5, color: 'text.disabled' }}>
-                •
-              </Typography>
-              <Typography
-                variant="body2"
-                fontWeight={600}
-                noWrap
-                sx={{
-                  maxWidth: { xs: 140, sm: 220, md: 260 },
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {activeTimesheet.clientName}
-              </Typography>
-              <Chip
-                size="small"
-                variant="outlined"
-                color={getWorkTypeInfo(activeTimesheet.workType)?.color}
-                label={getWorkTypeInfo(activeTimesheet.workType)?.label}
-              />
-              {activeTimesheet.location?.address && (
+              <Stack direction="row" spacing={1} alignItems="center">
                 <Typography
                   variant="caption"
                   color="text.secondary"
-                  noWrap
-                  sx={{ maxWidth: { xs: 120, sm: 200, md: 240 } }}
+                  sx={{ display: { xs: 'none', sm: 'inline' } }}
                 >
-                  📍 {activeTimesheet.location.address}
+                  {dayjs(activeTimesheet.clockIn).format('MMM D, h:mm A')}
                 </Typography>
-              )}
+                <Chip
+                  size="small"
+                  label={getElapsedTime?.()}
+                  color="error"
+                  sx={{
+                    height: 22,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    animation: 'blink 1.4s ease-in-out infinite',
+                    '@keyframes blink': {
+                      '0%': { opacity: 1 },
+                      '50%': { opacity: 0.7 },
+                      '100%': { opacity: 1 },
+                    },
+                  }}
+                />
+              </Stack>
             </Box>
+          )}
 
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ display: { xs: 'none', sm: 'inline' } }}
-              >
-                {dayjs(activeTimesheet.clockIn).format('MMM D, h:mm A')}
-              </Typography>
-              <Chip
-                size="small"
-                label={getElapsedTime?.()}
-                color="error"
-                sx={{
-                  height: 22,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  animation: 'blink 1.4s ease-in-out infinite',
-                  '@keyframes blink': {
-                    '0%': { opacity: 1 },
-                    '50%': { opacity: 0.7 },
-                    '100%': { opacity: 1 },
-                  },
-                }}
-              />
-            </Stack>
-          </Box>
-        )}
-
-        {/* Inline Filters Panel (placed above analytics for all screen sizes) */}
-        {showFiltersPanel && (
-          <Card sx={{ mb: 2, borderRadius: 2, p: 2, boxShadow: 2 }}>
-            <Box sx={{ mb: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Typography variant="subtitle1" fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <FilterList fontSize="small" /> Filters
-              </Typography>
-              <IconButton size="small" onClick={() => setShowFiltersPanel(false)}>
-                <Close fontSize="small" />
-              </IconButton>
-            </Box>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={12}>
-                <FormControl fullWidth size="large" sx={{ '& .MuiInputBase-root': { height: 56, fontSize: 16 } }}>
-                  <InputLabel>Status</InputLabel>
-                  <Select
+          {/* Inline Filters Panel (placed above analytics for all screen sizes) */}
+          {showFiltersPanel && (
+            <Card sx={{ mb: 2, borderRadius: 2, p: 2, boxShadow: 2 }}>
+              <Box sx={{ mb: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography variant="subtitle1" fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <FilterList fontSize="small" /> Filters
+                </Typography>
+                <IconButton size="small" onClick={() => setShowFiltersPanel(false)}>
+                  <Close fontSize="small" />
+                </IconButton>
+              </Box>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={12}>
+                  <FormControl fullWidth size="large" sx={{ '& .MuiInputBase-root': { height: 56, fontSize: 16 } }}>
+                    <InputLabel>Status</InputLabel>
+                    <Select
+                      fullWidth
+                      value={filters.status}
+                      onChange={(e) => handleFilterChange('status', e.target.value)}
+                      label="Status"
+                      sx={{
+                        width: '220px'
+                      }}
+                      MenuProps={{
+                        PaperProps: {
+                          sx: { minWidth: { xs: 300, sm: 420, md: 560 } }
+                        }
+                      }}
+                    >
+                      <MenuItem value="">All Statuses</MenuItem>
+                      <MenuItem value="draft">Draft</MenuItem>
+                      <MenuItem value="submitted">Submitted</MenuItem>
+                      <MenuItem value="approved">Approved</MenuItem>
+                      <MenuItem value="rejected">Rejected</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={12}>
+                  <FormControl fullWidth size="medium" sx={{ '& .MuiInputBase-root': { height: 56, fontSize: 16 } }}>
+                    <InputLabel>Work Type</InputLabel>
+                    <Select
+                      fullWidth
+                      value={filters.workType}
+                      onChange={(e) => handleFilterChange('workType', e.target.value)}
+                      label="Work Type"
+                      sx={{
+                        width: '220px'
+                      }}
+                      MenuProps={{
+                        PaperProps: {
+                          sx: { minWidth: { xs: 300, sm: 420, md: 560 } }
+                        }
+                      }}
+                    >
+                      <MenuItem value="">All Types</MenuItem>
+                      <MenuItem value="support">Support</MenuItem>
+                      <MenuItem value="care">Care</MenuItem>
+                      <MenuItem value="administrative">Administrative</MenuItem>
+                      <MenuItem value="training">Training</MenuItem>
+                      <MenuItem value="travel">Travel</MenuItem>
+                      <MenuItem value="other">Other</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
                     fullWidth
-                    value={filters.status}
-                    onChange={(e) => handleFilterChange('status', e.target.value)}
-                    label="Status"
-                    sx={{
-                      width: '220px'
-                    }}
-                    MenuProps={{
-                      PaperProps: {
-                        sx: { minWidth: { xs: 300, sm: 420, md: 560 } }
-                      }
-                    }}
+                    size="small"
+                    label="Client Name"
+                    value={filters.clientName}
+                    onChange={(e) => handleFilterChange('clientName', e.target.value)}
+                  />
+                </Grid>
+                <Grid item xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="date"
+                    label="Start Date"
+                    value={filters.startDate}
+                    onChange={(e) => handleFilterChange('startDate', e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="date"
+                    label="End Date"
+                    value={filters.endDate}
+                    onChange={(e) => handleFilterChange('endDate', e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+              </Grid>
+              <Stack direction="row" spacing={1} sx={{ mt: 2 }} justifyContent="flex-end">
+                <Button onClick={resetFilters}>Reset</Button>
+                <Button variant="contained" startIcon={<FilterList />} onClick={applyFilters}>Apply</Button>
+              </Stack>
+            </Card>
+          )}
+
+          {/* Analytics Cards */}
+          <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card sx={{
+                height: '100%',
+                borderRadius: 3,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white'
+              }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Timer sx={{ fontSize: 40, opacity: 0.8, mr: 2 }} />
+                    <Box>
+                      <Typography variant="h4" fontWeight="bold">
+                        {analytics.totalHours?.toFixed(1) || '0.0'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                        Total Hours
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={3}>
+              <Card sx={{
+                height: '100%',
+                borderRadius: 3,
+                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                color: 'white'
+              }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <AttachMoney sx={{ fontSize: 40, opacity: 0.8, mr: 2 }} />
+                    <Box>
+                      <Typography variant="h4" fontWeight="bold">
+                        ${analytics.totalPay?.toFixed(0) || '0'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                        Total Earnings
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={3}>
+              <Card sx={{
+                height: '100%',
+                borderRadius: 3,
+                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                color: 'white'
+              }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <TrendingUp sx={{ fontSize: 40, opacity: 0.8, mr: 2 }} />
+                    <Box>
+                      <Typography variant="h4" fontWeight="bold">
+                        {analytics.avgHours?.toFixed(1) || '0.0'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                        Avg Hours/Day
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={3}>
+              <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 3 }}>
+                <CardContent>
+                  <Typography variant="h6" color="textSecondary" gutterBottom>
+                    Status Overview
+                  </Typography>
+                  <Stack spacing={1}>
+                    {Object.entries(analytics.statusBreakdown || {}).map(([status, count]) => (
+                      <Box key={status} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Chip
+                          label={status.charAt(0).toUpperCase() + status.slice(1)}
+                          size="small"
+                          color={getStatusColor(status)}
+                          variant="outlined"
+                        />
+                        <Typography variant="h6" fontWeight="bold">
+                          {count}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+
+
+
+
+
+          {/* Timesheet List */}
+          <Card sx={{ borderRadius: 3, overflow: 'hidden' }}>
+            {loading && <LinearProgress />}
+
+            {isMobile ? (
+              // Mobile Card Layout
+              <Box sx={{ p: 2 }}>
+                {timesheets.map((timesheet) => (
+                  <Card key={timesheet._id} sx={{ mb: 2, borderRadius: 2, boxShadow: 2 }}>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                        <Box>
+                          <Typography variant="h6" gutterBottom>
+                            {timesheet.clientName}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {dayjs(timesheet.clockIn).format('MMM D, YYYY')}
+                          </Typography>
+                        </Box>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            setAnchorEl(e.currentTarget);
+                            setSelectedTimesheet(timesheet);
+                          }}
+                        >
+                          <MoreVert />
+                        </IconButton>
+                      </Box>
+
+                      <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 2 }}>
+                        <Chip
+                          label={getWorkTypeInfo(timesheet.workType).label}
+                          size="small"
+                          color={getWorkTypeInfo(timesheet.workType).color}
+                          variant="outlined"
+                        />
+                        <Chip
+                          label={timesheet.status}
+                          size="small"
+                          color={getStatusColor(timesheet.status)}
+                        />
+                      </Stack>
+
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Duration
+                          </Typography>
+                          <Typography variant="h6">
+                            {timesheet.totalHours.toFixed(1)} hrs
+                          </Typography>
+                        </Box>
+                        <Box sx={{ textAlign: 'right' }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Earnings
+                          </Typography>
+                          <Typography variant="h6" color="primary">
+                            ${timesheet.totalPay?.toFixed(2) || '0.00'}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      {timesheet.notes && (
+                        <Box sx={{ mt: 2, p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
+                          <Typography variant="body2">
+                            <Notes sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
+                            {timesheet.notes}
+                          </Typography>
+                        </Box>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </Box>
+            ) : (
+              // Desktop Table Layout
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>
+                        <Box
+                          sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                          onClick={() => handleSort('clockIn')}
+                        >
+                          <Typography fontWeight="bold">Date & Time</Typography>
+                          {sort.field === 'clockIn' && (
+                            sort.direction === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
+                          )}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Typography fontWeight="bold">Client</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Box
+                          sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                          onClick={() => handleSort('workType')}
+                        >
+                          <Typography fontWeight="bold">Work Type</Typography>
+                          {sort.field === 'workType' && (
+                            sort.direction === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
+                          )}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Box
+                          sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                          onClick={() => handleSort('totalHours')}
+                        >
+                          <Typography fontWeight="bold">Hours</Typography>
+                          {sort.field === 'totalHours' && (
+                            sort.direction === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
+                          )}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Box
+                          sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                          onClick={() => handleSort('totalPay')}
+                        >
+                          <Typography fontWeight="bold">Earnings</Typography>
+                          {sort.field === 'totalPay' && (
+                            sort.direction === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
+                          )}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Typography fontWeight="bold">Status</Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography fontWeight="bold">Actions</Typography>
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+
+                  <TableBody>
+                    {loading ? (
+                      Array.from({ length: 5 }).map((_, index) => (
+                        <TableRow key={index}>
+                          {Array.from({ length: 7 }).map((_, cellIndex) => (
+                            <TableCell key={cellIndex}>
+                              <Skeleton variant="text" />
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    ) : (
+                      timesheets.map((timesheet) => (
+                        <TableRow
+                          key={timesheet._id}
+                          hover
+                          sx={{ cursor: 'pointer' }}
+                          onClick={() => {
+                            setSelectedTimesheet(timesheet);
+                            setOpenDetailModal(true);
+                          }}
+                        >
+                          <TableCell>
+                            <Box>
+                              <Typography variant="body2" fontWeight="medium">
+                                {dayjs(timesheet.clockIn).format('MMM D, YYYY')}
+                              </Typography>
+                              <Typography variant="caption" color="textSecondary">
+                                {dayjs(timesheet.clockIn).format('h:mm A')} -
+                                {timesheet.clockOut ? dayjs(timesheet.clockOut).format('h:mm A') : 'Active'}
+                              </Typography>
+                              {timesheet.location?.address && (
+                                <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                                  <LocationOn sx={{ fontSize: 12, mr: 0.5, color: 'text.secondary' }} />
+                                  <Typography variant="caption" color="textSecondary">
+                                    {timesheet.location.address.length > 30
+                                      ? `${timesheet.location.address.substring(0, 30)}...`
+                                      : timesheet.location.address
+                                    }
+                                  </Typography>
+                                </Box>
+                              )}
+                            </Box>
+                          </TableCell>
+
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Avatar sx={{ width: 32, height: 32, mr: 1, bgcolor: 'primary.main' }}>
+                                {timesheet.clientName?.charAt(0)}
+                              </Avatar>
+                              <Typography fontWeight="medium">{timesheet.clientName}</Typography>
+                            </Box>
+                          </TableCell>
+
+                          <TableCell>
+                            <Chip
+                              label={getWorkTypeInfo(timesheet.workType).label}
+                              size="small"
+                              color={getWorkTypeInfo(timesheet.workType).color}
+                              variant="outlined"
+                            />
+                          </TableCell>
+
+                          <TableCell>
+                            <Box>
+                              <Stack direction="row" spacing={0.75} alignItems="center">
+                                {(!timesheet.clockOut) && (
+                                  <Chip
+                                    size="small"
+                                    color="error"
+                                    label="Active"
+                                    sx={{
+                                      height: 20,
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      animation: 'blink 1.4s ease-in-out infinite',
+                                      '@keyframes blink': {
+                                        '0%': { opacity: 1 },
+                                        '50%': { opacity: 0.7 },
+                                        '100%': { opacity: 1 }
+                                      }
+                                    }}
+                                  />
+                                )}
+                                {(timesheet.clockOut) && (
+                                  <Typography variant="body2" fontWeight="medium">
+                                    {timesheet.totalHours.toFixed(1)} hrs
+                                  </Typography>
+                                )}
+
+                              </Stack>
+                              {timesheet.breaks?.length > 0 && (
+                                <Typography variant="caption" color="textSecondary">
+                                  {timesheet.breaks.length} break(s)
+                                </Typography>
+                              )}
+                            </Box>
+                          </TableCell>
+
+                          <TableCell>
+                            <Typography variant="body2" fontWeight="medium" color="primary">
+                              ${timesheet.totalPay?.toFixed(2) || '0.00'}
+                            </Typography>
+                          </TableCell>
+
+                          <TableCell>
+                            <Stack direction="row" spacing={0.75} alignItems="center">
+                              <Chip
+                                label={timesheet.status.charAt(0).toUpperCase() + timesheet.status.slice(1)}
+                                size="small"
+                                color={getStatusColor(timesheet.status)}
+                              />
+
+                            </Stack>
+                          </TableCell>
+
+                          <TableCell align="right">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAnchorEl(e.currentTarget);
+                                setSelectedTimesheet(timesheet);
+                              }}
+                            >
+                              <MoreVert />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+
+                    {timesheets.length === 0 && !loading && (
+                      <TableRow>
+                        <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                          <Box sx={{ textAlign: 'center' }}>
+                            <Schedule sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+                            <Typography variant="h6" color="textSecondary" gutterBottom>
+                              No timesheets found
+                            </Typography>
+                            <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                              Start by clocking in or creating a new timesheet entry
+                            </Typography>
+                            <Button
+                              variant="contained"
+                              startIcon={<Add />}
+                              onClick={() => setOpenTimesheetModal(true)}
+                            >
+                              Create Timesheet
+                            </Button>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+
+            {/* Pagination */}
+            {timesheets.length > 0 && (
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                p: 2,
+                flexDirection: { xs: 'column', sm: 'row' },
+                gap: 2
+              }}>
+                <Typography variant="body2" color="textSecondary">
+                  Showing {((pagination.current - 1) * pagination.limit) + 1} to {
+                    Math.min(pagination.current * pagination.limit, pagination.total)
+                  } of {pagination.total} entries
+                </Typography>
+
+                <Pagination
+                  count={pagination.pages}
+                  page={pagination.current}
+                  onChange={(e, page) => setPagination(prev => ({ ...prev, current: page }))}
+                  shape="rounded"
+                  size={isMobile ? 'small' : 'medium'}
+                  color="primary"
+                />
+              </Box>
+            )}
+          </Card>
+        </Box>
+
+        {/* Action Menu */}
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={() => setAnchorEl(null)}
+          transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+          anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        >
+          <MenuItem
+            onClick={() => {
+              setOpenDetailModal(true);
+              setAnchorEl(null);
+            }}
+          >
+            <Visibility sx={{ mr: 2 }} />
+            View Details
+          </MenuItem>
+
+          {selectedTimesheet?.status === 'draft' && (
+            <MenuItem
+              onClick={() => {
+                handleSubmitTimesheet(selectedTimesheet._id);
+                setAnchorEl(null);
+              }}
+            >
+              <Send sx={{ mr: 2 }} />
+              Submit for Approval
+            </MenuItem>
+          )}
+
+          {selectedTimesheet?.status === 'draft' && (
+            <MenuItem
+              onClick={() => {
+                setOpenTimesheetModal(true);
+                setTimesheetForm({
+                  ...selectedTimesheet,
+                  clockIn: new Date(selectedTimesheet.clockIn),
+                  clockOut: selectedTimesheet.clockOut ? new Date(selectedTimesheet.clockOut) : null
+                });
+                setAnchorEl(null);
+              }}
+            >
+              <Edit sx={{ mr: 2 }} />
+              Edit
+            </MenuItem>
+          )}
+
+          {selectedTimesheet?.status !== 'approved' && (
+            <MenuItem
+              onClick={() => {
+                setOpenDeleteDialog(true);
+                setAnchorEl(null);
+              }}
+              sx={{ color: 'error.main' }}
+            >
+              <Delete sx={{ mr: 2 }} />
+              Delete
+            </MenuItem>
+          )}
+          {selectedTimesheet?.status === 'draft' && (
+            <MenuItem
+              onClick={() => {
+                setOpenBreakModal(true);
+                setAnchorEl(null);
+              }}
+            >
+              <PauseCircle sx={{ mr: 2 }} />
+              Add Break
+            </MenuItem>
+          )}
+          {selectedTimesheet?.status === 'draft' && (
+            <MenuItem
+              onClick={() => {
+                setOpenProgressDrawer(true);
+                setAnchorEl(null);
+              }}
+            >
+              <EventNoteIcon sx={{ mr: 2 }} />
+              Progress Note
+            </MenuItem>
+          )}
+
+        </Menu>
+
+        {/* Clock In Modal */}
+        <Dialog
+          open={openClockInModal}
+          onClose={() => setOpenClockInModal(false)}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{ sx: { borderRadius: 3 } }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <PlayArrow sx={{ mr: 2, color: 'success.main' }} />
+              Clock In
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <Grid container spacing={3} sx={{ mt: 0.5 }}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Client Name"
+                  value={clockInData.clientName}
+                  onChange={(e) => setClockInData({ ...clockInData, clientName: e.target.value })}
+                  placeholder="Enter client name"
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel>Work Type</InputLabel>
+                  <Select
+                    value={clockInData.workType}
+                    onChange={(e) => setClockInData({ ...clockInData, workType: e.target.value })}
+                    label="Work Type"
                   >
-                    <MenuItem value="">All Statuses</MenuItem>
-                    <MenuItem value="draft">Draft</MenuItem>
-                    <MenuItem value="submitted">Submitted</MenuItem>
-                    <MenuItem value="approved">Approved</MenuItem>
-                    <MenuItem value="rejected">Rejected</MenuItem>
+                    <MenuItem value="support">Support Work</MenuItem>
+                    <MenuItem value="care">Care Services</MenuItem>
+                    <MenuItem value="administrative">Administrative</MenuItem>
+                    <MenuItem value="training">Training</MenuItem>
+                    <MenuItem value="travel">Travel Time</MenuItem>
+                    <MenuItem value="other">Other</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12} md={12}>
-                <FormControl fullWidth size="medium" sx={{ '& .MuiInputBase-root': { height: 56, fontSize: 16 } }}>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Location Address"
+                  value={clockInData.location.address}
+                  onChange={(e) => setClockInData({
+                    ...clockInData,
+                    location: { ...clockInData.location, address: e.target.value }
+                  })}
+                  placeholder="Enter work location"
+                  InputProps={{
+                    startAdornment: <LocationOn sx={{ mr: 1, color: 'text.secondary' }} />
+                  }}
+                />
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions sx={{ p: 3 }}>
+            <Button onClick={() => setOpenClockInModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleClockIn}
+              startIcon={<PlayArrow />}
+              disabled={!clockInData.workType}
+            >
+              Start Clock
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Progress Note Drawer */}
+        <ProgressNoteDrawer
+          open={openProgressDrawer}
+          onClose={() => setOpenProgressDrawer(false)}
+          selectedTimesheet={selectedTimesheet}
+          timesheet={selectedTimesheet}
+
+        />
+
+        {/* Create/Edit Timesheet Modal */}
+        <Dialog
+          open={openTimesheetModal}
+          onClose={() => setOpenTimesheetModal(false)}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{ sx: { borderRadius: 3 } }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Edit sx={{ mr: 2 }} />
+              {timesheetForm?._id ? 'Edit Timesheet' : 'New Timesheet'}
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <Grid container spacing={3} sx={{ mt: 0.5 }}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Client Name"
+                  value={timesheetForm.clientName}
+                  onChange={(e) => setTimesheetForm({ ...timesheetForm, clientName: e.target.value })}
+                  placeholder="Enter client name"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="datetime-local"
+                  label="Clock In"
+                  value={formatDateTimeLocal(timesheetForm.clockIn)}
+                  onChange={(e) => setTimesheetForm({ ...timesheetForm, clockIn: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="datetime-local"
+                  label="Clock Out (Optional)"
+                  value={formatDateTimeLocal(timesheetForm.clockOut)}
+                  onChange={(e) => setTimesheetForm({ ...timesheetForm, clockOut: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
                   <InputLabel>Work Type</InputLabel>
                   <Select
-                    fullWidth
-                    value={filters.workType}
-                    onChange={(e) => handleFilterChange('workType', e.target.value)}
+                    value={timesheetForm.workType}
+                    onChange={(e) => setTimesheetForm({ ...timesheetForm, workType: e.target.value })}
                     label="Work Type"
-                    sx={{
-                      width: '220px'
-                    }}
-                    MenuProps={{
-                      PaperProps: {
-                        sx: { minWidth: { xs: 300, sm: 420, md: 560 } }
-                      }
-                    }}
                   >
-                    <MenuItem value="">All Types</MenuItem>
                     <MenuItem value="support">Support</MenuItem>
                     <MenuItem value="care">Care</MenuItem>
                     <MenuItem value="administrative">Administrative</MenuItem>
@@ -860,1075 +1568,401 @@ const WorkerTimesheet = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  size="small"
-                  label="Client Name"
-                  value={filters.clientName}
-                  onChange={(e) => handleFilterChange('clientName', e.target.value)}
+                  type="number"
+                  label="Hourly Rate"
+                  value={timesheetForm.hourlyRate}
+                  onChange={(e) => setTimesheetForm({ ...timesheetForm, hourlyRate: Number(e.target.value) })}
+                  inputProps={{ step: 0.01, min: 0 }}
                 />
               </Grid>
-              <Grid item xs={12} md={3}>
+              <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  size="small"
-                  type="date"
-                  label="Start Date"
-                  value={filters.startDate}
-                  onChange={(e) => handleFilterChange('startDate', e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid item xs={12} md={3}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  type="date"
-                  label="End Date"
-                  value={filters.endDate}
-                  onChange={(e) => handleFilterChange('endDate', e.target.value)}
-                  InputLabelProps={{ shrink: true }}
+                  multiline
+                  rows={3}
+                  label="Notes"
+                  value={timesheetForm.notes}
+                  onChange={(e) => setTimesheetForm({ ...timesheetForm, notes: e.target.value })}
+                  placeholder="Add notes (optional)"
                 />
               </Grid>
             </Grid>
-            <Stack direction="row" spacing={1} sx={{ mt: 2 }} justifyContent="flex-end">
-              <Button onClick={resetFilters}>Reset</Button>
-              <Button variant="contained" startIcon={<FilterList />} onClick={applyFilters}>Apply</Button>
-            </Stack>
-          </Card>
-        )}
-
-        {/* Analytics Cards */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{
-              height: '100%',
-              borderRadius: 3,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white'
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Timer sx={{ fontSize: 40, opacity: 0.8, mr: 2 }} />
-                  <Box>
-                    <Typography variant="h4" fontWeight="bold">
-                      {analytics.totalHours?.toFixed(1) || '0.0'}
-                    </Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                      Total Hours
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{
-              height: '100%',
-              borderRadius: 3,
-              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-              color: 'white'
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <AttachMoney sx={{ fontSize: 40, opacity: 0.8, mr: 2 }} />
-                  <Box>
-                    <Typography variant="h4" fontWeight="bold">
-                      ${analytics.totalPay?.toFixed(0) || '0'}
-                    </Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                      Total Earnings
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{
-              height: '100%',
-              borderRadius: 3,
-              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-              color: 'white'
-            }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <TrendingUp sx={{ fontSize: 40, opacity: 0.8, mr: 2 }} />
-                  <Box>
-                    <Typography variant="h4" fontWeight="bold">
-                      {analytics.avgHours?.toFixed(1) || '0.0'}
-                    </Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                      Avg Hours/Day
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ height: '100%', borderRadius: 3, boxShadow: 3 }}>
-              <CardContent>
-                <Typography variant="h6" color="textSecondary" gutterBottom>
-                  Status Overview
-                </Typography>
-                <Stack spacing={1}>
-                  {Object.entries(analytics.statusBreakdown || {}).map(([status, count]) => (
-                    <Box key={status} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Chip
-                        label={status.charAt(0).toUpperCase() + status.slice(1)}
-                        size="small"
-                        color={getStatusColor(status)}
-                        variant="outlined"
-                      />
-                      <Typography variant="h6" fontWeight="bold">
-                        {count}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-
-
-
-
-        {/* Timesheet List */}
-        <Card sx={{ borderRadius: 3, overflow: 'hidden' }}>
-          {loading && <LinearProgress />}
-
-          {isMobile ? (
-            // Mobile Card Layout
-            <Box sx={{ p: 2 }}>
-              {timesheets.map((timesheet) => (
-                <Card key={timesheet._id} sx={{ mb: 2, borderRadius: 2, boxShadow: 2 }}>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                      <Box>
-                        <Typography variant="h6" gutterBottom>
-                          {timesheet.clientName}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {dayjs(timesheet.clockIn).format('MMM D, YYYY')}
-                        </Typography>
-                      </Box>
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          setAnchorEl(e.currentTarget);
-                          setSelectedTimesheet(timesheet);
-                        }}
-                      >
-                        <MoreVert />
-                      </IconButton>
-                    </Box>
-
-                    <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 2 }}>
-                      <Chip
-                        label={getWorkTypeInfo(timesheet.workType).label}
-                        size="small"
-                        color={getWorkTypeInfo(timesheet.workType).color}
-                        variant="outlined"
-                      />
-                      <Chip
-                        label={timesheet.status}
-                        size="small"
-                        color={getStatusColor(timesheet.status)}
-                      />
-                    </Stack>
-
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
-                          Duration
-                        </Typography>
-                        <Typography variant="h6">
-                          {timesheet.totalHours.toFixed(1)} hrs
-                        </Typography>
-                      </Box>
-                      <Box sx={{ textAlign: 'right' }}>
-                        <Typography variant="body2" color="text.secondary">
-                          Earnings
-                        </Typography>
-                        <Typography variant="h6" color="primary">
-                          ${timesheet.totalPay?.toFixed(2) || '0.00'}
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    {timesheet.notes && (
-                      <Box sx={{ mt: 2, p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
-                        <Typography variant="body2">
-                          <Notes sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
-                          {timesheet.notes}
-                        </Typography>
-                      </Box>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </Box>
-          ) : (
-            // Desktop Table Layout
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>
-                      <Box
-                        sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                        onClick={() => handleSort('clockIn')}
-                      >
-                        <Typography fontWeight="bold">Date & Time</Typography>
-                        {sort.field === 'clockIn' && (
-                          sort.direction === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
-                        )}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Typography fontWeight="bold">Client</Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Box
-                        sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                        onClick={() => handleSort('workType')}
-                      >
-                        <Typography fontWeight="bold">Work Type</Typography>
-                        {sort.field === 'workType' && (
-                          sort.direction === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
-                        )}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Box
-                        sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                        onClick={() => handleSort('totalHours')}
-                      >
-                        <Typography fontWeight="bold">Hours</Typography>
-                        {sort.field === 'totalHours' && (
-                          sort.direction === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
-                        )}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Box
-                        sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                        onClick={() => handleSort('totalPay')}
-                      >
-                        <Typography fontWeight="bold">Earnings</Typography>
-                        {sort.field === 'totalPay' && (
-                          sort.direction === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
-                        )}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Typography fontWeight="bold">Status</Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography fontWeight="bold">Actions</Typography>
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-
-                <TableBody>
-                  {loading ? (
-                    Array.from({ length: 5 }).map((_, index) => (
-                      <TableRow key={index}>
-                        {Array.from({ length: 7 }).map((_, cellIndex) => (
-                          <TableCell key={cellIndex}>
-                            <Skeleton variant="text" />
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  ) : (
-                    timesheets.map((timesheet) => (
-                      <TableRow
-                        key={timesheet._id}
-                        hover
-                        sx={{ cursor: 'pointer' }}
-                        onClick={() => {
-                          setSelectedTimesheet(timesheet);
-                          setOpenDetailModal(true);
-                        }}
-                      >
-                        <TableCell>
-                          <Box>
-                            <Typography variant="body2" fontWeight="medium">
-                              {dayjs(timesheet.clockIn).format('MMM D, YYYY')}
-                            </Typography>
-                            <Typography variant="caption" color="textSecondary">
-                              {dayjs(timesheet.clockIn).format('h:mm A')} -
-                              {timesheet.clockOut ? dayjs(timesheet.clockOut).format('h:mm A') : 'Active'}
-                            </Typography>
-                            {timesheet.location?.address && (
-                              <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                                <LocationOn sx={{ fontSize: 12, mr: 0.5, color: 'text.secondary' }} />
-                                <Typography variant="caption" color="textSecondary">
-                                  {timesheet.location.address.length > 30
-                                    ? `${timesheet.location.address.substring(0, 30)}...`
-                                    : timesheet.location.address
-                                  }
-                                </Typography>
-                              </Box>
-                            )}
-                          </Box>
-                        </TableCell>
-
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Avatar sx={{ width: 32, height: 32, mr: 1, bgcolor: 'primary.main' }}>
-                              {timesheet.clientName?.charAt(0)}
-                            </Avatar>
-                            <Typography fontWeight="medium">{timesheet.clientName}</Typography>
-                          </Box>
-                        </TableCell>
-
-                        <TableCell>
-                          <Chip
-                            label={getWorkTypeInfo(timesheet.workType).label}
-                            size="small"
-                            color={getWorkTypeInfo(timesheet.workType).color}
-                            variant="outlined"
-                          />
-                        </TableCell>
-
-                        <TableCell>
-                          <Box>
-                            <Stack direction="row" spacing={0.75} alignItems="center">
-                              {(!timesheet.clockOut) && (
-                                <Chip
-                                  size="small"
-                                  color="error"
-                                  label="Active"
-                                  sx={{
-                                    height: 20,
-                                    fontSize: 11,
-                                    fontWeight: 700,
-                                    animation: 'blink 1.4s ease-in-out infinite',
-                                    '@keyframes blink': {
-                                      '0%': { opacity: 1 },
-                                      '50%': { opacity: 0.7 },
-                                      '100%': { opacity: 1 }
-                                    }
-                                  }}
-                                />
-                              )}
-                              {(timesheet.clockOut) && (
-                                <Typography variant="body2" fontWeight="medium">
-                                  {timesheet.totalHours.toFixed(1)} hrs
-                                </Typography>
-                              )}
-
-                            </Stack>
-                            {timesheet.breaks?.length > 0 && (
-                              <Typography variant="caption" color="textSecondary">
-                                {timesheet.breaks.length} break(s)
-                              </Typography>
-                            )}
-                          </Box>
-                        </TableCell>
-
-                        <TableCell>
-                          <Typography variant="body2" fontWeight="medium" color="primary">
-                            ${timesheet.totalPay?.toFixed(2) || '0.00'}
-                          </Typography>
-                        </TableCell>
-
-                        <TableCell>
-                          <Stack direction="row" spacing={0.75} alignItems="center">
-                            <Chip
-                              label={timesheet.status.charAt(0).toUpperCase() + timesheet.status.slice(1)}
-                              size="small"
-                              color={getStatusColor(timesheet.status)}
-                            />
-
-                          </Stack>
-                        </TableCell>
-
-                        <TableCell align="right">
-                          <IconButton
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setAnchorEl(e.currentTarget);
-                              setSelectedTimesheet(timesheet);
-                            }}
-                          >
-                            <MoreVert />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-
-                  {timesheets.length === 0 && !loading && (
-                    <TableRow>
-                      <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Schedule sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
-                          <Typography variant="h6" color="textSecondary" gutterBottom>
-                            No timesheets found
-                          </Typography>
-                          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                            Start by clocking in or creating a new timesheet entry
-                          </Typography>
-                          <Button
-                            variant="contained"
-                            startIcon={<Add />}
-                            onClick={() => setOpenTimesheetModal(true)}
-                          >
-                            Create Timesheet
-                          </Button>
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-
-          {/* Pagination */}
-          {timesheets.length > 0 && (
-            <Box sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              p: 2,
-              flexDirection: { xs: 'column', sm: 'row' },
-              gap: 2
-            }}>
-              <Typography variant="body2" color="textSecondary">
-                Showing {((pagination.current - 1) * pagination.limit) + 1} to {
-                  Math.min(pagination.current * pagination.limit, pagination.total)
-                } of {pagination.total} entries
-              </Typography>
-
-              <Pagination
-                count={pagination.pages}
-                page={pagination.current}
-                onChange={(e, page) => setPagination(prev => ({ ...prev, current: page }))}
-                shape="rounded"
-                size={isMobile ? 'small' : 'medium'}
-                color="primary"
-              />
-            </Box>
-          )}
-        </Card>
-      </Box>
-
-      {/* Action Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={() => setAnchorEl(null)}
-        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-      >
-        <MenuItem
-          onClick={() => {
-            setOpenDetailModal(true);
-            setAnchorEl(null);
-          }}
-        >
-          <Visibility sx={{ mr: 2 }} />
-          View Details
-        </MenuItem>
-
-        {selectedTimesheet?.status === 'draft' && (
-          <MenuItem
-            onClick={() => {
-              handleSubmitTimesheet(selectedTimesheet._id);
-              setAnchorEl(null);
-            }}
-          >
-            <Send sx={{ mr: 2 }} />
-            Submit for Approval
-          </MenuItem>
-        )}
-
-        {selectedTimesheet?.status === 'draft' && (
-          <MenuItem
-            onClick={() => {
-              setOpenTimesheetModal(true);
-              setTimesheetForm({
-                ...selectedTimesheet,
-                clockIn: new Date(selectedTimesheet.clockIn),
-                clockOut: selectedTimesheet.clockOut ? new Date(selectedTimesheet.clockOut) : null
-              });
-              setAnchorEl(null);
-            }}
-          >
-            <Edit sx={{ mr: 2 }} />
-            Edit
-          </MenuItem>
-        )}
-
-        {selectedTimesheet?.status !== 'approved' && (
-          <MenuItem
-            onClick={() => {
-              setOpenDeleteDialog(true);
-              setAnchorEl(null);
-            }}
-            sx={{ color: 'error.main' }}
-          >
-            <Delete sx={{ mr: 2 }} />
-            Delete
-          </MenuItem>
-        )}
-        {selectedTimesheet?.status === 'draft' && (
-          <MenuItem
-          onClick={() => {
-            setOpenBreakModal(true);
-            setAnchorEl(null);
-          }}
-        >
-          <PauseCircle sx={{ mr: 2 }} />
-          Add Break
-        </MenuItem>
-        )}
-       
-      </Menu>
-
-      {/* Clock In Modal */}
-      <Dialog
-        open={openClockInModal}
-        onClose={() => setOpenClockInModal(false)}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}
-      >
-        <DialogTitle sx={{ pb: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <PlayArrow sx={{ mr: 2, color: 'success.main' }} />
-            Clock In
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <Grid container spacing={3} sx={{ mt: 0.5 }}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Client Name"
-                value={clockInData.clientName}
-                onChange={(e) => setClockInData({ ...clockInData, clientName: e.target.value })}
-                placeholder="Enter client name"
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Work Type</InputLabel>
-                <Select
-                  value={clockInData.workType}
-                  onChange={(e) => setClockInData({ ...clockInData, workType: e.target.value })}
-                  label="Work Type"
-                >
-                  <MenuItem value="support">Support Work</MenuItem>
-                  <MenuItem value="care">Care Services</MenuItem>
-                  <MenuItem value="administrative">Administrative</MenuItem>
-                  <MenuItem value="training">Training</MenuItem>
-                  <MenuItem value="travel">Travel Time</MenuItem>
-                  <MenuItem value="other">Other</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Location Address"
-                value={clockInData.location.address}
-                onChange={(e) => setClockInData({
-                  ...clockInData,
-                  location: { ...clockInData.location, address: e.target.value }
-                })}
-                placeholder="Enter work location"
-                InputProps={{
-                  startAdornment: <LocationOn sx={{ mr: 1, color: 'text.secondary' }} />
-                }}
-              />
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions sx={{ p: 3 }}>
-          <Button onClick={() => setOpenClockInModal(false)}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleClockIn}
-            startIcon={<PlayArrow />}
-            disabled={!clockInData.workType}
-          >
-            Start Clock
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Create/Edit Timesheet Modal */}
-      <Dialog
-        open={openTimesheetModal}
-        onClose={() => setOpenTimesheetModal(false)}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}
-      >
-        <DialogTitle sx={{ pb: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Edit sx={{ mr: 2 }} />
-            {timesheetForm?._id ? 'Edit Timesheet' : 'New Timesheet'}
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <Grid container spacing={3} sx={{ mt: 0.5 }}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Client Name"
-                value={timesheetForm.clientName}
-                onChange={(e) => setTimesheetForm({ ...timesheetForm, clientName: e.target.value })}
-                placeholder="Enter client name"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                type="datetime-local"
-                label="Clock In"
-                value={formatDateTimeLocal(timesheetForm.clockIn)}
-                onChange={(e) => setTimesheetForm({ ...timesheetForm, clockIn: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                type="datetime-local"
-                label="Clock Out (Optional)"
-                value={formatDateTimeLocal(timesheetForm.clockOut)}
-                onChange={(e) => setTimesheetForm({ ...timesheetForm, clockOut: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Work Type</InputLabel>
-                <Select
-                  value={timesheetForm.workType}
-                  onChange={(e) => setTimesheetForm({ ...timesheetForm, workType: e.target.value })}
-                  label="Work Type"
-                >
-                  <MenuItem value="support">Support</MenuItem>
-                  <MenuItem value="care">Care</MenuItem>
-                  <MenuItem value="administrative">Administrative</MenuItem>
-                  <MenuItem value="training">Training</MenuItem>
-                  <MenuItem value="travel">Travel</MenuItem>
-                  <MenuItem value="other">Other</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                type="number"
-                label="Hourly Rate"
-                value={timesheetForm.hourlyRate}
-                onChange={(e) => setTimesheetForm({ ...timesheetForm, hourlyRate: Number(e.target.value) })}
-                inputProps={{ step: 0.01, min: 0 }}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                multiline
-                rows={3}
-                label="Notes"
-                value={timesheetForm.notes}
-                onChange={(e) => setTimesheetForm({ ...timesheetForm, notes: e.target.value })}
-                placeholder="Add notes (optional)"
-              />
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions sx={{ p: 3 }}>
-          <Button onClick={() => setOpenTimesheetModal(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={handleSaveTimesheet}
-            disabled={savingTimesheet || !timesheetForm.workType}
-          >
-            {savingTimesheet ? 'Saving...' : 'Save'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Clock Out Modal */}
-      <Dialog
-        open={openClockOutModal}
-        onClose={() => setOpenClockOutModal(false)}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}
-      >
-        <DialogTitle sx={{ pb: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Stop sx={{ mr: 2, color: 'error.main' }} />
-            Clock Out
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          {activeTimesheet && (
-            <Alert severity="info" sx={{ mb: 3 }}>
-              <Typography variant="body1" gutterBottom>
-                <strong>Currently working:</strong>
-              </Typography>
-              <Typography variant="h6" gutterBottom>
-                {activeTimesheet.clientName} - {getWorkTypeInfo(activeTimesheet.workType).label}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Started at {dayjs(activeTimesheet.clockIn).format('h:mm A')} • Duration: {getElapsedTime()}
-              </Typography>
-              {activeTimesheet.location?.address && (
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  📍 {activeTimesheet.location.address}
-                </Typography>
-              )}
-            </Alert>
-          )}
-
-          <TextField
-            fullWidth
-            multiline
-            rows={4}
-            label="Session Notes (Optional)"
-            value={clockOutData.notes}
-            onChange={(e) => setClockOutData({ ...clockOutData, notes: e.target.value })}
-            placeholder="Add any notes about this work session..."
-            sx={{ mt: 2 }}
-          />
-        </DialogContent>
-        <DialogActions sx={{ p: 3 }}>
-          <Button onClick={() => setOpenClockOutModal(false)}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleClockOut}
-            startIcon={<Stop />}
-          >
-            Clock Out
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Timesheet Detail Modal */}
-      <Dialog
-        open={openDetailModal}
-        onClose={() => setOpenDetailModal(false)}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}
-      >
-        <DialogTitle sx={{ pb: 1 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h5">Timesheet Details</Typography>
-            <IconButton onClick={() => setOpenDetailModal(false)}>
-              <Close />
-            </IconButton>
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          {selectedTimesheet && (
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <Card sx={{ p: 2, bgcolor: 'grey.50' }}>
-                  <Typography variant="h6" gutterBottom color="primary">
-                    Session Information
-                  </Typography>
-                  <Stack spacing={2}>
-                    <Box>
-                      <Typography variant="body2" color="text.secondary">Client</Typography>
-                      <Typography variant="body1" fontWeight="medium">
-                        {selectedTimesheet.clientName}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="body2" color="text.secondary">Work Type</Typography>
-                      <Chip
-                        label={getWorkTypeInfo(selectedTimesheet.workType).label}
-                        size="small"
-                        color={getWorkTypeInfo(selectedTimesheet.workType).color}
-                      />
-                    </Box>
-                    <Box>
-                      <Typography variant="body2" color="text.secondary">Status</Typography>
-                      <Chip
-                        label={selectedTimesheet.status.charAt(0).toUpperCase() + selectedTimesheet.status.slice(1)}
-                        size="small"
-                        color={getStatusColor(selectedTimesheet.status)}
-                      />
-                    </Box>
-                    {selectedTimesheet.location?.address && (
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">Location</Typography>
-                        <Typography variant="body1">
-                          📍 {selectedTimesheet.location.address}
-                        </Typography>
-                      </Box>
-                    )}
-                  </Stack>
-                </Card>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <Card sx={{ p: 2, bgcolor: 'primary.50' }}>
-                  <Typography variant="h6" gutterBottom color="primary">
-                    Time & Earnings
-                  </Typography>
-                  <Stack spacing={2}>
-                    <Box>
-                      <Typography variant="body2" color="text.secondary">Date</Typography>
-                      <Typography variant="body1" fontWeight="medium">
-                        {dayjs(selectedTimesheet.clockIn).format('dddd, MMMM D, YYYY')}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="body2" color="text.secondary">Time Period</Typography>
-                      <Typography variant="body1" fontWeight="medium">
-                        {dayjs(selectedTimesheet.clockIn).format('h:mm A')} - {
-                          selectedTimesheet.clockOut
-                            ? dayjs(selectedTimesheet.clockOut).format('h:mm A')
-                            : 'Active'
-                        }
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="body2" color="text.secondary">Total Hours</Typography>
-                      <Typography variant="h5" fontWeight="bold" color="primary">
-                        {selectedTimesheet.totalHours.toFixed(1)} hrs
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="body2" color="text.secondary">Total Earnings</Typography>
-                      <Typography variant="h5" fontWeight="bold" color="success.main">
-                        ${selectedTimesheet.totalPay?.toFixed(2) || '0.00'}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </Card>
-              </Grid>
-
-              {selectedTimesheet.breaks && selectedTimesheet.breaks.length > 0 && (
-                <Grid item xs={12}>
-                  <Card sx={{ p: 2 }}>
-                    <Typography variant="h6" gutterBottom>
-                      Breaks ({selectedTimesheet.breaks.length})
-                    </Typography>
-                    <Stack spacing={1}>
-                      {selectedTimesheet.breaks.map((breakItem, index) => (
-                        <Box
-                          key={index}
-                          sx={{
-                            p: 2,
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            borderRadius: 1,
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center'
-                          }}
-                        >
-                          <Box>
-                            <Typography variant="body2">
-                              {dayjs(breakItem.startTime).format('h:mm A')} - {dayjs(breakItem.endTime).format('h:mm A')}
-                            </Typography>
-                            {breakItem.reason && (
-                              <Typography variant="caption" color="text.secondary">
-                                {breakItem.reason}
-                              </Typography>
-                            )}
-                          </Box>
-                          <Chip
-                            label={`${breakItem.duration} min`}
-                            size="small"
-                            variant="outlined"
-                          />
-                        </Box>
-                      ))}
-                    </Stack>
-                  </Card>
-                </Grid>
-              )}
-
-              {selectedTimesheet.notes && (
-                <Grid item xs={12}>
-                  <Card sx={{ p: 2 }}>
-                    <Typography variant="h6" gutterBottom>
-                      Session Notes
-                    </Typography>
-                    <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-                      {selectedTimesheet.notes}
-                    </Typography>
-                  </Card>
-                </Grid>
-              )}
-            </Grid>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ p: 3 }}>
-          {selectedTimesheet?.status === 'draft' && (
+          </DialogContent>
+          <DialogActions sx={{ p: 3 }}>
+            <Button onClick={() => setOpenTimesheetModal(false)}>Cancel</Button>
             <Button
               variant="contained"
-              startIcon={<Send />}
-              onClick={() => {
-                handleSubmitTimesheet(selectedTimesheet._id);
-                setOpenDetailModal(false);
-              }}
+              onClick={handleSaveTimesheet}
+              disabled={savingTimesheet || !timesheetForm.workType}
             >
-              Submit for Approval
+              {savingTimesheet ? 'Saving...' : 'Save'}
             </Button>
-          )}
-          <Button onClick={() => setOpenDetailModal(false)}>
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </DialogActions>
+        </Dialog>
 
-      {/* Add Break Modal */}
-      <Dialog
-        open={openBreakModal}
-        onClose={() => setOpenBreakModal(false)}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}
-      >
-        <DialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <PauseCircle sx={{ mr: 2, color: 'warning.main' }} />
-            Add Break
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <Grid container spacing={3} sx={{ mt: 0.5 }}>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                type="datetime-local"
-                label="Break Start"
-                value={breakForm.startTime}
-                onChange={(e) => setBreakForm({ ...breakForm, startTime: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                type="datetime-local"
-                label="Break End"
-                value={breakForm.endTime}
-                onChange={(e) => setBreakForm({ ...breakForm, endTime: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Break Reason (Optional)"
-                value={breakForm.reason}
-                onChange={(e) => setBreakForm({ ...breakForm, reason: e.target.value })}
-                placeholder="e.g., Lunch break, Personal time"
-              />
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions sx={{ p: 3 }}>
-          <Button onClick={() => setOpenBreakModal(false)}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleAddBreak}
-            disabled={!breakForm.startTime || !breakForm.endTime}
-          >
-            Add Break
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={openDeleteDialog}
-        onClose={() => setOpenDeleteDialog(false)}
-        PaperProps={{ sx: { borderRadius: 3 } }}
-      >
-        <DialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Warning sx={{ mr: 2, color: 'error.main' }} />
-            Delete Timesheet
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete this timesheet? This action cannot be undone.
-          </Typography>
-          {selectedTimesheet && (
-            <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
-              <Typography variant="body2">
-                <strong>Client:</strong> {selectedTimesheet.clientName}
-              </Typography>
-              <Typography variant="body2">
-                <strong>Date:</strong> {dayjs(selectedTimesheet.clockIn).format('MMM D, YYYY')}
-              </Typography>
-              <Typography variant="body2">
-                <strong>Hours:</strong> {selectedTimesheet.totalHours.toFixed(1)}
-              </Typography>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ p: 3 }}>
-          <Button onClick={() => setOpenDeleteDialog(false)}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleDeleteTimesheet}
-            startIcon={<Delete />}
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Notification Snackbar */}
-      <Snackbar
-        open={notification.open}
-        autoHideDuration={4000}
-        onClose={() => setNotification({ ...notification, open: false })}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert
-          onClose={() => setNotification({ ...notification, open: false })}
-          severity={notification.severity}
-          variant="filled"
-          sx={{ borderRadius: 2 }}
+        {/* Clock Out Modal */}
+        <Dialog
+          open={openClockOutModal}
+          onClose={() => setOpenClockOutModal(false)}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{ sx: { borderRadius: 3 } }}
         >
-          {notification.message}
-        </Alert>
-      </Snackbar>
+          <DialogTitle sx={{ pb: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Stop sx={{ mr: 2, color: 'error.main' }} />
+              Clock Out
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            {activeTimesheet && (
+              <Alert severity="info" sx={{ mb: 3 }}>
+                <Typography variant="body1" gutterBottom>
+                  <strong>Currently working:</strong>
+                </Typography>
+                <Typography variant="h6" gutterBottom>
+                  {activeTimesheet.clientName} - {getWorkTypeInfo(activeTimesheet.workType).label}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Started at {dayjs(activeTimesheet.clockIn).format('h:mm A')} • Duration: {getElapsedTime()}
+                </Typography>
+                {activeTimesheet.location?.address && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    📍 {activeTimesheet.location.address}
+                  </Typography>
+                )}
+              </Alert>
+            )}
+
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              label="Session Notes (Optional)"
+              value={clockOutData.notes}
+              onChange={(e) => setClockOutData({ ...clockOutData, notes: e.target.value })}
+              placeholder="Add any notes about this work session..."
+              sx={{ mt: 2 }}
+            />
+          </DialogContent>
+          <DialogActions sx={{ p: 3 }}>
+            <Button onClick={() => setOpenClockOutModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={handleClockOut}
+              startIcon={<Stop />}
+            >
+              Clock Out
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Timesheet Detail Modal */}
+        <Dialog
+          open={openDetailModal}
+          onClose={() => setOpenDetailModal(false)}
+          maxWidth="md"
+          fullWidth
+          PaperProps={{ sx: { borderRadius: 3 } }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h5">Timesheet Details</Typography>
+              <IconButton onClick={() => setOpenDetailModal(false)}>
+                <Close />
+              </IconButton>
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            {selectedTimesheet && (
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <Card sx={{ p: 2, bgcolor: 'grey.50' }}>
+                    <Typography variant="h6" gutterBottom color="primary">
+                      Session Information
+                    </Typography>
+                    <Stack spacing={2}>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Client</Typography>
+                        <Typography variant="body1" fontWeight="medium">
+                          {selectedTimesheet.clientName}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Work Type</Typography>
+                        <Chip
+                          label={getWorkTypeInfo(selectedTimesheet.workType).label}
+                          size="small"
+                          color={getWorkTypeInfo(selectedTimesheet.workType).color}
+                        />
+                      </Box>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Status</Typography>
+                        <Chip
+                          label={selectedTimesheet.status.charAt(0).toUpperCase() + selectedTimesheet.status.slice(1)}
+                          size="small"
+                          color={getStatusColor(selectedTimesheet.status)}
+                        />
+                      </Box>
+                      {selectedTimesheet.location?.address && (
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">Location</Typography>
+                          <Typography variant="body1">
+                            📍 {selectedTimesheet.location.address}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Stack>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <Card sx={{ p: 2, bgcolor: 'primary.50' }}>
+                    <Typography variant="h6" gutterBottom color="primary">
+                      Time & Earnings
+                    </Typography>
+                    <Stack spacing={2}>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Date</Typography>
+                        <Typography variant="body1" fontWeight="medium">
+                          {dayjs(selectedTimesheet.clockIn).format('dddd, MMMM D, YYYY')}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Time Period</Typography>
+                        <Typography variant="body1" fontWeight="medium">
+                          {dayjs(selectedTimesheet.clockIn).format('h:mm A')} - {
+                            selectedTimesheet.clockOut
+                              ? dayjs(selectedTimesheet.clockOut).format('h:mm A')
+                              : 'Active'
+                          }
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Total Hours</Typography>
+                        <Typography variant="h5" fontWeight="bold" color="primary">
+                          {selectedTimesheet.totalHours.toFixed(1)} hrs
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Total Earnings</Typography>
+                        <Typography variant="h5" fontWeight="bold" color="success.main">
+                          ${selectedTimesheet.totalPay?.toFixed(2) || '0.00'}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Card>
+                </Grid>
+
+                {selectedTimesheet.breaks && selectedTimesheet.breaks.length > 0 && (
+                  <Grid item xs={12}>
+                    <Card sx={{ p: 2 }}>
+                      <Typography variant="h6" gutterBottom>
+                        Breaks ({selectedTimesheet.breaks.length})
+                      </Typography>
+                      <Stack spacing={1}>
+                        {selectedTimesheet.breaks.map((breakItem, index) => (
+                          <Box
+                            key={index}
+                            sx={{
+                              p: 2,
+                              border: '1px solid',
+                              borderColor: 'divider',
+                              borderRadius: 1,
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <Box>
+                              <Typography variant="body2">
+                                {dayjs(breakItem.startTime).format('h:mm A')} - {dayjs(breakItem.endTime).format('h:mm A')}
+                              </Typography>
+                              {breakItem.reason && (
+                                <Typography variant="caption" color="text.secondary">
+                                  {breakItem.reason}
+                                </Typography>
+                              )}
+                            </Box>
+                            <Chip
+                              label={`${breakItem.duration} min`}
+                              size="small"
+                              variant="outlined"
+                            />
+                          </Box>
+                        ))}
+                      </Stack>
+                    </Card>
+                  </Grid>
+                )}
+
+                {selectedTimesheet.notes && (
+                  <Grid item xs={12}>
+                    <Card sx={{ p: 2 }}>
+                      <Typography variant="h6" gutterBottom>
+                        Session Notes
+                      </Typography>
+                      <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                        {selectedTimesheet.notes}
+                      </Typography>
+                    </Card>
+                  </Grid>
+                )}
+              </Grid>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 3 }}>
+            {selectedTimesheet?.status === 'draft' && (
+              <Button
+                variant="contained"
+                startIcon={<Send />}
+                onClick={() => {
+                  handleSubmitTimesheet(selectedTimesheet._id);
+                  setOpenDetailModal(false);
+                }}
+              >
+                Submit for Approval
+              </Button>
+            )}
+            <Button onClick={() => setOpenDetailModal(false)}>
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Add Break Modal */}
+        <Dialog
+          open={openBreakModal}
+          onClose={() => setOpenBreakModal(false)}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{ sx: { borderRadius: 3 } }}
+        >
+          <DialogTitle>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <PauseCircle sx={{ mr: 2, color: 'warning.main' }} />
+              Add Break
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <Grid container spacing={3} sx={{ mt: 0.5 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="datetime-local"
+                  label="Break Start"
+                  value={breakForm.startTime}
+                  onChange={(e) => setBreakForm({ ...breakForm, startTime: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="datetime-local"
+                  label="Break End"
+                  value={breakForm.endTime}
+                  onChange={(e) => setBreakForm({ ...breakForm, endTime: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Break Reason (Optional)"
+                  value={breakForm.reason}
+                  onChange={(e) => setBreakForm({ ...breakForm, reason: e.target.value })}
+                  placeholder="e.g., Lunch break, Personal time"
+                />
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions sx={{ p: 3 }}>
+            <Button onClick={() => setOpenBreakModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleAddBreak}
+              disabled={!breakForm.startTime || !breakForm.endTime}
+            >
+              Add Break
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog
+          open={openDeleteDialog}
+          onClose={() => setOpenDeleteDialog(false)}
+          PaperProps={{ sx: { borderRadius: 3 } }}
+        >
+          <DialogTitle>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Warning sx={{ mr: 2, color: 'error.main' }} />
+              Delete Timesheet
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to delete this timesheet? This action cannot be undone.
+            </Typography>
+            {selectedTimesheet && (
+              <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
+                <Typography variant="body2">
+                  <strong>Client:</strong> {selectedTimesheet.clientName}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Date:</strong> {dayjs(selectedTimesheet.clockIn).format('MMM D, YYYY')}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Hours:</strong> {selectedTimesheet.totalHours.toFixed(1)}
+                </Typography>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 3 }}>
+            <Button onClick={() => setOpenDeleteDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={handleDeleteTimesheet}
+              startIcon={<Delete />}
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Notification Snackbar */}
+        <Snackbar
+          open={notification.open}
+          autoHideDuration={4000}
+          onClose={() => setNotification({ ...notification, open: false })}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <Alert
+            onClose={() => setNotification({ ...notification, open: false })}
+            severity={notification.severity}
+            variant="filled"
+            sx={{ borderRadius: 2 }}
+          >
+            {notification.message}
+          </Alert>
+        </Snackbar>
+      </Box>
     </Box>
+
   );
 };
 

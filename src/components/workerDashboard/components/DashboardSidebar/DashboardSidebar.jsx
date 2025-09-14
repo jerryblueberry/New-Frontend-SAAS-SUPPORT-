@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Drawer,
   List,
@@ -15,6 +15,7 @@ import {
   Typography,
   LinearProgress
 } from '@mui/material';
+import { useNavigate, useLocation } from 'react-router-dom';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PersonIcon from '@mui/icons-material/Person';
@@ -27,13 +28,13 @@ import MoreTimeRoundedIcon from '@mui/icons-material/MoreTimeRounded';
 const drawerWidth = 260;
 
 const navItems = [
-  { key: 'overview', label: 'Overview', icon: <DashboardIcon /> },
-  { key: 'profile', label: 'My Profile', icon: <PersonIcon /> },
-  { key: 'jobs', label: 'Available Jobs', icon: <WorkIcon /> },
-  { key: 'schedule', label: 'My Schedule', icon: <ScheduleIcon /> },
-  { key: 'certifications', label: 'Certifications', icon: <VerifiedIcon /> },
-  { key: 'workHistory', label: 'Work History', icon: <HistoryIcon /> },
-  { key: 'timesheet', label: 'Time Sheet', icon: < MoreTimeRoundedIcon/> },
+  { key: 'overview', label: 'Overview', icon: <DashboardIcon />, route: '/overview' },
+  { key: 'profile', label: 'My Profile', icon: <PersonIcon />, route: '/my-profile' },
+  { key: 'jobs', label: 'Available Jobs', icon: <WorkIcon />, route: '/available-jobs' },
+  { key: 'schedule', label: 'My Schedule', icon: <ScheduleIcon />, route: '/my-schedule' },
+  { key: 'certifications', label: 'Certifications', icon: <VerifiedIcon />, route: '/my-certifications' },
+  { key: 'workHistory', label: 'Work History', icon: <HistoryIcon />, route: '/work-history' },
+  { key: 'timesheet', label: 'Time Sheet', icon: <MoreTimeRoundedIcon />, route: '/worker/timesheets' },
 ];
 
 const DashboardSidebar = ({
@@ -41,15 +42,48 @@ const DashboardSidebar = ({
   setActiveTab,
   handleSignOut,
   needsOnboarding,
-  profileStatus
+  profileStatus,
+  modalOpen
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Determine current active tab based on location
+  const getCurrentActiveTab = () => {
+    const currentPath = location.pathname;
+    const currentItem = navItems.find(item => item.route === currentPath);
+    return currentItem ? currentItem.key : 'overview';
+  };
+
+  // Update active tab when location changes
+  useEffect(() => {
+    const currentActiveTab = getCurrentActiveTab();
+    if (setActiveTab) {
+      setActiveTab(currentActiveTab);
+    }
+  }, [location.pathname, setActiveTab]);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
+
+  const handleNavigation = (item) => {
+    if (item.route) {
+      // Navigate to external route
+      navigate(item.route);
+    } else {
+      // Set active tab for dashboard content
+      if (setActiveTab) {
+        setActiveTab(item.key);
+      }
+    }
+    if (isMobile) setMobileOpen(false);
+  };
+
+  const currentActiveTab = getCurrentActiveTab();
 
   const drawerContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -72,14 +106,11 @@ const DashboardSidebar = ({
         {navItems.map((item) => (
           <ListItem key={item.key} disablePadding>
             <ListItemButton
-              selected={activeTab === item.key}
-              onClick={() => {
-                setActiveTab(item.key);
-                if (isMobile) setMobileOpen(false);
-              }}
+              selected={currentActiveTab === item.key}
+              onClick={() => handleNavigation(item)}
               sx={{
-                borderLeft: activeTab === item.key ? `4px solid ${theme.palette.primary.main}` : '4px solid transparent',
-                bgcolor: activeTab === item.key ? 'action.selected' : 'inherit',
+                borderLeft: currentActiveTab === item.key ? `4px solid ${theme.palette.primary.main}` : '4px solid transparent',
+                bgcolor: currentActiveTab === item.key ? 'action.selected' : 'inherit',
                 '&:hover': {
                   bgcolor: 'action.hover',
                 },
@@ -103,18 +134,17 @@ const DashboardSidebar = ({
 
   return (
     <>
-      {isMobile && (
+      {isMobile && !modalOpen && (
         <Box
           sx={{
             // position: 'absolute',
-            position:'fixed',
+            position: 'fixed',
             top: 22.5,
             left: 29,
             zIndex: 1301,
             display: { xs: 'block', md: 'none' },
-            
-            
-          
+
+
           }}
         >
           <IconButton
@@ -128,7 +158,7 @@ const DashboardSidebar = ({
               // boxShadow: 2,
               // borderRadius: 2,
               // border: '1px solid',
-              m:'10 2',
+              m: '10 2',
               borderColor: 'divider',
               p: .5,
             }}
@@ -150,7 +180,7 @@ const DashboardSidebar = ({
           ModalProps={{ keepMounted: true }}
           sx={{
             display: { xs: 'block', md: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth, mt: '70px'},
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth, mt: '70px' },
           }}
         >
           {drawerContent}

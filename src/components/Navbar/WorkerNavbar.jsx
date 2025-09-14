@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import LogoImg from '../../assets/aecus-logo.png';
 import './css/WorkerNavbar.css';
 
-const WorkerNavbar = () => {
+const WorkerNavbar = ({ modalOpen }) => {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
   const isGoogleUser = localStorage.getItem('auth_provider') === 'google';
@@ -37,19 +37,20 @@ const WorkerNavbar = () => {
             </span>
           </div>
           <div className="wrk-dashboard-user-menu">
-            <button
-              className="wrk-dashboard-user-menu-button"
-              aria-label="User menu"
-              onClick={toggleMenu}
-              aria-expanded={isMenuOpen}
-            >
-              <div className="wrk-dashboard-user-avatar">
-                {user?.firstName?.[0]}
-                {user?.lastName?.[0]}
-              </div>
-            </button>
-            
-            {isMenuOpen && (
+            {!modalOpen && (
+              <button
+                className="wrk-dashboard-user-menu-button"
+                aria-label="User menu"
+                onClick={toggleMenu}
+                aria-expanded={isMenuOpen}
+              >
+                <div className="wrk-dashboard-user-avatar">
+                  {user?.firstName?.[0]}
+                  {user?.lastName?.[0]}
+                </div>
+              </button>
+            )}
+            {!modalOpen && isMenuOpen && ( // Only show menu if modal is not open
               <div className="wrk-dashboard-dropdown-menu">
                 <div className="wrk-dashboard-dropdown-header">
                   <div className="wrk-dashboard-dropdown-avatar">
@@ -66,12 +67,6 @@ const WorkerNavbar = () => {
                   </div>
                 </div>
                 <div className="wrk-dashboard-dropdown-divider" />
-                {/* <button 
-                  className="wrk-dashboard-dropdown-item"
-                  onClick={() => navigate('/dashboard')}
-                >
-                  Dashboard
-                </button> */}
                 <button 
                   className="wrk-dashboard-dropdown-item"
                   onClick={handleSignOut}
