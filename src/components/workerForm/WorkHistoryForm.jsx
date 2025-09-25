@@ -343,6 +343,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
     const errors = {};
     let isValid = true;
     let firstReferenceErrorIndex = null;
+    let firstJobErrorIndex = null;
     let missingFields = [];
 
     // Validate work history
@@ -354,16 +355,19 @@ const WorkHistoryForm = ({ onNextStep }) => {
         if (!job.title || !job.title.trim()) {
           errors[`job${index}_title`] = 'Job title is required';
           isValid = false;
+          if (firstJobErrorIndex === null) firstJobErrorIndex = index;
         }
 
         if (!job.company || !job.company.trim()) {
           errors[`job${index}_company`] = 'Company name is required';
           isValid = false;
+          if (firstJobErrorIndex === null) firstJobErrorIndex = index;
         }
 
         if (!job.startDate) {
           errors[`job${index}_startDate`] = 'Start date is required';
           isValid = false;
+          if (firstJobErrorIndex === null) firstJobErrorIndex = index;
         }
 
         const isCurrentJob = job.currentlyWorking || job.current || false;
@@ -372,6 +376,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
           errors[`job${index}_endDate`] =
             'End date is required for past jobs';
           isValid = false;
+          if (firstJobErrorIndex === null) firstJobErrorIndex = index;
         }
 
         if (job.startDate && job.endDate) {
@@ -382,6 +387,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
             errors[`job${index}_endDate`] =
               'End date must be after start date';
             isValid = false;
+            if (firstJobErrorIndex === null) firstJobErrorIndex = index;
           }
         }
       });
@@ -398,11 +404,25 @@ const WorkHistoryForm = ({ onNextStep }) => {
     if (!localWorkHistory.references || localWorkHistory.references.length !== 2) {
       errors.references = 'Exactly two references are required';
       isValid = false;
-      toast.error('Please add exactly 2 professional references to continue', {
-        position: 'top-right',
-        duration: 4000,
-      });
     } else {
+      // Duplicate detection across references (use normalized E.164 for phones)
+      const emails = localWorkHistory.references.map(r => (r.email || '').trim().toLowerCase()).filter(Boolean);
+      const phones = localWorkHistory.references.map(r => toE164Australian(r.phone || '')).filter(Boolean);
+      const names = localWorkHistory.references.map(r => (r.name || '').trim().toLowerCase()).filter(Boolean);
+      const hasDup = (arr) => new Set(arr).size !== arr.length;
+      if (hasDup(emails)) {
+        isValid = false;
+        errors.references = errors.references || 'Duplicate reference emails are not allowed';
+      }
+      if (hasDup(phones)) {
+        isValid = false;
+        errors.references = errors.references || 'Duplicate reference phones are not allowed';
+      }
+      if (hasDup(names)) {
+        isValid = false;
+        errors.references = errors.references || 'Duplicate reference names are not allowed';
+      }
+
       // Validate each reference with detailed field checking
       localWorkHistory.references.forEach((ref, index) => {
         const refNumber = index + 1;
@@ -438,7 +458,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
           isValid = false;
           missingFields.push(`Reference ${refNumber} - Email`);
           if (firstReferenceErrorIndex === null) firstReferenceErrorIndex = index;
-        } else if (!/\S+@\S+\.\S+/.test(ref.email.trim())) {
+        } else if (!/^(?:[a-zA-Z0-9_'^&+\-])+(?:\.(?:[a-zA-Z0-9_'^&+\-])+)*@(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/.test(ref.email.trim())) {
           errors[`ref${index}_email`] = 'Please provide a valid email address';
           isValid = false;
           missingFields.push(`Reference ${refNumber} - Email (invalid format)`);
@@ -453,46 +473,21 @@ const WorkHistoryForm = ({ onNextStep }) => {
     if (firstReferenceErrorIndex !== null) {
       setExpandedReference(firstReferenceErrorIndex);
     }
-
-    // Show detailed toast notification for missing reference fields
-    if (!isValid && missingFields.length > 0) {
-      const missingFieldsText = missingFields.slice(0, 3).join(', ');
-      const remainingCount = missingFields.length - 3;
-      const toastMessage = remainingCount > 0 
-        ? `Missing required fields: ${missingFieldsText} and ${remainingCount} more...`
-        : `Missing required fields: ${missingFieldsText}`;
-      
-      toast.error(toastMessage, {
-        position: 'top-right',
-        duration: 5000,
-        style: {
-          background: '#f44336',
-          color: '#fff',
-          fontWeight: '600',
-        },
-      });
-    }
-
-    // Auto-scroll to the first error field
-    if (!isValid) {
+    // Expand the first job card with an error
+    if (firstJobErrorIndex !== null) {
+      setExpandedJob(firstJobErrorIndex);
+      // Best-effort scroll to the card if present
       setTimeout(() => {
-        const firstErrorKey = Object.keys(errors)[0];
-        if (firstErrorKey) {
-          // Try to find the field by name
-          let errorField = document.querySelector(`[name="${firstErrorKey}"]`);
-          // Fallback: try by id
-          if (!errorField) {
-            errorField = document.getElementById(firstErrorKey);
-          }
-          if (errorField) {
-            errorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            errorField.focus();
-          }
-        }
-      }, 100);
+        const el = document.getElementById(`wh-job-card-${firstJobErrorIndex}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
     }
 
-    return isValid;
+    // No immediate toasts here; we will show one combined toast in submit handler
+
+    // Store first error key for submit handler to focus and toast
+    const firstErrorKey = Object.keys(errors)[0] || null;
+    return { isValid, firstErrorKey, errors };
   }, [localWorkHistory, CV]);
   //  for the CV upload
   const handleCVUpload = async (file) => {
@@ -534,27 +529,43 @@ const WorkHistoryForm = ({ onNextStep }) => {
     (e) => {
       e.preventDefault();
 
-      if (!validateForm()) {
-        // Check specifically for reference validation failures
-        const hasReferenceErrors = Object.keys(formErrors).some(key => 
-          key.startsWith('ref') || key === 'references'
-        );
-        
-        if (hasReferenceErrors) {
-          toast.error('Please complete all required reference fields to continue', {
-            position: 'top-right',
-            duration: 4000,
-            style: {
-              background: '#f44336',
-              color: '#fff',
-              fontWeight: '600',
-            },
-          });
-        } else {
-          toast.error('Please fix all validation errors before submitting', {
-            position: 'top-right',
-          });
+      const { isValid, firstErrorKey, errors } = validateForm();
+      if (!isValid) {
+        toast.dismiss();
+        // Build specific first error message
+        const firstKey = firstErrorKey || Object.keys(errors)[0];
+        let message = 'Please fix all validation errors before submitting';
+        if (firstKey) {
+          const friendly = firstKey
+            .replace(/^ref(\d+)_/, (m, idx) => `Reference ${Number(idx) + 1} - `)
+            .replace(/^job(\d+)_/, (m, idx) => `Job ${Number(idx) + 1} - `)
+            .replace(/_/g, ' ')
+            .replace('name', 'Full Name')
+            .replace('position', 'Job Title')
+            .replace('company', 'Company')
+            .replace('phone', 'Phone')
+            .replace('email', 'Email')
+            .replace('title', 'Job Title')
+            .replace('startDate', 'Start Date')
+            .replace('endDate', 'End Date')
+            .replace('description', 'Description');
+          message = `Fix: ${friendly}`;
         }
+        toast.error(message, {
+          position: 'top-right',
+          duration: 4500,
+        });
+        // Focus the field
+        setTimeout(() => {
+          const key = firstErrorKey || Object.keys(errors)[0];
+          if (!key) return;
+          let el = document.querySelector(`[name="${key}"]`);
+          if (!el) el = document.getElementById(key);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.focus();
+          }
+        }, 50);
         return;
       }
 
@@ -572,7 +583,8 @@ const WorkHistoryForm = ({ onNextStep }) => {
           name: ref.name.trim(),
           position: ref.position.trim(),
           company: ref.company ? ref.company.trim() : '',
-          phone: ref.phone ? ref.phone.trim() : '',
+          // Save phones normalized to E.164
+          phone: toE164Australian(ref.phone || ''),
           email: ref.email ? ref.email.trim().toLowerCase() : '',
         })),
         // Only send the CV url string
@@ -627,40 +639,41 @@ const WorkHistoryForm = ({ onNextStep }) => {
 
   // Helper for Australian phone formatting and validation
   const formatAustralianPhone = (input) => {
-    // Remove all non-digit characters
-    let digits = input.replace(/\D/g, '');
-    // Remove leading 0 if present (for local numbers)
-    if (digits.startsWith('0')) digits = digits.slice(1);
-    // Remove leading 61 if present (for numbers already with country code)
-    if (digits.startsWith('61')) digits = digits.slice(2);
-    // Only keep up to 9 digits (Australian mobile/landline without country code)
-    digits = digits.slice(0, 9);
-    // Format as 123 123 123
-    let formatted = digits.replace(/(\d{3})(\d{3})(\d{0,3})/, (m, a, b, c) => c ? `${a} ${b} ${c}` : `${a} ${b}`);
-    return formatted.trim();
+    // Accept inputs like 0412345678, +61412345678, 0412 345 678, etc.
+    let digits = String(input || '').replace(/\D/g, '');
+    // Normalize to local 10-digit starting with 0 for display
+    if (digits.startsWith('61')) {
+      digits = digits.slice(2);
+      if (!digits.startsWith('0')) digits = `0${digits}`;
+    }
+    if (!digits.startsWith('0') && digits.length === 9) {
+      digits = `0${digits}`;
+    }
+    digits = digits.slice(0, 10);
+    if (!/^0\d{9}$/.test(digits)) {
+      // Fallback: show partial grouping as user types
+      const d = digits;
+      if (d.length <= 4) return d;
+      if (d.length <= 7) return `${d.slice(0, 4)} ${d.slice(4)}`;
+      return `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}`.trim();
+    }
+    // Format as 0412 345 678
+    return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7, 10)}`;
   };
 
   const toE164Australian = (input) => {
-    // Remove all non-digit characters
-    let digits = input.replace(/\D/g, '');
-    // Remove leading 0 if present
-    if (digits.startsWith('0')) digits = digits.slice(1);
-    // Remove leading 61 if present
+    // Always return +61XXXXXXXXX for AU numbers
+    let digits = String(input || '').replace(/\D/g, '');
     if (digits.startsWith('61')) digits = digits.slice(2);
-    // Only keep up to 9 digits
+    else if (digits.startsWith('0')) digits = digits.slice(1);
+    // Keep exactly 9 subscriber digits
     digits = digits.slice(0, 9);
-    // Return in E.164 format
-    return `+61${digits}`;
+    return digits ? `+61${digits}` : '';
   };
 
   const isValidAustralianPhone = (input) => {
-    // Remove all non-digit characters
-    let digits = input.replace(/\D/g, '');
-    // Remove leading 0 or 61
-    if (digits.startsWith('0')) digits = digits.slice(1);
-    if (digits.startsWith('61')) digits = digits.slice(2);
-    // Must be exactly 9 digits
-    return /^\d{9}$/.test(digits);
+    const cleaned = String(input || '').replace(/\D/g, '');
+    return /^0\d{9}$/.test(cleaned) || /^61\d{9}$/.test(cleaned);
   };
 
   // Helper to get CV document object for preview

@@ -1,26 +1,162 @@
 import React, { forwardRef, useState, useEffect, useCallback, useRef } from 'react';
-import { 
-  Box, 
-  Typography, 
-  TextField, 
-  InputAdornment, 
+import {
+  Box,
+  Typography,
+  TextField,
+  InputAdornment,
   Alert,
   useTheme,
   useMediaQuery,
   IconButton,
   Tooltip,
   Fade,
-  Chip
+  Chip,
+  Paper,
+  Grid,
+  Stack,
+  Button,
+  styled
 } from '@mui/material';
-import DatePicker from 'react-datepicker';
-import { 
+import {
   CalendarMonth as CalendarIcon,
   Clear as ClearIcon,
   Info as InfoIcon,
   CheckCircle as CheckIcon,
-  Event as EventIcon
+  Event as EventIcon,
+  Today as TodayIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon
 } from '@mui/icons-material';
-import 'react-datepicker/dist/react-datepicker.css';
+
+// Styled components (modern UI)
+const StyledTextField = styled(TextField)(({ theme, error, isValid }) => ({
+  '& .MuiOutlinedInput-root': {
+    borderRadius: 12,
+    backgroundColor: theme.palette.background.paper,
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    '&:hover': {
+      backgroundColor: theme.palette.action.hover,
+      '& .MuiOutlinedInput-notchedOutline': {
+        borderColor: error ? theme.palette.error.main :
+                   isValid ? theme.palette.success.main : theme.palette.primary.main,
+        borderWidth: '2px',
+      },
+    },
+    '&.Mui-focused': {
+      backgroundColor: theme.palette.background.paper,
+      boxShadow: error
+        ? `0 0 0 3px ${theme.palette.error.main}15`
+        : isValid
+          ? `0 0 0 3px ${theme.palette.success.main}15`
+          : `0 0 0 3px ${theme.palette.primary.main}15`,
+      '& .MuiOutlinedInput-notchedOutline': {
+        borderWidth: '2px',
+        borderColor: error ? theme.palette.error.main :
+                   isValid ? theme.palette.success.main : theme.palette.primary.main,
+      },
+    },
+  },
+  '& .MuiInputLabel-root': {
+    color: error ? theme.palette.error.main :
+           isValid ? theme.palette.success.main : theme.palette.text.primary,
+    '&.Mui-focused': {
+      color: error ? theme.palette.error.main :
+             isValid ? theme.palette.success.main : theme.palette.primary.main,
+    },
+  },
+}));
+
+const CalendarPaper = styled(Paper)(({ theme }) => ({
+  borderRadius: 16,
+  overflow: 'hidden',
+  boxShadow: '0 20px 40px -12px rgba(0, 0, 0, 0.25)',
+  border: `1px solid ${theme.palette.divider}`,
+  width: '100%'
+}));
+
+const CalendarHeader = styled(Box)(({ theme }) => ({
+  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+  color: 'white',
+  padding: theme.spacing(2),
+  position: 'relative',
+  overflow: 'hidden',
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%)',
+    animation: 'shimmer 3s ease-in-out infinite',
+  },
+  '@keyframes shimmer': {
+    '0%': { transform: 'translateX(-100%)' },
+    '100%': { transform: 'translateX(100%)' },
+  },
+}));
+
+const DayButton = styled('button')(({ theme, isToday, isSelected, isDisabled }) => ({
+  border: 'none',
+  borderRadius: 12,
+  width: 'clamp(36px, 8vw, 44px)',
+  height: 'clamp(36px, 8vw, 44px)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: isDisabled ? 'not-allowed' : 'pointer',
+  fontSize: 'clamp(0.8rem, 2.5vw, 0.95rem)',
+  fontWeight: 600,
+  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+  position: 'relative',
+  overflow: 'hidden',
+  ...(isDisabled ? {
+    color: theme.palette.text.disabled,
+    backgroundColor: 'transparent',
+    opacity: 0.3,
+  } : isSelected ? {
+    backgroundColor: theme.palette.primary.main,
+    color: 'white',
+    transform: 'scale(1.1)',
+    boxShadow: `0 4px 12px ${theme.palette.primary.main}40`,
+    zIndex: 2,
+  } : isToday ? {
+    backgroundColor: theme.palette.secondary.light,
+    color: theme.palette.secondary.contrastText,
+    border: `2px solid ${theme.palette.secondary.main}`,
+    '&::after': {
+      content: '""',
+      position: 'absolute',
+      bottom: 2,
+      left: '50%',
+      width: 4,
+      height: 4,
+      backgroundColor: theme.palette.secondary.main,
+      borderRadius: '50%',
+      transform: 'translateX(-50%)',
+    },
+  } : {
+    backgroundColor: 'transparent',
+    color: theme.palette.text.primary,
+    '&:hover': {
+      backgroundColor: theme.palette.primary.light,
+      color: 'white',
+      transform: 'scale(1.05) translateY(-1px)',
+      boxShadow: `0 4px 12px ${theme.palette.primary.main}30`,
+    },
+  }),
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: '-100%',
+    width: '100%',
+    height: '100%',
+    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+    transition: 'left 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+  },
+  '&:hover::before': { left: '100%' },
+}));
 
 // Date utility functions with DD/MM/YYYY format
 const getDateBounds = () => {
@@ -56,8 +192,8 @@ const parseISODate = (isoString) => {
 
 const formatDateForDisplay = (date) => {
   if (!date) return '';
-  const day = date.getDate().toString().padStart(2, '0');
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate();
+  const month = date.getMonth() + 1;
   const year = date.getFullYear();
   return `${day}/${month}/${year}`;
 };
@@ -249,40 +385,17 @@ const ModernDateInput = forwardRef(({
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       const { value, selectionStart } = e.target;
       const isAtSlash = value[selectionStart] === '/';
-      
       if (isAtSlash) {
         e.preventDefault();
         const newPos = e.key === 'ArrowLeft' ? selectionStart - 1 : selectionStart + 1;
         inputRef.current.setSelectionRange(newPos, newPos);
       }
     }
-    
-    // Allow deleting slashes
-    if (e.key === 'Backspace' || e.key === 'Delete') {
-      const { value, selectionStart } = e.target;
-      const isAtSlash = value[selectionStart] === '/';
-      
-      if (isAtSlash) {
-        e.preventDefault();
-        const newValue = value.slice(0, selectionStart) + value.slice(selectionStart + 1);
-        onInputChange({
-          ...e,
-          target: {
-            ...e.target,
-            value: newValue
-          }
-        });
-        
-        setTimeout(() => {
-          inputRef.current.setSelectionRange(selectionStart, selectionStart);
-        }, 0);
-      }
-    }
   };
 
   return (
     <Box sx={{ position: 'relative' }}>
-      <TextField
+      <StyledTextField
         {...props}
         size="small"
         ref={(node) => {
@@ -303,14 +416,15 @@ const ModernDateInput = forwardRef(({
         error={error}
         helperText={helperText}
         disabled={disabled}
+        isValid={isValid}
         variant="outlined"
         inputProps={{
           maxLength: 10, // DD/MM/YYYY
           pattern: '[0-9/]*',
           inputMode: 'numeric',
           style: { 
-            fontFamily: 'monospace',
-              fontSize: '0.9rem',
+            fontFamily: 'SF Mono, Monaco, monospace',
+            fontSize: '0.9rem',
             letterSpacing: '0.5px'
           }
         }}
@@ -324,8 +438,7 @@ const ModernDateInput = forwardRef(({
                   disabled={disabled}
                   sx={{ 
                     color: error ? 'error.main' : (isValid ? 'success.main' : 'primary.main'),
-                    backgroundColor: 'transparent',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    transition: 'all 0.3s ease',
                     '&:hover': {
                       backgroundColor: error ? 'error.light' : (isValid ? 'success.light' : 'primary.light'),
                       color: 'white',
@@ -347,7 +460,7 @@ const ModernDateInput = forwardRef(({
                     size="small"
                     sx={{ 
                       color: 'text.secondary',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      transition: 'all 0.3s ease',
                       '&:hover': {
                         backgroundColor: 'error.light',
                         color: 'error.main',
@@ -361,42 +474,9 @@ const ModernDateInput = forwardRef(({
               </Fade>
             </InputAdornment>
           ),
-          sx: {
-            borderRadius: 1.5,
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            backgroundColor: disabled ? 'action.disabledBackground' : 'background.paper',
-            '&:hover': {
-              backgroundColor: disabled ? 'action.disabledBackground' : 'action.hover',
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: error ? 'error.main' : (isValid ? 'success.main' : 'primary.main'),
-                borderWidth: '2px',
-              },
-            },
-            '&.Mui-focused': {
-              backgroundColor: 'background.paper',
-              boxShadow: error 
-                ? `0 0 0 3px ${theme.palette.error.main}25`
-                : isValid 
-                  ? `0 0 0 3px ${theme.palette.success.main}25`
-                  : `0 0 0 3px ${theme.palette.primary.main}25`,
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderWidth: '2px',
-                borderColor: error ? 'error.main' : (isValid ? 'success.main' : 'primary.main'),
-              },
-            },
-          },
-        }}
-        InputLabelProps={{
-          sx: {
-            color: error ? 'error.main' : (isValid ? 'success.main' : 'text.primary'),
-            '&.Mui-focused': {
-              color: error ? 'error.main' : (isValid ? 'success.main' : 'primary.main'),
-            },
-          },
         }}
       />
       
-      {/* Smart input indicator */}
       {isTyping && inputValue && (
         <Fade in={true}>
           <Box
@@ -429,6 +509,153 @@ const ModernDateInput = forwardRef(({
 
 ModernDateInput.displayName = 'ModernDateInput';
 
+// Custom Calendar (modern)
+const CustomCalendar = ({ selectedDate, onDateSelect, minDate, maxDate, onClose }) => {
+  const theme = useTheme();
+  const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
+  const [currentDate, setCurrentDate] = useState(selectedDate || new Date());
+  const today = new Date();
+
+  const monthNames = [
+    'January','February','March','April','May','June',
+    'July','August','September','October','November','December'
+  ];
+  const weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  const currentMonth = currentDate.getMonth();
+  const currentYear = currentDate.getFullYear();
+
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+  const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+  const startingDayOfWeek = firstDayOfMonth.getDay();
+  const daysInMonth = lastDayOfMonth.getDate();
+
+  const days = [];
+  for (let i = 0; i < startingDayOfWeek; i++) days.push(null);
+  for (let day = 1; day <= daysInMonth; day++) days.push(new Date(currentYear, currentMonth, day));
+
+  const navigateMonth = (direction) => {
+    setCurrentDate(prev => {
+      const newDate = new Date(prev);
+      newDate.setMonth(prev.getMonth() + direction);
+      return newDate;
+    });
+  };
+
+  const isDateDisabled = (date) => {
+    if (!date) return true;
+    return date < minDate || date > maxDate;
+  };
+
+  const isToday = (date) => date && date.toDateString() === today.toDateString();
+  const isSelected = (date) => selectedDate && date && date.toDateString() === selectedDate.toDateString();
+
+  const handleDateClick = (date) => {
+    if (!isDateDisabled(date)) {
+      onDateSelect(date);
+      onClose();
+    }
+  };
+
+  const { showNextYear, currentYear: boundsCurrentYear } = getDateBounds();
+  const canNavigatePrev = currentYear > boundsCurrentYear || (currentYear === boundsCurrentYear && currentMonth > today.getMonth());
+  const canNavigateNext = showNextYear ?
+    (currentYear < boundsCurrentYear + 1 || (currentYear === boundsCurrentYear + 1 && currentMonth < 11)) :
+    (currentYear === boundsCurrentYear && currentMonth < 11);
+
+  // Close on Esc key
+  React.useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
+  return (
+    <Fade in>
+      <CalendarPaper sx={{ width: { xs: 'min(96vw, 360px)', sm: 'min(95vw, 420px)' }, maxWidth: 420 }}>
+      <CalendarHeader>
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <IconButton
+            onClick={() => navigateMonth(-1)}
+            disabled={!canNavigatePrev}
+            sx={{ color: 'white', backgroundColor: 'rgba(255,255,255,0.1)', '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' }, '&.Mui-disabled': { color: 'rgba(255,255,255,0.3)' } }}
+          >
+            <ChevronLeftIcon />
+          </IconButton>
+          <Typography variant={isSmall ? 'subtitle1' : 'h6'} sx={{ fontWeight: 700, textAlign: 'center', minWidth: { xs: 160, sm: 200 } }}>
+            {monthNames[currentMonth]} {currentYear}
+          </Typography>
+          <IconButton
+            onClick={() => navigateMonth(1)}
+            disabled={!canNavigateNext}
+            sx={{ color: 'white', backgroundColor: 'rgba(255,255,255,0.1)', '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' }, '&.Mui-disabled': { color: 'rgba(255,255,255,0.3)' } }}
+          >
+            <ChevronRightIcon />
+          </IconButton>
+        </Stack>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, mt: 2, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 1, p: 1 }}>
+          {weekdays.map((day) => (
+            <Typography key={day} variant="caption" sx={{ textAlign: 'center', fontWeight: 600, color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
+              {day}
+            </Typography>
+          ))}
+        </Box>
+      </CalendarHeader>
+      <Box sx={{ p: 2, backgroundColor: 'background.paper' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1 }}>
+          {days.map((date, index) => (
+            <DayButton
+              key={index}
+              onClick={() => date && handleDateClick(date)}
+              isToday={isToday(date)}
+              isSelected={isSelected(date)}
+              isDisabled={isDateDisabled(date)}
+            >
+              {date ? date.getDate() : ''}
+            </DayButton>
+          ))}
+        </Box>
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'flex-end', 
+            alignItems: 'center', 
+            mt: 2,
+            pt: 1,
+            borderTop: '1px solid',
+            borderColor: 'divider'
+          }}>
+            <Button 
+              variant="outlined"
+              size="small"
+              onClick={() => onClose()}
+              sx={{
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 600,
+                px: 3,
+                py: 0.8,
+                minWidth: 80,
+                borderColor: 'text.secondary',
+                color: 'text.secondary',
+                '&:hover': {
+                  borderColor: 'primary.main',
+                  color: 'primary.main',
+                  backgroundColor: 'primary.50'
+                },
+                transition: 'all 0.2s ease-in-out'
+              }}
+            >
+              Close
+            </Button>
+          </Box>
+      </Box>
+      </CalendarPaper>
+    </Fade>
+  );
+};
+
 const UpcomingHolidayDatePicker = ({
   newHoliday,
   setNewHoliday,
@@ -455,6 +682,8 @@ const UpcomingHolidayDatePicker = ({
     startValid: false,
     endValid: false
   });
+  const [showStartCalendar, setShowStartCalendar] = useState(false);
+  const [showEndCalendar, setShowEndCalendar] = useState(false);
 
   // Update display values when holiday changes
   useEffect(() => {
@@ -653,34 +882,9 @@ const UpcomingHolidayDatePicker = ({
   return (
     <Box sx={{ width: '100%' }}>
       {/* Enhanced Instructions */}
-      <Alert 
-        severity="info" 
-        icon={<InfoIcon />}
-        sx={{ 
-          mb: 3,
-          background: `linear-gradient(135deg, ${theme.palette.primary.light}15 0%, ${theme.palette.primary.main}10 100%)`,
-          border: `1px solid ${theme.palette.primary.main}30`,
-          borderRadius: 2,
-          '& .MuiAlert-icon': {
-            color: 'primary.main'
-          }
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-          <EventIcon fontSize="small" />
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'primary.main' }}>
-            Smart DD/MM/YYYY Date Input
-          </Typography>
-        </Box>
-        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
-          • Type naturally: <strong>25</strong> → 25/, <strong>2512</strong> → 25/12/, <strong>251224</strong> → 25/12/2024
-        </Typography>
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          • Smart year handling: No zero-padding needed • Click calendar icon for visual picker
-        </Typography>
-      </Alert>
+ 
 
-      {/* Date Input Fields */}
+      {/* Date Input Fields - modern UI with custom calendar popover */}
       <Box 
         sx={{ 
           display: 'grid',
@@ -707,61 +911,49 @@ const UpcomingHolidayDatePicker = ({
               size="small"
               variant="outlined"
               color="primary"
-              sx={{ 
-                height: 24,
-                fontSize: '0.75rem',
-                fontWeight: 500
-              }}
+              sx={{ height: 24, fontSize: '0.75rem', fontWeight: 500 }}
             />
           </Box>
-          
-          <DatePicker
-            selected={parseISODate(newHoliday.startDate)}
-            onChange={handleStartDateChange}
-            minDate={minDate}
-            maxDate={maxDate}
-            shouldCloseOnSelect
-            closeOnScroll
-            showPopperArrow={false}
-            dateFormat="dd/MM/y"
-            placeholderText="e.g., 25/12/2024"
-            showYearDropdown
-            scrollableYearDropdown
-            yearDropdownItemNumber={showNextYear ? 2 : 1}
-            dropdownMode="select"
-            customInput={
-              <ModernDateInput
-                label="Start Date"
-                placeholder="Type: 251224 → 25/12/2024"
-                error={!!inputErrors.start}
-                helperText={inputErrors.start || 'DD/MM/YYYY format'}
-                onInputChange={handleStartInputChange}
-                onInputBlur={handleStartInputBlur}
-                onClear={handleClearStart}
-                showClear={!!newHoliday.startDate}
-                inputValue={startInputValue}
-                isTyping={isTypingStart}
-                isValid={validationState.startValid}
-              />
-            }
-            popperProps={{
-              strategy: 'fixed',
-              modifiers: [
-                {
-                  name: 'offset',
-                  options: { offset: [0, 12] },
-                },
-                {
-                  name: 'preventOverflow',
-                  options: { boundary: 'viewport', padding: 8 },
-                },
-              ],
-            }}
-            calendarClassName="modern-calendar"
-            wrapperClassName="date-picker-wrapper"
-          />
+
+          <Box sx={{ position: 'relative' }}>
+            <ModernDateInput
+              label="Start Date"
+              placeholder="Type: 251224 → 25/12/2024"
+              error={!!inputErrors.start}
+              helperText={inputErrors.start || 'DD/MM/YYYY format'}
+              onInputChange={handleStartInputChange}
+              onInputBlur={handleStartInputBlur}
+              onClear={handleClearStart}
+              showClear={!!newHoliday.startDate}
+              inputValue={startInputValue}
+              isTyping={isTypingStart}
+              isValid={validationState.startValid}
+              value={startInputValue}
+              onClick={() => setShowStartCalendar(prev => !prev)}
+            />
+
+            {showStartCalendar && (
+              <Box sx={{
+                position: 'absolute',
+                top: '100%',
+                left: { xs: '50%', sm: 0 },
+                transform: { xs: 'translateX(-50%)', sm: 'none' },
+                zIndex: 1300,
+                mt: 1,
+                width: { xs: 'min(96vw, 360px)', sm: 'min(95vw, 420px)' }
+              }}>
+                <CustomCalendar
+                  selectedDate={parseISODate(newHoliday.startDate)}
+                  onDateSelect={handleStartDateChange}
+                  minDate={minDate}
+                  maxDate={maxDate}
+                  onClose={() => setShowStartCalendar(false)}
+                />
+              </Box>
+            )}
+          </Box>
         </Box>
-        
+
         {/* End Date */}
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
@@ -779,403 +971,75 @@ const UpcomingHolidayDatePicker = ({
               label={yearDisplayText}
               size="small"
               variant="outlined"
-              color={newHoliday.startDate ? "primary" : "default"}
-              sx={{ 
-                height: 24,
-                fontSize: '0.75rem',
-                fontWeight: 500,
-                opacity: newHoliday.startDate ? 1 : 0.5
-              }}
+              color={newHoliday.startDate ? 'primary' : 'default'}
+              sx={{ height: 24, fontSize: '0.75rem', fontWeight: 500, opacity: newHoliday.startDate ? 1 : 0.5 }}
             />
           </Box>
-          
-          <DatePicker
-            selected={parseISODate(newHoliday.endDate)}
-            onChange={handleEndDateChange}
-            minDate={getEndDateMinDate()}
-            maxDate={maxDate}
-            shouldCloseOnSelect
-            closeOnScroll
-            showPopperArrow={false}
-            dateFormat="dd/MM/y"
-            placeholderText="e.g., 26/12/2024"
-            showYearDropdown
-            scrollableYearDropdown
-            yearDropdownItemNumber={showNextYear ? 2 : 1}
-            dropdownMode="select"
-            disabled={!newHoliday.startDate}
-            customInput={
-              <ModernDateInput
-                label="End Date"
-                placeholder={
-                  newHoliday.startDate 
-                    ? "Type: 261224 → 26/12/2024"
-                    : "Select start date first"
-                }
-                error={!!inputErrors.end}
-                helperText={
-                  inputErrors.end || 
-                  (!newHoliday.startDate ? "Please select a start date first" : "DD/MM/YYYY format")
-                }
-                onInputChange={handleEndInputChange}
-                onInputBlur={handleEndInputBlur}
-                onClear={handleClearEnd}
-                showClear={!!newHoliday.endDate}
-                inputValue={endInputValue}
-                isTyping={isTypingEnd}
-                disabled={!newHoliday.startDate}
-                isValid={validationState.endValid}
-              />
-            }
-            popperProps={{
-              strategy: 'fixed',
-              modifiers: [
-                {
-                  name: 'offset',
-                  options: { offset: [0, 12] },
-                },
-                {
-                  name: 'preventOverflow',
-                  options: { boundary: 'viewport', padding: 8 },
-                },
-              ],
-            }}
-            calendarClassName="modern-calendar"
-            wrapperClassName="date-picker-wrapper"
-          />
+
+          <Box sx={{ position: 'relative' }}>
+            <ModernDateInput
+              label="End Date"
+              placeholder={newHoliday.startDate ? 'Type: 261224 → 26/12/2024' : 'Select start date first'}
+              error={!!inputErrors.end}
+              helperText={inputErrors.end || (!newHoliday.startDate ? 'Please select a start date first' : 'DD/MM/YYYY format')}
+              onInputChange={handleEndInputChange}
+              onInputBlur={handleEndInputBlur}
+              onClear={handleClearEnd}
+              showClear={!!newHoliday.endDate}
+              inputValue={endInputValue}
+              isTyping={isTypingEnd}
+              disabled={!newHoliday.startDate}
+              isValid={validationState.endValid}
+              value={endInputValue}
+              onClick={() => newHoliday.startDate && setShowEndCalendar(prev => !prev)}
+            />
+
+            {showEndCalendar && newHoliday.startDate && (
+              <Box sx={{
+                position: 'absolute',
+                top: '100%',
+                right: { xs: 'auto', sm: 0 },
+                left: { xs: '50%', sm: 'auto' },
+                transform: { xs: 'translateX(-50%)', sm: 'none' },
+                zIndex: 1300,
+                mt: 1,
+                width: { xs: 'min(96vw, 360px)', sm: 'min(95vw, 420px)' }
+              }}>
+                <CustomCalendar
+                  selectedDate={parseISODate(newHoliday.endDate)}
+                  onDateSelect={handleEndDateChange}
+                  minDate={getEndDateMinDate()}
+                  maxDate={maxDate}
+                  onClose={() => setShowEndCalendar(false)}
+                />
+              </Box>
+            )}
+          </Box>
         </Box>
       </Box>
 
       {/* Warnings */}
-      {/* {dateOverlapWarning && (
+      {dateOverlapWarning && (
         <Fade in={true}>
           <Alert 
             severity="warning" 
-            sx={{ 
-              mt: 2,
-              borderRadius: 2,
-              '& .MuiAlert-message': {
-                fontSize: '0.875rem'
-              }
-            }}
+            sx={{ mt: 2, borderRadius: 2 }}
+            onClose={() => setDateOverlapWarning('')}
           >
             {dateOverlapWarning}
           </Alert>
         </Fade>
-      )} */}
+      )}
 
-      {/* Modern Calendar Styles */}
-      <style jsx global>{`
-        .modern-calendar {
-          border: none;
-          border-radius: 12px;
-          box-shadow: 0 12px 20px -12px rgba(0, 0, 0, 0.2);
-          font-family: ${theme.typography.fontFamily};
-          overflow: hidden;
-          background: ${theme.palette.background.paper};
-          backdrop-filter: blur(8px);
-        }
-        
-        .modern-calendar .react-datepicker__header {
-          background: linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%);
-          color: white;
-          border-bottom: none;
-          border-radius: 12px 12px 0 0;
-          padding: 14px 0;
-          position: relative;
-          overflow: hidden;
-        }
-        
-        .modern-calendar .react-datepicker__header::before {
-          content: '';
-          position: absolute;
-          top: -50%;
-          left: -50%;
-          width: 200%;
-          height: 200%;
-          background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-          animation: shimmer 3s ease-in-out infinite;
-          pointer-events: none;
-        }
-        
-        @keyframes shimmer {
-          0%, 100% { transform: translateX(-100%) translateY(-100%) rotate(0deg); }
-          50% { transform: translateX(0%) translateY(0%) rotate(180deg); }
-        }
-        
-        .modern-calendar .react-datepicker__current-month {
-          color: white;
-          font-weight: 700;
-          font-size: 1.05rem;
-          margin-bottom: 8px;
-          text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-        
-        .modern-calendar .react-datepicker__day-names {
-          background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%);
-          margin: 0;
-          padding: 8px 0;
-          backdrop-filter: blur(4px);
-        }
-        
-        .modern-calendar .react-datepicker__day-name {
-          color: rgba(255, 255, 255, 0.95);
-          font-weight: 600;
-          font-size: 0.75rem;
-          width: 2.2rem;
-          line-height: 1.6;
-          text-transform: uppercase;
-          letter-spacing: 0.4px;
-        }
-        
-        .modern-calendar .react-datepicker__month {
-          margin: 0;
-          padding: 12px;
-          background: ${theme.palette.background.paper};
-        }
-        
-        .modern-calendar .react-datepicker__week {
-          display: flex;
-          justify-content: space-around;
-          margin-bottom: 6px;
-        }
-        
-        .modern-calendar .react-datepicker__day {
-          border-radius: 10px;
-          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-          width: 2.2rem;
-          height: 2.2rem;
-          line-height: 2.2rem;
-          margin: 2px;
-          font-weight: 600;
-          position: relative;
-          overflow: hidden;
-          cursor: pointer;
-          color: ${theme.palette.text.primary};
-        }
-        
-        .modern-calendar .react-datepicker__day::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-          transition: left 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .modern-calendar .react-datepicker__day:hover::before {
-          left: 100%;
-        }
-        
-        .modern-calendar .react-datepicker__day:hover {
-          background: linear-gradient(135deg, ${theme.palette.primary.light} 0%, ${theme.palette.primary.main} 100%);
-          color: white;
-          transform: scale(1.05) translateY(-1px);
-          box-shadow: 0 6px 18px -8px ${theme.palette.primary.main}60;
-          z-index: 1;
-        }
-        
-        .modern-calendar .react-datepicker__day--selected {
-          background: linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%);
-          color: white;
-          transform: scale(1.08) translateY(-2px);
-          box-shadow: 0 10px 24px -12px ${theme.palette.primary.main}70;
-          font-weight: 700;
-          z-index: 2;
-        }
-     
-        
-        .modern-calendar .react-datepicker__day--in-range {
-          background: linear-gradient(135deg, ${theme.palette.primary.light}60 0%, ${theme.palette.primary.main}40 100%);
-          color: ${theme.palette.primary.contrastText};
-          border-radius: 8px;
-        }
-        
-        .modern-calendar .react-datepicker__day--range-start,
-        .modern-calendar .react-datepicker__day--range-end {
-          background: linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%);
-          color: white;
-          transform: scale(1.08) translateY(-2px);
-          box-shadow: 0 10px 24px -12px ${theme.palette.primary.main}70;
-          font-weight: 700;
-        }
-        
-        .modern-calendar .react-datepicker__day--disabled {
-          color: ${theme.palette.text.disabled};
-          cursor: not-allowed;
-          background: transparent;
-          opacity: 0.3;
-          transform: none;
-        }
-        
-        .modern-calendar .react-datepicker__day--disabled:hover {
-          background: transparent;
-          transform: none;
-          box-shadow: none;
-          color: ${theme.palette.text.disabled};
-        }
-        
-        .modern-calendar .react-datepicker__day--disabled::before {
-          display: none;
-        }
-        
-        .modern-calendar .react-datepicker__day--today {
-          position: relative;
-          background: linear-gradient(135deg, ${theme.palette.secondary.light}30 0%, ${theme.palette.secondary.main}20 100%);
-          border: 2px solid ${theme.palette.secondary.main};
-          font-weight: 700;
-          color: ${theme.palette.secondary.main};
-        }
-        
-        .modern-calendar .react-datepicker__day--today::after {
-          content: '';
-          position: absolute;
-          bottom: 2px;
-          left: 50%;
-          width: 4px;
-          height: 4px;
-          background: ${theme.palette.secondary.main};
-          border-radius: 50%;
-          transform: translateX(-50%);
-          animation: pulse 2s ease-in-out infinite;
-        }
-        
-        @keyframes pulse {
-          0%, 100% { opacity: 1; transform: translateX(-50%) scale(1); }
-          50% { opacity: 0.6; transform: translateX(-50%) scale(1.2); }
-        }
-        
-        .modern-calendar .react-datepicker__navigation {
-          background: rgba(255, 255, 255, 0.25);
-          border: none;
-          border-radius: 10px;
-          width: 30px;
-          height: 30px;
-          top: 14px;
-          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-          backdrop-filter: blur(8px);
-        }
-        
-        .modern-calendar .react-datepicker__navigation:hover {
-          background: rgba(255, 255, 255, 0.4);
-          transform: scale(1.05);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.18);
-        }
-        
-        .modern-calendar .react-datepicker__navigation-icon::before {
-          border-color: white;
-          border-width: 2px 2px 0 0;
-          width: 9px;
-          height: 9px;
-          top: 10px;
-        }
-        
-        .modern-calendar .react-datepicker__year-dropdown {
-          background: ${theme.palette.background.paper};
-          border: 1px solid ${theme.palette.divider};
-          border-radius: 10px;
-          box-shadow: 0 8px 30px -12px rgba(0,0,0,0.2);
-          max-height: 180px;
-          overflow-y: auto;
-          backdrop-filter: blur(8px);
-        }
-        
-        .modern-calendar .react-datepicker__year-option {
-          padding: 10px 16px;
-          transition: all 0.2s ease;
-          font-weight: 500;
-        }
-        
-        .modern-calendar .react-datepicker__year-option:hover {
-          background: linear-gradient(135deg, ${theme.palette.primary.light} 0%, ${theme.palette.primary.main} 100%);
-          color: white;
-          transform: translateX(2px);
-        }
-        
-        .modern-calendar .react-datepicker__year-option--selected {
-          background: linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%);
-          color: white;
-          font-weight: 700;
-          position: relative;
-        }
-        
-        .modern-calendar .react-datepicker__year-option--selected::before {
-          content: '✓';
-          position: absolute;
-          right: 15px;
-          top: 50%;
-          transform: translateY(-50%);
-          font-weight: bold;
-        }
-        
-        .modern-calendar .react-datepicker__year-read-view--down-arrow,
-        .modern-calendar .react-datepicker__month-read-view--down-arrow {
-          border-width: 2px 2px 0 0;
-          width: 8px;
-          height: 8px;
-          top: 6px;
-          border-color: white;
-        }
-        
-        .modern-calendar .react-datepicker__year-read-view,
-        .modern-calendar .react-datepicker__month-read-view {
-          border-radius: 8px;
-          padding: 3px 10px;
-          transition: all 0.25s ease;
-          background: rgba(255, 255, 255, 0.1);
-          backdrop-filter: blur(4px);
-        }
-        
-        .modern-calendar .react-datepicker__year-read-view:hover,
-        .modern-calendar .react-datepicker__month-read-view:hover {
-          background: rgba(255, 255, 255, 0.25);
-          transform: scale(1.05);
-        }
-        
-        .date-picker-wrapper {
-          width: 100%;
-        }
-        
-        /* Enhanced mobile styles */
-        @media (max-width: ${theme.breakpoints.values.sm}px) {
-          .modern-calendar {
-            transform: scale(0.95);
-            transform-origin: center top;
-            margin: 0 auto;
-          }
-          
-          .modern-calendar .react-datepicker__day {
-            width: 2.2rem;
-            height: 2.2rem;
-            line-height: 2.2rem;
-            font-size: 0.9rem;
-            margin: 2px;
-          }
-          
-          .modern-calendar .react-datepicker__day-name {
-            width: 2.2rem;
-            font-size: 0.75rem;
-          }
-          
-          .modern-calendar .react-datepicker__current-month {
-            font-size: 1.1rem;
-          }
-          
-          .modern-calendar .react-datepicker__navigation {
-            width: 32px;
-            height: 32px;
-            top: 14px;
-          }
-          
-          .modern-calendar .react-datepicker__navigation-icon::before {
-            width: 8px;
-            height: 8px;
-            top: 10px;
-          }
-        }
-      `}</style>
+      {/* Click-away overlay to close calendars */}
+      {(showStartCalendar || showEndCalendar) && (
+        <Box
+          sx={{ position: 'fixed', inset: 0, zIndex: 1200 }}
+          onClick={() => { setShowStartCalendar(false); setShowEndCalendar(false); }}
+        />
+      )}
+
+      {/* Custom calendar popover uses MUI; removed react-datepicker global CSS */}
     </Box>
   );
 };

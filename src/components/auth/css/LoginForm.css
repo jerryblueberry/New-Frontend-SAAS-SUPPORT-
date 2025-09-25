@@ -82,6 +82,11 @@
   backface-visibility: hidden;
 }
 
+/* Password input with toggle button */
+.loginform__input--password {
+  padding-right: 3rem;
+}
+
 .loginform__input:hover {
   border-color: var(--primary);
   transform: translateY(-1px);
@@ -105,6 +110,64 @@
 
 .loginform__input:focus::placeholder {
   opacity: 0.7;
+}
+
+/* Password toggle button */
+.loginform__password-toggle {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.375rem;
+  border-radius: 0.5rem;
+  color: var(--text-muted);
+  transition: all var(--transition-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  min-width: 2rem;
+  min-height: 2rem;
+}
+
+.loginform__password-toggle:hover {
+  color: var(--primary);
+  background-color: rgba(79, 70, 229, 0.08);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.loginform__password-toggle:focus {
+  outline: none;
+  color: var(--primary);
+  background-color: rgba(79, 70, 229, 0.12);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.loginform__password-toggle:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.loginform__password-toggle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: translateY(-50%);
+}
+
+.loginform__password-toggle:disabled:hover {
+  color: var(--text-muted);
+  background-color: transparent;
+  transform: translateY(-50%);
+}
+
+.loginform__password-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  transition: all var(--transition-base);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 
 /* Error states */
@@ -333,6 +396,22 @@
     font-size: 0.875rem;
   }
 
+  .loginform__input--password {
+    padding-right: 2.5rem;
+  }
+
+  .loginform__password-toggle {
+    right: 0.625rem;
+    padding: 0.25rem;
+    min-width: 1.75rem;
+    min-height: 1.75rem;
+  }
+
+  .loginform__password-icon {
+    width: 1rem;
+    height: 1rem;
+  }
+
   .loginform__submit-btn {
     padding: 0.625rem;
     font-size: 0.875rem;
@@ -349,6 +428,25 @@
 
   .loginform__forgot-password {
     font-size: 0.8125rem;
+  }
+}
+
+/* Extra small devices */
+@media (max-width: 480px) {
+  .loginform__input--password {
+    padding-right: 2.25rem;
+  }
+
+  .loginform__password-toggle {
+    right: 0.5rem;
+    padding: 0.1875rem;
+    min-width: 1.5rem;
+    min-height: 1.5rem;
+  }
+
+  .loginform__password-icon {
+    width: 0.875rem;
+    height: 0.875rem;
   }
 }
 
@@ -370,6 +468,10 @@
   .loginform__input:focus {
     background-color: var(--bg-primary);
   }
+
+  .loginform__password-toggle:hover {
+    background-color: var(--bg-primary);
+  }
 }
 
 /* High contrast mode */
@@ -385,6 +487,16 @@
 
   .loginform__checkbox:checked {
     background: CanvasText;
+  }
+
+  .loginform__password-toggle {
+    border: 1px solid CanvasText;
+  }
+
+  .loginform__password-toggle:hover,
+  .loginform__password-toggle:focus {
+    background: Highlight;
+    color: HighlightText;
   }
 }
 

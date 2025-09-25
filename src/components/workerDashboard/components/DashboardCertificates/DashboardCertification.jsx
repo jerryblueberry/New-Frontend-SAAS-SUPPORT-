@@ -41,7 +41,7 @@ import {
     NavigateNext
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { color } from 'framer-motion';
+// removed unused import `color` from framer-motion
 import CertificationCardDashboard from './CertificationCardDashboard';
 
 const DashboardCertification = ({ onboardingData }) => {
@@ -56,9 +56,35 @@ const DashboardCertification = ({ onboardingData }) => {
     const [activeTab, setActiveTab] = useState(0);
 
     const certifications = onboardingData?.data?.profile?.certifications || [];
-    console.log("Certifications", certifications);
     const otherCertifications = onboardingData?.data?.profile?.otherCertifications || [];
-    console.log("OTjer ssd", otherCertifications)
+
+    // Derived datasets for tabs
+    const today = new Date();
+    const isExpired = (item) => {
+        const status = (item?.verificationStatus || '').toLowerCase();
+        // If backend already marks it expired, treat as expired even without expiryDate
+        if (status === 'expired') return true;
+        if (!item?.expiryDate) return false;
+        try {
+            return new Date(item.expiryDate) < today;
+        } catch (_) {
+            return false;
+        }
+    };
+    const isRejected = (item) => (item?.verificationStatus || '').toLowerCase() === 'rejected';
+
+    const expiredCertifications = [...certifications, ...otherCertifications].filter(isExpired);
+    const rejectedCertifications = [...certifications, ...otherCertifications].filter(isRejected);
+    
+    // Console log for debugging rejected certifications
+    console.log('Rejected certifications:', rejectedCertifications.map(cert => ({
+        id: cert.id || cert._id,
+        title: cert.certificationType?.name || cert.certificationTitle,
+        status: cert.verificationStatus,
+        rejectionReason: cert.rejectionReason,
+        verificationDate: cert.verificationDate,
+        verifiedBy: cert.verifiedBy
+    })));
     const getStatusColor = (status) => {
         switch (status?.toLowerCase()) {
             case 'verified': return 'success';
@@ -306,6 +332,103 @@ const DashboardCertification = ({ onboardingData }) => {
                                         <Edit fontSize="small" />
                                     </IconButton>
                                 </Stack>
+                                
+                                {/* Rejection Reason Display */}
+                                {cert.verificationStatus?.toLowerCase() === 'rejected' && cert.rejectionReason && (
+                                    <Box sx={{ 
+                                        mt: 2, 
+                                        p: { xs: 2, sm: 2.5 }, 
+                                        bgcolor: alpha(theme.palette.error.main, 0.08), 
+                                        borderRadius: 3, 
+                                        border: `1px solid ${alpha(theme.palette.error.main, 0.15)}`,
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                        '&::before': {
+                                            content: '""',
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            width: '4px',
+                                            height: '100%',
+                                            bgcolor: theme.palette.error.main,
+                                        }
+                                    }}>
+                                        <Stack spacing={2}>
+                                            {/* Header */}
+                                            <Stack direction="row" alignItems="center" spacing={1.5}>
+                                                <Box sx={{
+                                                    p: 0.5,
+                                                    borderRadius: '50%',
+                                                    bgcolor: alpha(theme.palette.error.main, 0.2),
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center'
+                                                }}>
+                                                    <Cancel fontSize="small" color="error" />
+                                                </Box>
+                                                <Typography variant="subtitle2" fontWeight="700" color="error.main">
+                                                    Rejection Details
+                                                </Typography>
+                                            </Stack>
+
+                                            {/* Rejection Reason */}
+                                            <Box sx={{ 
+                                                p: { xs: 1.5, sm: 2 }, 
+                                                bgcolor: alpha(theme.palette.error.main, 0.05),
+                                                borderRadius: 2,
+                                                border: `1px solid ${alpha(theme.palette.error.main, 0.1)}`
+                                            }}>
+                                                <Typography variant="caption" fontWeight="600" color="error.main" sx={{ 
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.5px',
+                                                    fontSize: '0.7rem'
+                                                }}>
+                                                    Reason for Rejection
+                                                </Typography>
+                                                <Typography 
+                                                    variant="body2" 
+                                                    color="error.main" 
+                                                    sx={{ 
+                                                        fontWeight: 500,
+                                                        mt: 0.5,
+                                                        lineHeight: 1.5,
+                                                        fontSize: { xs: '0.85rem', sm: '0.9rem' }
+                                                    }}
+                                                >
+                                                    {cert.rejectionReason}
+                                                </Typography>
+                                            </Box>
+
+                                            {/* Rejection Date */}
+                                            {cert.verificationDate && (
+                                                <Stack direction="row" alignItems="center" spacing={1} sx={{ 
+                                                    p: 1, 
+                                                    bgcolor: alpha(theme.palette.grey[500], 0.08),
+                                                    borderRadius: 2,
+                                                    border: `1px solid ${alpha(theme.palette.grey[400], 0.2)}`
+                                                }}>
+                                                    <CalendarToday fontSize="small" color="action" />
+                                                    <Box>
+                                                        <Typography variant="caption" color="text.secondary" sx={{ 
+                                                            fontWeight: 600,
+                                                            textTransform: 'uppercase',
+                                                            letterSpacing: '0.5px',
+                                                            fontSize: '0.7rem'
+                                                        }}>
+                                                            Rejected On
+                                                        </Typography>
+                                                        <Typography variant="body2" color="text.primary" sx={{ 
+                                                            fontWeight: 500,
+                                                            fontSize: { xs: '0.8rem', sm: '0.85rem' }
+                                                        }}>
+                                                            {formatDate(cert.verificationDate)}
+                                                        </Typography>
+                                                    </Box>
+                                                </Stack>
+                                            )}
+                                        </Stack>
+                                    </Box>
+                                )}
                             </Stack>
 
                             {cert.number && (
@@ -513,7 +636,7 @@ const DashboardCertification = ({ onboardingData }) => {
         <Container
         maxWidth="xl"
         sx={{
-          py: { xs: 10, sm: 2, md: 4 }, // no padding on xs
+          py: { xs: 0, sm: 1, md: 0 }, // no padding on xs
         }}
       >
         <Fade in timeout={800}>
@@ -684,15 +807,15 @@ const DashboardCertification = ({ onboardingData }) => {
                 <Tab
                   label={
                     <Stack direction="row" alignItems="center" spacing={1}>
-                      <School fontSize="small" />
+                      <Event fontSize="small" />
                       <Typography sx={{ fontSize: { xs: '0.8rem', md: '1rem' } }}>
                         Expired Certifications
                       </Typography>
-                      {otherCertifications.length > 0 && (
+                      {expiredCertifications.length > 0 && (
                         <Chip
-                          label={otherCertifications.length}
+                          label={expiredCertifications.length}
                           size="small"
-                          color="secondary"
+                          color="warning"
                           sx={{ height: 20, fontSize: '0.75rem' }}
                         />
                       )}
@@ -702,15 +825,15 @@ const DashboardCertification = ({ onboardingData }) => {
                       <Tab
                   label={
                     <Stack direction="row" alignItems="center" spacing={1}>
-                      <School fontSize="small" />
+                      <Cancel fontSize="small" />
                       <Typography sx={{ fontSize: { xs: '0.8rem', md: '1rem' } }}>
                         Rejected Certifications
                       </Typography>
-                      {otherCertifications.length > 0 && (
+                      {rejectedCertifications.length > 0 && (
                         <Chip
-                          label={otherCertifications.length}
+                          label={rejectedCertifications.length}
                           size="small"
-                          color="secondary"
+                          color="error"
                           sx={{ height: 20, fontSize: '0.75rem' }}
                         />
                       )}
@@ -733,6 +856,7 @@ const DashboardCertification = ({ onboardingData }) => {
                         cert={cert}
                         index={index}
                         type="professional"
+                        showRejectionDetails={false}
                       />
                     </Grid>
                   ))}
@@ -747,12 +871,49 @@ const DashboardCertification = ({ onboardingData }) => {
                 <Grid container spacing={{ xs: 2, sm: 3 }}>
                   {otherCertifications.map((cert, index) => (
                     <Grid item xs={12} sm={6} md={4} lg={3} key={cert.id || cert._id || index}>
-                      <CertificationCardDashboard cert={cert} index={index} type="other" />
+                      <CertificationCardDashboard cert={cert} index={index} type="other" showRejectionDetails={false} />
                     </Grid>
                   ))}
                 </Grid>
               ) : (
                 <EmptyState type="other" />
+              )}
+            </TabPanel>
+            <TabPanel value={activeTab} index={2}>
+              {expiredCertifications.length > 0 ? (
+                <Grid container spacing={{ xs: 2, sm: 3 }}>
+                  {expiredCertifications.map((cert, index) => (
+                    <Grid item xs={12} sm={6} md={4} lg={3} key={cert.id || cert._id || `exp-${index}`}>
+                      <CertificationCardDashboard
+                        cert={cert}
+                        index={index}
+                        type={cert?.certificationType ? 'professional' : 'other'}
+                        showRejectionDetails={false}
+                        showExpiredDetails={true}
+                      />
+                    </Grid>
+                  ))}
+                </Grid>
+              ) : (
+                <EmptyState type="professional" />
+              )}
+            </TabPanel>
+            <TabPanel value={activeTab} index={3}>
+              {rejectedCertifications.length > 0 ? (
+                <Grid container spacing={{ xs: 2, sm: 3 }}>
+                  {rejectedCertifications.map((cert, index) => (
+                    <Grid item xs={12} sm={6} md={4} lg={3} key={cert.id || cert._id || `rej-${index}`}>
+                      <CertificationCardDashboard
+                        cert={cert}
+                        index={index}
+                        type={cert?.certificationType ? 'professional' : 'other'}
+                        showRejectionDetails={true}
+                      />
+                    </Grid>
+                  ))}
+                </Grid>
+              ) : (
+                <EmptyState type="professional" />
               )}
             </TabPanel>
           </Box>

@@ -24,7 +24,8 @@ import {
   Tabs,
   Badge,
   Image,
-  Modal
+  Modal,
+  Grid
 } from 'antd';
 import {
   PlusOutlined,
@@ -51,6 +52,7 @@ import {
   TagOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+const { useBreakpoint } = Grid;
 import debounce from 'lodash/debounce';
 import useOnboardingStore, { useCertificationsMutation, useOtherCertificatesMutation } from '../../stores/useOnboardingStore';
 import { useOnboardingQuery } from '../../stores/useOnboardingStore';
@@ -1371,8 +1373,9 @@ const CertificateSecond = ({ initialStep = 0 }) => {
   // Render functions for each step
   const renderPersonalInfoStep = useMemo(() => (
     <Card
+
       title={<Title level={4} style={{ margin: 0 }}>Personal Information</Title>}
-      style={{ maxWidth: 800, margin: '0 auto', borderRadius: 8 }}
+      style={{ maxWidth: 800, margin: '0 auto', borderRadius: 8,display: 'flex', flexDirection: 'column', gap: 24, justifyContent: 'center', alignItems: 'center' }}
       headStyle={{ borderBottom: 'none', padding: '24px 24px 0' }}
       bodyStyle={{ padding: '16px 24px 24px' }}
     >
@@ -1897,7 +1900,7 @@ const CertificateSecond = ({ initialStep = 0 }) => {
           />
         )}
       </div>
-      <div style={{ maxHeight: '60vh', overflowY: 'auto', paddingRight: 8 }}>
+      <div>
         <List
           itemLayout="vertical"
           dataSource={selectedCerts}
@@ -2006,67 +2009,94 @@ const CertificateSecond = ({ initialStep = 0 }) => {
             );
           }}
         />
-      </div>
-      {/* Other Certifications Section */}
+             {/* Other Certifications Section */}
       <Card
         title={
-          <Space>
+          <Space size={8}>
             <SafetyCertificateOutlined style={{ color: '#1890ff' }} />
-            <Text strong>Other Certifications</Text>
+            <Text strong style={{ fontSize: 16 }}>Other Certifications</Text>
+            <Tag color="blue" style={{ borderRadius: 12 }}>{otherCertifications?.length || 0}</Tag>
           </Space>
         }
-        style={{ marginTop: 24, borderRadius: 8 }}
+        style={{ marginTop: 24, borderRadius: 8, border: '1px solid #f0f0f0', boxShadow: '0 4px 14px rgba(0,0,0,0.06)' }}
         bodyStyle={{ padding: 16 }}
       >
         {otherCertifications && otherCertifications.length > 0 ? (
           <List
             dataSource={otherCertifications}
-            renderItem={(cert, idx) => (
-              <List.Item
-                actions={[
-                  <Button
-                    type="primary"
-                    size="small"
-                    icon={<EditOutlined />}
-                    onClick={() => handleEditOtherCertificateFromReview(idx)}
-                    style={{ marginLeft: 8 }}
-                  >
-                    Edit
-                  </Button>
-                ]}
-              >
-                <List.Item.Meta
-                  title={cert.certificationTitle}
-                  description={
-                    cert.documents && cert.documents.length > 0 ? (
-                      <Space>
-                        <FileOutlined />
-                        <span>
-                          {cert.documents.length} document(s)
-                        </span>
-                        {cert.documents.map((doc, i) => (
-                          <Tooltip title="Preview Document" key={i}>
-                            <Button
-                              type="link"
-                              icon={<EyeOutlined />}
-                              onClick={() => setPreviewDocument(doc)}
-                              style={{ padding: 0, marginLeft: 8 }}
-                            />
-                          </Tooltip>
-                        ))}
+            renderItem={(cert, idx) => {
+              const isComplete = Array.isArray(cert.documents) && cert.documents.length > 0;
+              return (
+                <Card
+                  key={idx}
+                  style={{ marginBottom: 12, borderRadius: 8 }}
+                  title={
+                    <Space>
+                      <Text strong>{cert.certificationTitle}</Text>
+                    </Space>
+                  }
+                  extra={
+                    <Space>
+                      <Tag color={isComplete ? 'success' : 'warning'}>
+                        {isComplete ? 'Complete' : 'Incomplete'}
+                      </Tag>
+                      <Button
+                        size="small"
+                        icon={<EditOutlined />}
+                        onClick={() => handleEditOtherCertificateFromReview(idx)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        Edit
+                      </Button>
+                    </Space>
+                  }
+                >
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: 4 }}>Documents:</div>
+                    {isComplete ? (
+                      <Space size={6} wrap>
+                        <Text type="secondary">{cert.documents.length} document{cert.documents.length > 1 ? 's' : ''}</Text>
+                        {/* {cert.documents.map((doc, i) => (
+                          // <Tooltip title="Preview Document" key={i}>
+                          //   <Button
+                          //     type="link"
+                          //     icon={<EyeOutlined />}
+                          //     onClick={() => setPreviewDocument(doc)}
+                          //     style={{ padding: 0, marginLeft: 8 }}
+                          //   />
+                          // </Tooltip>
+                        ))} */}
                       </Space>
                     ) : (
                       <Text type="danger">No documents uploaded</Text>
-                    )
-                  }
-                />
-              </List.Item>
-            )}
+                    )}
+                  </div>
+                </Card>
+              );
+            }}
           />
         ) : (
-          <Text type="secondary">No other certifications added.</Text>
+          <div style={{ textAlign: 'center', padding: 16 }}>
+            <Text type="secondary">No other certifications added.</Text>
+          </div>
         )}
+        {/* Mount drawer for Other Certificates in Review step context */}
+        <AddOtherCertificate
+          otherCertifications={otherCertifications}
+          addOtherCertificate={addOtherCertificate}
+          removeOtherCertificate={removeOtherCertificate}
+          uploadToCloudinary={uploadToCloudinary}
+          DocumentTrackingService={DocumentTrackingService}
+          deleteCloudinaryImage={deleteCloudinaryImage}
+          currentStep={currentStep}
+          otherCertDrawerOpen={otherCertDrawerOpen}
+          setOtherCertDrawerOpen={setOtherCertDrawerOpen}
+          editingOtherCertIndex={editingOtherCertIndex}
+          setEditingOtherCertIndex={setEditingOtherCertIndex}
+        />
       </Card>
+      </div>
+ 
       <Divider />
       <div style={{ marginTop: 24, textAlign: 'center' }}>
         <Button
@@ -2739,7 +2769,7 @@ const CertificateSecond = ({ initialStep = 0 }) => {
 
   return (
     <div style={{ padding: '24px 16px', maxWidth: 1400, margin: '0 auto' }}>
-      {/* Development Debug Section - Remove in production */}
+      {/* Development Debug Section - Remove in production
       {process.env.NODE_ENV === 'development' && (
         <Card
           title="Document Tracking Debug Info"
@@ -2791,7 +2821,7 @@ const CertificateSecond = ({ initialStep = 0 }) => {
             </Text>
           </Space>
         </Card>
-      )}
+      )} */}
 
 
 

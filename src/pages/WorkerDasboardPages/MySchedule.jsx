@@ -21,12 +21,12 @@ const MySchedule = () => {
                 // height:'100vh',
                 // width:'100vw',
                 backgroundColor:'#f5f5f5',
-                marginTop:'1rem',
+                marginTop:'0rem',
                 // marginLeft:'4rem',
             }}>
                 <DashboardSidebar modalOpen={isModalOpen}/>
                 <Box sx={{
-                    mt:5,
+                    mt:0,
                 }}>
                 <DashboardAvailability onboardingData={onboardingData} setModalOpen={setIsModalOpen} modalOpen={isModalOpen} />
                 </Box>

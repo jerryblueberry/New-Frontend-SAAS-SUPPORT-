@@ -15,6 +15,8 @@ import {
   Typography,
   LinearProgress
 } from '@mui/material';
+
+import { useAuth } from '../../../../hooks/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -40,11 +42,12 @@ const navItems = [
 const DashboardSidebar = ({
   activeTab,
   setActiveTab,
-  handleSignOut,
+ 
   needsOnboarding,
   profileStatus,
   modalOpen
 }) => {
+  const { signOut, user } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -85,6 +88,12 @@ const DashboardSidebar = ({
 
   const currentActiveTab = getCurrentActiveTab();
 
+  const handleSignOut = async () => {
+    await signOut(false, isGoogleUser);
+    navigate('/login', { replace: true });
+  };
+
+
   const drawerContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {needsOnboarding && (
@@ -123,9 +132,9 @@ const DashboardSidebar = ({
         ))}
         <Divider sx={{ my: 2 }} />
         <ListItem disablePadding sx={{ mt: 'auto' }}>
-          <ListItemButton onClick={handleSignOut}>
+          <ListItemButton >
             <ListItemIcon sx={{ minWidth: 36 }}><LogoutIcon color="error" /></ListItemIcon>
-            <ListItemText primary="Sign Out" primaryTypographyProps={{ color: 'error' }} />
+            <ListItemText onClick={handleSignOut} primary="Sign Out" primaryTypographyProps={{ color: 'error' }} />
           </ListItemButton>
         </ListItem>
       </List>

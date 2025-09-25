@@ -93,7 +93,7 @@ const WorkHistory = () => {
       <WorkerNavbar />
       <Box sx={{ display: 'flex' }}>
         <DashboardSidebar />
-        <Container maxWidth="xl" sx={{ py: 14, flexGrow: 1 }}>
+        <Container maxWidth="xl" sx={{ py: {xs:14,md:2}, flexGrow: 1 }}>
           {/* Header Section */}
           <Box sx={{ mb: 4 }}>
             <Typography variant="h4" fontWeight={600} color="text.primary" gutterBottom>

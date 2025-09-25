@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -53,6 +53,103 @@ const WorkerOnboardingReferences = ({
   maxReferences = 2,
 }) => {
   const theme = useTheme();
+
+  // Validators
+  const isValidEmail = useCallback((email) => {
+    if (!email) return false;
+    const re = /^(?:[a-zA-Z0-9_'^&+\-])+(?:\.(?:[a-zA-Z0-9_'^&+\-])+)*@(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
+    return re.test(String(email).trim());
+  }, []);
+
+  const normalizePhone = useCallback((value) => (value || '').replace(/\D/g, ''), []);
+
+  const isValidAuMobile = useCallback((value) => {
+    const digits = normalizePhone(value);
+    // Accept local 0XXXXXXXXX (10 digits) or 61XXXXXXXXX (country code + 9)
+    return /^0\d{9}$/.test(digits) || /^61\d{9}$/.test(digits);
+  }, [normalizePhone]);
+
+  const toE164 = useCallback((value) => {
+    let digits = normalizePhone(value);
+    if (digits.startsWith('61')) digits = digits.slice(2);
+    else if (digits.startsWith('0')) digits = digits.slice(1);
+    digits = digits.slice(0, 9);
+    return digits ? `+61${digits}` : '';
+  }, [normalizePhone]);
+
+  const isValidName = useCallback((name) => {
+    const n = (name || '').trim();
+    if (n.length < 2) return false;
+    return /^[\p{L} .'-]{2,}$/u.test(n);
+  }, []);
+
+  const issues = useMemo(() => {
+    const msgs = [];
+    const emails = references.map(r => (r?.email || '').trim().toLowerCase()).filter(Boolean);
+    const phones = references.map(r => normalizePhone(r?.phone || '')).filter(Boolean);
+    const names = references.map(r => (r?.name || '').trim().toLowerCase()).filter(Boolean);
+
+    // Duplicates
+    const dup = (arr) => arr.filter((v, i) => arr.indexOf(v) !== i);
+    const dupEmails = [...new Set(dup(emails))];
+    const dupPhones = [...new Set(dup(phones))];
+    const dupNames = [...new Set(dup(names))];
+    if (dupEmails.length) msgs.push(`Duplicate email detected: ${dupEmails[0]}`);
+    if (dupPhones.length) msgs.push(`Duplicate phone detected`);
+    if (dupNames.length) msgs.push(`Duplicate name detected`);
+
+    // Format validation
+    references.forEach((r, idx) => {
+      const label = `Reference ${idx + 1}`;
+      if (r?.email && !isValidEmail(r.email)) msgs.push(`${label}: Invalid email format`);
+      if (r?.phone && !isValidAuMobile(r.phone)) msgs.push(`${label}: Invalid AU mobile format`);
+      if (r?.name && !isValidName(r.name)) msgs.push(`${label}: Name must be at least 2 letters`);
+    });
+
+    // Missing fields
+    references.forEach((r, idx) => {
+      const missing = [];
+      if (!r?.name) missing.push('Full Name');
+      if (!r?.position) missing.push('Job Title');
+      if (!r?.company) missing.push('Company');
+      if (!r?.phone) missing.push('Phone');
+      if (!r?.email) missing.push('Email');
+      if (missing.length) msgs.push(`Reference ${idx + 1}: Missing ${missing.join(', ')}`);
+    });
+
+    // Hard rule: exactly 2 unique references when submitting elsewhere; here just signal if over limit
+    if (references.length > maxReferences) msgs.push(`Only ${maxReferences} references allowed`);
+
+    return msgs;
+  }, [references, isValidEmail, isValidAuMobile, isValidName, normalizePhone, maxReferences]);
+
+  // No toasts here to avoid duplicates; inline errors will guide the user
+
+  // Duplicate indices for inline error highlighting
+  const duplicateIndexSets = useMemo(() => {
+    const emailMap = new Map();
+    const phoneMap = new Map();
+    const nameMap = new Map();
+    references.forEach((r, idx) => {
+      const e = (r?.email || '').trim().toLowerCase();
+      const p = normalizePhone(r?.phone || '');
+      const n = (r?.name || '').trim().toLowerCase();
+      if (e) emailMap.set(e, [...(emailMap.get(e) || []), idx]);
+      if (p) phoneMap.set(p, [...(phoneMap.get(p) || []), idx]);
+      if (n) nameMap.set(n, [...(nameMap.get(n) || []), idx]);
+    });
+    const toDupSet = (m) => new Set(
+      Array.from(m.values()).flat().filter((_, __, arr) => arr.length > 0).filter((v, i, arr) => {
+        // keep all indices that appear in groups with length > 1
+        return Array.from(m.values()).some(g => g.length > 1 && g.includes(v));
+      })
+    );
+    return {
+      email: new Set(Array.from(emailMap.values()).filter(g => g.length > 1).flat()),
+      phone: new Set(Array.from(phoneMap.values()).filter(g => g.length > 1).flat()),
+      name: new Set(Array.from(nameMap.values()).filter(g => g.length > 1).flat()),
+    };
+  }, [references, normalizePhone]);
   
   // Always show two references (fill with empty objects if needed)
   const filledReferences = [0, 1].map(i => 
@@ -289,8 +386,15 @@ const WorkerOnboardingReferences = ({
                           value={ref.name || ''}
                           onChange={e => onUpdateReference(index, 'name', e.target.value)}
                           placeholder="Enter full name"
-                          error={!!formErrors?.[`ref${index}_name`]}
-                          helperText={formErrors?.[`ref${index}_name`]}
+                          id={`ref${index}_name`}
+                          name={`ref${index}_name`}
+                          error={!!formErrors?.[`ref${index}_name`] || duplicateIndexSets.name.has(index) || (!!ref.name && !isValidName(ref.name))}
+                          helperText={
+                            duplicateIndexSets.name.has(index)
+                              ? 'Duplicate name. Please provide two different references.'
+                              : formErrors?.[`ref${index}_name`]
+                                || (!!ref.name && !isValidName(ref.name) ? 'Enter a valid name (min 2 letters)' : '')
+                          }
                           required
                           InputProps={{
                             startAdornment: (
@@ -316,6 +420,8 @@ const WorkerOnboardingReferences = ({
                           value={ref.position || ''}
                           onChange={e => onUpdateReference(index, 'position', e.target.value)}
                           placeholder="e.g. Senior Manager"
+                          id={`ref${index}_position`}
+                          name={`ref${index}_position`}
                           error={!!formErrors?.[`ref${index}_position`]}
                           helperText={formErrors?.[`ref${index}_position`]}
                           required
@@ -343,6 +449,8 @@ const WorkerOnboardingReferences = ({
                           value={ref.company || ''}
                           onChange={e => onUpdateReference(index, 'company', e.target.value)}
                           placeholder="Enter company name"
+                          id={`ref${index}_company`}
+                          name={`ref${index}_company`}
                           required
                           InputProps={{
                             startAdornment: (
@@ -372,8 +480,19 @@ const WorkerOnboardingReferences = ({
                             onUpdateReference(index, 'phone', formatted);
                           }}
                           placeholder="0412 345 678"
-                          error={!!formErrors?.[`ref${index}_phone`]}
-                          helperText={formErrors?.[`ref${index}_phone`] || 'Format: 0412 345 678'}
+                          id={`ref${index}_phone`}
+                          name={`ref${index}_phone`}
+                          error={
+                            !!formErrors?.[`ref${index}_phone`]
+                            || duplicateIndexSets.phone.has(index)
+                            || (!!ref.phone && !isValidAuMobile(ref.phone))
+                          }
+                          helperText={
+                            duplicateIndexSets.phone.has(index)
+                              ? 'Duplicate phone. Each reference must have a unique number.'
+                              : formErrors?.[`ref${index}_phone`]
+                                || (!!ref.phone && !isValidAuMobile(ref.phone) ? 'Enter a valid AU mobile (e.g. 0412 345 678)' : 'Format: 0412 345 678')
+                          }
                           required
                           InputProps={{
                             startAdornment: (
@@ -400,8 +519,19 @@ const WorkerOnboardingReferences = ({
                           value={ref.email || ''}
                           onChange={e => onUpdateReference(index, 'email', e.target.value)}
                           placeholder="reference@company.com"
-                          error={!!formErrors?.[`ref${index}_email`]}
-                          helperText={formErrors?.[`ref${index}_email`] || 'We\'ll contact them at this email'}
+                          id={`ref${index}_email`}
+                          name={`ref${index}_email`}
+                          error={
+                            !!formErrors?.[`ref${index}_email`]
+                            || duplicateIndexSets.email.has(index)
+                            || (!!ref.email && !isValidEmail(ref.email))
+                          }
+                          helperText={
+                            duplicateIndexSets.email.has(index)
+                              ? 'Duplicate email. Each reference must use a different email.'
+                              : formErrors?.[`ref${index}_email`]
+                                || (!!ref.email && !isValidEmail(ref.email) ? 'Please provide a valid email address' : 'We\'ll contact them at this email')
+                          }
                           required
                           InputProps={{
                             startAdornment: (

@@ -29,7 +29,7 @@ import {
 } from '@mui/icons-material';
 import DocumentPreview from '../../../workerForm/Modals/DocumentPreview';
 
-const CertificationCardDashboard = ({ cert, index, type = 'professional' }) => {
+const CertificationCardDashboard = ({ cert, index, type = 'professional', showRejectionDetails = false, showExpiredDetails = false }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTablet = useMediaQuery(theme.breakpoints.down('md'));
@@ -44,6 +44,7 @@ const CertificationCardDashboard = ({ cert, index, type = 'professional' }) => {
         switch (status?.toLowerCase()) {
             case 'verified': return <CheckCircle />;
             case 'pending': return <Pending />;
+            case 'expired': return <Cancel />;
             case 'rejected': return <Cancel />;
             default: return <Warning />;
         }
@@ -53,16 +54,20 @@ const CertificationCardDashboard = ({ cert, index, type = 'professional' }) => {
         switch (status?.toLowerCase()) {
             case 'verified': return 'success';
             case 'pending': return 'warning';
+            case 'expired': return 'error';
             case 'rejected': return 'error';
             default: return 'default';
         }
     };
 
     const formatDate = (date) => {
-        return new Date(date).toLocaleDateString('en-US', {
+        return new Date(date).toLocaleString('en-US', {
             year: 'numeric',
             month: 'short',
-            day: 'numeric'
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
         });
     };
 
@@ -106,6 +111,8 @@ const CertificationCardDashboard = ({ cert, index, type = 'professional' }) => {
             fontSize: isMobile ? '0.75rem' : '0.8rem'
         }
     };
+
+    const isExpiredByDate = !!cert?.expiryDate && new Date(cert.expiryDate) < new Date();
 
     return (
         <>
@@ -378,6 +385,191 @@ const CertificationCardDashboard = ({ cert, index, type = 'professional' }) => {
                                 </Box>
                             )}
                         </Box>
+
+                        {/* Rejection Details - only in Rejected tab */}
+                        {showRejectionDetails && cert.verificationStatus?.toLowerCase() === 'rejected' && cert.rejectionReason && (
+                            <Box
+                                sx={{
+                                    mb: spacing.section,
+                                    p: isMobile ? 1.5 : 2,
+                                    bgcolor: alpha(theme.palette.error.main, 0.06),
+                                    border: `1px solid ${alpha(theme.palette.error.main, 0.15)}`,
+                                    borderRadius: isMobile ? 1.5 : 2,
+                                    position: 'relative',
+                                    overflow: 'hidden',
+                                    '&::before': {
+                                        content: '""',
+                                        position: 'absolute',
+                                        left: 0,
+                                        top: 0,
+                                        bottom: 0,
+                                        width: '3px',
+                                        bgcolor: theme.palette.error.main
+                                    }
+                                }}
+                            >
+                                <Stack spacing={isMobile ? 1 : 1.25}>
+                                    <Stack direction="row" alignItems="center" spacing={spacing.small}>
+                                        <Box sx={{
+                                            p: 0.5,
+                                            borderRadius: '50%',
+                                            bgcolor: alpha(theme.palette.error.main, 0.18),
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                        }}>
+                                            <Cancel sx={{ fontSize: isMobile ? '14px' : '16px' }} color="error" />
+                                        </Box>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'error.main', fontSize: typography.small.fontSize }}>
+                                            Rejection Details
+                                        </Typography>
+                                    </Stack>
+
+                                    <Box sx={{
+                                        p: isMobile ? 1 : 1.25,
+                                        bgcolor: alpha(theme.palette.error.main, 0.04),
+                                        borderRadius: 1,
+                                        border: `1px solid ${alpha(theme.palette.error.main, 0.12)}`
+                                    }}>
+                                        <Typography variant="caption" sx={{
+                                            color: 'error.main',
+                                            fontWeight: 700,
+                                            letterSpacing: '0.4px',
+                                            textTransform: 'uppercase',
+                                            fontSize: typography.caption.fontSize
+                                        }}>
+                                            Reason for Rejection
+                                        </Typography>
+                                        <Typography variant="body2" sx={{
+                                            color: 'error.main',
+                                            fontWeight: 500,
+                                            mt: 0.5,
+                                            lineHeight: 1.5,
+                                            fontSize: typography.body.fontSize
+                                        }}>
+                                            {cert.rejectionReason}
+                                        </Typography>
+                                    </Box>
+
+                                    {cert.verificationDate && (
+                                        <Stack direction="row" alignItems="center" spacing={spacing.small} sx={{
+                                            p: isMobile ? 0.75 : 1,
+                                            bgcolor: alpha(theme.palette.grey[500], 0.06),
+                                            borderRadius: 1,
+                                            border: `1px solid ${alpha(theme.palette.grey[400], 0.2)}`
+                                        }}>
+                                            <CalendarToday sx={{ fontSize: isMobile ? '14px' : '16px', color: theme.palette.text.secondary }} />
+                                            <Box>
+                                                <Typography variant="caption" sx={{
+                                                    color: theme.palette.text.secondary,
+                                                    fontWeight: 700,
+                                                    letterSpacing: '0.4px',
+                                                    textTransform: 'uppercase',
+                                                    fontSize: typography.caption.fontSize
+                                                }}>
+                                                    Rejected On
+                                                </Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 500, fontSize: typography.small.fontSize }}>
+                                                    {formatDate(cert.verificationDate)}
+                                                </Typography>
+                                            </Box>
+                                        </Stack>
+                                    )}
+                                </Stack>
+                            </Box>
+                        )}
+
+                        {/* Expired Details - only in Expired tab */}
+                        {showExpiredDetails && (cert.verificationStatus?.toLowerCase() === 'expired' || isExpiredByDate) && (
+                            <Box
+                                sx={{
+                                    mb: spacing.section,
+                                    p: isMobile ? 1.5 : 2,
+                                    bgcolor: alpha(theme.palette.warning.main, 0.06),
+                                    border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                                    borderRadius: isMobile ? 1.5 : 2,
+                                    position: 'relative',
+                                    overflow: 'hidden',
+                                    '&::before': {
+                                        content: '""',
+                                        position: 'absolute',
+                                        left: 0,
+                                        top: 0,
+                                        bottom: 0,
+                                        width: '3px',
+                                        bgcolor: theme.palette.warning.main
+                                    }
+                                }}
+                            >
+                                <Stack spacing={isMobile ? 1 : 1.25}>
+                                    <Stack direction="row" alignItems="center" spacing={spacing.small}>
+                                        <Box sx={{
+                                            p: 0.5,
+                                            borderRadius: '50%',
+                                            bgcolor: alpha(theme.palette.warning.main, 0.18),
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                        }}>
+                                            <Cancel sx={{ fontSize: isMobile ? '14px' : '16px' }} color="warning" />
+                                        </Box>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'warning.main', fontSize: typography.small.fontSize }}>
+                                            Expired Details
+                                        </Typography>
+                                    </Stack>
+
+                                    {cert.expiryDate && (
+                                        <Box sx={{
+                                            p: isMobile ? 1 : 1.25,
+                                            bgcolor: alpha(theme.palette.warning.main, 0.04),
+                                            borderRadius: 1,
+                                            border: `1px solid ${alpha(theme.palette.warning.main, 0.12)}`
+                                        }}>
+                                            <Stack direction="row" alignItems="center" spacing={spacing.small} sx={{ mb: spacing.small }}>
+                                                <Event sx={{ fontSize: isMobile ? '14px' : '16px', color: theme.palette.warning.main }} />
+                                                <Typography variant="caption" sx={{
+                                                    color: theme.palette.text.secondary,
+                                                    fontWeight: 700,
+                                                    letterSpacing: '0.4px',
+                                                    textTransform: 'uppercase',
+                                                    fontSize: typography.caption.fontSize
+                                                }}>
+                                                    Expired On
+                                                </Typography>
+                                            </Stack>
+                                            <Typography variant="body2" sx={{ color: 'warning.main', fontWeight: 600, fontSize: typography.small.fontSize }}>
+                                                {formatDate(cert.expiryDate)}
+                                            </Typography>
+                                        </Box>
+                                    )}
+
+                                    {cert.verificationDate && (
+                                        <Stack direction="row" alignItems="center" spacing={spacing.small} sx={{
+                                            p: isMobile ? 0.75 : 1,
+                                            bgcolor: alpha(theme.palette.grey[500], 0.06),
+                                            borderRadius: 1,
+                                            border: `1px solid ${alpha(theme.palette.grey[400], 0.2)}`
+                                        }}>
+                                            <CalendarToday sx={{ fontSize: isMobile ? '14px' : '16px', color: theme.palette.text.secondary }} />
+                                            <Box>
+                                                <Typography variant="caption" sx={{
+                                                    color: theme.palette.text.secondary,
+                                                    fontWeight: 700,
+                                                    letterSpacing: '0.4px',
+                                                    textTransform: 'uppercase',
+                                                    fontSize: typography.caption.fontSize
+                                                }}>
+                                                    Verified On
+                                                </Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 500, fontSize: typography.small.fontSize }}>
+                                                    {formatDate(cert.verificationDate)}
+                                                </Typography>
+                                            </Box>
+                                        </Stack>
+                                    )}
+                                </Stack>
+                            </Box>
+                        )}
 
                         {/* Date Information - Professional Certificates Only */}
                         {type === 'professional' && (cert.issuedDate || cert.expiryDate) && (

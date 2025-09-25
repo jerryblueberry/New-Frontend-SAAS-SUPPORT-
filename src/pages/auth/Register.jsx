@@ -26,11 +26,13 @@ import {
 } from '@mui/material';
 import {
   People as PeopleIcon,
-  Handshake as HandshakeIcon,
   TrendingUp as TrendingUpIcon,
-  Favorite as FavoriteIcon,
-  Security as SecurityIcon,
-  Lightbulb as LightbulbIcon,
+  VerifiedUser as VerifiedUserIcon,
+  AssignmentTurnedIn as AssignmentTurnedInIcon,
+  Work as WorkIcon,
+  Schedule as ScheduleIcon,
+  Lock as LockIcon,
+  School as SchoolIcon,
   Google as GoogleIcon,
   Visibility,
   VisibilityOff
@@ -137,34 +139,44 @@ const Register = () => {
 
   const benefits = [
     {
-      icon: <PeopleIcon color="primary" />,
-      title: 'Connect with Clients',
-      description: 'Build meaningful relationships with those who need your support'
+      icon: <VerifiedUserIcon color="primary" />,
+      title: "Independent Onboarding",
+      description: "Complete your certification and document verification without relying on an institution."
     },
     {
-      icon: <HandshakeIcon color="primary" />,
-      title: 'Flexible Work',
-      description: 'Choose your own schedule and work on your terms'
+      icon: <AssignmentTurnedInIcon color="primary" />,
+      title: "Automated Checks",
+      description: "Streamlined CV, reference, and residency verification through our automated system."
+    },
+    {
+      icon: <WorkIcon color="primary" />,
+      title: "Professional Profile",
+      description: "Build a trusted profile with your skills, certifications, and work history, ready to share with clients."
+    },
+    {
+      icon: <ScheduleIcon color="primary" />,
+      title: "Shift & Timesheet Management",
+      description: "Track your shifts, manage timesheets, and log progress notes all in one place."
+    },
+    {
+      icon: <PeopleIcon color="primary" />,
+      title: "Client Connections",
+      description: "Get discovered by clients looking for qualified support workers, no middleman required."
     },
     {
       icon: <TrendingUpIcon color="primary" />,
-      title: 'Career Growth',
-      description: 'Access training and development opportunities'
+      title: "Career Growth",
+      description: "Showcase your expertise, gain visibility, and unlock more opportunities as you grow."
     },
     {
-      icon: <FavoriteIcon color="primary" />,
-      title: 'Make an Impact',
-      description: 'Create positive change in people\'s lives every day'
+      icon: <LockIcon color="primary" />,
+      title: "Secure & Trusted",
+      description: "Your data and certifications are protected on a safe, compliant platform."
     },
     {
-      icon: <SecurityIcon color="primary" />,
-      title: 'Secure Platform',
-      description: 'Work with confidence on our trusted platform'
-    },
-    {
-      icon: <LightbulbIcon color="primary" />,
-      title: 'Continuous Learning',
-      description: 'Stay updated with the latest care practices'
+      icon: <SchoolIcon color="primary" />,
+      title: "Ongoing Learning",
+      description: "Stay updated with care practices and add new skills to strengthen your profile."
     }
   ];
 
@@ -172,190 +184,300 @@ const Register = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        bgcolor: 'background.default',
-        p: isMobile ? 0 : 4
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+        bgcolor: '#f6f7f9',
+        background: 'none',
+        position: 'relative',
+        overflow: 'hidden'
       }}
     >
-      <Paper
-        elevation={isMobile ? 0 : 8}
+      {/* Background Pattern (disabled for cleaner look) */}
+      <Box
         sx={{
-          width: '100%',
-          maxWidth: 1200,
-          overflow: 'hidden',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundImage: 'none',
+          pointerEvents: 'none',
+          zIndex: 0,
+          display: 'none'
+        }}
+      />
+      
+      {/* Floating Elements (removed for minimal design) */}
+      <Box
+        sx={{
+          display: 'none'
+        }}
+      />
+      
+      <Box
+        sx={{
+          display: 'none'
+        }}
+      />
+      {/* Left Side - Benefits */}
+      <Box
+        sx={{
           display: 'flex',
-          flexDirection: isMobile ? 'column-reverse' : 'row',
-          borderRadius: isMobile ? 0 : theme.shape.borderRadius * 2
+          flexDirection: 'column',
+          justifyContent: 'center',
+          p: { xs: 3, sm: 4, md: 5 },
+          background: 'linear-gradient(180deg, #ffffff 0%, #fafafa 100%)',
+          color: '#0f172a',
+          position: 'relative',
+          zIndex: 1,
+          order: isMobile ? 2 : 1,
+          overflow: 'hidden'
         }}
       >
-        {/* Left Side - Benefits */}
-        <Box
-          sx={{
-            flex: 1.2,
-            bgcolor: 'primary.dark',
-            p: isMobile ? 3 : 4,
-            color: 'common.white',
-            background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`
-          }}
-        >
-          <Box sx={{ mb: 4 }}>
-            <Typography 
-              variant={isMobile ? 'h5' : 'h4'} 
-              component="h1"
-              sx={{ 
-                fontWeight: 800,
-                mb: 1,
-                background: `linear-gradient(to right, ${theme.palette.common.white}, ${theme.palette.grey[300]})`,
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
-              }}
-            >
-              Join Our Support Worker Community
-            </Typography>
-            <Typography 
-              variant="subtitle1"
-              sx={{ opacity: 0.9 }}
-            >
-              Start your journey to make a difference in people's lives
-            </Typography>
-          </Box>
-
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2,
-              mb: 4,
-              bgcolor: 'rgba(255, 255, 255, 0.1)',
-              borderLeft: `4px solid ${theme.palette.secondary.main}`
+        <Box sx={{ mb: 5, position: 'relative', zIndex: 2 }}>
+          <Typography 
+            variant={isMobile ? 'h4' : 'h2'} 
+            component="h1"
+            sx={{ 
+              fontWeight: 800,
+              mb: 1.5,
+              color: '#0f172a',
+              fontSize: { xs: '1.6rem', sm: '2.2rem', md: '2.6rem' },
+              letterSpacing: '-0.02em'
             }}
           >
-            <Typography variant="body1" fontStyle="italic">
-              "The best way to find yourself is to lose yourself in the service of others."
-            </Typography>
-            <Typography variant="caption" component="footer" display="block" sx={{ mt: 1 }}>
-              — Mahatma Gandhi
-            </Typography>
-          </Paper>
-
-          <Grid container spacing={2}>
-            {benefits.map((benefit, index) => (
-              <Grid item xs={12} sm={6} key={index}>
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 2,
-                    height: '100%',
-                    bgcolor: 'rgba(255, 255, 255, 0.1)',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      transform: 'translateY(-4px)',
-                      bgcolor: 'rgba(255, 255, 255, 0.15)'
-                    }
-                  }}
-                >
-                  <Box display="flex" alignItems="flex-start" gap={2}>
-                    <Avatar sx={{ bgcolor: 'primary.light', width: 40, height: 40 }}>
-                      {benefit.icon}
-                    </Avatar>
-                    <Box>
-                      <Typography variant="subtitle1" fontWeight={600}>
-                        {benefit.title}
-                      </Typography>
-                      <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                        {benefit.description}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Paper>
-              </Grid>
-            ))}
-          </Grid>
+            Join Our Support Worker Community
+          </Typography>
+          <Typography 
+            variant={isMobile ? 'h6' : 'h5'}
+            sx={{ 
+              color: '#475569',
+              fontWeight: 500,
+              lineHeight: 1.5
+            }}
+          >
+            Start your journey to make a meaningful difference in people's lives
+          </Typography>
         </Box>
 
-        {/* Right Side - Form */}
-        <Box
+        <Paper
+          elevation={0}
           sx={{
-            flex: 1,
-            p: isMobile ? 3 : 2,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            bgcolor: 'background.paper'
+            p: { xs: 2.5, sm: 3, md: 3 },
+            mb: 5,
+            bgcolor: '#ffffff',
+            borderLeft: '4px solid #2563eb',
+            borderRadius: 2,
+            border: '1px solid #e5e7eb',
+            position: 'relative',
+            zIndex: 2
           }}
         >
-          <Box sx={{ mb: 4, textAlign: 'center' }}>
-            <Avatar
-              src={Logo}
-              alt="AECUS Logo"
-              sx={{
-                width: 240,
-                height: 'auto',
-                maxWidth: 320,
-                mx: 'auto',
-                mb: 2,
-                transition: 'transform 0.3s ease',
-                '&:hover': {
-                  transform: 'scale(1.05)'
-                }
-              }}
-              variant="square"
-            />
-            <Typography variant="h5" component="h2" fontWeight={700} gutterBottom fontFamily={'sans-serif'} color='#9d82db'>
-              Create Your Account
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Join our community of support workers
-            </Typography>
-          </Box>
+          <Typography 
+            variant="body1" 
+            sx={{ 
+              color: '#0f172a', 
+              fontSize: { xs: '1rem', sm: '1.05rem', md: '1.1rem' },
+              fontWeight: 500,
+              lineHeight: 1.6
+            }}
+          >
+            "The best way to find yourself is to lose yourself in the service of others."
+          </Typography>
+          <Typography 
+            variant="caption" 
+            component="footer" 
+            display="block" 
+            sx={{ 
+              mt: 1.5, 
+              color: '#64748b',
+              fontWeight: 600,
+              fontSize: '0.85rem'
+            }}
+          >
+            — Mahatma Gandhi
+          </Typography>
+        </Paper>
 
-          {errorMessage && (
-            <Fade in={!!errorMessage}>
+        <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
+          {benefits.map((benefit, index) => (
+            <Grid item xs={12} sm={6} key={index}>
               <Paper
                 elevation={0}
                 sx={{
-                  bgcolor: 'error.light',
-                  color: 'error.dark',
-                  p: 2,
-                  mb: 3,
-                  borderRadius: 1
+                  p: { xs: 2, sm: 2.5, md: 3 },
+                  height: '100%',
+                  bgcolor: '#ffffff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 2,
+                  position: 'relative',
+                  zIndex: 2,
+                  overflow: 'hidden'
                 }}
               >
-                <Typography variant="body2">
-                  {errorMessage}
-                </Typography>
+                <Box display="flex" alignItems="flex-start" gap={{ xs: 2, sm: 2.5 }}>
+                  <Avatar 
+                    sx={{ 
+                      bgcolor: '#eef2ff',
+                      width: { xs: 48, sm: 52, md: 56 }, 
+                      height: { xs: 48, sm: 52, md: 56 },
+                      boxShadow: 'none'
+                    }}
+                  >
+                    {benefit.icon}
+                  </Avatar>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography 
+                      variant="subtitle1" 
+                      fontWeight={700} 
+                      sx={{ 
+                        color: '#0f172a', 
+                        mb: 0.5,
+                        fontSize: { xs: '0.95rem', sm: '1rem', md: '1.05rem' }
+                      }}
+                    >
+                      {benefit.title}
+                    </Typography>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: '#64748b', 
+                        lineHeight: 1.6,
+                        fontSize: { xs: '0.82rem', sm: '0.9rem', md: '0.95rem' }
+                      }}
+                    >
+                      {benefit.description}
+                    </Typography>
+                  </Box>
+                </Box>
               </Paper>
-            </Fade>
-          )}
+            </Grid>
+          ))}
+        </Grid>
+        </Box>
 
-          <RegisterForm 
-            onSubmit={handleRegister}
-            onGoogleRegister={handleGoogleRegister}
-            loading={isLoading}
-            loadingMessage={loadingMessage}
-            error={errorMessage}
-            termsAccepted={termsAccepted}
-            onTermsChange={setTermsAccepted}
-            termsError={termsError}
-            setTermsError={setTermsError}
+      {/* Right Side - Form */
+      }
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          p: { xs: 3, sm: 4, md: 5 },
+          bgcolor: 'transparent',
+          position: 'relative',
+          zIndex: 1,
+          order: isMobile ? 1 : 2,
+          overflow: 'hidden',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'none',
+            pointerEvents: 'none',
+          }
+        }}
+      >
+        <Box sx={{ mb: 5, textAlign: 'center', position: 'relative', zIndex: 2 }}>
+          <Avatar
+            src={Logo}
+            alt="AECUS Logo"
+            sx={{
+              width: { xs: 140, sm: 180, md: 200 },
+              height: 'auto',
+              maxWidth: 260,
+              mx: 'auto',
+              mb: 1,
+              filter: 'none'
+            }}
+            variant="square"
           />
+         
+        </Box>
 
-          <Box sx={{ mt: 3, textAlign: 'center' }}>
-            <Typography variant="body2" color="text.secondary">
+        {errorMessage && (
+          <Fade in={!!errorMessage}>
+            <Paper
+              elevation={0}
+              sx={{
+                bgcolor: '#fff1f2',
+                color: '#b91c1c',
+                p: { xs: 2, sm: 2.5 },
+                mb: 4,
+                borderRadius: 2,
+                border: '1px solid #fecdd3',
+                position: 'relative',
+                zIndex: 2
+              }}
+            >
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  fontWeight: 600,
+                  fontSize: { xs: '0.9rem', sm: '0.95rem' },
+                  lineHeight: 1.5
+                }}
+              >
+                {errorMessage}
+              </Typography>
+            </Paper>
+          </Fade>
+        )}
+
+        <RegisterForm 
+          onSubmit={handleRegister}
+          onGoogleRegister={handleGoogleRegister}
+          loading={isLoading}
+          loadingMessage={loadingMessage}
+          error={errorMessage}
+          termsAccepted={termsAccepted}
+          onTermsChange={setTermsAccepted}
+          termsError={termsError}
+          setTermsError={setTermsError}
+        />
+
+        <Box sx={{ mt: 5, textAlign: 'center', position: 'relative', zIndex: 2 }}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: { xs: 2, sm: 2.5 },
+              bgcolor: '#ffffff',
+              border: '1px solid #e5e7eb',
+              borderRadius: 2
+            }}
+          >
+            <Typography 
+              variant="body1" 
+              sx={{ 
+                color: '#475569', 
+                fontWeight: 500,
+                fontSize: { xs: '0.9rem', sm: '1rem' }
+              }}
+            >
               Already have an account?{' '}
               <Link 
                 href="/login" 
-                color="primary"
-                fontWeight={600}
-                underline="hover"
+                sx={{ 
+                  color: '#2563eb',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                  fontSize: { xs: '0.95rem', sm: '1.05rem' },
+                  transition: 'color 0.2s ease',
+                  '&:hover': {
+                    textDecoration: 'underline',
+                    color: '#1d4ed8'
+                  }
+                }}
               >
                 Sign in
               </Link>
             </Typography>
-          </Box>
+          </Paper>
         </Box>
-      </Paper>
+      </Box>
     </Box>
   );
 };

@@ -64,8 +64,11 @@ import {
   CalendarMonth as CalendarIcon,
   Search as SearchIcon,
   Place as PlaceIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { alpha } from '@mui/material/styles';
+import { toast, ToastContainer, Slide } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import useOnboardingStore, { useAvailabilityMutation } from '../../stores/useOnboardingStore';
 import { daysOfWeek } from '../../utils/constants';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -891,6 +894,7 @@ const AvailabilityForm = () => {
   const [editingSlot, setEditingSlot] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
   const [errors, setErrors] = useState({});
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const inputRef = React.useRef(null);
   const dropdownRef = React.useRef(null);
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -952,16 +956,70 @@ const AvailabilityForm = () => {
     return newErrors;
   };
 
+  // Toast close button for perfect alignment
+  const ToastCloseButton = useCallback(({ closeToast }) => (
+    <IconButton
+      aria-label="close"
+      size="small"
+      onClick={closeToast}
+      sx={{ position: 'absolute', right: 8, top: 8, color: theme.palette.grey[700], '&:hover': { color: theme.palette.text.primary } }}
+    >
+      <CloseIcon fontSize="small" />
+    </IconButton>
+  ), [theme.palette.grey, theme.palette.text.primary]);
+
   // Form submission
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
+    setHasAttemptedSubmit(true);
     const formErrors = validateForm();
     setErrors(formErrors);
 
     if (Object.keys(formErrors).length === 0) {
       saveAvailability(availability);
+    } else {
+      // Show specific error toast and focus first error field
+      toast.dismiss();
+      const firstErrorKey = Object.keys(formErrors)[0];
+      let message = 'Please fix all validation errors before submitting';
+      
+      if (firstErrorKey) {
+        const friendly = firstErrorKey
+          .replace('timeSlots', 'Time Slots')
+          .replace('travelDistance', 'Travel Distance')
+          .replace('suburb', 'Location');
+        message = `Fix: ${friendly}`;
+      }
+      
+      toast.error(message, {
+        position: 'top-center',
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        icon: '⚠️',
+      });
+
+      // Focus the first error field
+      setTimeout(() => {
+        if (firstErrorKey === 'suburb') {
+          // Focus suburb input
+          const suburbInput = document.querySelector('[placeholder*="Search suburb"]');
+          if (suburbInput) {
+            suburbInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            suburbInput.focus();
+          }
+        } else if (firstErrorKey === 'timeSlots') {
+          // Focus add time slot button
+          const addButton = document.querySelector('[aria-label*="Add Time Slot"], button:has-text("Add Time Slot")');
+          if (addButton) {
+            addButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+      }, 50);
     }
-  }, [availability, saveAvailability, validateForm]);
+  }, [availability, saveAvailability, validateForm, ToastCloseButton]);
 
   // Dialog handlers
   const handleAddCustomSlot = useCallback(() => {
@@ -1007,6 +1065,32 @@ const AvailabilityForm = () => {
 
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 2, md: 4 } }}>
+      <ToastContainer
+        position="top-center"
+        autoClose={4000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        transition={Slide}
+        closeButton={<ToastCloseButton />}
+        limit={3}
+        draggableDirection="x"
+        theme="colored"
+        toastStyle={{
+          borderRadius: 12,
+          boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+          paddingRight: 36,
+          maxWidth: '640px',
+          width: 'calc(100% - 24px)',
+          margin: '0 auto',
+          fontSize: '0.95rem',
+        }}
+        style={{ zIndex: 1400, width: '100%', padding: '0 12px' }}
+      />
       {/* <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
           Set Your Availability
@@ -1161,17 +1245,18 @@ const AvailabilityForm = () => {
         {/* Preferences Section - Three cards side by side on desktop, stacked on mobile */}
         <Grid
           container
-          spacing={{ xs: 2, md: 4 }}
+          spacing={{ xs: 2, md: 3 }}
           sx={{
             mt: { xs: 2, md: 4 },
             mb: { xs: 2, md: 4 },
-            px: { xs: 0, md: 2 },
+            px: { xs: 0, md: 0 },
             display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'stretch',
           }}
         >
           {/* Suburb Card */}
-          <Grid item xs={12} md={4} sx={{ display: 'flex' }}>
+          <Grid item xs={12} md={4} lg={4} xl={4} sx={{ display: 'flex' }}>
             <Card
               elevation={0}
               sx={{
@@ -1199,7 +1284,7 @@ const AvailabilityForm = () => {
           </Grid>
 
           {/* Travel Distance Card */}
-          <Grid item xs={12} md={4} sx={{ display: 'flex' }}>
+          <Grid item xs={12} md={4} lg={4} xl={4} sx={{ display: 'flex' }}>
             <Card
               elevation={0}
               sx={{
@@ -1318,27 +1403,36 @@ const AvailabilityForm = () => {
             </Card>
           </Grid>
 
-          {/* Upcoming Holidays Card */}
-          <Grid item xs={12} md={4} sx={{ display: 'flex' }}>
-            <HolidayDisplaySection 
-              upcomingHolidays={upcomingHolidays}
-              holidaysLoading={holidaysLoading}
-              holidaysError={holidaysError}
-              setOpenHolidayDialog={setOpenHolidayDialog}
-              setEditingHoliday={setEditingHoliday}
-              deleteHoliday={deleteHoliday}
-              theme={theme}
-            />
-            {/* Holiday Creation Dialog */}
+          {/* Upcoming Holidays Card - Render directly, internal Grid sizing controls width */}
+         <Box sx={{width: {xs:'100%',md:'10%',lg:'10%',xl:'30%'}}}>
+         <HolidayDisplaySection 
+            upcomingHolidays={upcomingHolidays}
+            holidaysLoading={holidaysLoading}
+            holidaysError={holidaysError}
+            setOpenHolidayDialog={setOpenHolidayDialog}
+            setEditingHoliday={setEditingHoliday}
+            deleteHoliday={deleteHoliday}
+            theme={theme}
+          />
+         </Box>
+    
+         
+       
+    
+      
+          {/* Holiday Creation Dialog */}
             <Dialog
               open={openHolidayDialog}
               onClose={() => { setOpenHolidayDialog(false); setEditingHoliday(null); }}
-              maxWidth="sm"
+              maxWidth="md"
               fullWidth
               PaperProps={{
                 sx: {
                   borderRadius: 3,
-                  boxShadow: theme.shadows[10]
+                  boxShadow: theme.shadows[10],
+                  width: { xs: '95vw', sm: 640, md: 800 },
+                  maxWidth: { xs: '95vw', sm: 720, md: 900 },
+                  mx: { xs: 1, sm: 'auto' }
                 }
               }}
             >
@@ -1358,7 +1452,7 @@ const AvailabilityForm = () => {
                 </Box>
               </DialogTitle>
 
-              <DialogContent dividers sx={{ px: 3, py: 2 }}>
+              <DialogContent dividers sx={{ px: 3, py: 2, overflow: 'visible' }}>
                 <Stack spacing={3}>
                   <TextField
                     label="Holiday Name"
@@ -1402,10 +1496,35 @@ const AvailabilityForm = () => {
                     placeholder="Add any additional details about your holiday..."
                     InputProps={{
                       startAdornment: (
-                        <InputAdornment position="start">
-                          <InfoIcon color="action" />
+                        <InputAdornment 
+                          position="start"
+                          sx={{
+                            alignSelf: 'flex-start',
+                            mt: 1,
+                            '& .MuiSvgIcon-root': {
+                              fontSize: { xs: '1.1rem', md: '1.25rem' },
+                              color: 'text.secondary'
+                            }
+                          }}
+                        >
+                          <InfoIcon />
                         </InputAdornment>
                       ),
+                    }}
+                    sx={{
+                      '& .MuiInputBase-root': {
+                        alignItems: 'flex-start',
+                        paddingTop: 1
+                      },
+                      '& .MuiInputBase-input': {
+                        paddingTop: { xs: '8px', md: '12px' },
+                        paddingBottom: { xs: '8px', md: '12px' },
+                        lineHeight: 1.5,
+                        fontSize: { xs: '0.9rem', md: '1rem' }
+                      },
+                      '& .MuiInputLabel-root': {
+                        fontSize: { xs: '0.9rem', md: '1rem' }
+                      }
                     }}
                   />
 
@@ -1485,7 +1604,6 @@ const AvailabilityForm = () => {
                 </Button>
               </DialogActions>
             </Dialog>
-          </Grid>
         </Grid>
 
         {/* Form Actions */}

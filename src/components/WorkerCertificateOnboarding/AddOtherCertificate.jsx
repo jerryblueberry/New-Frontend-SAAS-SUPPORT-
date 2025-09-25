@@ -11,7 +11,9 @@ import {
   Tooltip,
   Modal,
   message,
-  Badge
+  Badge,
+  Grid,
+  Tag
 } from 'antd';
 import {
   PlusOutlined,
@@ -28,6 +30,7 @@ import { deleteOtherCertification } from '../../api/otherCertifications';
 
 const { Text } = Typography;
 const { confirm } = Modal;
+const { useBreakpoint } = Grid;
 
 const maxFiles = 2;
 const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -52,6 +55,7 @@ const AddOtherCertificate = ({
   const [isSavingOtherCert, setIsSavingOtherCert] = useState(false);
   const [isUploadingOtherCert, setIsUploadingOtherCert] = useState(false);
   const [previewDocument, setPreviewDocument] = useState(null);
+  const screens = useBreakpoint();
 
   useEffect(() => {
     if (
@@ -270,9 +274,9 @@ const AddOtherCertificate = ({
           style={{
             backgroundColor: 'orange',
             color: 'white',
-            width: '38px',
-            height: '38px',
-            fontSize: '1.2rem',
+            width: '32px',
+            height: '32px',
+            fontSize: '1.1rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -291,6 +295,19 @@ const AddOtherCertificate = ({
         >
           Other Certificate
         </p>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={openAddDrawer}
+          size="small"
+          style={{
+            marginLeft: 'auto',
+            padding: '0px 9px',
+            marginRight:'5px'
+          }}
+        >
+          Add
+        </Button>
       </div>
       
       )}
@@ -299,7 +316,7 @@ const AddOtherCertificate = ({
         title={editingOtherCertIndex !== null ? 'Edit Other Certificate' : 'Add Other Certificate'}
         open={otherCertDrawerOpen}
         onClose={handleDrawerClose}
-        width={480}
+        width={screens.xl ? 560 : screens.lg ? 520 : screens.md ? 480 : '100%'}
         footer={
           <div style={{ textAlign: 'right' }}>
             <Button onClick={handleDrawerClose} style={{ marginRight: 8 }}>Cancel</Button>
@@ -460,58 +477,107 @@ const AddOtherCertificate = ({
         {/* List of other certifications inside the drawer - exclude the one being edited */}
         {filteredCertifications.length > 0 && (
           <Card
-            title="Other Certifications"
+            title={
+              <Space size={8} style={{ alignItems: 'center' }}>
+                <Text strong style={{ fontSize: screens.xs ? 16 : 18 }}>
+                  Other Certifications
+                </Text>
+                <Tag color="blue" style={{ borderRadius: 12 }}>{filteredCertifications.length}</Tag>
+              </Space>
+            }
             style={{
               marginTop: 24,
               marginBottom: 16,
-              borderRadius: 4,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+              borderRadius: 8,
+              border: '1px solid #f0f0f0',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.06)'
             }}
+            bodyStyle={{ padding: screens.xs ? 12 : 16 }}
           >
             <List
+              itemLayout="vertical"
               dataSource={filteredCertifications}
-              renderItem={(cert, filteredIdx) => {
-                // Get the original index from the full array
+              split
+              renderItem={(cert) => {
                 const originalIndex = otherCertifications.findIndex(
                   (originalCert, originalIdx) =>
                     originalCert === cert &&
                     (editingOtherCertIndex === null || originalIdx !== editingOtherCertIndex)
                 );
 
-                return (
-                  <List.Item
-                    actions={[
+                const actionButtons = screens.xs ? (
+                  <Space size={8}>
+                    <Tooltip title="Edit">
                       <Button
-                        type="primary"
+                        type="text"
                         size="small"
-                        onClick={() => handleEditOtherCertificate(originalIndex)}
                         icon={<EditOutlined />}
-                        style={{ marginRight: 8 }}
-                      >
-                        Edit
-                      </Button>,
+                        onClick={() => handleEditOtherCertificate(originalIndex)}
+                      />
+                    </Tooltip>
+                    <Tooltip title="Remove">
                       <Button
+                        type="text"
                         danger
                         size="small"
-                        onClick={() => handleRemoveOtherCertificate(originalIndex)}
                         icon={<DeleteOutlined />}
-                      >
-                        Remove
-                      </Button>
-                    ]}
+                        onClick={() => handleRemoveOtherCertificate(originalIndex)}
+                      />
+                    </Tooltip>
+                  </Space>
+                ) : (
+                  <Space size={8}>
+                    <Button
+                      type="primary"
+                      size="small"
+                      onClick={() => handleEditOtherCertificate(originalIndex)}
+                      icon={<EditOutlined />}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      danger
+                      size="small"
+                      onClick={() => handleRemoveOtherCertificate(originalIndex)}
+                      icon={<DeleteOutlined />}
+                    >
+                      Remove
+                    </Button>
+                  </Space>
+                );
+
+                return (
+                  <List.Item
+                    actions={[actionButtons]}
+                    style={{ padding: screens.xs ? '8px 0' : '12px 0' }}
                   >
                     <List.Item.Meta
+                      avatar={
+                        <div
+                          style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: '50%',
+                            backgroundColor: '#f5f5f5',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#8c8c8c'
+                          }}
+                        >
+                          <FileOutlined />
+                        </div>
+                      }
                       title={
-                        <Text strong style={{ fontSize: 16 }}>
+                        <Text strong style={{ fontSize: screens.xs ? 15 : 16, color: '#262626' }}>
                           {cert.certificationTitle}
                         </Text>
                       }
                       description={
-                        <Space>
-                          <FileOutlined />
-                          <Text type="secondary">
+                        <Space size={6} wrap>
+                          <Text type="secondary" style={{ display: 'inline-flex', alignItems: 'center' }}>
                             {cert.documents && cert.documents.length > 0
-                              ? `${cert.documents.length} document(s) uploaded`
+                              ? `${cert.documents.length} document${cert.documents.length > 1 ? 's' : ''} uploaded`
                               : 'No documents uploaded'}
                           </Text>
                         </Space>

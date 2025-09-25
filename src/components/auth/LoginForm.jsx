@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaGoogle } from 'react-icons/fa';
+import { FaGoogle, FaEye, FaEyeSlash } from 'react-icons/fa';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { useAuth } from '../../context/AuthContext';
 import './css/LoginForm.css';
@@ -15,6 +15,7 @@ const LoginForm = ({ onSubmit, setEmailInputRef, loading, error, onInputChange }
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
 
   const validateForm = () => {
     const errors = {};
@@ -72,6 +73,10 @@ const LoginForm = ({ onSubmit, setEmailInputRef, loading, error, onInputChange }
     } finally {
       setIsGoogleLoading(false);
     }
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(prev => !prev);
   };
 
   // Show loading state
@@ -141,15 +146,29 @@ const LoginForm = ({ onSubmit, setEmailInputRef, loading, error, onInputChange }
           <input
             id="password"
             name="password"
-            type="password"
+            type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             required
             value={formData.password}
             onChange={handleChange}
-            className={`loginform__input ${validationErrors.password ? 'input-error' : ''}`}
+            className={`loginform__input loginform__input--password ${validationErrors.password ? 'input-error' : ''}`}
             placeholder="Enter your password"
             disabled={loading || isSubmitting}
           />
+          <button
+            type="button"
+            className="loginform__password-toggle"
+            onClick={togglePasswordVisibility}
+            disabled={loading || isSubmitting}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            tabIndex={-1}
+          >
+            {showPassword ? (
+              <FaEyeSlash className="loginform__password-icon" />
+            ) : (
+              <FaEye className="loginform__password-icon" />
+            )}
+          </button>
           {validationErrors.password && (
             <div className="loginform__error-message">
               <svg

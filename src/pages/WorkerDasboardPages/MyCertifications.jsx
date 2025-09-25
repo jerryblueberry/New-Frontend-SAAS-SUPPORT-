@@ -16,7 +16,10 @@ const MyCertifications = () => {
         }}>
             <DashboardSidebar/>
             <Box sx={{
-                mt:3
+                mt:0,
+                flex: 1,
+                width: '100%',
+                minWidth: 0
             }}>
             <DashboardCertification onboardingData={onboardingData}/>
             </Box>

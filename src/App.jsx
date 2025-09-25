@@ -8,7 +8,7 @@ import Home from './pages/Home';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import VerifyEmail from './pages/auth/VerifyEmail';
-import Dashboard from './pages/dashboard/Dashboard';
+
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import EmailVerifyInstruction from './pages/auth/EmailVerifyInstruction';

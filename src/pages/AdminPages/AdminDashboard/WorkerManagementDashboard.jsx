@@ -60,6 +60,7 @@ import WorkerNavbar from "../../../components/Navbar/WorkerNavbar";
 import AdminSidebar from "../../../components/adminSidebar/AdminSidebar";
 
 const SIDEBAR_WIDTH = 280;
+const SIDEBAR_GAP =0;
 
 const WorkerManagementDashboard = () => {
     const navigate = useNavigate();
@@ -374,35 +375,58 @@ const WorkerManagementDashboard = () => {
     );
 
     return (
-        <Box sx={{ display: 'flex', minHeight: '100vh', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
+        <>
             <WorkerNavbar />
-            <AdminSidebar topOffset={64} navigate={navigate} />
-            <Box
-                component="main"
-                sx={{
-                    mt: 10,
-                    flexGrow: 1,
-                    width: '100%',
-                    ml: { md: 1, xs: 0 },
-                    p: 0,
-                    pt: 0,
-                    background: 'transparent',
-                    minHeight: '100vh',
-                }}
-            >
-                <Container maxWidth={false} disableGutters sx={{ width: '100%', p: 0, m: 0 }}>
+
+            <Box sx={{
+                display: 'flex',
+                minHeight: '100vh',
+                background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+                overflowX: 'hidden'
+            }}>
+                {/* Sidebar */}
+                <Box sx={{
+                    width: { xs: 0, md: SIDEBAR_WIDTH },
+                    flexShrink: 0,
+                    zIndex: theme.zIndex.drawer,
+                    position: 'fixed',
+                    top: { xs: 56, md: 64 },
+                    left: 0,
+                    height: `calc(100vh - 64px)`,
+                    transition: theme.transitions.create('width', {
+                        easing: theme.transitions.easing.sharp,
+                        duration: theme.transitions.duration.leavingScreen,
+                    }),
+                }}>
+                    <AdminSidebar topOffset={64} navigate={navigate} />
+                </Box>
+
+                {/* Main Content */}
+                <Box
+                    component="main"
+                    sx={{
+                        flexGrow: 1,
+                        width: '100%',
+                        ml: { md: `${SIDEBAR_WIDTH + SIDEBAR_GAP}px` },
+                        p: { xs: 2, sm: 1,md: 1 },
+                        mt: { xs: 7, md: 1 },
+                        minHeight: '100vh',
+                        transition: theme.transitions.create('margin', {
+                            easing: theme.transitions.easing.sharp,
+                            duration: theme.transitions.duration.leavingScreen,
+                        }),
+                    }}
+                >
+                <Container maxWidth="xl" sx={{ width: '100%', mt: { xs: 1.5, sm: 2 }, mb: 3, px: { xs: 1, sm: 2 } }}>
                     <Box sx={{ mb: 4, width: '100%' }}>
                         {/* Header Section */}
                         <Slide direction="down" in timeout={500}>
                             <Paper
                                 elevation={0}
                                 sx={{
-                                    position: isMobile ? 'sticky' : 'static',
-                                    top: isMobile ? 72 : 'auto',
-                                    zIndex: 10,
-                                    mb: 3,
+                                    mb: 2,
                                     p: { xs: 2, md: 3 },
-                                    borderRadius: 4,
+                                    borderRadius: 3,
                                     background: 'rgba(255, 255, 255, 0.95)',
                                     backdropFilter: 'blur(10px)',
                                     border: '1px solid rgba(255, 255, 255, 0.2)',
@@ -603,11 +627,11 @@ const WorkerManagementDashboard = () => {
                             <Paper
                                 elevation={0}
                                 sx={{
-                                    borderRadius: 4,
+                                    borderRadius: 3,
                                     background: 'rgba(255, 255, 255, 0.95)',
                                     backdropFilter: 'blur(10px)',
                                     border: '1px solid rgba(255, 255, 255, 0.2)',
-                                    p: { xs: 2, sm: 3, md: 4 },
+                                    p: { xs: 2, sm: 3, md: 3 },
                                     minHeight: 400,
                                     overflowX: 'auto',
                                 }}
@@ -932,8 +956,9 @@ const WorkerManagementDashboard = () => {
                         </Fade>
                     </Box>
                 </Container>
+                </Box>
             </Box>
-        </Box>
+        </>
     );
 };
 

@@ -25,6 +25,7 @@ import {
   InputAdornment,
   LinearProgress,
 } from '@mui/material';
+import { useMediaQuery } from '@mui/material';
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
@@ -41,6 +42,7 @@ import {
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { enGB } from 'date-fns/locale';
 
 // Styled components
 const SectionContainer = styled(Box)(({ theme }) => ({
@@ -192,18 +194,21 @@ const OnboardingJobExperience = ({
   formatDateForInput,
 }) => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const formatDateRange = (startDate, endDate, currentlyWorking) => {
     if (!startDate) return '';
-    const start = new Date(startDate).toLocaleDateString(undefined, {
-      year: 'numeric',
+    const start = new Date(startDate).toLocaleDateString('en-GB', {
+      day: '2-digit',
       month: 'short',
+      year: 'numeric',
     });
     if (currentlyWorking) return `${start} - Present`;
     if (!endDate) return start;
-    const end = new Date(endDate).toLocaleDateString(undefined, {
-      year: 'numeric',
+    const end = new Date(endDate).toLocaleDateString('en-GB', {
+      day: '2-digit',
       month: 'short',
+      year: 'numeric',
     });
     return `${start} - ${end}`;
   };
@@ -218,7 +223,7 @@ const OnboardingJobExperience = ({
   };
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns}>
+    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
       <SectionContainer sx={{}}>
         {/* Section Header */}
         <SectionHeader
@@ -373,6 +378,7 @@ const OnboardingJobExperience = ({
               return (
                 <Fade in key={index} timeout={300 + index * 100}>
                   <ExperienceCard 
+                    id={`wh-job-card-${index}`}
                     isExpanded={expandedJob === index}
                     hasErrors={hasJobErrors}
                     sx={{ width: '100%', maxWidth: '100%', mb: { xs: 2, md: 0 }, p: { xs: '0px 10px', sm: '0px 10px', md: '0px 10px' } }} // Wider, more padding
@@ -436,6 +442,10 @@ const OnboardingJobExperience = ({
                               error={!!jobErrors.company}
                               helperText={jobErrors.company}
                               required
+                              name={`job${index}_company`}
+                              id={`job${index}_company`}
+                              size={isMobile ? 'small' : 'medium'}
+                              inputProps={{ 'aria-label': `Job ${index + 1} Company Name` }}
                               InputProps={{
                                 startAdornment: (
                                   <InputAdornment position="start">
@@ -458,6 +468,10 @@ const OnboardingJobExperience = ({
                               error={!!jobErrors.title}
                               helperText={jobErrors.title}
                               required
+                              name={`job${index}_title`}
+                              id={`job${index}_title`}
+                              size={isMobile ? 'small' : 'medium'}
+                              inputProps={{ 'aria-label': `Job ${index + 1} Title` }}
                               InputProps={{
                                 startAdornment: (
                                   <InputAdornment position="start">
@@ -477,12 +491,19 @@ const OnboardingJobExperience = ({
                                 onChange={(date) =>
                                   onUpdateJob(index, 'startDate', date)
                                 }
+                                format="dd MMM yyyy"
+                                disableFuture
+                                reduceAnimations
                                 slotProps={{
                                   textField: {
                                     fullWidth: true,
                                     error: !!jobErrors.startDate,
                                     helperText: jobErrors.startDate,
                                     required: true,
+                                    name: `job${index}_startDate`,
+                                    id: `job${index}_startDate`,
+                                    size: isMobile ? 'small' : 'medium',
+                                    inputProps: { 'aria-label': `Job ${index + 1} Start Date` },
                                     InputProps: {
                                       startAdornment: (
                                         <InputAdornment position="start">
@@ -501,12 +522,20 @@ const OnboardingJobExperience = ({
                                   onUpdateJob(index, 'endDate', date)
                                 }
                                 disabled={job.currentlyWorking}
+                                format="dd MMM yyyy"
+                                disableFuture
+                                minDate={job.startDate || undefined}
+                                reduceAnimations
                                 slotProps={{
                                   textField: {
                                     fullWidth: true,
                                     error: !!jobErrors.endDate,
                                     helperText: jobErrors.endDate,
                                     required: !job.currentlyWorking,
+                                    name: `job${index}_endDate`,
+                                    id: `job${index}_endDate`,
+                                    size: isMobile ? 'small' : 'medium',
+                                    inputProps: { 'aria-label': `Job ${index + 1} End Date` },
                                     InputProps: {
                                       startAdornment: (
                                         <InputAdornment position="start">
@@ -565,7 +594,7 @@ const OnboardingJobExperience = ({
                                 multiline
                                 minRows={3}
                                 maxRows={6}
-                                inputProps={{ maxLength: 500 }}
+                                inputProps={{ maxLength: 500, 'aria-label': `Job ${index + 1} Description` }}
                                 helperText={
                                   jobErrors.description ? 
                                   `${jobErrors.description}\n${(job.description || '').length}/500 characters` : 
@@ -578,6 +607,9 @@ const OnboardingJobExperience = ({
                                   sx: { background: 'transparent', width: '100%' },
                                 }}
                                 error={!!jobErrors.description}
+                                name={`job${index}_description`}
+                                id={`job${index}_description`}
+                                size={isMobile ? 'small' : 'medium'}
                                 sx={{ width: '100%' }}
                               />
                               {/* Actions - moved directly below description */}

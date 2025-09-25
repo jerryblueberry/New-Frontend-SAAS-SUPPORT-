@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import useOnboardingStore, {
   useProfileMutation,
 } from '../../stores/useOnboardingStore';
@@ -8,13 +8,15 @@ import {
   Card, CardContent, Typography, TextField, Box, InputAdornment, Button, Chip, Stack, MenuItem, Alert,
   Select,
   FormControl,
-  InputLabel, CircularProgress, IconButton, Grid, Tooltip,
+  InputLabel, CircularProgress, IconButton, Grid, Tooltip, useTheme, useMediaQuery, alpha,
 } from '@mui/material';
 
 import CloseIcon from "@mui/icons-material/Close";
 
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
-import { toast, ToastContainer } from 'react-toastify';
+import { toast, ToastContainer, Slide } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 // Default languages and skills for suggestions
@@ -63,7 +65,7 @@ const VALIDATION_RULES = {
     required: false,
   },
   expectedHourlyRate: {
-    min: 1,
+    min: 20,
     max: 100,
     required: true,
   },
@@ -80,11 +82,20 @@ const VALIDATION_RULES = {
 };
 
 const WorkerProfileForm = React.memo(() => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [newSkill, setNewSkill] = useState('');
   const [newLanguage, setNewLanguage] = useState('');
   const [languageProficiency, setLanguageProficiency] = useState('fluent');
   const [formErrors, setFormErrors] = useState({});
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  
+  // Rich text editor state
+  const [biography, setBiography] = useState('');
+  const [biographyCharCount, setBiographyCharCount] = useState(0);
+  const [isQuillFocused, setIsQuillFocused] = useState(false);
+  const quillRef = useRef(null);
+  const maxBiographyChars = 1500;
 
   // Get state and actions from store individually to avoid infinite loop
   const profile = useOnboardingStore((state) => state.profile, shallow);
@@ -97,6 +108,95 @@ const WorkerProfileForm = React.memo(() => {
 
   const { mutate: saveProfile, isPending, error } = useProfileMutation();
 
+  // Custom close button for Toasts with perfect alignment
+  const ToastCloseButton = useCallback(({ closeToast }) => (
+    <IconButton
+      aria-label="close"
+      size="small"
+      onClick={closeToast}
+      sx={{
+        position: 'absolute',
+        right: 8,
+        top: 8,
+        color: theme.palette.grey[700],
+        '&:hover': { color: theme.palette.text.primary },
+      }}
+    >
+      <CloseIcon fontSize="small" />
+    </IconButton>
+  ), [theme.palette.grey, theme.palette.text.primary]);
+
+  // Get plain text length from HTML content
+  const getPlainTextLength = useCallback((html) => {
+    if (!html) return 0;
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    return tempDiv.textContent?.length || 0;
+  }, []);
+
+  // React Quill configuration
+  const quillModules = useMemo(() => ({
+    toolbar: {
+      container: isMobile ? [
+        [{ 'header': [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline'],
+        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+        ['link'],
+        ['clean']
+      ] : [
+        [{ 'header': [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+        [{ 'indent': '-1' }, { 'indent': '+1' }],
+        ['blockquote', 'link'],
+        [{ 'align': [] }],
+        ['clean']
+      ],
+      handlers: {
+        // Custom handlers can be added here
+      }
+    },
+    clipboard: {
+      matchVisual: false,
+    },
+    history: {
+      delay: 1000,
+      maxStack: 50,
+      userOnly: false
+    }
+  }), [isMobile]);
+
+  const quillFormats = [
+    'header',
+    'bold', 'italic', 'underline', 'strike',
+    'list', 'bullet', 'indent',
+    'blockquote', 'link', 'align'
+  ];
+
+  // Handle biography change
+  const handleBiographyChange = useCallback((content) => {
+    const plainTextLength = getPlainTextLength(content);
+    
+    if (plainTextLength > maxBiographyChars) {
+      toast.warning(`Biography cannot exceed ${maxBiographyChars} characters`, {
+        position: "top-center",
+        autoClose: 3000,
+      });
+      return;
+    }
+    
+    setBiography(content);
+    setBiographyCharCount(plainTextLength);
+    updateProfile({ biography: content });
+  }, [getPlainTextLength, maxBiographyChars, updateProfile]);
+
+  // Initialize biography from profile
+  useEffect(() => {
+    const initialBiography = profile.biography || '';
+    setBiography(initialBiography);
+    setBiographyCharCount(getPlainTextLength(initialBiography));
+  }, [profile.biography, getPlainTextLength]);
+
   // Enhanced validation function
   const validateField = useCallback((fieldName, value) => {
     const errors = {};
@@ -104,11 +204,11 @@ const WorkerProfileForm = React.memo(() => {
     switch (fieldName) {
       case 'biography':
         if (value && typeof value === 'string') {
-          const trimmed = value.trim();
-          if (trimmed.length < VALIDATION_RULES.biography.minLength) {
-            errors.biography = `Professional summary must be at least ${VALIDATION_RULES.biography.minLength} characters (currently: ${trimmed.length})`;
-          } else if (trimmed.length > VALIDATION_RULES.biography.maxLength) {
-            errors.biography = `Professional summary must not exceed ${VALIDATION_RULES.biography.maxLength} characters (currently: ${trimmed.length})`;
+          const plainTextLength = getPlainTextLength(value);
+          if (plainTextLength < VALIDATION_RULES.biography.minLength) {
+            errors.biography = `Professional summary must be at least ${VALIDATION_RULES.biography.minLength} characters (currently: ${plainTextLength})`;
+          } else if (plainTextLength > VALIDATION_RULES.biography.maxLength) {
+            errors.biography = `Professional summary must not exceed ${VALIDATION_RULES.biography.maxLength} characters (currently: ${plainTextLength})`;
           }
         }
         // No error if empty
@@ -120,7 +220,7 @@ const WorkerProfileForm = React.memo(() => {
         } else {
           const rate = parseFloat(value);
           if (isNaN(rate) || rate < VALIDATION_RULES.expectedHourlyRate.min) {
-            errors.expectedHourlyRate = `Please Enter Valid Expected Hourly Rate`;
+            errors.expectedHourlyRate = `Expected Hourly Rate must be above $${VALIDATION_RULES.expectedHourlyRate.min}`;
           } else if (rate > VALIDATION_RULES.expectedHourlyRate.max) {
             errors.expectedHourlyRate = `Hourly rate must not exceed $${VALIDATION_RULES.expectedHourlyRate.max}`;
           }
@@ -181,7 +281,7 @@ const WorkerProfileForm = React.memo(() => {
   // Enhanced comprehensive validation
   const validateForm = useCallback(() => {
     const allErrors = {
-      ...validateField('biography', profile.biography),
+      ...validateField('biography', biography),
       ...validateField('expectedHourlyRate', profile.expectedHourlyRate),
       ...validateField('skillTags', profile.skillTags || []),
       ...validateField('languages', profile.languages || []),
@@ -189,7 +289,7 @@ const WorkerProfileForm = React.memo(() => {
 
     setFormErrors(allErrors); // still shows inline errors
     return allErrors; // return object instead of boolean
-  }, [profile, validateField]);
+  }, [biography, profile, validateField]);
 
   // Real-time validation for individual fields
   const validateSingleField = useCallback((fieldName, value) => {
@@ -345,14 +445,16 @@ const WorkerProfileForm = React.memo(() => {
 
     if (errorMessages.length > 0) {
       // Show toast notifications for each error
+      toast.dismiss();
       errorMessages.forEach(message => {
         toast.error(message, {
           position: "top-center",
-          autoClose: 5000,
+          autoClose: 4000,
           hideProgressBar: false,
           closeOnClick: true,
           pauseOnHover: true,
           draggable: true,
+          icon: '⚠️',
         });
       });
 
@@ -369,7 +471,7 @@ const WorkerProfileForm = React.memo(() => {
 
     // ✅ No errors → submit
     console.log('Submitting profile:', {
-      biography: profile.biography?.trim(),
+      biography: biography?.trim(),
       skillTags: profile.skillTags,
       expectedHourlyRate: profile.expectedHourlyRate,
       languages: profile.languages,
@@ -377,7 +479,7 @@ const WorkerProfileForm = React.memo(() => {
 
     saveProfile({
       ...profile,
-      biography: profile.biography?.trim(),
+      biography: biography?.trim(),
     });
   }, [profile, saveProfile, validateForm]);
 
@@ -586,29 +688,55 @@ const WorkerProfileForm = React.memo(() => {
     setFormErrors({});
   }, []);
 
+  // Debug effect to check ReactQuill availability
+  useEffect(() => {
+    console.log('ReactQuill available:', !!ReactQuill);
+    console.log('Biography state:', biography);
+    console.log('Biography char count:', biographyCharCount);
+  }, [biography, biographyCharCount]);
+
   return (
     <Box
-      component="form"
-      onSubmit={handleSubmit}
-      noValidate
-      sx={{
+        component="form"
+        onSubmit={handleSubmit}
+        noValidate
+        sx={{
 
-        mx: 'auto',
-        p: { xs: 2, sm: 3, md: 4 },
-        minHeight: '100vh',
-        bgcolor: '#fafafa',
-      }}
-    >
+          mx: 'auto',
+          p: { xs: 2, sm: 3, md: 4 },
+          minHeight: '100vh',
+          bgcolor: '#fafafa',
+        }}
+      >
       <ToastContainer
         position="top-center"
-        autoClose={5000}
+        autoClose={4000}
         hideProgressBar={false}
-        newestOnTop={false}
+        newestOnTop
         closeOnClick
         rtl={false}
         pauseOnFocusLoss
         draggable
         pauseOnHover
+        transition={Slide}
+        closeButton={<ToastCloseButton />}
+        limit={3}
+        draggableDirection="x"
+        theme="colored"
+        toastStyle={{
+          borderRadius: 12,
+          boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+          paddingRight: 36,
+          maxWidth: '640px',
+          width: 'calc(100% - 24px)',
+          margin: '0 auto',
+          fontSize: '0.95rem',
+        }}
+        style={{
+          zIndex: 1400,
+          width: '100%',
+          padding: isMobile ? '0 8px' : '0 16px',
+        }}
       />
 
       {/* Header Section */}
@@ -706,38 +834,347 @@ const WorkerProfileForm = React.memo(() => {
             </Box>
           </Box>
 
-          <TextField
-            id="biography"
-            name="biography"
-            // label="Tell your story..."
-            multiline
-            rows={5}
-            fullWidth
-            value={profile.biography || ''}
-            onChange={handleChange}
-            placeholder="Describe your experience, key strengths, and what makes you an exceptional care worker. Share your passion for helping others and any specialized skills you bring to your role."
-            error={Boolean(formErrors.biography)}
-            helperText={formErrors.biography || `${(profile.biography || '').length}/${VALIDATION_RULES.biography.maxLength} characters`}
-            inputProps={{
-              maxLength: VALIDATION_RULES.biography.maxLength,
-            }}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: 3,
-                backgroundColor: '#fafafa',
-                '&:hover': {
-                  backgroundColor: '#f5f5f5',
-                },
-                '&.Mui-focused': {
-                  backgroundColor: 'white',
-                }
+          {/* Character Count Display */}
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+            <Chip
+              size="small"
+              label={`${biographyCharCount}/${VALIDATION_RULES.biography.maxLength}`}
+              variant="outlined"
+              color={biographyCharCount > VALIDATION_RULES.biography.maxLength * 0.9 ? 'warning' : 'default'}
+              sx={{ borderRadius: 2 }}
+            />
+          </Box>
+
+          {/* React Quill Editor */}
+          <Box 
+            sx={{ 
+              position: 'relative',
+              width: '100%',
+              minHeight: '300px',
+              '& .quill-biography-editor': {
+                width: '100% !important',
+                display: 'block !important',
+                visibility: 'visible !important',
+                position: 'relative',
               },
-              '& .MuiInputLabel-root': {
-                fontSize: '1.05rem',
-                fontWeight: 500
-              }
+              '& .ql-toolbar.ql-snow': {
+                border: `1px solid ${alpha(theme.palette.divider, 0.2)} !important`,
+                borderBottom: 'none',
+                borderRadius: '12px 12px 0 0',
+                background: `${alpha(theme.palette.grey[50], 0.8)}`,
+                padding: '12px 16px',
+                width: '100% !important',
+                boxSizing: 'border-box',
+                display: 'block !important',
+                visibility: 'visible !important',
+              },
+              '& .ql-container.ql-snow': {
+                border: `1px solid ${alpha(theme.palette.divider, 0.2)} !important`,
+                borderRadius: '0 0 12px 12px',
+                fontFamily: theme.typography.fontFamily,
+                fontSize: '1rem',
+                lineHeight: 1.6,
+                width: '100% !important',
+                boxSizing: 'border-box',
+                background: theme.palette.background.paper,
+                display: 'block !important',
+                visibility: 'visible !important',
+              },
+              '& .ql-editor': {
+                minHeight: '300px !important',
+                maxHeight: '500px',
+                padding: '24px',
+                color: theme.palette.text.primary,
+                overflowY: 'auto',
+                width: '100% !important',
+                boxSizing: 'border-box',
+                fontSize: '1rem',
+                lineHeight: 1.6,
+                letterSpacing: '0.01em',
+                display: 'block !important',
+                visibility: 'visible !important',
+                scrollbarWidth: 'thin',
+                scrollbarColor: `${alpha(theme.palette.grey[400], 0.6)} transparent`,
+              },
+              '& .ql-editor.ql-blank::before': {
+                content: '"Describe your experience, key strengths, and what makes you an exceptional care worker. Share your passion for helping others and any specialized skills you bring to your role."',
+                color: `${alpha(theme.palette.text.secondary, 0.7)}`,
+                fontStyle: 'italic',
+                fontWeight: 400,
+                left: '24px',
+                right: '24px',
+                top: '24px',
+                bottom: 'auto',
+                position: 'absolute',
+                pointerEvents: 'none',
+                whiteSpace: 'pre-wrap',
+                wordWrap: 'break-word',
+                lineHeight: 1.6,
+                fontSize: '1rem',
+                letterSpacing: '0.01em',
+                zIndex: 1,
+              },
+              '& .ql-editor:focus': {
+                outline: 'none',
+                background: `${alpha(theme.palette.primary.main, 0.01)}`,
+                borderColor: 'transparent',
+              },
+              '& .ql-editor:focus-within': {
+                background: `${alpha(theme.palette.primary.main, 0.01)}`,
+              },
+              '& .ql-editor::selection': {
+                background: `${alpha(theme.palette.primary.main, 0.2)}`,
+                color: theme.palette.text.primary,
+              },
+              '& .ql-toolbar .ql-formats': {
+                marginRight: '20px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+              },
+              '& .ql-toolbar button': {
+                borderRadius: '10px',
+                margin: '0 3px',
+                padding: '10px',
+                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                border: 'none',
+                background: 'transparent',
+                minWidth: '38px',
+                height: '38px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                overflow: 'hidden',
+              },
+              '& .ql-toolbar button::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'transparent',
+                borderRadius: '10px',
+                transition: 'all 0.25s ease',
+                transform: 'scale(0)',
+              },
+              '& .ql-toolbar button:hover::before': {
+                background: `${alpha(theme.palette.primary.main, 0.08)}`,
+                transform: 'scale(1)',
+              },
+              '& .ql-toolbar button:hover': {
+                color: theme.palette.primary.main,
+                transform: 'translateY(-1px)',
+                boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`,
+              },
+              '& .ql-toolbar button.ql-active': {
+                background: `${alpha(theme.palette.primary.main, 0.12)}`,
+                color: theme.palette.primary.main,
+                transform: 'translateY(0)',
+                boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.2)}`,
+              },
+              '& .ql-toolbar button.ql-active::before': {
+                background: `${alpha(theme.palette.primary.main, 0.08)}`,
+                transform: 'scale(1)',
+              },
+              '& .ql-toolbar .ql-picker': {
+                borderRadius: '10px',
+                transition: 'all 0.25s ease',
+              },
+              '& .ql-toolbar .ql-picker:hover': {
+                background: `${alpha(theme.palette.primary.main, 0.08)}`,
+              },
+              '& .ql-container': {
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              },
+              '&:hover .ql-container': {
+                borderColor: `${alpha(theme.palette.primary.main, 0.3)}`,
+              },
+              '&.focused .ql-container, & .ql-container:focus-within': {
+                borderColor: theme.palette.primary.main,
+                boxShadow: `0 0 0 4px ${alpha(theme.palette.primary.main, 0.08)}, 0 8px 32px ${alpha(theme.palette.primary.main, 0.12)}`,
+                transform: 'translateY(-2px)',
+              },
+              '& .ql-editor h1, & .ql-editor h2, & .ql-editor h3': {
+                fontWeight: 700,
+                color: theme.palette.text.primary,
+                margin: '1.5em 0 0.75em 0',
+                letterSpacing: '-0.01em',
+              },
+              '& .ql-editor h1': {
+                fontSize: '1.75em',
+              },
+              '& .ql-editor h2': {
+                fontSize: '1.5em',
+              },
+              '& .ql-editor h3': {
+                fontSize: '1.25em',
+              },
+              '& .ql-editor h1:first-child, & .ql-editor h2:first-child, & .ql-editor h3:first-child': {
+                marginTop: 0,
+              },
+              '& .ql-editor p': {
+                margin: '0.75em 0',
+                textAlign: 'left',
+                lineHeight: 1.7,
+                fontSize: '1rem',
+                letterSpacing: '0.01em',
+              },
+              '& .ql-editor p:first-child': {
+                marginTop: 0,
+              },
+              '& .ql-editor p:last-child': {
+                marginBottom: 0,
+              },
+              '& .ql-editor ul, & .ql-editor ol': {
+                margin: '0.75em 0',
+                paddingLeft: '1.5em',
+                lineHeight: 1.7,
+              },
+              '& .ql-editor ul': {
+                listStyleType: 'disc',
+              },
+              '& .ql-editor ol': {
+                listStyleType: 'decimal',
+              },
+              '& .ql-editor li': {
+                margin: '0.4em 0',
+                lineHeight: 1.7,
+                fontSize: '1rem',
+                letterSpacing: '0.01em',
+              },
+              '& .ql-editor strong': {
+                fontWeight: 700,
+                color: theme.palette.text.primary,
+              },
+              '& .ql-editor em': {
+                fontStyle: 'italic',
+                color: `${alpha(theme.palette.text.primary, 0.9)}`,
+              },
+              '& .ql-editor a': {
+                color: theme.palette.primary.main,
+                textDecoration: 'none',
+                background: `linear-gradient(transparent 60%, ${alpha(theme.palette.primary.main, 0.2)} 60%)`,
+                padding: '2px 4px',
+                borderRadius: '4px',
+                transition: 'all 0.2s ease',
+              },
+              '& .ql-editor a:hover': {
+                background: `${alpha(theme.palette.primary.main, 0.15)}`,
+                transform: 'translateY(-1px)',
+              },
+              '& .ql-editor blockquote': {
+                borderLeft: `4px solid ${theme.palette.primary.main}`,
+                margin: '1em 0',
+                paddingLeft: '1.5em',
+                paddingRight: '1em',
+                paddingTop: '0.75em',
+                paddingBottom: '0.75em',
+                color: `${alpha(theme.palette.text.primary, 0.85)}`,
+                fontStyle: 'italic',
+                background: `${alpha(theme.palette.grey[50], 0.4)}`,
+                borderRadius: '0 8px 8px 0',
+                lineHeight: 1.6,
+                fontSize: '0.95rem',
+                letterSpacing: '0.01em',
+              },
+              '& .ql-editor::-webkit-scrollbar': {
+                width: '6px',
+              },
+              '& .ql-editor::-webkit-scrollbar-track': {
+                background: 'transparent',
+                borderRadius: '3px',
+              },
+              '& .ql-editor::-webkit-scrollbar-thumb': {
+                background: `${alpha(theme.palette.grey[400], 0.6)}`,
+                borderRadius: '3px',
+                transition: 'all 0.2s ease',
+              },
+              '& .ql-editor::-webkit-scrollbar-thumb:hover': {
+                background: `${alpha(theme.palette.grey[500], 0.8)}`,
+                width: '8px',
+              },
+              '& .ql-toolbar.ql-snow:hover': {
+                background: `linear-gradient(135deg, ${alpha(theme.palette.grey[50], 0.95)} 0%, ${alpha(theme.palette.grey[100], 0.7)} 100%)`,
+              },
+              '& .ql-tooltip': {
+                borderRadius: '8px',
+                border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.12)}`,
+                background: theme.palette.background.paper,
+                backdropFilter: 'blur(10px)',
+              },
+              '&.loading': {
+                opacity: 0.7,
+                pointerEvents: 'none',
+              },
+              '&.loading .ql-editor': {
+                background: `${alpha(theme.palette.grey[100], 0.3)}`,
+              },
+              // Responsive adjustments
+              [`@media (max-width: ${theme.breakpoints.values.sm}px)`]: {
+                '& .ql-toolbar.ql-snow': {
+                  padding: '8px 12px',
+                  flexWrap: 'wrap',
+                  gap: '4px',
+                },
+                '& .ql-editor': {
+                  padding: '16px',
+                  minHeight: '250px !important',
+                  fontSize: '0.95rem',
+                },
+                '& .ql-editor.ql-blank::before': {
+                  left: '16px',
+                  right: '16px',
+                  top: '16px',
+                  fontSize: '0.95rem',
+                  lineHeight: 1.5,
+                },
+                '& .ql-toolbar .ql-formats': {
+                  marginRight: '8px',
+                  marginBottom: '4px',
+                },
+                '& .ql-toolbar button': {
+                  minWidth: '32px',
+                  height: '32px',
+                  padding: '6px',
+                },
+                '& .ql-editor p': {
+                  fontSize: '0.95rem',
+                  lineHeight: 1.6,
+                },
+                '& .ql-editor li': {
+                  fontSize: '0.95rem',
+                  lineHeight: 1.6,
+                },
+              },
             }}
-          />
+          >
+            <ReactQuill 
+              ref={quillRef}
+              theme="snow"
+              value={biography}
+              onChange={handleBiographyChange}
+              onFocus={() => setIsQuillFocused(true)}
+              onBlur={() => setIsQuillFocused(false)}
+              modules={quillModules}
+              formats={quillFormats}
+              placeholder="Describe your experience, key strengths, and what makes you an exceptional care worker. Share your passion for helping others and any specialized skills you bring to your role."
+              readOnly={isPending}
+              className={`quill-biography-editor ${isQuillFocused ? 'focused' : ''} ${isPending ? 'loading' : ''}`}
+            />
+          </Box>
+
+          {formErrors.biography && (
+            <Typography 
+              variant="caption" 
+              color="error" 
+              sx={{ mt: 1, display: 'block' }}
+            >
+              {formErrors.biography}
+            </Typography>
+          )}
         </CardContent>
       </Card>
 
