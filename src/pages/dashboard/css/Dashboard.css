@@ -64,7 +64,7 @@ button {
 
 /* Dashboard Layout */
 .wrk-dashboard-container {
-
+  /* background-color: red; */
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -164,10 +164,17 @@ button {
 
 /* Main Layout */
 .wrk-dashboard-main {
-  
   display: flex;
   flex: 1;
   height: calc(100vh - 70px);
+  margin-top: 70px;
+}
+
+@media (max-width: 768px) {
+  .wrk-dashboard-main {
+    height: calc(100vh - 84px);
+    margin-top: 84px;
+  }
 }
 
 /* Sidebar Styles */
@@ -245,8 +252,7 @@ button {
 /* Content Area */
 .wrk-dashboard-content {
   flex: 1;
-  padding: 0px 0px;
-  margin-top: 2rem;
+  padding: 2rem 1.5rem;
   overflow-y: auto;
   background-color: var(--gray-50);
 }
@@ -255,6 +261,7 @@ button {
   .wrk-dashboard-content {
     margin-left: 0;
     width: 100%;
+    padding: 1.5rem 1rem;
   }
 }
 

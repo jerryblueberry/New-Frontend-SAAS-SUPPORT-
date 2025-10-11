@@ -90,8 +90,8 @@ export const useAuth = () => {
 const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Proactive token refresh with debouncing
-  const checkAndRefreshToken = useCallback(async () => {
+  // Enhanced token refresh with exponential backoff and connection monitoring
+  const checkAndRefreshToken = useCallback(async (retryCount = 0) => {
     if (state.tokenRefreshInProgress) return;
 
     try {
@@ -109,9 +109,23 @@ const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.warn('Token refresh failed:', error);
-      // Only logout if it's an authentication error
+      
+      // Handle different types of errors
       if (error.response?.status === 401) {
         handleAuthExpired();
+      } else if (error.message?.includes('Network Error') || error.code === 'ERR_NETWORK') {
+        // Network error - retry with exponential backoff
+        if (retryCount < 3) {
+          const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+          setTimeout(() => {
+            checkAndRefreshToken(retryCount + 1);
+          }, delay);
+          return;
+        }
+        // Max retries reached, emit connection error
+        window.dispatchEvent(new CustomEvent('auth:connection-error', {
+          detail: { error, retryCount }
+        }));
       }
     } finally {
       dispatch({ type: 'TOKEN_REFRESH_END' });
@@ -133,9 +147,9 @@ const AuthProvider = ({ children }) => {
     window.dispatchEvent(new Event('auth:logout'));
   }, []);
 
-  // Optimized auth verification
+  // Enhanced auth verification with connection monitoring
   useEffect(() => {
-    const verifyAuth = async () => {
+    const verifyAuth = async (retryCount = 0) => {
       try {
         const accessToken = getAccessToken();
         const refreshToken = getRefreshToken();
@@ -174,9 +188,29 @@ const AuthProvider = ({ children }) => {
         handleAuthExpired();
       } catch (error) {
         console.error('Auth verification error:', error);
+        
+        // Handle connection errors with retry
+        if (error.message?.includes('Network Error') || error.code === 'ERR_NETWORK') {
+          if (retryCount < 3) {
+            const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+            setTimeout(() => {
+              verifyAuth(retryCount + 1);
+            }, delay);
+            return;
+          }
+          // Max retries reached, show connection error but don't logout
+          window.dispatchEvent(new CustomEvent('auth:connection-error', {
+            detail: { error, retryCount }
+          }));
+          dispatch({ type: 'SET_LOADING', payload: false });
+          return;
+        }
+        
         handleAuthExpired();
       } finally {
-        dispatch({ type: 'SET_LOADING', payload: false });
+        if (retryCount === 0) {
+          dispatch({ type: 'SET_LOADING', payload: false });
+        }
       }
     };
 
@@ -185,10 +219,20 @@ const AuthProvider = ({ children }) => {
     // Set up periodic token refresh
     const tokenCheckInterval = setInterval(checkAndRefreshToken, TOKEN_REFRESH_INTERVAL);
     
+    // Listen for connection events
+    const handleConnectionRestored = () => {
+      if (!state.isAuthenticated) {
+        verifyAuth();
+      }
+    };
+    
+    window.addEventListener('connection:restored', handleConnectionRestored);
+    
     return () => {
       clearInterval(tokenCheckInterval);
+      window.removeEventListener('connection:restored', handleConnectionRestored);
     };
-  }, [checkAndRefreshToken, handleAuthExpired]);
+  }, [checkAndRefreshToken, handleAuthExpired, state.isAuthenticated]);
 
   // Enhanced sign in with better error handling
   const signIn = async (credentials, skipApiCall = false, isGoogleUser = false) => {

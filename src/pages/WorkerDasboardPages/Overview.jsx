@@ -136,7 +136,6 @@ const Overview = () => {
                     {verificationStatus === 'Unverified' ? (
                         <Box
                             sx={{
-                                mt: { xs: 6, sm: 8 },
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'center',
@@ -224,7 +223,6 @@ const Overview = () => {
                     ) : verificationStatus === 'Partially Verified' ? (
                         <Box
                             sx={{
-                                mt: { xs: 6, sm: 8 },
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'center',
@@ -302,7 +300,7 @@ const Overview = () => {
                     ) : (
                         // Only show if fully verified AND profile is 100% complete
                         profileStatus?.profileCompleteness?.percentage === 100 ? (
-                            <Box sx={{ mt: 8, textAlign: 'center' }}>
+                            <Box sx={{ textAlign: 'center' }}>
                                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
                                     <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
                                         <circle cx="60" cy="60" r="56" fill="#e8f5e9" stroke="#43a047" strokeWidth="4" />

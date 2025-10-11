@@ -408,7 +408,7 @@ const WorkerDetails = () => {
             transition: 'margin-left 0.2s',
           }}
         >
-          <Container maxWidth="lg" sx={{ p: 0 }}>
+          <Container maxWidth="xl" sx={{ p: 0 }}>
             {/* Header Card */}
             <Card sx={{ mb: 3, p: { xs: 2, md: 3 }, borderRadius: 4, boxShadow: 4 }}>
               <WorkerDetailsHeader workerData={workerData} handleBack={handleBack} getVerificationStatusColor={getVerificationStatusColor} />

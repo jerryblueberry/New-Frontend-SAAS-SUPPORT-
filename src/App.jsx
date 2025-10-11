@@ -16,6 +16,7 @@ import Onboarding from './pages/Workers/Onboarding';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 // import { GOOGLE_CLIENT_ID, TOKEN_REFRESH_INTERVAL } from './config/env';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import AuthErrorBoundary from './components/common/AuthErrorBoundary';
 import PageNotFound from './components/common/PageNotFound';
 import Profile from './pages/Workers/Profile';
 // import CertificationManagement from './pages/CertificateCheck/CertificationManagement';
@@ -41,6 +42,7 @@ import MySchedule from './pages/WorkerDasboardPages/MySchedule';
 import MyCertifications from './pages/WorkerDasboardPages/MyCertifications';
 import WorkHistory from './pages/WorkerDasboardPages/WorkHistory';
 import Overview from './pages/WorkerDasboardPages/Overview';
+import WorkerNotification from './pages/WorkerNotifications/WorkerNotification';
 
 
 
@@ -96,8 +98,7 @@ function AppRoutes() {
     };
   }, [navigate]);
   return (
-    <ErrorBoundary>
-      <Routes>
+    <Routes>
         {/* Public routes - accessible to anyone */}
         <Route index path="/" element={<Home />} />
         {/*  For the Forgot Password */}
@@ -288,23 +289,34 @@ function AppRoutes() {
         }
         />
 
+        {/*  FOr the Notifications */}
+        <Route path='/notifications' element = {
+          <PrivateRoute>
+            <WorkerNotification/>
+          </PrivateRoute>
+        }
+        />
+
         {/* 404 page */}
         <Route path="*" element={<PageNotFound />} />
       </Routes>
-    </ErrorBoundary>
   );
 }
 const Google_clientId = '160514014170-ogsg5uhsp0972687sq9j822pm5lhfd7j.apps.googleusercontent.com'
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <GoogleOAuthProvider clientId={Google_clientId}>
-          <AppRoutes />
-        </GoogleOAuthProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthErrorBoundary>
+          <AuthProvider>
+            <GoogleOAuthProvider clientId={Google_clientId}>
+              <AppRoutes />
+            </GoogleOAuthProvider>
+          </AuthProvider>
+        </AuthErrorBoundary>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

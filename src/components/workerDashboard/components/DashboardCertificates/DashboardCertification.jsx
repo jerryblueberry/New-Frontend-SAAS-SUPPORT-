@@ -21,7 +21,15 @@ import {
     Tab,
     Tabs,
     ButtonGroup,
-    alpha
+    alpha,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Collapse,
+    CardActionArea
 } from '@mui/material';
 import DocumentPreview from '../../../workerForm/Modals/DocumentPreview';
 import {
@@ -38,7 +46,13 @@ import {
     Edit,
     School,
     BusinessCenter,
-    NavigateNext
+    NavigateNext,
+    Visibility,
+    ExpandMore,
+    ExpandLess,
+    PictureAsPdf,
+    Description,
+    Image
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 // removed unused import `color` from framer-motion
@@ -130,6 +144,485 @@ const DashboardCertification = ({ onboardingData }) => {
             {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
         </div>
     );
+
+    // Enhanced responsive breakpoints
+    const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
+    const isLargeDesktop = useMediaQuery(theme.breakpoints.up('xl'));
+
+    // Document type icon helper
+    const getDocumentIcon = (fileName) => {
+        if (!fileName) return <Description />;
+        const extension = fileName.split('.').pop()?.toLowerCase();
+        switch (extension) {
+            case 'pdf': return <PictureAsPdf />;
+            case 'jpg':
+            case 'jpeg':
+            case 'png':
+            case 'gif': return <Image />;
+            default: return <Description />;
+        }
+    };
+
+    // Enhanced mobile card component
+    const MobileCertificationCard = ({ cert, index, type = 'professional', showRejectionDetails = false }) => {
+        const [expanded, setExpanded] = useState(false);
+        
+        return (
+            <Card
+                elevation={0}
+                sx={{
+                    mb: 2,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 3,
+                    overflow: 'hidden',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                        boxShadow: theme.shadows[8],
+                        borderColor: theme.palette.primary.main,
+                    }
+                }}
+            >
+                <CardActionArea onClick={() => setExpanded(!expanded)}>
+                    <CardContent sx={{ p: 2 }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Typography
+                                    variant="h6"
+                                    sx={{
+                                        fontWeight: 600,
+                                        fontSize: '1rem',
+                                        mb: 1,
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap'
+                                    }}
+                                >
+                                    {type === 'professional' ? cert.certificationType?.name : cert.certificationTitle}
+                                </Typography>
+                                <Stack direction="row" spacing={1} flexWrap="wrap">
+                                    <Chip
+                                        icon={getStatusIcon(cert.verificationStatus)}
+                                        label={cert.verificationStatus || 'Pending'}
+                                        color={getStatusColor(cert.verificationStatus)}
+                                        size="small"
+                                        sx={{ fontSize: '0.7rem', height: '24px' }}
+                                    />
+                                    {cert.documents?.length > 0 && (
+                                        <Chip
+                                            icon={<Assignment />}
+                                            label={`${cert.documents.length} docs`}
+                                            variant="outlined"
+                                            size="small"
+                                            sx={{ fontSize: '0.7rem', height: '24px' }}
+                                        />
+                                    )}
+                                </Stack>
+                            </Box>
+                            <IconButton size="small">
+                                {expanded ? <ExpandLess /> : <ExpandMore />}
+                            </IconButton>
+                        </Stack>
+                    </CardContent>
+                </CardActionArea>
+                
+                <Collapse in={expanded}>
+                    <Box sx={{ px: 2, pb: 2 }}>
+                        <Divider sx={{ mb: 2 }} />
+                        
+                        {/* Certificate Details */}
+                        {cert.number && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontFamily: 'monospace' }}>
+                                #{cert.number}
+                            </Typography>
+                        )}
+                        
+                        {/* Worker Screening ID */}
+                        {cert.workerScreeningId && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                                Worker Screening ID: {cert.workerScreeningId}
+                            </Typography>
+                        )}
+                        
+                        {/* Degree Information */}
+                        {cert?.degree?.length > 0 && (
+                            <Box sx={{ mb: 2 }}>
+                                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, fontSize: '0.85rem' }}>
+                                    Degrees
+                                </Typography>
+                                <Stack spacing={1}>
+                                    {cert.degree.slice(0, 2).map((degree, idx) => {
+                                        const { isOther, value } = formatDegree(degree);
+                                        return (
+                                            <Stack key={idx} direction="row" alignItems="center" spacing={1} sx={{ flexWrap: 'wrap' }}>
+                                                <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                                                    {value}
+                                                </Typography>
+                                                {isOther && (
+                                                    <Chip
+                                                        label="Other"
+                                                        color="secondary"
+                                                        size="small"
+                                                        sx={{ height: '18px', fontSize: '0.6rem', fontWeight: 600 }}
+                                                    />
+                                                )}
+                                            </Stack>
+                                        );
+                                    })}
+                                    {cert.degree.length > 2 && (
+                                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', fontStyle: 'italic' }}>
+                                            +{cert.degree.length - 2} more degrees
+                                        </Typography>
+                                    )}
+                                </Stack>
+                            </Box>
+                        )}
+                        
+                        {/* Dates */}
+                        {type === 'professional' && (cert.issuedDate || cert.expiryDate) && (
+                            <Stack spacing={1} sx={{ mb: 2 }}>
+                                {cert.issuedDate && (
+                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                        <CalendarToday fontSize="small" color="primary" />
+                                        <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                                            Issued: {formatDate(cert.issuedDate)}
+                                        </Typography>
+                                    </Stack>
+                                )}
+                                {cert.expiryDate && (
+                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                        <Event fontSize="small" color={isExpiringSoon(cert.expiryDate) ? "warning" : "info"} />
+                                        <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                                            Expires: {formatDate(cert.expiryDate)}
+                                        </Typography>
+                                        {isExpiringSoon(cert.expiryDate) && (
+                                            <Chip label="Soon" size="small" color="warning" sx={{ fontSize: '0.6rem', height: '18px' }} />
+                                        )}
+                                    </Stack>
+                                )}
+                            </Stack>
+                        )}
+                        
+                        {/* Rejection Details */}
+                        {showRejectionDetails && cert.verificationStatus?.toLowerCase() === 'rejected' && cert.rejectionReason && (
+                            <Box sx={{ mb: 2, p: 2, bgcolor: alpha(theme.palette.error.main, 0.05), borderRadius: 2, border: `1px solid ${alpha(theme.palette.error.main, 0.15)}` }}>
+                                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                                    <Cancel fontSize="small" color="error" />
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'error.main', fontSize: '0.85rem' }}>
+                                        Rejection Details
+                                    </Typography>
+                                </Stack>
+                                <Typography variant="body2" sx={{ color: 'error.main', fontSize: '0.8rem', lineHeight: 1.4 }}>
+                                    {cert.rejectionReason}
+                                </Typography>
+                                {cert.verificationDate && (
+                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', mt: 1, display: 'block' }}>
+                                        Rejected on: {formatDate(cert.verificationDate)}
+                                    </Typography>
+                                )}
+                            </Box>
+                        )}
+                        
+                        {/* Documents */}
+                        {cert.documents?.length > 0 && (
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, fontSize: '0.85rem' }}>
+                                    Documents
+                                </Typography>
+                                <Stack spacing={1}>
+                                    {cert.documents.map((doc, docIndex) => (
+                                        <Paper
+                                            key={docIndex}
+                                            elevation={0}
+                                            sx={{
+                                                p: 1.5,
+                                                bgcolor: alpha(theme.palette.primary.main, 0.05),
+                                                borderRadius: 2,
+                                                border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                                            }}
+                                        >
+                                            <Stack direction="row" alignItems="center" spacing={1}>
+                                                {getDocumentIcon(doc.fileName)}
+                                                <Typography variant="body2" sx={{ flex: 1, fontSize: '0.8rem' }}>
+                                                    {doc.fileName || `Document ${docIndex + 1}`}
+                                                </Typography>
+                                                <Tooltip title="Preview">
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedDocument(doc);
+                                                            setSelectedCertificate(cert);
+                                                            setPreviewOpen(true);
+                                                        }}
+                                                    >
+                                                        <Visibility fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </Stack>
+                                        </Paper>
+                                    ))}
+                                </Stack>
+                            </Box>
+                        )}
+                    </Box>
+                </Collapse>
+            </Card>
+        );
+    };
+
+    // Desktop table component
+    const DesktopCertificationTable = ({ certifications, type = 'professional', showRejectionDetails = false }) => {
+        const [expandedRows, setExpandedRows] = useState({});
+        
+        const toggleRow = (certId) => {
+            setExpandedRows(prev => ({
+                ...prev,
+                [certId]: !prev[certId]
+            }));
+        };
+
+        return (
+            <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${theme.palette.divider}`, borderRadius: 3 }}>
+                <Table>
+                    <TableHead>
+                        <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
+                            <TableCell sx={{ fontWeight: 700, fontSize: '0.9rem' }}>Certification</TableCell>
+                            <TableCell sx={{ fontWeight: 700, fontSize: '0.9rem' }}>Status</TableCell>
+                            <TableCell sx={{ fontWeight: 700, fontSize: '0.9rem' }}>Issued Date</TableCell>
+                            <TableCell sx={{ fontWeight: 700, fontSize: '0.9rem' }}>Expiry Date</TableCell>
+                            <TableCell sx={{ fontWeight: 700, fontSize: '0.9rem' }}>Documents</TableCell>
+                            <TableCell sx={{ fontWeight: 700, fontSize: '0.9rem' }}>Actions</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {certifications.map((cert, index) => {
+                            const certId = cert.id || cert._id || index;
+                            const isExpanded = expandedRows[certId];
+                            
+                            return (
+                                <React.Fragment key={certId}>
+                                    <TableRow
+                                        hover
+                                        sx={{
+                                            '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.02) },
+                                            cursor: 'pointer'
+                                        }}
+                                        onClick={() => toggleRow(certId)}
+                                    >
+                                        <TableCell>
+                                            <Box>
+                                                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                                                    {type === 'professional' ? cert.certificationType?.name : cert.certificationTitle}
+                                                </Typography>
+                                                {cert.number && (
+                                                    <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', display: 'block' }}>
+                                                        #{cert.number}
+                                                    </Typography>
+                                                )}
+                                                {cert.workerScreeningId && (
+                                                    <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', display: 'block' }}>
+                                                        Worker Screening ID: {cert.workerScreeningId}
+                                                    </Typography>
+                                                )}
+                                                {cert?.degree?.length > 0 && (
+                                                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.5 }}>
+                                                        <School fontSize="small" color="primary" sx={{ fontSize: '14px' }} />
+                                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                                            {cert.degree.length} degree{cert.degree.length > 1 ? 's' : ''}
+                                                        </Typography>
+                                                    </Stack>
+                                                )}
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Chip
+                                                icon={getStatusIcon(cert.verificationStatus)}
+                                                label={cert.verificationStatus || 'Pending'}
+                                                color={getStatusColor(cert.verificationStatus)}
+                                                size="small"
+                                                sx={{ fontWeight: 600 }}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            {cert.issuedDate ? (
+                                                <Stack direction="row" alignItems="center" spacing={1}>
+                                                    <CalendarToday fontSize="small" color="primary" />
+                                                    <Typography variant="body2">
+                                                        {formatDate(cert.issuedDate)}
+                                                    </Typography>
+                                                </Stack>
+                                            ) : (
+                                                <Typography variant="body2" color="text.secondary">-</Typography>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            {cert.expiryDate ? (
+                                                <Stack direction="row" alignItems="center" spacing={1}>
+                                                    <Event fontSize="small" color={isExpiringSoon(cert.expiryDate) ? "warning" : "info"} />
+                                                    <Typography variant="body2">
+                                                        {formatDate(cert.expiryDate)}
+                                                    </Typography>
+                                                    {isExpiringSoon(cert.expiryDate) && (
+                                                        <Chip label="Soon" size="small" color="warning" sx={{ fontSize: '0.6rem' }} />
+                                                    )}
+                                                </Stack>
+                                            ) : (
+                                                <Typography variant="body2" color="text.secondary">-</Typography>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Stack direction="row" alignItems="center" spacing={1}>
+                                                <Assignment fontSize="small" color="primary" />
+                                                <Typography variant="body2">
+                                                    {cert.documents?.length || 0}
+                                                </Typography>
+                                            </Stack>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Stack direction="row" spacing={1}>
+                                                {/* Edit button - only show for rejected or expired */}
+                                                {(cert.verificationStatus?.toLowerCase() === 'rejected' || cert.verificationStatus?.toLowerCase() === 'expired') && (
+                                                    <Tooltip title="Edit">
+                                                        <IconButton 
+                                                            size="small" 
+                                                            color="primary"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                alert('Edit functionality is still being worked on. Coming soon!');
+                                                            }}
+                                                        >
+                                                            <Edit fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                )}
+                                                {isExpanded ? <ExpandLess /> : <ExpandMore />}
+                                            </Stack>
+                                        </TableCell>
+                                    </TableRow>
+                                    
+                                    <TableRow>
+                                        <TableCell colSpan={6} sx={{ py: 0, border: 0 }}>
+                                            <Collapse in={isExpanded}>
+                                                <Box sx={{ p: 3, bgcolor: alpha(theme.palette.grey[50], 0.5) }}>
+                                                    {/* Additional Details */}
+                                                    {cert.degree?.length > 0 && (
+                                                        <Box sx={{ mb: 2 }}>
+                                                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                                                                Degrees
+                                                            </Typography>
+                                                            <Stack spacing={1}>
+                                                                {cert.degree.map((degree, idx) => {
+                                                                    const { isOther, value } = formatDegree(degree);
+                                                                    return (
+                                                                        <Stack key={idx} direction="row" alignItems="center" spacing={1}>
+                                                                            <Typography variant="body2">{value}</Typography>
+                                                                            {isOther && (
+                                                                                <Chip label="Other" size="small" color="secondary" />
+                                                                            )}
+                                                                        </Stack>
+                                                                    );
+                                                                })}
+                                                            </Stack>
+                                                        </Box>
+                                                    )}
+                                                    
+                                                    {/* Rejection Details */}
+                                                    {showRejectionDetails && cert.verificationStatus?.toLowerCase() === 'rejected' && cert.rejectionReason && (
+                                                        <Box sx={{ mb: 2 }}>
+                                                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'error.main' }}>
+                                                                Rejection Details
+                                                            </Typography>
+                                                            <Paper elevation={0} sx={{ p: 2, bgcolor: alpha(theme.palette.error.main, 0.05), border: `1px solid ${alpha(theme.palette.error.main, 0.15)}`, borderRadius: 2 }}>
+                                                                <Typography variant="body2" sx={{ color: 'error.main', mb: 1 }}>
+                                                                    {cert.rejectionReason}
+                                                                </Typography>
+                                                                {cert.verificationDate && (
+                                                                    <Typography variant="caption" color="text.secondary">
+                                                                        Rejected on: {formatDate(cert.verificationDate)}
+                                                                    </Typography>
+                                                                )}
+                                                            </Paper>
+                                                        </Box>
+                                                    )}
+                                                    
+                                                    {/* Documents Preview */}
+                                                    {cert.documents?.length > 0 && (
+                                                        <Box>
+                                                            <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+                                                                Documents
+                                                            </Typography>
+                                                            <Grid container spacing={2}>
+                                                                {cert.documents.map((doc, docIndex) => (
+                                                                    <Grid item xs={12} sm={6} md={4} key={docIndex}>
+                                                                        <Paper
+                                                                            elevation={0}
+                                                                            sx={{
+                                                                                p: 2,
+                                                                                border: `1px solid ${theme.palette.divider}`,
+                                                                                borderRadius: 2,
+                                                                                transition: 'all 0.2s',
+                                                                                '&:hover': {
+                                                                                    borderColor: theme.palette.primary.main,
+                                                                                    bgcolor: alpha(theme.palette.primary.main, 0.02)
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <Stack direction="row" alignItems="center" spacing={2}>
+                                                                                <Box sx={{
+                                                                                    p: 1,
+                                                                                    borderRadius: 1,
+                                                                                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                                                                    display: 'flex',
+                                                                                    alignItems: 'center',
+                                                                                    justifyContent: 'center'
+                                                                                }}>
+                                                                                    {getDocumentIcon(doc.fileName)}
+                                                                                </Box>
+                                                                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                                                    <Typography variant="body2" sx={{ 
+                                                                                        fontWeight: 500,
+                                                                                        overflow: 'hidden',
+                                                                                        textOverflow: 'ellipsis',
+                                                                                        whiteSpace: 'nowrap'
+                                                                                    }}>
+                                                                                        {doc.fileName || `Document ${docIndex + 1}`}
+                                                                                    </Typography>
+                                                                                    <Typography variant="caption" color="text.secondary">
+                                                                                        Click to preview
+                                                                                    </Typography>
+                                                                                </Box>
+                                                                                <Tooltip title="Preview Document">
+                                                                                    <IconButton
+                                                                                        size="small"
+                                                                                        onClick={() => {
+                                                                                            setSelectedDocument(doc);
+                                                                                            setSelectedCertificate(cert);
+                                                                                            setPreviewOpen(true);
+                                                                                        }}
+                                                                                        sx={{ color: theme.palette.primary.main }}
+                                                                                    >
+                                                                                        <Visibility />
+                                                                                    </IconButton>
+                                                                                </Tooltip>
+                                                                            </Stack>
+                                                                        </Paper>
+                                                                    </Grid>
+                                                                ))}
+                                                            </Grid>
+                                                        </Box>
+                                                    )}
+                                                </Box>
+                                            </Collapse>
+                                        </TableCell>
+                                    </TableRow>
+                                </React.Fragment>
+                            );
+                        })}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+        );
+    };
 
     const EmptyState = ({ type, onAdd }) => (
         <Fade in timeout={1000}>
@@ -315,22 +808,29 @@ const DashboardCertification = ({ onboardingData }) => {
                                         }}
                                     />
 
-                                    <IconButton
-                                        size="small"
-                                        className="edit-button"
-                                        sx={{
-                                            opacity: 0,
-                                            transform: 'translateY(-10px)',
-                                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                            bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                            color: theme.palette.primary.main,
-                                            '&:hover': {
-                                                bgcolor: alpha(theme.palette.primary.main, 0.2),
-                                            }
-                                        }}
-                                    >
-                                        <Edit fontSize="small" />
-                                    </IconButton>
+                                    {/* Edit button - only show for rejected or expired */}
+                                    {(cert.verificationStatus?.toLowerCase() === 'rejected' || cert.verificationStatus?.toLowerCase() === 'expired') && (
+                                        <IconButton
+                                            size="small"
+                                            className="edit-button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                alert('Edit functionality is still being worked on. Coming soon!');
+                                            }}
+                                            sx={{
+                                                opacity: 0,
+                                                transform: 'translateY(-10px)',
+                                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                                color: theme.palette.primary.main,
+                                                '&:hover': {
+                                                    bgcolor: alpha(theme.palette.primary.main, 0.2),
+                                                }
+                                            }}
+                                        >
+                                            <Edit fontSize="small" />
+                                        </IconButton>
+                                    )}
                                 </Stack>
                                 
                                 {/* Rejection Reason Display */}
@@ -847,20 +1347,20 @@ const DashboardCertification = ({ onboardingData }) => {
             {/* Tab Content */}
             <TabPanel value={activeTab} index={0}>
               {certifications.length > 0 ? (
-                <Grid container spacing={{ xs: 2.5, sm: 3 }}>
-                  {certifications.map((cert, index) => (
-                    <Grid sx={{
-                        minWidth:{xs:'100%',sm:'100%',md:'0'},
-                    }} item xs={12} sm={6} md={4} lg={3} key={cert.id || cert._id || index}>
-                      <CertificationCardDashboard
+                isDesktop ? (
+                  <DesktopCertificationTable certifications={certifications} type="professional" />
+                ) : (
+                  <Box>
+                    {certifications.map((cert, index) => (
+                      <MobileCertificationCard
+                        key={cert.id || cert._id || index}
                         cert={cert}
                         index={index}
                         type="professional"
-                        showRejectionDetails={false}
                       />
-                    </Grid>
-                  ))}
-                </Grid>
+                    ))}
+                  </Box>
+                )
               ) : (
                 <EmptyState type="professional" onAdd={() => navigate('/onboarding')} />
               )}
@@ -868,50 +1368,68 @@ const DashboardCertification = ({ onboardingData }) => {
       
             <TabPanel value={activeTab} index={1}>
               {otherCertifications.length > 0 ? (
-                <Grid container spacing={{ xs: 2, sm: 3 }}>
-                  {otherCertifications.map((cert, index) => (
-                    <Grid item xs={12} sm={6} md={4} lg={3} key={cert.id || cert._id || index}>
-                      <CertificationCardDashboard cert={cert} index={index} type="other" showRejectionDetails={false} />
-                    </Grid>
-                  ))}
-                </Grid>
+                isDesktop ? (
+                  <DesktopCertificationTable certifications={otherCertifications} type="other" />
+                ) : (
+                  <Box>
+                    {otherCertifications.map((cert, index) => (
+                      <MobileCertificationCard
+                        key={cert.id || cert._id || index}
+                        cert={cert}
+                        index={index}
+                        type="other"
+                      />
+                    ))}
+                  </Box>
+                )
               ) : (
                 <EmptyState type="other" />
               )}
             </TabPanel>
             <TabPanel value={activeTab} index={2}>
               {expiredCertifications.length > 0 ? (
-                <Grid container spacing={{ xs: 2, sm: 3 }}>
-                  {expiredCertifications.map((cert, index) => (
-                    <Grid item xs={12} sm={6} md={4} lg={3} key={cert.id || cert._id || `exp-${index}`}>
-                      <CertificationCardDashboard
+                isDesktop ? (
+                  <DesktopCertificationTable 
+                    certifications={expiredCertifications} 
+                    type={expiredCertifications[0]?.certificationType ? 'professional' : 'other'} 
+                  />
+                ) : (
+                  <Box>
+                    {expiredCertifications.map((cert, index) => (
+                      <MobileCertificationCard
+                        key={cert.id || cert._id || `exp-${index}`}
                         cert={cert}
                         index={index}
                         type={cert?.certificationType ? 'professional' : 'other'}
-                        showRejectionDetails={false}
-                        showExpiredDetails={true}
                       />
-                    </Grid>
-                  ))}
-                </Grid>
+                    ))}
+                  </Box>
+                )
               ) : (
                 <EmptyState type="professional" />
               )}
             </TabPanel>
             <TabPanel value={activeTab} index={3}>
               {rejectedCertifications.length > 0 ? (
-                <Grid container spacing={{ xs: 2, sm: 3 }}>
-                  {rejectedCertifications.map((cert, index) => (
-                    <Grid item xs={12} sm={6} md={4} lg={3} key={cert.id || cert._id || `rej-${index}`}>
-                      <CertificationCardDashboard
+                isDesktop ? (
+                  <DesktopCertificationTable 
+                    certifications={rejectedCertifications} 
+                    type={rejectedCertifications[0]?.certificationType ? 'professional' : 'other'}
+                    showRejectionDetails={true}
+                  />
+                ) : (
+                  <Box>
+                    {rejectedCertifications.map((cert, index) => (
+                      <MobileCertificationCard
+                        key={cert.id || cert._id || `rej-${index}`}
                         cert={cert}
                         index={index}
                         type={cert?.certificationType ? 'professional' : 'other'}
                         showRejectionDetails={true}
                       />
-                    </Grid>
-                  ))}
-                </Grid>
+                    ))}
+                  </Box>
+                )
               ) : (
                 <EmptyState type="professional" />
               )}

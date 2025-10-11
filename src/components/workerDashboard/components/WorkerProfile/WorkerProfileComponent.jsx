@@ -178,7 +178,7 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
     { label: 'Rating', value: '4.8', icon: <StarIcon />, color: 'warning' },
   ];
 
-  // Skeleton Loading Component
+  // Modern Skeleton Loading Component
   const ProfileSkeleton = () => (
     <Box
       sx={{
@@ -188,15 +188,14 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
         overflowX: 'hidden'
       }}
     >
-      {/* Compact Hero Header Skeleton */}
+      {/* Modern Hero Header Skeleton */}
       <Box
         sx={{
           width: '100%',
-          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.04)}, ${alpha(theme.palette.secondary.main, 0.02)})`,
-          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-          py: { xs: 5.5, sm: 3, md: 4 },
-          px: { xs: 0.5, sm: 3, md: 4 },
-          mt: { xs: 7, md: 6 }
+          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.02)}, ${alpha(theme.palette.secondary.main, 0.01)})`,
+          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
+          py: { xs: 3, sm: 2.5, md: 2 },
+          px: { xs: 2, sm: 3, md: 4 }
         }}
       >
         <Container maxWidth={false}>
@@ -206,32 +205,45 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
               display: { xs: 'flex', md: 'none' },
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 2
+              gap: 2.5
             }}
           >
             {/* Profile Picture Skeleton */}
             <Skeleton
               variant="circular"
-              width={90}
-              height={90}
+              width={80}
+              height={80}
+              sx={{
+                boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.15)}`
+              }}
             />
 
-            {/* Name Skeleton */}
+            {/* Name & Status Skeleton */}
+            <Box sx={{ textAlign: 'center' }}>
+              <Skeleton
+                variant="text"
+                width="70%"
+                height={32}
+                sx={{ mb: 1 }}
+              />
+              <Skeleton
+                variant="rounded"
+                width={100}
+                height={26}
+                sx={{ borderRadius: 1.5, mb: 1.5 }}
+              />
+            </Box>
+
+            {/* Contact Info Skeleton */}
             <Skeleton
-              variant="text"
-              width="60%"
-              height={36}
-              sx={{ mb: 0.5 }}
+              variant="rounded"
+              width={200}
+              height={20}
+              sx={{ mb: 1 }}
             />
-
-            {/* Email & Status Row Skeleton */}
-            <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1.5 }}>
-              <Skeleton variant="rounded" width={180} height={24} />
-              <Skeleton variant="rounded" width={80} height={24} />
-            </Stack>
 
             {/* Quick Stats Row Skeleton */}
-            <Stack direction="row" spacing={4} sx={{ mb: 2 }}>
+            <Stack direction="row" spacing={4} justifyContent="center" sx={{ mb: 2 }}>
               <Box sx={{ textAlign: 'center' }}>
                 <Skeleton variant="text" width={40} height={24} sx={{ mb: 0.5 }} />
                 <Skeleton variant="text" width={50} height={16} />
@@ -246,24 +258,27 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
             <Skeleton
               variant="rounded"
               width={160}
-              height={42}
-              sx={{ borderRadius: 2 }}
+              height={48}
+              sx={{ borderRadius: 2.5 }}
             />
           </Box>
 
           {/* Desktop/Tablet Layout Skeleton */}
           <Grid 
             container 
-            spacing={{ md: 3 }} 
+            spacing={{ md: 4 }} 
             alignItems="center"
             sx={{ display: { xs: 'none', md: 'flex' } }}
           >
             {/* Avatar Skeleton */}
-            <Grid item md={3} lg={2}>
+            <Grid item md={2.5} lg={2}>
               <Skeleton
                 variant="circular"
-                width={100}
-                height={100}
+                width={90}
+                height={90}
+                sx={{
+                  boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.15)}`
+                }}
               />
             </Grid>
 
@@ -271,17 +286,17 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
             <Grid item md={6} lg={7}>
               <Skeleton
                 variant="text"
-                width="60%"
-                height={36}
-                sx={{ mb: 1 }}
+                width="50%"
+                height={40}
+                sx={{ mb: 1.5 }}
               />
               
-              <Stack direction="row" spacing={2} sx={{ mb: 1.5 }}>
-                <Skeleton variant="rounded" width={180} height={24} />
-                <Skeleton variant="rounded" width={80} height={24} />
+              <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                <Skeleton variant="rounded" width={200} height={20} />
+                <Skeleton variant="rounded" width={100} height={26} sx={{ borderRadius: 1.5 }} />
               </Stack>
 
-              <Stack direction="row" spacing={3}>
+              <Stack direction="row" spacing={4}>
                 <Box>
                   <Skeleton variant="text" width={40} height={24} sx={{ mb: 0.5 }} />
                   <Skeleton variant="text" width={50} height={16} />
@@ -294,13 +309,13 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
             </Grid>
 
             {/* Edit Button Skeleton */}
-            <Grid item md={3} lg={3}>
+            <Grid item md={3.5} lg={3}>
               <Box sx={{ textAlign: 'right' }}>
                 <Skeleton
                   variant="rounded"
-                  width={120}
-                  height={42}
-                  sx={{ borderRadius: 2 }}
+                  width={140}
+                  height={48}
+                  sx={{ borderRadius: 2.5 }}
                 />
               </Box>
             </Grid>
@@ -309,52 +324,47 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
       </Box>
 
       {/* Main Content Skeleton */}
-      <Container maxWidth={false} sx={{ px: { xs: 1.5, sm: 2, md: 3, lg: 4 }, py: { xs: 2.5, sm: 3, md: 4 } }}>
+      <Container maxWidth={false} sx={{ px: { xs: 2, sm: 3, md: 4 }, py: { xs: 2, sm: 3, md: 3 } }}>
         {/* Profile Details Grid Skeleton */}
         <Box sx={{ mb: { xs: 3, sm: 4 } }}>
-          <Skeleton
-            variant="text"
-            width={200}
-            height={32}
-            sx={{ 
-              mb: { xs: 2, sm: 3 },
-              mx: { xs: 'auto', sm: 0 }
-            }}
-          />
-          
-          <Grid container spacing={{ xs: 1.5, sm: 2, md: 3 }}>
-            {[1, 2, 3, 4].map((item) => (
+          <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
+            {[1, 2, 3, 4, 5].map((item) => (
               <Grid item xs={12} sm={6} md={4} lg={3} key={item}>
                 <Card
                   sx={{
-                    borderRadius: { xs: 1.5, sm: 2 },
-                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    height: '100%'
+                    borderRadius: { xs: 2, sm: 2.5 },
+                    border: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
+                    height: '100%',
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.background.paper, 0.95)})`,
+                    backdropFilter: 'blur(10px)'
                   }}
                 >
-                  <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
+                  <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
                     <Stack 
                       direction={{ xs: 'column', sm: 'row' }} 
-                      spacing={{ xs: 1.5, sm: 2 }} 
+                      spacing={{ xs: 2, sm: 2.5 }} 
                       alignItems={{ xs: 'center', sm: 'flex-start' }}
                       sx={{ textAlign: { xs: 'center', sm: 'left' } }}
                     >
                       <Skeleton 
                         variant="circular" 
-                        width={{ xs: 32, sm: 36 }} 
-                        height={{ xs: 32, sm: 36 }} 
+                        width={{ xs: 40, sm: 44 }} 
+                        height={{ xs: 40, sm: 44 }}
+                        sx={{
+                          boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`
+                        }}
                       />
                       <Box sx={{ flex: 1, minWidth: 0, width: { xs: '100%', sm: 'auto' } }}>
                         <Skeleton 
                           variant="text" 
                           width={{ xs: '80%', sm: '70%' }} 
-                          height={{ xs: 12, sm: 14 }} 
-                          sx={{ mb: 0.5, mx: { xs: 'auto', sm: 0 } }} 
+                          height={{ xs: 14, sm: 16 }} 
+                          sx={{ mb: 0.75, mx: { xs: 'auto', sm: 0 } }} 
                         />
                         <Skeleton 
                           variant="text" 
                           width={{ xs: '90%', sm: '85%' }} 
-                          height={{ xs: 18, sm: 20 }} 
+                          height={{ xs: 20, sm: 22 }} 
                           sx={{ mx: { xs: 'auto', sm: 0 } }} 
                         />
                       </Box>
@@ -366,139 +376,87 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
           </Grid>
         </Box>
 
-        {/* Biography & Skills Row Skeleton */}
-        <Grid container spacing={{ xs: 2, sm: 3 }}>
-          {/* Biography Section Skeleton */}
-          <Grid item xs={12} lg={7}>
-            <Card
+        {/* Biography Section Skeleton */}
+        <Box sx={{ mb: { xs: 3, sm: 4 } }}>
+          <Card
+            sx={{
+              borderRadius: { xs: 2, sm: 2.5 },
+              border: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
+              background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.background.paper, 0.95)})`,
+              backdropFilter: 'blur(10px)'
+            }}
+          >
+            <Box
               sx={{
-                borderRadius: { xs: 1.5, sm: 2 },
-                border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                height: '100%'
+                p: { xs: 2.5, sm: 3 },
+                background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.03)}, ${alpha(theme.palette.secondary.main, 0.02)})`,
+                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.06)}`
               }}
             >
-              <Box
-                sx={{
-                  p: { xs: 2, sm: 2.5 },
-                  background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.02)}, ${alpha(theme.palette.secondary.main, 0.02)})`,
-                  borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`
-                }}
+              <Stack 
+                direction={{ xs: 'column', sm: 'row' }} 
+                alignItems={{ xs: 'center', sm: 'center' }} 
+                spacing={{ xs: 2, sm: 2.5 }}
+                sx={{ textAlign: { xs: 'center', sm: 'left' } }}
               >
-                <Stack 
-                  direction={{ xs: 'column', sm: 'row' }} 
-                  alignItems={{ xs: 'center', sm: 'center' }} 
-                  spacing={{ xs: 1.5, sm: 2 }}
-                  sx={{ textAlign: { xs: 'center', sm: 'left' } }}
-                >
+                <Skeleton 
+                  variant="circular" 
+                  width={{ xs: 40, sm: 44 }} 
+                  height={{ xs: 40, sm: 44 }}
+                  sx={{
+                    boxShadow: `0 4px 12px ${alpha(theme.palette.info.main, 0.15)}`
+                  }}
+                />
+                <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
                   <Skeleton 
-                    variant="circular" 
-                    width={{ xs: 28, sm: 32 }} 
-                    height={{ xs: 28, sm: 32 }} 
+                    variant="text" 
+                    width={{ xs: 200, sm: 220 }} 
+                    height={{ xs: 24, sm: 28 }} 
+                    sx={{ mb: 0.5, mx: { xs: 'auto', sm: 0 } }} 
                   />
-                  <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
-                    <Skeleton 
-                      variant="text" 
-                      width={{ xs: 160, sm: 180 }} 
-                      height={{ xs: 20, sm: 24 }} 
-                      sx={{ mb: 0.5, mx: { xs: 'auto', sm: 0 } }} 
-                    />
-                    <Skeleton 
-                      variant="text" 
-                      width={{ xs: 130, sm: 150 }} 
-                      height={{ xs: 12, sm: 14 }} 
-                      sx={{ mx: { xs: 'auto', sm: 0 } }} 
-                    />
-                  </Box>
-                </Stack>
-              </Box>
-
-              <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
-                <Skeleton 
-                  variant="text" 
-                  width="100%" 
-                  height={{ xs: 14, sm: 16 }} 
-                  sx={{ mb: 1 }} 
-                />
-                <Skeleton 
-                  variant="text" 
-                  width="95%" 
-                  height={{ xs: 14, sm: 16 }} 
-                  sx={{ mb: 1 }} 
-                />
-                <Skeleton 
-                  variant="text" 
-                  width="90%" 
-                  height={{ xs: 14, sm: 16 }} 
-                />
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Skills Section Skeleton */}
-          <Grid item xs={12} lg={5}>
-            <Card
-              sx={{
-                borderRadius: { xs: 1.5, sm: 2 },
-                border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                height: '100%'
-              }}
-            >
-              <Box
-                sx={{
-                  p: { xs: 2, sm: 2.5 },
-                  background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.02)}, ${alpha(theme.palette.success.main, 0.02)})`,
-                  borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`
-                }}
-              >
-                <Stack 
-                  direction={{ xs: 'column', sm: 'row' }} 
-                  alignItems={{ xs: 'center', sm: 'center' }} 
-                  spacing={{ xs: 1.5, sm: 2 }}
-                  sx={{ textAlign: { xs: 'center', sm: 'left' } }}
-                >
                   <Skeleton 
-                    variant="circular" 
-                    width={{ xs: 28, sm: 32 }} 
-                    height={{ xs: 28, sm: 32 }} 
+                    variant="text" 
+                    width={{ xs: 150, sm: 170 }} 
+                    height={{ xs: 16, sm: 18 }} 
+                    sx={{ mx: { xs: 'auto', sm: 0 } }} 
                   />
-                  <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
-                    <Skeleton 
-                      variant="text" 
-                      width={{ xs: 120, sm: 140 }} 
-                      height={{ xs: 20, sm: 24 }} 
-                      sx={{ mb: 0.5, mx: { xs: 'auto', sm: 0 } }} 
-                    />
-                    <Skeleton 
-                      variant="text" 
-                      width={{ xs: 100, sm: 120 }} 
-                      height={{ xs: 12, sm: 14 }} 
-                      sx={{ mx: { xs: 'auto', sm: 0 } }} 
-                    />
-                  </Box>
-                </Stack>
-              </Box>
-
-              <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
-                <Box sx={{ 
-                  display: 'flex', 
-                  flexWrap: 'wrap', 
-                  gap: { xs: 0.75, sm: 1 },
-                  justifyContent: { xs: 'center', sm: 'flex-start' }
-                }}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((skill) => (
-                    <Skeleton
-                      key={skill}
-                      variant="rounded"
-                      width={60 + Math.random() * 40}
-                      height={{ xs: 24, sm: 26 }}
-                      sx={{ borderRadius: { xs: 1, sm: 1.5 } }}
-                    />
-                  ))}
                 </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+              </Stack>
+            </Box>
+
+            <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+              <Skeleton 
+                variant="text" 
+                width="100%" 
+                height={{ xs: 18, sm: 20 }} 
+                sx={{ mb: 1.5 }} 
+              />
+              <Skeleton 
+                variant="text" 
+                width="95%" 
+                height={{ xs: 18, sm: 20 }} 
+                sx={{ mb: 1.5 }} 
+              />
+              <Skeleton 
+                variant="text" 
+                width="90%" 
+                height={{ xs: 18, sm: 20 }} 
+                sx={{ mb: 1.5 }} 
+              />
+              <Skeleton 
+                variant="text" 
+                width="85%" 
+                height={{ xs: 18, sm: 20 }} 
+                sx={{ mb: 1.5 }} 
+              />
+              <Skeleton 
+                variant="text" 
+                width="75%" 
+                height={{ xs: 18, sm: 20 }} 
+              />
+            </CardContent>
+          </Card>
+        </Box>
       </Container>
     </Box>
   );
@@ -585,29 +543,27 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
           minHeight: '100vh',
           backgroundColor: theme.palette.background.default,
           width: '100%',
-          overflowX: 'hidden',
-          mt:'2.5rem'
+          overflowX: 'hidden'
         }}
       >
-      {/* Compact Hero Header */}
+      {/* Modern Hero Header */}
       <Box
         sx={{
           width: '100%',
-          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.04)}, ${alpha(theme.palette.secondary.main, 0.02)})`,
-          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-          py: { xs: 5.5, sm: 3, md: 4 },
-          px: { xs: 0.5, sm: 3, md: 4 },
-          mt: { xs: 7, md: 6 }
+          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.02)}, ${alpha(theme.palette.secondary.main, 0.01)})`,
+          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
+          py: { xs: 3, sm: 2.5, md: 2 },
+          px: { xs: 2, sm: 3, md: 4 }
         }}
       >
         <Container maxWidth={false}>
-          {/* Mobile Layout - Flex-based for perfect alignment */}
+          {/* Mobile Layout */}
           <Box
             sx={{
               display: { xs: 'flex', md: 'none' },
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 2
+              gap: 2.5
             }}
           >
             {/* Profile Picture & Badge */}
@@ -618,28 +574,29 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
                 badgeContent={
                   <Box
                     sx={{
-                      width: 20,
-                      height: 20,
+                      width: 18,
+                      height: 18,
                       borderRadius: '50%',
                       bgcolor: getStatusColor(verificationStatus) === 'success' ? 'success.main' : 'warning.main',
                       border: `2px solid ${theme.palette.background.paper}`,
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center'
+                      justifyContent: 'center',
+                      boxShadow: `0 2px 8px ${alpha(theme.palette.common.black, 0.15)}`
                     }}
                   >
-                    <VerifiedIcon sx={{ fontSize: 10, color: 'white' }} />
+                    <VerifiedIcon sx={{ fontSize: 9, color: 'white' }} />
                   </Box>
                 }
               >
                 <Avatar
                   sx={{
-                    width: 90,
-                    height: 90,
+                    width: 80,
+                    height: 80,
                     background: getAvatarGradient(user?.firstName),
-                    fontSize: '1.8rem',
+                    fontSize: '1.6rem',
                     fontWeight: '700',
-                    boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.2)}`,
+                    boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.15)}`,
                     border: `3px solid ${theme.palette.background.paper}`
                   }}
                 >
@@ -652,30 +609,16 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
               </Badge>
             </Box>
 
-            {/* Name */}
-            <Typography
-              variant="h5"
-              fontWeight="700"
-              color="text.primary"
-              sx={{ textAlign: 'center', lineHeight: 1.2, mb: 0.5 }}
-            >
-              {user?.firstName} {user?.lastName}
-            </Typography>
-
-            {/* Email & Status Row */}
-            <Stack
-              direction="row"
-              spacing={2}
-              alignItems="center"
-              justifyContent="center"
-              sx={{ mb: 1.5 }}
-            >
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <EmailIcon sx={{ color: 'text.secondary', fontSize: 16 }} />
-                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                  {user?.email}
-                </Typography>
-              </Stack>
+            {/* Name & Status */}
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography
+                variant="h5"
+                fontWeight="700"
+                color="text.primary"
+                sx={{ lineHeight: 1.2, mb: 1 }}
+              >
+                {user?.firstName} {user?.lastName}
+              </Typography>
               
               <Chip
                 icon={<VerifiedIcon />}
@@ -683,11 +626,24 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
                 color={getStatusColor(verificationStatus)}
                 variant="filled"
                 size="small"
-                sx={{ fontWeight: '600', fontSize: '0.75rem', height: 24 }}
+                sx={{ 
+                  fontWeight: '600', 
+                  fontSize: '0.75rem', 
+                  height: 26,
+                  mb: 1.5
+                }}
               />
+            </Box>
+
+            {/* Contact Info */}
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+              <EmailIcon sx={{ color: 'text.secondary', fontSize: 16 }} />
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                {user?.email}
+              </Typography>
             </Stack>
 
-            {/* Quick Stats Row */}
+            {/* Quick Stats */}
             <Stack direction="row" spacing={4} justifyContent="center" sx={{ mb: 2 }}>
               {profileStats.map((stat, index) => (
                 <Box key={index} sx={{ textAlign: 'center' }}>
@@ -708,7 +664,7 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
               onClick={handleEditModalOpen}
               size="medium"
               sx={{
-                borderRadius: 2,
+                borderRadius: 2.5,
                 px: 4,
                 py: 1.5,
                 textTransform: 'none',
@@ -716,10 +672,10 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
                 fontSize: '0.875rem',
                 background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
                 minWidth: 160,
-                transition: 'all 0.2s ease',
+                transition: 'all 0.3s ease',
                 '&:hover': {
-                  transform: 'translateY(-1px)',
-                  boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`
+                  transform: 'translateY(-2px)',
+                  boxShadow: `0 8px 20px ${alpha(theme.palette.primary.main, 0.3)}`
                 }
               }}
             >
@@ -727,15 +683,15 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
             </Button>
           </Box>
 
-          {/* Desktop/Tablet Layout - Grid-based */}
+          {/* Desktop/Tablet Layout */}
           <Grid 
             container 
-            spacing={{ md: 3 }} 
+            spacing={{ md: 4 }} 
             alignItems="center"
             sx={{ display: { xs: 'none', md: 'flex' } }}
           >
-            {/* Avatar & Basic Info */}
-            <Grid item md={3} lg={2}>
+            {/* Avatar */}
+            <Grid item md={2.5} lg={2}>
               <Box sx={{ textAlign: 'left' }}>
                 <Badge
                   overlap="circular"
@@ -750,7 +706,8 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
                         border: `2px solid ${theme.palette.background.paper}`,
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center'
+                        justifyContent: 'center',
+                        boxShadow: `0 2px 8px ${alpha(theme.palette.common.black, 0.15)}`
                       }}
                     >
                       <VerifiedIcon sx={{ fontSize: 10, color: 'white' }} />
@@ -759,12 +716,12 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
                 >
                   <Avatar
                     sx={{
-                      width: 100,
-                      height: 100,
+                      width: 90,
+                      height: 90,
                       background: getAvatarGradient(user?.firstName),
-                      fontSize: '2rem',
+                      fontSize: '1.8rem',
                       fontWeight: '700',
-                      boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.2)}`,
+                      boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.15)}`,
                       border: `3px solid ${theme.palette.background.paper}`
                     }}
                   >
@@ -785,7 +742,7 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
                   variant="h4"
                   fontWeight="700"
                   color="text.primary"
-                  sx={{ mb: 1, lineHeight: 1.2 }}
+                  sx={{ mb: 1.5, lineHeight: 1.2 }}
                 >
                   {user?.firstName} {user?.lastName}
                 </Typography>
@@ -794,7 +751,7 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
                   direction="row"
                   spacing={2}
                   alignItems="center"
-                  sx={{ mb: 1.5 }}
+                  sx={{ mb: 2 }}
                 >
                   <Stack direction="row" alignItems="center" spacing={1}>
                     <EmailIcon sx={{ color: 'text.secondary', fontSize: 16 }} />
@@ -809,12 +766,12 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
                     color={getStatusColor(verificationStatus)}
                     variant="filled"
                     size="small"
-                    sx={{ fontWeight: '600', fontSize: '0.75rem', height: 24 }}
+                    sx={{ fontWeight: '600', fontSize: '0.75rem', height: 26 }}
                   />
                 </Stack>
 
                 {/* Quick Stats */}
-                <Stack direction="row" spacing={3}>
+                <Stack direction="row" spacing={4}>
                   {profileStats.map((stat, index) => (
                     <Box key={index} sx={{ textAlign: 'left' }}>
                       <Typography variant="h6" fontWeight="700" color="text.primary" sx={{ lineHeight: 1 }}>
@@ -830,7 +787,7 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
             </Grid>
 
             {/* Edit Button */}
-            <Grid item md={3} lg={3}>
+            <Grid item md={3.5} lg={3}>
               <Box sx={{ textAlign: 'right' }}>
                 <Button
                   variant="contained"
@@ -838,17 +795,17 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
                   onClick={handleEditModalOpen}
                   size="medium"
                   sx={{
-                    borderRadius: 2,
-                    px: 3,
-                    py: 1.25,
+                    borderRadius: 2.5,
+                    px: 3.5,
+                    py: 1.5,
                     textTransform: 'none',
                     fontWeight: '600',
                     fontSize: '0.875rem',
                     background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
-                    transition: 'all 0.2s ease',
+                    transition: 'all 0.3s ease',
                     '&:hover': {
-                      transform: 'translateY(-1px)',
-                      boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`
+                      transform: 'translateY(-2px)',
+                      boxShadow: `0 8px 20px ${alpha(theme.palette.primary.main, 0.3)}`
                     }
                   }}
                 >
@@ -860,50 +817,51 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
         </Container>
       </Box>
 
-            {/* Main Content */}
-      <Container maxWidth={false} sx={{ px: { xs: 1.5, sm: 2, md: 3, lg: 4 }, py: { xs: 1, sm: 2, md: 2 } }}>
+      {/* Main Content */}
+      <Container maxWidth={false} sx={{ px: { xs: 2, sm: 3, md: 4 }, py: { xs: 2, sm: 3, md: 3 } }}>
         {/* Profile Details Grid */}
         <Box sx={{ mb: { xs: 3, sm: 4 } }}>
-      
-          
-          <Grid container spacing={{ xs: 1.5, sm: 2, md: 2 }}>
+          <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
             {profileData.map((item, index) => (
               <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
                 <Card
                   sx={{
-                    borderRadius: { xs: 1.5, sm: 2 },
-                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    transition: 'all 0.2s ease',
-                    height: {xs:'auto',sm:'100%',md:'5rem'},
+                    borderRadius: { xs: 2, sm: 2.5 },
+                    border: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
+                    transition: 'all 0.3s ease',
+                    height: '100%',
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.background.paper, 0.95)})`,
+                    backdropFilter: 'blur(10px)',
                     '&:hover': {
-                      transform: { xs: 'none', sm: 'translateY(-2px)' },
-                      boxShadow: { xs: 'none', sm: `0 8px 24px ${alpha(theme.palette.primary.main, 0.08)}` },
-                      borderColor: { xs: 'inherit', sm: alpha(theme.palette.primary.main, 0.15) }
+                      transform: { xs: 'none', sm: 'translateY(-4px)' },
+                      boxShadow: { xs: 'none', sm: `0 12px 32px ${alpha(theme.palette.primary.main, 0.12)}` },
+                      borderColor: { xs: 'inherit', sm: alpha(theme.palette.primary.main, 0.2) }
                     }
                   }}
                 >
-                  <CardContent sx={{ p: { xs: 2, sm: 2.5 } }}>
+                  <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
                     <Stack 
                       direction={{ xs: 'column', sm: 'row' }} 
-                      spacing={{ xs: 1.5, sm: 2 }} 
+                      spacing={{ xs: 2, sm: 2.5 }} 
                       alignItems={{ xs: 'center', sm: 'flex-start' }}
                       sx={{ textAlign: { xs: 'center', sm: 'left' } }}
                     >
                       <Box
                         sx={{
-                          p: { xs: 0.75, sm: 1 },
-                          borderRadius: { xs: 1, sm: 1.5 },
-                          background: `linear-gradient(135deg, ${alpha(theme.palette[item.color]?.main || theme.palette.primary.main, 0.08)}, ${alpha(theme.palette[item.color]?.main || theme.palette.primary.main, 0.15)})`,
+                          p: { xs: 1, sm: 1.25 },
+                          borderRadius: { xs: 1.5, sm: 2 },
+                          background: `linear-gradient(135deg, ${alpha(theme.palette[item.color]?.main || theme.palette.primary.main, 0.1)}, ${alpha(theme.palette[item.color]?.main || theme.palette.primary.main, 0.2)})`,
                           color: `${item.color}.main`,
-                          minWidth: { xs: 32, sm: 36 },
-                          height: { xs: 32, sm: 36 },
+                          minWidth: { xs: 40, sm: 44 },
+                          height: { xs: 40, sm: 44 },
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center'
+                          justifyContent: 'center',
+                          boxShadow: `0 4px 12px ${alpha(theme.palette[item.color]?.main || theme.palette.primary.main, 0.15)}`
                         }}
                       >
                         {React.cloneElement(item.icon, { 
-                          sx: { fontSize: { xs: 16, sm: 18 } } 
+                          sx: { fontSize: { xs: 18, sm: 20 } } 
                         })}
                       </Box>
 
@@ -913,11 +871,11 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
                           color="text.secondary"
                           fontWeight="600"
                           textTransform="uppercase"
-                          letterSpacing={0.5}
+                          letterSpacing={0.8}
                           sx={{ 
-                            fontSize: { xs: '0.65rem', sm: '0.7rem' }, 
+                            fontSize: { xs: '0.7rem', sm: '0.75rem' }, 
                             display: 'block', 
-                            mb: { xs: 0.5, sm: 0.5 },
+                            mb: { xs: 0.75, sm: 0.75 },
                             textAlign: { xs: 'center', sm: 'left' }
                           }}
                         >
@@ -932,20 +890,20 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
                             variant="outlined"
                             sx={{
                               fontWeight: '600',
-                              fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                              height: { xs: 22, sm: 24 },
+                              fontSize: { xs: '0.75rem', sm: '0.8rem' },
+                              height: { xs: 26, sm: 28 },
                               borderWidth: 1.5,
                               width: { xs: '100%', sm: 'auto' }
                             }}
                           />
                         ) : (
                           <Typography
-                            variant="body2"
-                            fontWeight="600"
+                            variant="body1"
+                            fontWeight="700"
                             color="text.primary"
                             sx={{ 
-                              lineHeight: 1.2, 
-                              fontSize: { xs: '0.85rem', sm: '0.95rem' },
+                              lineHeight: 1.3, 
+                              fontSize: { xs: '0.95rem', sm: '1rem' },
                               textAlign: { xs: 'center', sm: 'left' }
                             }}
                           >
@@ -958,287 +916,325 @@ const WorkerProfileComponent = ({ user, onboardingData, verificationStatus, navi
                 </Card>
               </Grid>
             ))}
-             <Grid item xs={12} lg={5}>
-            <Card
-              sx={{
-                borderRadius: { xs: 1.5, sm: 2 },
-                border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                height: {xs:'auto',sm:'100%',md:'5rem'}
-              }}
-            >
-              <Box
+            
+            {/* Skills Card */}
+            <Grid item xs={12} sm={6} md={4} lg={3}>
+              <Card
                 sx={{
-                  p: { xs: 2, sm: 2.5 },
-                  px:{md:1.5},
-                  py:{md:1},
-                  // background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.02)}, ${alpha(theme.palette.success.main, 0.02)})`,
-                  // borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+                  borderRadius: { xs: 2, sm: 2.5 },
+                  border: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
+                  height: '100%',
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.background.paper, 0.95)})`,
+                  backdropFilter: 'blur(10px)',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: { xs: 'none', sm: 'translateY(-4px)' },
+                    boxShadow: { xs: 'none', sm: `0 12px 32px ${alpha(theme.palette.warning.main, 0.12)}` },
+                    borderColor: { xs: 'inherit', sm: alpha(theme.palette.warning.main, 0.2) }
+                  }
                 }}
               >
-                <Stack 
-                  direction={{ xs: 'column', sm: 'row' }} 
-                  alignItems={{ xs: 'center', sm: 'center' }} 
-                  spacing={{ xs: 1.5, sm: 2 }}
-                  sx={{ textAlign: { xs: 'center', sm: 'left' } }}
-                >
-                  <Box
-                    sx={{
-                      p: { xs: 0.75, sm: 1,md:0 },
-                      borderRadius: { xs: 1, sm: 1.5 },
-                      background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)}, ${alpha(theme.palette.warning.main, 0.15)})`,
-                      color: 'warning.main',
-                      minWidth: { xs: 28, sm: 32,md:28 },
-                      height: { xs: 28, sm: 32,md:28 },
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
+                <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
+                  <Stack 
+                    direction={{ xs: 'column', sm: 'row' }} 
+                    spacing={{ xs: 2, sm: 2.5 }} 
+                    alignItems={{ xs: 'center', sm: 'flex-start' }}
+                    sx={{ textAlign: { xs: 'center', sm: 'left' } }}
                   >
-                    <StarIcon sx={{ fontSize: { xs: 16, sm: 20,md:18 } }} />
-                  </Box>
-                  <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
-                    <Typography 
-                      variant="h6" 
-                      fontWeight="600" 
-                      color="text.secondary"
-                      sx={{ fontSize: { xs: '1rem', sm: '1.1rem',md:'1rem' } }}
+                    <Box
+                      sx={{
+                        p: { xs: 1, sm: 1.25 },
+                        borderRadius: { xs: 1.5, sm: 2 },
+                        background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)}, ${alpha(theme.palette.warning.main, 0.2)})`,
+                        color: 'warning.main',
+                        minWidth: { xs: 40, sm: 44 },
+                        height: { xs: 40, sm: 44 },
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: `0 4px 12px ${alpha(theme.palette.warning.main, 0.15)}`
+                      }}
                     >
-                      Skills
-                    </Typography>
-                   
-                  </Box>
-                </Stack>
-              </Box>
-
-              <CardContent sx={{ p: { xs: 2, sm: 2.5 },py:{md:0.2},px:{md:1.5} }}>
-                {onboardingData?.data?.profile?.skillTags && onboardingData.data.profile.skillTags.length > 0 ? (
-                  <Box sx={{ 
-                    display: 'flex', 
-                    flexWrap: 'wrap', 
-                    gap: { xs: 0.75, sm: 1,md:1 },
-                    justifyContent: { xs: 'center', sm: 'flex-start' }
-                  }}>
-                    {onboardingData.data.profile.skillTags.map((skill, index) => (
-                      <Chip
-                        key={index}
-                        label={skill}
-                        variant="outlined"
-                        size="small"
-                        sx={{
-                          fontWeight: 500,
-                          fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                          borderRadius: { xs: 1, sm: 1.5 },
-                          height: { xs: 24, sm: 26 },
-                          borderWidth: 1.5,
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            transform: { xs: 'none', sm: 'translateY(-1px)' },
-                            borderColor: alpha(theme.palette.primary.main, 0.3),
-                            backgroundColor: alpha(theme.palette.primary.main, 0.02)
-                          }
+                      <StarIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
+                    </Box>
+                    
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        fontWeight="600"
+                        textTransform="uppercase"
+                        letterSpacing={0.8}
+                        sx={{ 
+                          fontSize: { xs: '0.7rem', sm: '0.75rem' }, 
+                          display: 'block', 
+                          mb: { xs: 0.75, sm: 0.75 },
+                          textAlign: { xs: 'center', sm: 'left' }
                         }}
-                      />
-                    ))}
-                  </Box>
-                ) : (
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ 
-                      fontStyle: 'italic', 
-                      opacity: 0.7, 
-                      fontSize: { xs: '0.8rem', sm: '0.875rem' },
-                      textAlign: { xs: 'center', sm: 'left' }
-                    }}
-                  >
-                    No skills added yet. Add your professional skills to attract more opportunities.
-                  </Typography>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
+                      >
+                        Professional Skills
+                      </Typography>
+
+                      {onboardingData?.data?.profile?.skillTags && onboardingData.data.profile.skillTags.length > 0 ? (
+                        <Box sx={{ 
+                          display: 'flex', 
+                          flexWrap: 'wrap', 
+                          gap: { xs: 0.5, sm: 0.75 },
+                          justifyContent: { xs: 'center', sm: 'flex-start' }
+                        }}>
+                          {onboardingData.data.profile.skillTags.slice(0, 3).map((skill, index) => (
+                            <Chip
+                              key={index}
+                              label={skill}
+                              variant="outlined"
+                              size="small"
+                              sx={{
+                                fontWeight: 500,
+                                fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                borderRadius: { xs: 1, sm: 1.5 },
+                                height: { xs: 22, sm: 24 },
+                                borderWidth: 1.5,
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                  transform: { xs: 'none', sm: 'translateY(-1px)' },
+                                  borderColor: alpha(theme.palette.primary.main, 0.3),
+                                  backgroundColor: alpha(theme.palette.primary.main, 0.02)
+                                }
+                              }}
+                            />
+                          ))}
+                          {onboardingData.data.profile.skillTags.length > 3 && (
+                            <Chip
+                              label={`+${onboardingData.data.profile.skillTags.length - 3} more`}
+                              variant="outlined"
+                              size="small"
+                              sx={{
+                                fontWeight: 500,
+                                fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                borderRadius: { xs: 1, sm: 1.5 },
+                                height: { xs: 22, sm: 24 },
+                                borderWidth: 1.5,
+                                color: 'text.secondary'
+                              }}
+                            />
+                          )}
+                        </Box>
+                      ) : (
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ 
+                            fontStyle: 'italic', 
+                            opacity: 0.7, 
+                            fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                            textAlign: { xs: 'center', sm: 'left' }
+                          }}
+                        >
+                          No skills added yet
+                        </Typography>
+                      )}
+                    </Box>
+                  </Stack>
+                </CardContent>
+              </Card>
+            </Grid>
           </Grid>
         </Box>
 
-        {/* Biography & Skills Row */}
-        
-              {/* Skills Section */}
-         
-
-          {/* Biography Section */}
-          <Grid item xs={12} lg={7} sx={{ mb: 3,width: '100%' }}>
-            <Card
+        {/* Biography Section */}
+        <Box sx={{ mb: { xs: 3, sm: 4 } }}>
+          <Card
+            sx={{
+              borderRadius: { xs: 2, sm: 2.5 },
+              border: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
+              background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.background.paper, 0.95)})`,
+              backdropFilter: 'blur(10px)',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: { xs: 'none', sm: 'translateY(-2px)' },
+                boxShadow: { xs: 'none', sm: `0 8px 24px ${alpha(theme.palette.info.main, 0.08)}` },
+                borderColor: { xs: 'inherit', sm: alpha(theme.palette.info.main, 0.15) }
+              }
+            }}
+          >
+            <Box
               sx={{
-                borderRadius: { xs: 1.5, sm: 2 },
-                border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                height: '100%'
+                p: { xs: 2.5, sm: 3 },
+                background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.03)}, ${alpha(theme.palette.secondary.main, 0.02)})`,
+                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.06)}`
               }}
             >
-              <Box
-                sx={{
-                  p: { xs: 2, sm: 2.5 },
-                  background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.02)}, ${alpha(theme.palette.secondary.main, 0.02)})`,
-                  borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`
-                }}
+              <Stack 
+                direction={{ xs: 'column', sm: 'row' }} 
+                alignItems={{ xs: 'center', sm: 'center' }} 
+                spacing={{ xs: 2, sm: 2.5 }}
+                sx={{ textAlign: { xs: 'center', sm: 'left' } }}
               >
-                <Stack 
-                  direction={{ xs: 'column', sm: 'row' }} 
-                  alignItems={{ xs: 'center', sm: 'center' }} 
-                  spacing={{ xs: 1.5, sm: 2 }}
-                  sx={{ textAlign: { xs: 'center', sm: 'left' } }}
+                <Box
+                  sx={{
+                    p: { xs: 1, sm: 1.25 },
+                    borderRadius: { xs: 1.5, sm: 2 },
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)}, ${alpha(theme.palette.info.main, 0.2)})`,
+                    color: 'info.main',
+                    minWidth: { xs: 40, sm: 44 },
+                    height: { xs: 40, sm: 44 },
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: `0 4px 12px ${alpha(theme.palette.info.main, 0.15)}`
+                  }}
                 >
-                  <Box
-                    sx={{
-                      p: { xs: 0.75, sm: 1 },
-                      borderRadius: { xs: 1, sm: 1.5 },
-                      background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)}, ${alpha(theme.palette.info.main, 0.15)})`,
-                      color: 'info.main',
-                      minWidth: { xs: 28, sm: 32 },
-                      height: { xs: 28, sm: 32 },
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
+                  <PersonIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
+                </Box>
+                <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+                  <Typography 
+                    variant="h5" 
+                    fontWeight="700" 
+                    color="text.primary"
+                    sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
                   >
-                    <PersonIcon sx={{ fontSize: { xs: 16, sm: 20 } }} />
-                  </Box>
-                  <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
-                    <Typography 
-                      variant="h6" 
-                      fontWeight="600" 
-                      color="text.primary"
-                      sx={{ fontSize: { xs: '1rem', sm: '1.1rem' } }}
-                    >
-                      Professional Biography
-                    </Typography>
-                   
-                  </Box>
-                </Stack>
-              </Box>
+                    Professional Biography
+                  </Typography>
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary"
+                    sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, mt: 0.5 }}
+                  >
+                    Tell your professional story
+                  </Typography>
+                </Box>
+              </Stack>
+            </Box>
 
-              <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
-                {onboardingData?.data?.profile?.biography ? (
-                  <Box
-                    className="biography-content"
-                    sx={{
-                      fontSize: { xs: '0.875rem', sm: '0.95rem' },
-                      lineHeight: 1.7,
-                      color: 'text.primary',
-                      minHeight: 'auto',
-                      textAlign: 'justify',
-                      fontWeight: 400,
-                      '& p': {
-                        margin: '0.75em 0',
-                        '&:first-of-type': { marginTop: 0 },
-                        '&:last-of-type': { marginBottom: 0 }
-                      },
-                      '& ul, & ol': {
-                        margin: '0.75em 0',
-                        paddingLeft: '1.5em',
-                        '& li': {
-                          margin: '0.4em 0',
-                          lineHeight: 1.6
-                        }
-                      },
-                      '& strong': {
-                        fontWeight: 700,
-                        color: 'text.primary'
-                      },
-                      '& em': {
-                        fontStyle: 'italic',
-                        color: alpha(theme.palette.text.primary, 0.9)
-                      },
-                      '& u': {
-                        textDecoration: 'underline',
-                        textDecorationColor: alpha(theme.palette.primary.main, 0.4),
-                        textUnderlineOffset: '2px'
-                      },
-                      '& h1, & h2, & h3': {
-                        fontWeight: 700,
-                        color: 'text.primary',
-                        margin: '1.5em 0 0.75em 0',
-                        letterSpacing: '-0.01em',
-                        '&:first-of-type': { marginTop: 0 }
-                      },
-                      '& h1': {
-                        fontSize: '1.75em'
-                      },
-                      '& h2': {
-                        fontSize: '1.5em'
-                      },
-                      '& h3': {
-                        fontSize: '1.25em'
-                      },
-                      '& blockquote': {
-                        borderLeft: `4px solid ${theme.palette.primary.main}`,
-                        margin: '1.5em 0',
-                        paddingLeft: '1.5em',
-                        fontStyle: 'italic',
-                        color: alpha(theme.palette.text.primary, 0.8),
-                        background: alpha(theme.palette.grey[50], 0.5),
-                        padding: '1em 1.5em',
-                        borderRadius: '0 8px 8px 0'
-                      },
-                      '& a': {
-                        color: theme.palette.primary.main,
-                        textDecoration: 'none',
-                        background: `linear-gradient(transparent 60%, ${alpha(theme.palette.primary.main, 0.2)} 60%)`,
-                        padding: '2px 4px',
-                        borderRadius: '4px',
-                        transition: 'all 0.2s ease',
-                        '&:hover': {
-                          background: alpha(theme.palette.primary.main, 0.15),
-                          transform: 'translateY(-1px)'
-                        }
+            <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+              {onboardingData?.data?.profile?.biography ? (
+                <Box
+                  className="biography-content"
+                  sx={{
+                    fontSize: { xs: '0.9rem', sm: '1rem' },
+                    lineHeight: 1.7,
+                    color: 'text.primary',
+                    minHeight: 'auto',
+                    textAlign: 'justify',
+                    fontWeight: 400,
+                    '& p': {
+                      margin: '1em 0',
+                      '&:first-of-type': { marginTop: 0 },
+                      '&:last-of-type': { marginBottom: 0 }
+                    },
+                    '& ul, & ol': {
+                      margin: '1em 0',
+                      paddingLeft: '1.5em',
+                      '& li': {
+                        margin: '0.5em 0',
+                        lineHeight: 1.6
                       }
-                    }}
-                    dangerouslySetInnerHTML={{ 
-                      __html: sanitizeHTML(onboardingData.data.profile.biography)
-                    }}
-                  />
-                ) : (
-                  <Box 
-                    sx={{ 
-                      textAlign: 'center',
-                      py: 4,
-                      px: 2,
-                      borderRadius: 2,
+                    },
+                    '& strong': {
+                      fontWeight: 700,
+                      color: 'text.primary'
+                    },
+                    '& em': {
+                      fontStyle: 'italic',
+                      color: alpha(theme.palette.text.primary, 0.9)
+                    },
+                    '& u': {
+                      textDecoration: 'underline',
+                      textDecorationColor: alpha(theme.palette.primary.main, 0.4),
+                      textUnderlineOffset: '2px'
+                    },
+                    '& h1, & h2, & h3': {
+                      fontWeight: 700,
+                      color: 'text.primary',
+                      margin: '1.5em 0 0.75em 0',
+                      letterSpacing: '-0.01em',
+                      '&:first-of-type': { marginTop: 0 }
+                    },
+                    '& h1': {
+                      fontSize: '1.75em'
+                    },
+                    '& h2': {
+                      fontSize: '1.5em'
+                    },
+                    '& h3': {
+                      fontSize: '1.25em'
+                    },
+                    '& blockquote': {
+                      borderLeft: `4px solid ${theme.palette.primary.main}`,
+                      margin: '1.5em 0',
+                      paddingLeft: '1.5em',
+                      fontStyle: 'italic',
+                      color: alpha(theme.palette.text.primary, 0.8),
                       background: alpha(theme.palette.grey[50], 0.5),
-                      border: `1px dashed ${alpha(theme.palette.divider, 0.2)}`
+                      padding: '1em 1.5em',
+                      borderRadius: '0 8px 8px 0'
+                    },
+                    '& a': {
+                      color: theme.palette.primary.main,
+                      textDecoration: 'none',
+                      background: `linear-gradient(transparent 60%, ${alpha(theme.palette.primary.main, 0.2)} 60%)`,
+                      padding: '2px 4px',
+                      borderRadius: '4px',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        background: alpha(theme.palette.primary.main, 0.15),
+                        transform: 'translateY(-1px)'
+                      }
+                    }
+                  }}
+                  dangerouslySetInnerHTML={{ 
+                    __html: sanitizeHTML(onboardingData.data.profile.biography)
+                  }}
+                />
+              ) : (
+                <Box 
+                  sx={{ 
+                    textAlign: 'center',
+                    py: 6,
+                    px: 3,
+                    borderRadius: 3,
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.grey[50], 0.3)}, ${alpha(theme.palette.grey[100], 0.2)})`,
+                    border: `2px dashed ${alpha(theme.palette.divider, 0.2)}`
+                  }}
+                >
+                  <PersonIcon 
+                    sx={{ 
+                      fontSize: 48, 
+                      color: alpha(theme.palette.text.secondary, 0.4),
+                      mb: 2
+                    }} 
+                  />
+                  <Typography
+                    variant="h6"
+                    color="text.secondary"
+                    sx={{
+                      fontSize: { xs: '1rem', sm: '1.1rem' },
+                      fontWeight: 600,
+                      lineHeight: 1.6,
+                      mb: 1
                     }}
                   >
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{
-                        fontSize: { xs: '0.875rem', sm: '0.95rem' },
-                        fontWeight: 500,
-                        lineHeight: 1.6,
-                        mb: 1
-                      }}
-                    >
-                      No biography provided yet
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{
-                        fontSize: '0.75rem',
-                        opacity: 0.7,
-                        display: 'block',
-                        lineHeight: 1.5
-                      }}
-                    >
-                      Add a compelling professional summary to help clients understand your expertise and experience
-                    </Typography>
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-
-        
-      
+                    No biography provided yet
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                      opacity: 0.7,
+                      display: 'block',
+                      lineHeight: 1.5,
+                      maxWidth: 400,
+                      mx: 'auto'
+                    }}
+                  >
+                    Add a compelling professional summary to help clients understand your expertise and experience
+                  </Typography>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Box>
       </Container>
 
       {/* Edit Profile Modal */}

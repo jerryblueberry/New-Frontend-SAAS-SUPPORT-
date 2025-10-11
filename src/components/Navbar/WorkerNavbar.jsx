@@ -2,11 +2,36 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import LogoImg from '../../assets/aecus-logo.png';
+// import NotificationBadge from '../common/NotificationBadge'; // Moved to sidebar
 import './css/WorkerNavbar.css';
 
 const WorkerNavbar = ({ modalOpen }) => {
-  const { signOut, user } = useAuth();
   const navigate = useNavigate();
+  const auth = useAuth();
+  
+  // Handle case where auth context might not be available
+  if (!auth) {
+    return (
+      <header className="wrk-dashboard-header">
+        <div className="wrk-dashboard-header-content">
+          <div className="wrk-dashboard-logo-wrapper" onClick={() => navigate('/dashboard')}>
+            <img 
+              src={LogoImg} 
+              alt="Aecus Care Logo" 
+              className="wrk-dashboard-logo-image"
+            />
+          </div>
+          <div className="wrk-dashboard-user-actions">
+            <div className="wrk-dashboard-user-info">
+              <span className="wrk-dashboard-user-name">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </header>
+    );
+  }
+  
+  const { signOut, user } = auth;
   const isGoogleUser = localStorage.getItem('auth_provider') === 'google';
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -36,6 +61,14 @@ const WorkerNavbar = ({ modalOpen }) => {
               {user?.firstName} {user?.lastName}
             </span>
           </div>
+          
+          {/* Notification Badge - Moved to Sidebar */}
+          {/* <div className="wrk-dashboard-notifications">
+            <NotificationBadge 
+              onNavigateToNotifications={() => navigate('/notifications')}
+            />
+          </div> */}
+          
           <div className="wrk-dashboard-user-menu">
             {!modalOpen && (
               <button

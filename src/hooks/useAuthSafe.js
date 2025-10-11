@@ -1,22 +1,19 @@
-// src/hooks/useAuth.js
 import { useContext, useCallback } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import * as authAPI from '../api/auth';
 import { hasValidAuth } from '../utils/storage';
 
 /**
- * Custom hook to access authentication context with enhanced functionality
- * @returns {Object} Auth context with additional utility methods
+ * Safe version of useAuth hook that handles cases where AuthProvider might not be available
+ * @returns {Object} Auth context with additional utility methods or null if not available
  */
-export const useAuth = () => {
+export const useAuthSafe = () => {
   const context = useContext(AuthContext);
   
+  // Return null instead of throwing error if context is not available
   if (!context) {
-    // In development, throw error to help with debugging
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('useAuth: AuthProvider not found. This component should be wrapped in AuthProvider.');
-    }
-    throw new Error('useAuth must be used within an AuthProvider');
+    console.warn('useAuthSafe: AuthProvider not found. This component should be wrapped in AuthProvider.');
+    return null;
   }
   
   /**
@@ -83,4 +80,4 @@ export const useAuth = () => {
   };
 };
 
-export default useAuth;
+export default useAuthSafe;

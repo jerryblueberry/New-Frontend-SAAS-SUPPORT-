@@ -1,6 +1,8 @@
 import React from "react";
 import PropTypes from "prop-types";
 import BookmarkIcon from '@mui/icons-material/Bookmark';
+import {format} from 'date-fns';
+
 import {
   Box,
   Card,
@@ -469,7 +471,7 @@ const WorkerDetailTabContent = ({
               </Typography>
             </Box>
             <Box sx={{
-              minWidth: 120,
+              // minWidth: 120,
               bgcolor: 'action.hover',
               borderRadius: 1,
               p: 1.5,
@@ -479,13 +481,13 @@ const WorkerDetailTabContent = ({
                 DURATION
               </Typography>
               <Typography variant="body2" fontWeight={500}>
-                {job.startDate}
+              {format(new Date(job?.startDate), "PPP")}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 to
               </Typography>
               <Typography variant="body2" fontWeight={500}>
-                {job.endDate || "Present"}
+                {job?.endDate || "Present"}
               </Typography>
             </Box>
           </Stack>

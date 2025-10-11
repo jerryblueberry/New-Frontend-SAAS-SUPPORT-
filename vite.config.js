@@ -1,9 +1,21 @@
 // vite.config.js
 import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    // Use built-in React support without external plugin
+    {
+      name: 'react',
+      transform(code, id) {
+        if (id.endsWith('.jsx') || id.endsWith('.tsx')) {
+          return {
+            code: code,
+            map: null
+          }
+        }
+      }
+    }
+  ],
   build: {
     target: 'esnext', // Ensures modern browser compatibility
     rollupOptions: {
@@ -19,4 +31,8 @@ export default defineConfig({
       crypto: false,
     },
   },
+  esbuild: {
+    jsx: 'automatic',
+    jsxImportSource: 'react'
+  }
 })
