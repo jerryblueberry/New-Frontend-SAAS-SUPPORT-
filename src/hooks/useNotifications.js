@@ -29,7 +29,9 @@ export const useNotifications = (params = {}) => {
     since = null,
     sortBy = 'createdAt',
     sortOrder = 'desc',
-    enabled = true
+    enabled = true,
+    refetchInterval = false,
+    refetchOnWindowFocus = true
   } = params;
 
   return useQuery({
@@ -52,17 +54,22 @@ export const useNotifications = (params = {}) => {
       sortOrder
     }),
     enabled,
-    staleTime: 30000, // 30 seconds
+    staleTime: 10000, // 10 seconds - more frequent updates
     cacheTime: 300000, // 5 minutes
-    refetchOnWindowFocus: true,
-    refetchOnMount: true
+    refetchOnWindowFocus,
+    refetchOnMount: true,
+    refetchInterval, // Support polling interval
+    refetchIntervalInBackground: false
   });
 };
 
-// Hook for unread count
+// Hook for unread count with optimized real-time updates
 export const useUnreadCount = (options = {}) => {
   const {
-    refetchInterval = 30000, // 30 seconds
+    refetchInterval = 30000, // 30 seconds default
+    refetchIntervalInBackground = true,
+    refetchOnWindowFocus = true,
+    refetchOnMount = true,
     enabled = true
   } = options;
 
@@ -73,9 +80,11 @@ export const useUnreadCount = (options = {}) => {
     queryFn: notificationAPI.getUnreadCount,
     enabled,
     refetchInterval,
-    refetchIntervalInBackground: true,
-    staleTime: 0, // Always consider stale
-    cacheTime: 0, // Don't cache
+    refetchIntervalInBackground,
+    refetchOnWindowFocus,
+    refetchOnMount,
+    staleTime: 0, // Always consider stale for real-time updates
+    cacheTime: 60000, // Cache for 1 minute
     onSuccess: (data) => {
       setUnreadCount(data.data.unreadCount);
       setLastChecked(new Date());
@@ -180,7 +189,7 @@ export const useNotificationsByType = (type, params = {}) => {
   });
 };
 
-// Mutation hooks
+// Mutation hooks - Mark single notification as read (silent, no toast)
 export const useMarkAsRead = () => {
   const queryClient = useQueryClient();
   const { decrementUnreadCount, updateRecentNotification } = useNotificationStore();
@@ -188,7 +197,7 @@ export const useMarkAsRead = () => {
   return useMutation({
     mutationFn: notificationAPI.markAsRead,
     onSuccess: (data, notificationId) => {
-      // Invalidate related queries
+      // Invalidate related queries for UI update
       queryClient.invalidateQueries(notificationKeys.unreadCount());
       queryClient.invalidateQueries(notificationKeys.recent());
       queryClient.invalidateQueries(notificationKeys.lists());
@@ -197,10 +206,11 @@ export const useMarkAsRead = () => {
       decrementUnreadCount();
       updateRecentNotification(notificationId, { read: true, readAt: new Date() });
       
-      toast.success('Notification marked as read');
+      // No toast for individual mark as read (better UX)
     },
     onError: (error) => {
-      toast.error(error.message || 'Failed to mark notification as read');
+      // Only show error toast if there's an actual error
+      console.error('Failed to mark notification as read:', error);
     }
   });
 };

@@ -118,9 +118,21 @@ const DashboardSidebar = ({
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Fetch unread notification count using the new hook
-  const { data: unreadData } = useUnreadCount();
+  // Fetch unread notification count with optimized polling interval
+  const { data: unreadData, refetch: refetchUnreadCount } = useUnreadCount({
+    refetchInterval: 15000, // Poll every 15 seconds for real-time updates
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true
+  });
   const unreadCount = unreadData?.data?.unreadCount || 0;
+
+  // Refetch unread count when user navigates to notifications
+  useEffect(() => {
+    if (location.pathname === '/notifications') {
+      refetchUnreadCount();
+    }
+  }, [location.pathname, refetchUnreadCount]);
 
   // Determine current active tab based on location
   const getCurrentActiveTab = () => {
