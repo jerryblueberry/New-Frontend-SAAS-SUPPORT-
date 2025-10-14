@@ -54,9 +54,14 @@ import {
     Description,
     Image
 } from '@mui/icons-material';
+import DeleteOutline from '@mui/icons-material/DeleteOutline';
 import { useNavigate } from 'react-router-dom';
+import { deleteOtherCertificationById } from '../../../../api/axios';
+import { message, Modal } from 'antd';
 // removed unused import `color` from framer-motion
 import CertificationCardDashboard from './CertificationCardDashboard';
+import CertificationEditorDrawer from '../../../certifications/CertificationEditorDrawer';
+import OtherCertificationEditorDrawer from '../../../certifications/OtherCertificationEditorDrawer';
 
 const DashboardCertification = ({ onboardingData }) => {
     const theme = useTheme();
@@ -68,8 +73,13 @@ const DashboardCertification = ({ onboardingData }) => {
     const [selectedDocument, setSelectedDocument] = useState(null);
     const [selectedCertificate, setSelectedCertificate] = useState(null);
     const [activeTab, setActiveTab] = useState(0);
+    const [editorOpen, setEditorOpen] = useState(false);
+    const [editorTypeId, setEditorTypeId] = useState(null);
+    const [otherEditorOpen, setOtherEditorOpen] = useState(false);
+    const [otherEditorId, setOtherEditorId] = useState(null);
 
     const certifications = onboardingData?.data?.profile?.certifications || [];
+    console.log('Certifications:', certifications);
     const otherCertifications = onboardingData?.data?.profile?.otherCertifications || [];
 
     // Derived datasets for tabs
@@ -218,9 +228,59 @@ const DashboardCertification = ({ onboardingData }) => {
                                     )}
                                 </Stack>
                             </Box>
-                            <IconButton size="small">
-                                {expanded ? <ExpandLess /> : <ExpandMore />}
-                            </IconButton>
+                            <Stack direction="row" spacing={0.5} alignItems="center">
+                                {/* Mobile edit/delete action bar */}
+                                {(type === 'other' || ['rejected','expired','pending'].includes((cert.verificationStatus||'').toLowerCase())) && (
+                                  <Tooltip title="Edit">
+                                    <IconButton
+                                      size="small"
+                                      onClick={(e)=>{
+                                        e.stopPropagation();
+                                        if (type === 'professional') {
+                                          const typeId = cert?.certificationType?._id || cert?.certificationType;
+                                          if (typeId) { setEditorTypeId(typeId); setEditorOpen(true); }
+                                        } else {
+                                          const oid = cert?._id || cert?.id;
+                                          if (oid) { setOtherEditorId(oid); setOtherEditorOpen(true); }
+                                        }
+                                      }}
+                                      sx={{ bgcolor: alpha(theme.palette.primary.main, 0.08), color: theme.palette.primary.main, '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.15) } }}
+                                    >
+                                      <Edit fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                                {type === 'other' && (cert.verificationStatus||'').toLowerCase() !== 'verified' && (
+                                  <Tooltip title="Delete">
+                                    <IconButton
+                                      size="small"
+                                      onClick={async (e)=>{
+                                        e.stopPropagation();
+                                        const oid = cert?._id || cert?.id;
+                                        if (!oid) return;
+                                        const confirmed = window.confirm('This will permanently delete the certification and its documents. Continue?');
+                                        if (!confirmed) return;
+                                        try {
+                                          const hide = message.loading('Deleting certification...', 0);
+                                          const res = await deleteOtherCertificationById(oid);
+                                          hide();
+                                          message.success(res?.data?.message || 'Certification deleted');
+                                          const evt = typeof window.CustomEvent === 'function' ? new CustomEvent('onboarding:refresh') : (function(){ const ev = document.createEvent('Event'); ev.initEvent('onboarding:refresh', true, true); return ev; })();
+                                          window.dispatchEvent(evt);
+                                        } catch (err) {
+                                          message.error(err?.response?.data?.message || 'Failed to delete certification');
+                                        }
+                                      }}
+                                      sx={{ bgcolor: alpha(theme.palette.error.main, 0.08), color: theme.palette.error.main, '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.15) } }}
+                                    >
+                                      <DeleteOutline fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                                <IconButton size="small">
+                                  {expanded ? <ExpandLess /> : <ExpandMore />}
+                                </IconButton>
+                            </Stack>
                         </Stack>
                     </CardContent>
                 </CardActionArea>
@@ -481,19 +541,62 @@ const DashboardCertification = ({ onboardingData }) => {
                                         <TableCell>
                                             <Stack direction="row" spacing={1}>
                                                 {/* Edit button - only show for rejected or expired */}
-                                                {(cert.verificationStatus?.toLowerCase() === 'rejected' || cert.verificationStatus?.toLowerCase() === 'expired') && (
+                                                {(type === 'other' || cert.verificationStatus?.toLowerCase() === 'rejected' || cert.verificationStatus?.toLowerCase() === 'expired' || cert.verificationStatus?.toLowerCase() === 'pending') && (
                                                     <Tooltip title="Edit">
                                                         <IconButton 
                                                             size="small" 
                                                             color="primary"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                alert('Edit functionality is still being worked on. Coming soon!');
+                                                                if (type === 'professional') {
+                                                                  const typeId = cert?.certificationType?._id || cert?.certificationType;
+                                                                  if (typeId) { setEditorTypeId(typeId); setEditorOpen(true); }
+                                                                } else {
+                                                                  const oid = cert?._id || cert?.id;
+                                                                  if (oid) { setOtherEditorId(oid); setOtherEditorOpen(true); }
+                                                                }
                                                             }}
                                                         >
                                                             <Edit fontSize="small" />
                                                         </IconButton>
                                                     </Tooltip>
+                                                )}
+                                                {/* Delete for other certifications if not verified */}
+                                                {type === 'other' && cert.verificationStatus?.toLowerCase() !== 'verified' && (
+                                                  <Tooltip title="Delete">
+                                                    <IconButton
+                                                      size="small"
+                                                      color="error"
+                                                      onClick={async (e)=>{
+                                                        e.stopPropagation();
+                                                        const oid = cert?._id || cert?.id;
+                                                        if (!oid) return;
+                                                        Modal.confirm({
+                                                          title: 'Delete Other Certification?',
+                                                          content: 'This will permanently delete this certification and all associated documents from cloud storage.',
+                                                          okText: 'Delete',
+                                                          okType: 'danger',
+                                                          cancelText: 'Cancel',
+                                                          onOk: async () => {
+                                                            try {
+                                                              const hide = message.loading('Deleting certification...', 0);
+                                                              const res = await deleteOtherCertificationById(oid);
+                                                              hide();
+                                                              message.success(res?.data?.message || 'Certification deleted');
+                                                              const evt = typeof window.CustomEvent === 'function'
+                                                                ? new CustomEvent('onboarding:refresh')
+                                                                : (function(){ const ev = document.createEvent('Event'); ev.initEvent('onboarding:refresh', true, true); return ev; })();
+                                                              window.dispatchEvent(evt);
+                                                            } catch (err) {
+                                                              message.error(err?.response?.data?.message || 'Failed to delete certification');
+                                                            }
+                                                          }
+                                                        });
+                                                      }}
+                                                    >
+                                                      <Cancel fontSize="small" />
+                                                    </IconButton>
+                                                  </Tooltip>
                                                 )}
                                                 {isExpanded ? <ExpandLess /> : <ExpandMore />}
                                             </Stack>
@@ -809,13 +912,17 @@ const DashboardCertification = ({ onboardingData }) => {
                                     />
 
                                     {/* Edit button - only show for rejected or expired */}
-                                    {(cert.verificationStatus?.toLowerCase() === 'rejected' || cert.verificationStatus?.toLowerCase() === 'expired') && (
+                                    {(cert.verificationStatus?.toLowerCase() === 'rejected' || cert.verificationStatus?.toLowerCase() === 'expired' || cert.verificationStatus?.toLowerCase() === 'pending') && (
                                         <IconButton
                                             size="small"
                                             className="edit-button"
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                alert('Edit functionality is still being worked on. Coming soon!');
+                                                const typeId = cert?.certificationType?._id || cert?.certificationType;
+                                                if (typeId) {
+                                                  setEditorTypeId(typeId);
+                                                  setEditorOpen(true);
+                                                }
                                             }}
                                             sx={{
                                                 opacity: 0,
@@ -1369,9 +1476,21 @@ const DashboardCertification = ({ onboardingData }) => {
             <TabPanel value={activeTab} index={1}>
               {otherCertifications.length > 0 ? (
                 isDesktop ? (
-                  <DesktopCertificationTable certifications={otherCertifications} type="other" />
+                  <>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                      <Button variant="contained" size="small" startIcon={<Add />} onClick={() => { setOtherEditorId(null); setOtherEditorOpen(true); }}>
+                        Add New Certification
+                      </Button>
+                    </Box>
+                    <DesktopCertificationTable certifications={otherCertifications} type="other" />
+                  </>
                 ) : (
                   <Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                      <Button variant="contained" size="small" startIcon={<Add />} onClick={() => { setOtherEditorId(null); setOtherEditorOpen(true); }}>
+                        Add New Certification
+                      </Button>
+                    </Box>
                     {otherCertifications.map((cert, index) => (
                       <MobileCertificationCard
                         key={cert.id || cert._id || index}
@@ -1383,7 +1502,14 @@ const DashboardCertification = ({ onboardingData }) => {
                   </Box>
                 )
               ) : (
-                <EmptyState type="other" />
+                <>
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                    <Button variant="contained" size="small" startIcon={<Add />} onClick={() => { setOtherEditorId(null); setOtherEditorOpen(true); }}>
+                      Add New Certification
+                    </Button>
+                  </Box>
+                  <EmptyState type="other" />
+                </>
               )}
             </TabPanel>
             <TabPanel value={activeTab} index={2}>
@@ -1449,6 +1575,41 @@ const DashboardCertification = ({ onboardingData }) => {
             certificateData={selectedCertificate}
           />
         )}
+
+        {/* Certification Editor Drawer */}
+        <CertificationEditorDrawer
+          open={editorOpen}
+          typeId={editorTypeId}
+          onClose={() => setEditorOpen(false)}
+          onSaved={() => {
+            // refetch onboarding data page if available
+            try {
+              const evt = typeof window.CustomEvent === 'function'
+                ? new CustomEvent('onboarding:refresh')
+                : (function(){ const e = document.createEvent('Event'); e.initEvent('onboarding:refresh', true, true); return e; })();
+              window.dispatchEvent(evt);
+            } catch (_e) {
+              // swallow
+            }
+          }}
+        />
+
+        {/* Other Certification Editor Drawer */}
+        <OtherCertificationEditorDrawer
+          open={otherEditorOpen}
+          id={otherEditorId}
+          mode={otherEditorId ? 'edit' : 'create'}
+          onClose={() => setOtherEditorOpen(false)}
+          onSaved={(saved) => {
+            // Optimistically update onboardingData cert list if available
+            try {
+              const evt = typeof window.CustomEvent === 'function'
+                ? new CustomEvent('onboarding:refresh')
+                : (function(){ const e = document.createEvent('Event'); e.initEvent('onboarding:refresh', true, true); return e; })();
+              window.dispatchEvent(evt);
+            } catch (_) {}
+          }}
+        />
       </Container>
       
     );

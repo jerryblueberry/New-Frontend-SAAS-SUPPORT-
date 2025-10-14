@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Form, Select, Input, Button, Card, Tag } from 'antd';
+import { Form, Select, Input, Button, Card, Tag, message } from 'antd';
 import { TagOutlined, PlusOutlined, EditOutlined } from '@ant-design/icons';
 
 const RenderEducationFields = ({
@@ -17,12 +17,11 @@ const RenderEducationFields = ({
   const degreeOptions = certType.educationSetting?.degreeOptions || [];
   const allDegreeOptions = [...degreeOptions, 'Other'];
 
-  // Handler for degree change
+  // Handler for degree change (two-field model: degreeSelect display + hidden degree value)
   const handleDegreeChange = (value) => {
     if (value === 'Other') {
       setShowCustomDegree(true);
-      // Set the form value to "Other" when user selects Other
-      certForm.setFieldsValue({ degree: 'Other' });
+      certForm.setFieldsValue({ degreeSelect: 'Other', degree: 'Other' });
       setTimeout(() => {
         if (customDegreeInputRef.current) customDegreeInputRef.current.focus();
         if (degreeSelectRef.current) {
@@ -36,7 +35,7 @@ const RenderEducationFields = ({
     } else {
       setShowCustomDegree(false);
       setCustomDegreeValue('');
-      certForm.setFieldsValue({ degree: value });
+      certForm.setFieldsValue({ degreeSelect: value, degree: value });
       setTimeout(() => {
         // Blur the Select after value is chosen
         if (degreeSelectRef.current) {
@@ -61,9 +60,10 @@ const RenderEducationFields = ({
   const handleSaveCustomDegree = () => {
     if (customDegreeValue.trim()) {
       // Store the full custom value in the form
-      certForm.setFieldsValue({ degree: `Other|${customDegreeValue.trim()}` });
+      certForm.setFieldsValue({ degreeSelect: 'Other', degree: `Other|${customDegreeValue.trim()}` });
       setShowCustomDegree(false);
       setCustomDegreeValue('');
+      message.success('Custom degree saved');
       
       // Focus management - move focus back to the Select
       setTimeout(() => {
@@ -87,7 +87,11 @@ const RenderEducationFields = ({
 
   // Handler for canceling custom degree
   const handleCancelCustomDegree = () => {
-    certForm.setFieldsValue({ degree: undefined });
+    // Revert select to previous non-custom value if any, otherwise clear
+    const current = certForm.getFieldValue('degree');
+    if (typeof current === 'string' && current.startsWith('Other|')) {
+      certForm.setFieldsValue({ degreeSelect: undefined, degree: undefined });
+    }
     setShowCustomDegree(false);
     setCustomDegreeValue('');
     
@@ -123,6 +127,8 @@ const RenderEducationFields = ({
       console.log('✏️ Edit handler - Setting custom value:', customText);
       setCustomDegreeValue(customText);
       setShowCustomDegree(true);
+      // Ensure select shows Other while editing
+      certForm.setFieldsValue({ degreeSelect: 'Other', degree: `Other|${customText}` });
       setTimeout(() => {
         if (customDegreeInputRef.current) customDegreeInputRef.current.focus();
       }, 0);
@@ -132,7 +138,17 @@ const RenderEducationFields = ({
   // Handler for removing custom degree
   const handleRemoveCustomDegree = () => {
     console.log('🗑️ Remove handler - Clearing degree value');
-    certForm.setFieldsValue({ degree: undefined });
+    certForm.setFieldsValue({ degreeSelect: undefined, degree: undefined });
+    setShowCustomDegree(false);
+    setCustomDegreeValue('');
+    message.success('Custom degree removed');
+    setTimeout(() => {
+      if (degreeSelectRef.current) {
+        const select = degreeSelectRef.current;
+        if (select.blur) select.blur();
+        if (select.input && select.input.blur) select.input.blur();
+      }
+    }, 0);
   };
 
   // Function to parse backend data and separate "Other" from custom value
@@ -231,6 +247,7 @@ const RenderEducationFields = ({
     <>
       {/* Degree Selection */}
       <Form.Item
+        name="degreeSelect"
         label="Degree"
         rules={[{ required: true, message: 'Please select or enter your degree' }]}
         tooltip="Select your qualification from the list. If not listed, choose 'Other'."
@@ -244,10 +261,15 @@ const RenderEducationFields = ({
             option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
           }
           onChange={handleDegreeChange}
-          value={selectDisplayValue}
           optionLabelProp="label"
           dropdownRender={menu => menu}
           dropdownMatchSelectWidth={false}
+          allowClear
+          onClear={() => {
+            setShowCustomDegree(false);
+            setCustomDegreeValue('');
+            certForm.setFieldsValue({ degreeSelect: undefined, degree: undefined });
+          }}
           onBlur={() => {
             // This helps ensure the Select loses focus when clicking outside
             setTimeout(() => {
@@ -268,6 +290,10 @@ const RenderEducationFields = ({
       
       {/* Hidden field to store the actual degree value */}
       <Form.Item name="degree" hidden>
+        <Input />
+      </Form.Item>
+      {/* Visible select model value to keep UI in sync */}
+      <Form.Item name="degreeSelect" hidden>
         <Input />
       </Form.Item>
 

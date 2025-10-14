@@ -22,8 +22,8 @@ window.addEventListener('offline', () => {
 
 // Create API instance with enhanced settings
 const api = axios.create({
-  // baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',               
-  baseURL: import.meta.env.VITE_API_URL || 'https://backend-for-the-saas-short-job-finder.vercel.app/api/v1',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',               
+  // baseURL: import.meta.env.VITE_API_URL || 'https://backend-for-the-saas-short-job-finder.vercel.app/api/v1',
   withCredentials: true,
   timeout: 30000, // Increased timeout for better reliability
   headers: {
@@ -203,3 +203,11 @@ api.interceptors.response.use(
 );
 
 export default api;
+// Certification edit helpers (best-practice thin wrappers)
+export const fetchCertificationByType = (typeId) => api.get(`/onboarding/certifications/${typeId}`);
+export const updateCertificationByType = (typeId, payload) => api.put(`/onboarding/certifications/${typeId}`, payload);
+// Other certifications helpers
+export const fetchOtherCertificationById = (id) => api.get(`/onboarding/other-certifications/${id}`);
+export const updateOtherCertificationById = (id, payload) => api.put(`/onboarding/other-certifications/${id}`, payload);
+export const createOtherCertification = (payload) => api.post(`/onboarding/other-certifications`, payload);
+export const deleteOtherCertificationById = (id) => api.delete(`/onboarding/other-certifications/${id}`);
