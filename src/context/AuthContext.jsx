@@ -152,15 +152,25 @@ const AuthProvider = ({ children }) => {
     const verifyAuth = async (retryCount = 0) => {
       try {
         const accessToken = getAccessToken();
-        const refreshToken = getRefreshToken();
 
-        if (!accessToken && !refreshToken) {
-          handleAuthExpired();
-          return;
+        if (!accessToken) {
+          // No access token, try to refresh using cookies
+          try {
+            await checkAndRefreshToken();
+            const userResponse = await api.get('/auth/me');
+            dispatch({ 
+              type: 'AUTH_SUCCESS', 
+              payload: userResponse.data.data.user 
+            });
+            return;
+          } catch (refreshError) {
+            handleAuthExpired();
+            return;
+          }
         }
 
         // Verify current token
-        if (accessToken && isTokenValid(accessToken)) {
+        if (isTokenValid(accessToken)) {
           try {
             const userResponse = await api.get('/auth/me');
             dispatch({ 
@@ -170,14 +180,17 @@ const AuthProvider = ({ children }) => {
             return;
           } catch (error) {
             if (error.response?.status === 401) {
-              // Token is invalid, try refresh
-              if (refreshToken) {
-                await refreshAuthToken();
+              // Token is invalid, try to refresh using cookies
+              try {
+                await checkAndRefreshToken();
                 const userResponse = await api.get('/auth/me');
                 dispatch({ 
                   type: 'AUTH_SUCCESS', 
                   payload: userResponse.data.data.user 
                 });
+                return;
+              } catch (refreshError) {
+                handleAuthExpired();
                 return;
               }
             }
@@ -185,7 +198,19 @@ const AuthProvider = ({ children }) => {
           }
         }
 
-        handleAuthExpired();
+        // Access token is expired, try to refresh using cookies
+        try {
+          await checkAndRefreshToken();
+          const userResponse = await api.get('/auth/me');
+          dispatch({ 
+            type: 'AUTH_SUCCESS', 
+            payload: userResponse.data.data.user 
+          });
+          return;
+        } catch (refreshError) {
+          handleAuthExpired();
+          return;
+        }
       } catch (error) {
         console.error('Auth verification error:', error);
         
@@ -242,9 +267,7 @@ const AuthProvider = ({ children }) => {
       if (credentials?.accessToken || skipApiCall) {
         if (credentials?.accessToken) {
           setAccessToken(credentials.accessToken, credentials.expiresIn);
-          if (credentials.refreshToken) {
-            setRefreshToken(credentials.refreshToken);
-          }
+          // Note: refresh token is managed by backend in cookies, no need to store in localStorage
           
           if (isGoogleUser) {
             setAuthProvider('google');
@@ -265,7 +288,7 @@ const AuthProvider = ({ children }) => {
       
       if (response.data?.data?.accessToken) {
         setAccessToken(response.data.data.accessToken, response.data.data.expiresIn);
-        setRefreshToken(response.data.data.refreshToken);
+        // Note: refresh token is managed by backend in cookies, no need to store in localStorage
         setAuthProvider('email');
       }
       

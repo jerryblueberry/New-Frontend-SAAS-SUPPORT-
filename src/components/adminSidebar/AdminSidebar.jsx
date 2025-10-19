@@ -158,10 +158,10 @@ const AdminSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
       id: 'Reference',
       label: 'Reference',
       icon: <Analytics />,
-      badge: 'New',
+      // badge: 'New',
       children: [
        
-        { id: 'reports', label: 'Reports', icon: <Assignment />, path: '/analytics/reports' },
+        { id: 'allReferences', label: 'All References', icon: <Assignment />, path: '/admin/all-references' },
         { id: 'insights', label: 'Insights', icon: <Speed />, path: '/analytics/insights' }
       ]
     },
@@ -183,6 +183,15 @@ const AdminSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
         { id: 'all-timesheets', label: 'View All TimeSheets', icon: <LockClock />, path: '/time-sheets' },
         // { id: 'inventory', label: 'Inventory', icon: <Storage />, path: '/products/inventory' },
         // { id: 'categories', label: 'Categories', icon: <Category />, path: '/products/categories' }
+      ]
+    },
+    {
+      id: 'documents',
+      label: 'Document Management',
+      icon: <Storage />,
+      children: [
+        { id: 'cloudinary-documents', label: 'Cloudinary Documents', icon: <CloudSync />, path: '/admin/cleanup-documents' },
+        // { id: 'document-tracking', label: 'Document Tracking', icon: <Description />, path: '/admin/document-tracking' }
       ]
     },
     {

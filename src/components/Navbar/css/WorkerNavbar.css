@@ -92,6 +92,15 @@
   text-transform: uppercase;
 }
 
+/* Avatar image inside button */
+.wrk-dashboard-user-avatar-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 /* Dropdown Menu Styles */
 .wrk-dashboard-dropdown-menu {
   position: absolute;
@@ -124,6 +133,15 @@
   font-weight: 600;
   font-size: 1.25rem;
   text-transform: uppercase;
+}
+
+/* Avatar image inside dropdown */
+.wrk-dashboard-dropdown-avatar-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .wrk-dashboard-dropdown-user-info {

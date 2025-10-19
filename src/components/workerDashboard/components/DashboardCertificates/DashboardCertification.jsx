@@ -58,6 +58,7 @@ import DeleteOutline from '@mui/icons-material/DeleteOutline';
 import { useNavigate } from 'react-router-dom';
 import { deleteOtherCertificationById } from '../../../../api/axios';
 import { message, Modal } from 'antd';
+import { ExclamationCircleOutlined } from '@ant-design/icons';
 // removed unused import `color` from framer-motion
 import CertificationCardDashboard from './CertificationCardDashboard';
 import CertificationEditorDrawer from '../../../certifications/CertificationEditorDrawer';
@@ -573,10 +574,25 @@ const DashboardCertification = ({ onboardingData }) => {
                                                         if (!oid) return;
                                                         Modal.confirm({
                                                           title: 'Delete Other Certification?',
-                                                          content: 'This will permanently delete this certification and all associated documents from cloud storage.',
+                                                          icon: <ExclamationCircleOutlined style={{ color: theme.palette.error.main }} />,
+                                                          content: (
+                                                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                                                              This action will permanently delete this certification and all associated documents from cloud storage.
+                                                            </Typography>
+                                                          ),
                                                           okText: 'Delete',
                                                           okType: 'danger',
                                                           cancelText: 'Cancel',
+                                                          centered: true,
+                                                          maskClosable: true,
+                                                          width: isMobile ? 360 : 480,
+                                                          okButtonProps: {
+                                                            danger: true,
+                                                            style: isMobile ? { minWidth: '100%' } : {}
+                                                          },
+                                                          cancelButtonProps: {
+                                                            style: isMobile ? { minWidth: '100%' } : {}
+                                                          },
                                                           onOk: async () => {
                                                             try {
                                                               const hide = message.loading('Deleting certification...', 0);

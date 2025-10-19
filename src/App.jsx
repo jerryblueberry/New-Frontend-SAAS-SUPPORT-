@@ -43,8 +43,8 @@ import MyCertifications from './pages/WorkerDasboardPages/MyCertifications';
 import WorkHistory from './pages/WorkerDasboardPages/WorkHistory';
 import Overview from './pages/WorkerDasboardPages/Overview';
 import WorkerNotification from './pages/WorkerNotifications/WorkerNotification';
-
-
+import ViewAllDocuments from './pages/AdminPages/CloudinaryDocuments/ViewAllDocuments';
+import ViewAllReference from './pages/AdminPages/ReferenceSection/ViewAllReference/ViewAllReference';
 
 
 // Create React Query client with optimized settings
@@ -294,6 +294,22 @@ function AppRoutes() {
           <PrivateRoute>
             <WorkerNotification/>
           </PrivateRoute>
+        }
+        />
+
+        {/*  FOr admin cleanup the documents and cloduianry related cleanup */}
+        <Route path='/admin/cleanup-documents' element = {
+          <AdminRoute>
+            <ViewAllDocuments/>
+          </AdminRoute>
+        }
+        />
+
+        {/*  View All Referebnces Page */}
+        <Route path='/admin/all-references' element = {
+          <AdminRoute>
+            <ViewAllReference/>
+          </AdminRoute>
         }
         />
 

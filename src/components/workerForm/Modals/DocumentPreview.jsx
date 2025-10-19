@@ -16,7 +16,13 @@ const DocumentPreview = ({ document, onClose, certificateData }) => {
   const isImage = document?.fileType?.includes('image');
   const encodedUrl = document?.url?.replace(/\(/g, '%28').replace(/\)/g, '%29').replace(/ /g, '%20');
   const isDesktop = useMediaQuery('(min-width:768px)');
-  console.log('Certifiacate Data',certificateData)
+  
+  console.log('DocumentPreview - Document:', document);
+  console.log('DocumentPreview - isPdf:', isPdf);
+  console.log('DocumentPreview - isImage:', isImage);
+  console.log('DocumentPreview - fileType:', document?.fileType);
+  console.log('DocumentPreview - URL:', document?.url);
+  console.log('Certificate Data:', certificateData);
 
   // Handle ESC key press to close modal
   useEffect(() => {
@@ -45,12 +51,15 @@ const DocumentPreview = ({ document, onClose, certificateData }) => {
     }
   }, [document]);
 
-  // For PDFs, set up timeout to detect loading failures
+  // For PDFs and Images, set up timeout to detect loading failures
   useEffect(() => {
-    if (isPdf && isLoading) {
+    if ((isPdf || isImage) && isLoading) {
       pdfLoadTimeoutRef.current = setTimeout(() => {
         if (isLoading) {
-          setPdfViewerFailed(true);
+          console.log('Loading timeout reached'); // Debug log
+          if (isPdf) {
+            setPdfViewerFailed(true);
+          }
           setIsLoading(false);
         }
       }, 8000);
@@ -61,9 +70,10 @@ const DocumentPreview = ({ document, onClose, certificateData }) => {
         clearTimeout(pdfLoadTimeoutRef.current);
       }
     };
-  }, [isPdf, isLoading]);
+  }, [isPdf, isImage, isLoading]);
   
   const handleContentLoad = () => {
+    console.log('Content loaded successfully'); // Debug log
     if (pdfLoadTimeoutRef.current) {
       clearTimeout(pdfLoadTimeoutRef.current);
     }
@@ -71,11 +81,17 @@ const DocumentPreview = ({ document, onClose, certificateData }) => {
   };
 
   const handlePdfError = () => {
+    console.log('PDF load error'); // Debug log
     setPdfViewerFailed(true);
     setIsLoading(false);
     if (pdfLoadTimeoutRef.current) {
       clearTimeout(pdfLoadTimeoutRef.current);
     }
+  };
+
+  const handleImageError = () => {
+    console.log('Image load error'); // Debug log
+    setIsLoading(false);
   };
   
   // Zoom control functions
@@ -348,6 +364,7 @@ const DocumentPreview = ({ document, onClose, certificateData }) => {
                   src={document.url} 
                   alt={document.fileName}
                   onLoad={handleContentLoad}
+                  onError={handleImageError}
                   className="doc-preview__image"
                 />
               </div>

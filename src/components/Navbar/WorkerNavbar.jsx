@@ -8,7 +8,7 @@ import './css/WorkerNavbar.css';
 const WorkerNavbar = ({ modalOpen }) => {
   const navigate = useNavigate();
   const auth = useAuth();
-  
+  console.log('auth from navbar', auth);
   // Handle case where auth context might not be available
   if (!auth) {
     return (
@@ -78,8 +78,18 @@ const WorkerNavbar = ({ modalOpen }) => {
                 aria-expanded={isMenuOpen}
               >
                 <div className="wrk-dashboard-user-avatar">
-                  {user?.firstName?.[0]}
-                  {user?.lastName?.[0]}
+                  {user?.profilePicture || user?.profilepicture ? (
+                    <img
+                      src={user.profilePicture || user.profilepicture}
+                      alt={`${user?.firstName} ${user?.lastName}`}
+                      className="wrk-dashboard-user-avatar-image"
+                    />
+                  ) : (
+                    <>
+                      {user?.firstName?.[0]}
+                      {user?.lastName?.[0]}
+                    </>
+                  )}
                 </div>
               </button>
             )}
@@ -87,8 +97,18 @@ const WorkerNavbar = ({ modalOpen }) => {
               <div className="wrk-dashboard-dropdown-menu">
                 <div className="wrk-dashboard-dropdown-header">
                   <div className="wrk-dashboard-dropdown-avatar">
-                    {user?.firstName?.[0]}
-                    {user?.lastName?.[0]}
+                    {user?.profilePicture || user?.profilepicture ? (
+                      <img
+                        src={user.profilePicture || user.profilepicture}
+                        alt={`${user?.firstName} ${user?.lastName}`}
+                        className="wrk-dashboard-dropdown-avatar-image"
+                      />
+                    ) : (
+                      <>
+                        {user?.firstName?.[0]}
+                        {user?.lastName?.[0]}
+                      </>
+                    )}
                   </div>
                   <div className="wrk-dashboard-dropdown-user-info">
                     <span className="wrk-dashboard-dropdown-name">

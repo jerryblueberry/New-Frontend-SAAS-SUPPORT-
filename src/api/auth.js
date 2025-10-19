@@ -25,7 +25,7 @@ export const register = async(userData) => {
     
     if (response.data?.data?.accessToken) {
       setAccessToken(response.data.data.accessToken, response.data.data.expiresIn);
-      setRefreshToken(response.data.data.refreshToken);
+      // Note: refresh token is managed by backend in cookies, no need to store in localStorage
       setAuthProvider('email');
       window.dispatchEvent(new Event('auth:login'));
     }
@@ -48,7 +48,7 @@ export const login = async (credentials) => {
   
     if (response.data?.data?.accessToken) {
       setAccessToken(response.data.data.accessToken, response.data.data.expiresIn);
-      setRefreshToken(response.data.data.refreshToken);
+      // Note: refresh token is managed by backend in cookies, no need to store in localStorage
       setAuthProvider('email');
       window.dispatchEvent(new Event('auth:login'));
     }
@@ -68,21 +68,13 @@ export const login = async (credentials) => {
  * @returns {Promise<string>} New access token
  */
 export const refreshAuthToken = async (retryCount = 0) => {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) {
-    throw new Error('No refresh token available');
-  }
-  
   try {
-    const response = await api.post('/auth/refresh-token', { 
-      refreshToken: refreshToken
-    });
+    // Cookie-based refresh - refresh token is automatically sent in cookies
+    const response = await api.post('/auth/refresh-token');
     
     if (response.data?.data?.accessToken) {
       setAccessToken(response.data.data.accessToken, response.data.data.expiresIn);
-      if (response.data.data.refreshToken) {
-        setRefreshToken(response.data.data.refreshToken);
-      }
+      // Note: refresh token is managed by backend in cookies, no need to store in localStorage
       return response.data.data.accessToken;
     }
     
@@ -109,13 +101,11 @@ export const refreshAuthToken = async (retryCount = 0) => {
  * @returns {Promise<void>}
  */
 export const logout = async (allDevices = false) => {
-  const refreshToken = getRefreshToken();
   const isGoogleUser = getAuthProvider() === 'google';
   
   try {
-    if (refreshToken) {
-      await api.post('/auth/logout', { refreshToken, allDevices });
-    }
+    // Cookie-based logout - refresh token is automatically sent in cookies
+    await api.post('/auth/logout', { allDevices });
     
     // Handle Google logout
     if (isGoogleUser) {
