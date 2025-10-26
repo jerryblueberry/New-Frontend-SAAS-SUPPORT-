@@ -20,24 +20,20 @@ import {
   DialogActions,
   Alert,
   Stack,
-  Card,
-  CardContent,
   Chip,
-  Divider,
   Tooltip,
   IconButton,
-  Grid,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
   Avatar,
   LinearProgress,
   useMediaQuery,
   useTheme,
-  Tabs,
-  Tab,
-  Badge
+  Badge,
+  FormControl,
+  MenuItem,
+  Select,
+  RadioGroup,
+  FormControlLabel,
+  Radio
 } from '@mui/material';
 import {
   Email,
@@ -47,20 +43,27 @@ import {
   PendingActions,
   HourglassEmpty,
   Error,
-  Business,
   Person,
-  Phone,
-  CalendarToday,
-  Notes,
-  QuestionAnswer,
-  History
+  Edit as EditIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import WorkerNavbar from '../../../components/Navbar/WorkerNavbar';
-import { Select } from 'antd';
 import AdminSidebar from '../../../components/adminSidebar/AdminSidebar';
 import ReferenceSummaryCard from '../../../components/AdminReference/ReferenceSummaryCard';
+import ReferenceDetailsModal from '../../../components/ReferenceDetailsModal/ReferenceDetailsModal';
 
+// Status configuration
+const STATUS_CONFIG = {
+  Pending: { color: 'warning', icon: PendingActions, label: 'Pending' },
+  EmailSent: { color: 'info', icon: Email, label: 'Email Sent' },
+  Viewed: { color: 'primary', icon: Visibility, label: 'Viewed' },
+  InProgress: { color: 'secondary', icon: HourglassEmpty, label: 'In Progress' },
+  Completed: { color: 'success', icon: CheckCircle, label: 'Completed' },
+  Rejected: { color: 'error', icon: Error, label: 'Rejected' },
+  Expired: { color: 'default', icon: HourglassEmpty, label: 'Expired' },
+  Bounced: { color: 'error', icon: Error, label: 'Bounced' }
+};
 
 // Custom styled components
 const StatusChip = styled(Chip)(({ theme, status }) => ({
@@ -107,6 +110,11 @@ const AdminReference = () => {
   const [totals, setTotals] = useState({ total: 0, completed: 0, pending: 0 });
   const [activeTab, setActiveTab] = useState(0);
   const [workerDetail, setWorkerDetail] = useState([]);
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [selectedReferenceForStatus, setSelectedReferenceForStatus] = useState(null);
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [selectedReferenceForDelete, setSelectedReferenceForDelete] = useState(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
@@ -151,8 +159,66 @@ const AdminReference = () => {
   // Send reference email
   const handleSendEmail = (id) => {
     api.post(`/references/${id}/send-email`)
-      .then(() => setSnackbar({ open: true, message: 'Email sent successfully!', severity: 'success' }))
-      .catch(() => setSnackbar({ open: true, message: 'Failed to send email', severity: 'error' }));
+      .then((response) => setSnackbar({ 
+        open: true, 
+        message: response.data?.message || 'Email sent successfully!', 
+        severity: 'success' 
+      }))
+      .catch((error) => {
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to send email';
+        console.error('Error sending email:', error);
+        setSnackbar({ 
+          open: true, 
+          message: errorMessage, 
+          severity: 'error' 
+        });
+      });
+  };
+
+  const handleOpenStatusModal = (reference) => {
+    setSelectedReferenceForStatus(reference);
+    setSelectedStatus(reference.status);
+    setStatusModalOpen(true);
+  };
+
+  const handleCloseStatusModal = () => {
+    setStatusModalOpen(false);
+    setSelectedReferenceForStatus(null);
+    setSelectedStatus('');
+  };
+
+  const handleOpenDeleteModal = (reference) => {
+    setSelectedReferenceForDelete(reference);
+    setDeleteModalOpen(true);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setDeleteModalOpen(false);
+    setSelectedReferenceForDelete(null);
+  };
+
+  const handleConfirmDelete = () => {
+    if (selectedReferenceForDelete) {
+      api.delete(`/references/${selectedReferenceForDelete._id}`)
+        .then((response) => {
+          setSnackbar({ 
+            open: true, 
+            message: 'Reference deleted successfully!', 
+            severity: 'success' 
+          });
+          fetchReferences(); // Refresh the data
+          handleCloseDeleteModal();
+        })
+        .catch((error) => {
+          const errorMessage = error.response?.data?.message || error.message || 'Failed to delete reference';
+          console.error('Error deleting reference:', error);
+          setSnackbar({ 
+            open: true, 
+            message: errorMessage, 
+            severity: 'error' 
+          });
+        });
+    }
   };
 
   // View reference details
@@ -188,7 +254,6 @@ const AdminReference = () => {
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
   };
-  console.log("workerDetails", workerDetail)
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
@@ -387,6 +452,24 @@ const AdminReference = () => {
                                 <Email fontSize={isMobile ? 'small' : 'medium'} />
                               </IconButton>
                             </Tooltip>
+                            <Tooltip title="Edit Status">
+                              <IconButton
+                                onClick={() => handleOpenStatusModal(ref)}
+                                color="info"
+                                size="small"
+                              >
+                                <EditIcon fontSize={isMobile ? 'small' : 'medium'} />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Delete Reference">
+                              <IconButton
+                                onClick={() => handleOpenDeleteModal(ref)}
+                                color="error"
+                                size="small"
+                              >
+                                <DeleteIcon fontSize={isMobile ? 'small' : 'medium'} />
+                              </IconButton>
+                            </Tooltip>
                           </Stack>
                         </TableCell>
                       </TableRow>
@@ -424,279 +507,163 @@ const AdminReference = () => {
         </Snackbar>
 
         {/* Reference Details Modal */}
-        <Dialog
+        <ReferenceDetailsModal
           open={modalOpen}
           onClose={() => setModalOpen(false)}
-          maxWidth="md"
+          reference={selectedReference}
+          onSendEmail={handleSendEmail}
+          showEmailTracking={true}
+          showVerificationTab={true}
+          verificationContent={
+            <Box>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+                Overall verification for this reference
+              </Typography>
+              <FormControl fullWidth sx={{ mt: 2 }}>
+                <Select
+                  value=""
+                  displayEmpty
+                  variant="outlined"
+                >
+                  <MenuItem value="">
+                    <em>Select verification status</em>
+                  </MenuItem>
+                  <MenuItem value="verified">Verified</MenuItem>
+                  <MenuItem value="pending">Pending</MenuItem>
+                  <MenuItem value="rejected">Rejected</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+          }
+        />
+
+        {/* Status Update Modal */}
+        <Dialog
+          open={statusModalOpen}
+          onClose={handleCloseStatusModal}
+          maxWidth="sm"
           fullWidth
-          fullScreen={isMobile}
         >
-          <DialogTitle sx={{ bgcolor: theme.palette.primary.main, color: 'white' }}>
-            <Stack direction="row" alignItems="center" spacing={2}>
-              <Person />
-              <Typography variant="h6">Reference Details</Typography>
+          <DialogTitle>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <EditIcon />
+              <Typography variant="h6">Update Reference Status</Typography>
             </Stack>
           </DialogTitle>
-          <DialogContent dividers sx={{ p: 0 }}>
-            {selectedReference ? (
-              <Box>
-                <Tabs
-                  value={activeTab}
-                  onChange={handleTabChange}
-                  variant={isMobile ? 'scrollable' : 'standard'}
-                  scrollButtons="auto"
-                  allowScrollButtonsMobile
-                  sx={{ borderBottom: 1, borderColor: 'divider' }}
-                >
-                  <Tab label="Overview" icon={<Person fontSize="small" />} />
-                  <Tab label="Responses" icon={<QuestionAnswer fontSize="small" />} />
-                  <Tab label="History" icon={<History fontSize="small" />} />
-                  <Tab label="Verification" icon={<History fontSize="small" />} />
-                </Tabs>
-
-                <Box sx={{ p: isMobile ? 2 : 3 }}>
-                  {activeTab === 0 && (
-                    <Grid container spacing={3}>
-                      <Grid item xs={12} md={6}>
-                        <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                          <Person sx={{ verticalAlign: 'middle', mr: 1 }} />
-                          Reference Information
-                        </Typography>
-                        <List dense>
-                          <ListItem>
-                            <ListItemIcon>
-                              <Person color="primary" />
-                            </ListItemIcon>
-                            <ListItemText
-                              primary="Name"
-                              secondary={selectedReference.referenceInfo?.name || '—'}
-                            />
-                          </ListItem>
-                          <ListItem>
-                            <ListItemIcon>
-                              <Email color="primary" />
-                            </ListItemIcon>
-                            <ListItemText
-                              primary="Email"
-                              secondary={selectedReference.referenceInfo?.email || '—'}
-                            />
-                          </ListItem>
-                          <ListItem>
-                            <ListItemIcon>
-                              <Business color="primary" />
-                            </ListItemIcon>
-                            <ListItemText
-                              primary="Company"
-                              secondary={selectedReference.referenceInfo?.company || '—'}
-                            />
-                          </ListItem>
-                          <ListItem>
-                            <ListItemIcon>
-                              <Business color="primary" />
-                            </ListItemIcon>
-                            <ListItemText
-                              primary="Position"
-                              secondary={selectedReference.referenceInfo?.position || '—'}
-                            />
-                          </ListItem>
-                          <ListItem>
-                            <ListItemIcon>
-                              <Phone color="primary" />
-                            </ListItemIcon>
-                            <ListItemText
-                              primary="Phone"
-                              secondary={selectedReference.referenceInfo?.phone || '—'}
-                            />
-                          </ListItem>
-                        </List>
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                          <PendingActions sx={{ verticalAlign: 'middle', mr: 1 }} />
-                          Status Information
-                        </Typography>
-                        <List dense>
-                          <ListItem>
-                            <ListItemIcon>
-                              {statusIcon(selectedReference.status)}
-                            </ListItemIcon>
-                            <ListItemText
-                              primary="Status"
-                              secondary={
-                                <StatusChip
-                                  status={selectedReference.status}
-                                  label={selectedReference.status}
-                                  size="small"
-                                />
-                              }
-                            />
-                          </ListItem>
-                          <ListItem>
-                            <ListItemIcon>
-                              <CheckCircle color="primary" />
-                            </ListItemIcon>
-                            <ListItemText
-                              primary="Completion"
-                              secondary={
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                  <Box sx={{ width: '100px' }}>
-                                    <ProgressBar
-                                      variant="determinate"
-                                      value={selectedReference.progress?.percentageComplete ?? 0}
-                                    />
-                                  </Box>
-                                  <Typography variant="body2">
-                                    {selectedReference.progress?.percentageComplete ?? 0}%
-                                  </Typography>
-                                </Box>
-                              }
-                            />
-                          </ListItem>
-                          <ListItem>
-                            <ListItemIcon>
-                              <Email color="primary" />
-                            </ListItemIcon>
-                            <ListItemText
-                              primary="Emails Sent"
-                              secondary={selectedReference.emailTracking?.emailsSent ?? 0}
-                            />
-                          </ListItem>
-                          <ListItem>
-                            <ListItemIcon>
-                              <CalendarToday color="primary" />
-                            </ListItemIcon>
-                            <ListItemText
-                              primary="Last Email Sent"
-                              secondary={formatDate(selectedReference.emailTracking?.lastEmailSent)}
-                            />
-                          </ListItem>
-                          <ListItem>
-                            <ListItemIcon>
-                              <Error color="primary" />
-                            </ListItemIcon>
-                            <ListItemText
-                              primary="Email Bounced"
-                              secondary={selectedReference.emailTracking?.emailBounced ? 'Yes' : 'No'}
-                            />
-                          </ListItem>
-                        </List>
-                      </Grid>
-                    </Grid>
-                  )}
-
-                  {activeTab === 1 && (
-                    <Box>
-                      <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                        <QuestionAnswer sx={{ verticalAlign: 'middle', mr: 1 }} />
-                        Questionnaire Responses
-                      </Typography>
-                      {selectedReference.responses?.length > 0 ? (
-                        <List sx={{ bgcolor: 'background.paper' }}>
-                          {selectedReference.responses.map((r, idx) => (
-                            <React.Fragment key={r.questionId || idx}>
-                              <ListItem alignItems="flex-start">
-                                <ListItemText
-                                  primary={
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
-                                      {r.questionText}
-                                    </Typography>
-                                  }
-                                  secondary={
-                                    <Typography variant="body2" color="text.secondary">
-                                      {r.skipped ? (
-                                        <Chip label="Skipped" size="small" color="warning" variant="outlined" />
-                                      ) : (
-                                        r.answer || 'No answer provided'
-                                      )}
-                                    </Typography>
-                                  }
-                                />
-                              </ListItem>
-                              {idx < selectedReference.responses.length - 1 && <Divider component="li" />}
-                            </React.Fragment>
-                          ))}
-                        </List>
-                      ) : (
-                        <Typography variant="body1" color="text.secondary" sx={{ mt: 2 }}>
-                          No responses available
-                        </Typography>
-                      )}
-                    </Box>
-                  )}
-
-                  {activeTab === 2 && (
-                    <Box>
-                      <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                        <History sx={{ verticalAlign: 'middle', mr: 1 }} />
-                        Status History
-                      </Typography>
-                      {selectedReference.statusHistory?.length > 0 ? (
-                        <List sx={{ bgcolor: 'background.paper' }}>
-                          {selectedReference.statusHistory.map((h, idx) => (
-                            <React.Fragment key={h._id || idx}>
-                              <ListItem alignItems="flex-start">
-                                <ListItemIcon>
-                                  {statusIcon(h.status)}
-                                </ListItemIcon>
-                                <ListItemText
-                                  primary={
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 500 }}>
-                                      {h.status}
-                                    </Typography>
-                                  }
-                                  secondary={
-                                    <>
-                                      <Typography variant="body2" color="text.secondary">
-                                        {formatDate(h.timestamp)}
-                                      </Typography>
-                                      {h.notes && (
-                                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                                          <Notes sx={{ verticalAlign: 'middle', fontSize: 16, mr: 0.5 }} />
-                                          {h.notes}
-                                        </Typography>
-                                      )}
-                                    </>
-                                  }
-                                />
-                              </ListItem>
-                              {idx < selectedReference.statusHistory.length - 1 && <Divider component="li" />}
-                            </React.Fragment>
-                          ))}
-                        </List>
-                      ) : (
-                        <Typography variant="body1" color="text.secondary" sx={{ mt: 2 }}>
-                          No history available
-                        </Typography>
-                      )}
-                    </Box>
-                  )}
-
-                  {activeTab === 3 && (
-                    <Box>
-                      <Typography>Overall verification for this reference</Typography>
-                      <Select>
-                        <option>
-
-                        </option>
-                      </Select>
-                    </Box>
-                  )}
-                </Box>
-              </Box>
-            ) : (
-              <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
-                <CircularProgress size={60} />
+          <DialogContent>
+            {selectedReferenceForStatus && (
+              <Box sx={{ pt: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  Update status for: <strong>{selectedReferenceForStatus.referenceInfo?.name}</strong>
+                </Typography>
+                
+                <FormControl component="fieldset">
+                  <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+                    Select New Status:
+                  </Typography>
+                  <RadioGroup
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                  >
+                    {Object.entries(STATUS_CONFIG).map(([key, config]) => {
+                      const IconComponent = config.icon;
+                      return (
+                        <FormControlLabel
+                          key={key}
+                          value={key}
+                          control={<Radio />}
+                          label={
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <IconComponent fontSize="small" color={config.color} />
+                              <Typography>{config.label}</Typography>
+                            </Stack>
+                          }
+                          sx={{ mb: 1 }}
+                        />
+                      );
+                    })}
+                  </RadioGroup>
+                </FormControl>
               </Box>
             )}
           </DialogContent>
-          <DialogActions sx={{ p: 2, bgcolor: 'background.default' }}>
-            <Button
-              onClick={() => setModalOpen(false)}
-              color="primary"
-              variant="contained"
-              sx={{ minWidth: 100 }}
+          <DialogActions sx={{ p: 3 }}>
+            <Button onClick={handleCloseStatusModal} color="inherit">
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                // TODO: Implement status update logic
+                console.log('Status update not implemented yet');
+                handleCloseStatusModal();
+              }} 
+              variant="contained" 
+              disabled={!selectedStatus}
             >
-              Close
+              Update Status
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Delete Confirmation Modal */}
+        <Dialog
+          open={deleteModalOpen}
+          onClose={handleCloseDeleteModal}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <DeleteIcon color="error" />
+              <Typography variant="h6">Delete Reference</Typography>
+            </Stack>
+          </DialogTitle>
+          <DialogContent>
+            {selectedReferenceForDelete && (
+              <Box sx={{ pt: 2 }}>
+                <Typography variant="body1" sx={{ mb: 2 }}>
+                  Are you sure you want to delete this reference?
+                </Typography>
+                <Box sx={{ 
+                  p: 2, 
+                  bgcolor: 'grey.50', 
+                  borderRadius: 1, 
+                  border: '1px solid', 
+                  borderColor: 'grey.200' 
+                }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                    Reference Details:
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Name:</strong> {selectedReferenceForDelete.referenceInfo?.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Email:</strong> {selectedReferenceForDelete.referenceInfo?.email}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Company:</strong> {selectedReferenceForDelete.referenceInfo?.company || 'N/A'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Status:</strong> {selectedReferenceForDelete.status}
+                  </Typography>
+                </Box>
+                <Alert severity="warning" sx={{ mt: 2 }}>
+                  This action cannot be undone. The reference will be permanently deleted from the database.
+                </Alert>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 3 }}>
+            <Button onClick={handleCloseDeleteModal} color="inherit">
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleConfirmDelete} 
+              variant="contained" 
+              color="error"
+              startIcon={<DeleteIcon />}
+            >
+              Delete Reference
             </Button>
           </DialogActions>
         </Dialog>

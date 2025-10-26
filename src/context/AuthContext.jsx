@@ -239,10 +239,21 @@ const AuthProvider = ({ children }) => {
       }
     };
 
-    verifyAuth();
+    // Check if we're on a public route that doesn't need auth
+    const publicRoutes = ['/reference-check', '/forgot-password', '/reset-password', '/verify-email'];
+    const currentPath = window.location.pathname;
+    const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route));
     
-    // Set up periodic token refresh
-    const tokenCheckInterval = setInterval(checkAndRefreshToken, TOKEN_REFRESH_INTERVAL);
+    // Only verify auth if not on a public route
+    if (!isPublicRoute) {
+      verifyAuth();
+    } else {
+      // On public route, just mark loading as complete without auth
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+    
+    // Set up periodic token refresh (only if not on public route)
+    const tokenCheckInterval = !isPublicRoute ? setInterval(checkAndRefreshToken, TOKEN_REFRESH_INTERVAL) : null;
     
     // Listen for connection events
     const handleConnectionRestored = () => {
@@ -254,7 +265,9 @@ const AuthProvider = ({ children }) => {
     window.addEventListener('connection:restored', handleConnectionRestored);
     
     return () => {
-      clearInterval(tokenCheckInterval);
+      if (tokenCheckInterval) {
+        clearInterval(tokenCheckInterval);
+      }
       window.removeEventListener('connection:restored', handleConnectionRestored);
     };
   }, [checkAndRefreshToken, handleAuthExpired, state.isAuthenticated]);

@@ -77,6 +77,25 @@ function AppRoutes() {
   // Global listener for auth expiration
   useEffect(() => {
     const handleAuthExpired = () => {
+      // Check if we're on a public route that doesn't require auth
+      const publicRoutes = [
+        '/reference-check',
+        '/forgot-password',
+        '/reset-password',
+        '/verify-email',
+        '/terms-and-conditions',
+        '/certificate'
+      ];
+      
+      const currentPath = window.location.pathname;
+      const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route));
+      
+      // Don't redirect to login if we're on a public route
+      if (isPublicRoute) {
+        console.log('Auth expired on public route, not redirecting');
+        return;
+      }
+      
       // Clear any existing tokens
       localStorage.removeItem('accessToken');
       sessionStorage.clear();
@@ -133,12 +152,8 @@ function AppRoutes() {
 
 
 
-        <Route path='/reference-check/:token' element={
-          <PublicRoute>
-            <CompleteReferenceCheck />
-          </PublicRoute>
-        }
-        />
+        {/* Reference check - accessible to anyone (no auth required) */}
+        <Route path='/reference-check/:token' element={<CompleteReferenceCheck />} />
 
         {/*  For terms and conditions */}
         <Route path='/terms-and-conditions' element={

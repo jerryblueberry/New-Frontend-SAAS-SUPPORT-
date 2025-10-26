@@ -40,7 +40,17 @@ const CompleteReferenceCheck = () => {
           }))
         );
       } catch (err) {
-        setError(err.response?.data?.message || 'Invalid or expired link.');
+        const errorMessage = err.response?.data?.message || 'Invalid or expired link.';
+        const isExpired = err.response?.data?.expired;
+        const isCompleted = err.response?.data?.completed;
+        
+        if (isExpired) {
+          setError('⏰ This reference link has expired. Please contact the administrator for a new link.');
+        } else if (isCompleted) {
+          setError('✅ This reference check has already been completed. Thank you for your response!');
+        } else {
+          setError(errorMessage);
+        }
       }
       setLoading(false);
     };
@@ -68,7 +78,9 @@ const CompleteReferenceCheck = () => {
       await api.post(`/references/respond/${token}`, { responses });
       setCompleted(true);
     } catch (err) {
-      setError(err.response?.data?.message || 'Submission failed.');
+      const errorMessage = err.response?.data?.message || 'Submission failed.';
+      console.error('Submission error:', err);
+      setError(errorMessage);
     }
     setSubmitting(false);
   };

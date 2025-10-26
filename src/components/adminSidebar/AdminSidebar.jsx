@@ -162,7 +162,7 @@ const AdminSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
       children: [
        
         { id: 'allReferences', label: 'All References', icon: <Assignment />, path: '/admin/all-references' },
-        { id: 'insights', label: 'Insights', icon: <Speed />, path: '/analytics/insights' }
+        // { id: 'insights', label: 'Insights', icon: <Speed />, path: '/analytics/insights' }
       ]
     },
     {
@@ -194,36 +194,36 @@ const AdminSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
         // { id: 'document-tracking', label: 'Document Tracking', icon: <Description />, path: '/admin/document-tracking' }
       ]
     },
-    {
-      id: 'orders',
-      label: 'Orders',
-      icon: <ShoppingCart />,
-      badge: '12',
-      children: [
-        { id: 'order-list', label: 'Order List', icon: <Receipt />, path: '/orders/list' },
-        { id: 'shipping', label: 'Shipping', icon: <LocalShipping />, path: '/orders/shipping' },
-        { id: 'returns', label: 'Returns', icon: <ReportProblem />, path: '/orders/returns' }
-      ]
-    },
-    {
-      id: 'payments',
-      label: 'Payments',
-      icon: <Payment />,
-      children: [
-        { id: 'transactions', label: 'Transactions', icon: <CreditCard />, path: '/payments/transactions' },
-        { id: 'billing', label: 'Billing', icon: <AccountBalance />, path: '/payments/billing' }
-      ]
-    },
-    {
-      id: 'support',
-      label: 'Support',
-      icon: <Support />,
-      children: [
-        { id: 'tickets', label: 'Tickets', icon: <BugReport />, path: '/support/tickets' },
-        { id: 'knowledge-base', label: 'Knowledge Base', icon: <Help />, path: '/support/kb' },
-        { id: 'documentation', label: 'Documentation', icon: <Description />, path: '/support/docs' }
-      ]
-    },
+    // {
+    //   id: 'orders',
+    //   label: 'Orders',
+    //   icon: <ShoppingCart />,
+    //   badge: '12',
+    //   children: [
+    //     { id: 'order-list', label: 'Order List', icon: <Receipt />, path: '/orders/list' },
+    //     { id: 'shipping', label: 'Shipping', icon: <LocalShipping />, path: '/orders/shipping' },
+    //     { id: 'returns', label: 'Returns', icon: <ReportProblem />, path: '/orders/returns' }
+    //   ]
+    // },
+    // {
+    //   id: 'payments',
+    //   label: 'Payments',
+    //   icon: <Payment />,
+    //   children: [
+    //     { id: 'transactions', label: 'Transactions', icon: <CreditCard />, path: '/payments/transactions' },
+    //     { id: 'billing', label: 'Billing', icon: <AccountBalance />, path: '/payments/billing' }
+    //   ]
+    // },
+    // {
+    //   id: 'support',
+    //   label: 'Support',
+    //   icon: <Support />,
+    //   children: [
+    //     { id: 'tickets', label: 'Tickets', icon: <BugReport />, path: '/support/tickets' },
+    //     { id: 'knowledge-base', label: 'Knowledge Base', icon: <Help />, path: '/support/kb' },
+    //     { id: 'documentation', label: 'Documentation', icon: <Description />, path: '/support/docs' }
+    //   ]
+    // },
     {
       id: 'settings',
       label: 'Settings',

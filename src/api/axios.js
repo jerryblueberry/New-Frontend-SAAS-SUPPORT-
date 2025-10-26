@@ -86,14 +86,28 @@ const resetRefreshState = () => {
   refreshPromise = null;
 };
 
+// Helper function to check if URL is a public endpoint
+const isPublicEndpoint = (url) => {
+  if (!url) return false;
+  
+  const publicPaths = [
+    '/auth/login', 
+    '/auth/signup', 
+    '/auth/google',
+    '/auth/verify-email',
+    '/auth/forgot-password',
+    '/auth/reset-password',
+    '/references/respond/' // Public reference check endpoint
+  ];
+  
+  return publicPaths.some(path => url.includes(path));
+};
+
 // Request interceptor - add auth token
 api.interceptors.request.use(
   (config) => {
-    // Skip adding token for auth endpoints that don't need it
-    const skipAuthPaths = ['/auth/login', '/auth/signup', '/auth/google'];
-    const skipAuth = skipAuthPaths.some(path => config.url?.includes(path));
-    
-    if (!skipAuth) {
+    // Skip adding token for public endpoints
+    if (!isPublicEndpoint(config.url)) {
       const token = getAccessToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -131,12 +145,8 @@ api.interceptors.response.use(
     
     // Handle 401 errors with token refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
-      // Don't retry auth endpoints
-      if (
-        originalRequest.url?.includes('/auth/login') ||
-        originalRequest.url?.includes('/auth/signup') ||
-        originalRequest.url?.includes('refresh-token')
-      ) {
+      // Don't retry public endpoints - just reject immediately
+      if (isPublicEndpoint(originalRequest.url) || originalRequest.url?.includes('refresh-token')) {
         return Promise.reject(error);
       }
       
@@ -163,7 +173,15 @@ api.interceptors.response.use(
         } catch (refreshError) {
           resetRefreshState();
           removeTokens();
-          window.dispatchEvent(new Event('auth:expired'));
+          
+          // Only emit auth:expired if not on a public route
+          const publicRoutes = ['/reference-check', '/forgot-password', '/reset-password'];
+          const isPublicRoute = publicRoutes.some(route => window.location.pathname.startsWith(route));
+          
+          if (!isPublicRoute) {
+            window.dispatchEvent(new Event('auth:expired'));
+          }
+          
           return Promise.reject(refreshError);
         }
       }

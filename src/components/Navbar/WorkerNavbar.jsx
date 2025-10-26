@@ -9,6 +9,10 @@ const WorkerNavbar = ({ modalOpen }) => {
   const navigate = useNavigate();
   const auth = useAuth();
   console.log('auth from navbar', auth);
+  console.log('user profile picture:', auth?.user?.profilePicture);
+  console.log('user profilepicture (lowercase):', auth?.user?.profilepicture);
+  console.log('user data:', auth?.user);
+  console.log('Google auth provider:', localStorage.getItem('auth_provider'));
   // Handle case where auth context might not be available
   if (!auth) {
     return (
@@ -78,18 +82,35 @@ const WorkerNavbar = ({ modalOpen }) => {
                 aria-expanded={isMenuOpen}
               >
                 <div className="wrk-dashboard-user-avatar">
-                  {user?.profilePicture || user?.profilepicture ? (
+                  {(user?.profilePicture || user?.profilepicture) ? (
                     <img
                       src={user.profilePicture || user.profilepicture}
                       alt={`${user?.firstName} ${user?.lastName}`}
                       className="wrk-dashboard-user-avatar-image"
+                      onError={(e) => {
+                        console.log('Profile picture failed to load:', user.profilePicture || user.profilepicture);
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
                     />
-                  ) : (
-                    <>
-                      {user?.firstName?.[0]}
-                      {user?.lastName?.[0]}
-                    </>
-                  )}
+                  ) : null}
+                  <div 
+                    style={{ 
+                      display: (user?.profilePicture || user?.profilepicture) ? 'none' : 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '100%',
+                      height: '100%',
+                      backgroundColor: '#e0e0e0',
+                      borderRadius: '50%',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      color: '#666'
+                    }}
+                  >
+                    {user?.firstName?.[0]}
+                    {user?.lastName?.[0]}
+                  </div>
                 </div>
               </button>
             )}
@@ -97,18 +118,35 @@ const WorkerNavbar = ({ modalOpen }) => {
               <div className="wrk-dashboard-dropdown-menu">
                 <div className="wrk-dashboard-dropdown-header">
                   <div className="wrk-dashboard-dropdown-avatar">
-                    {user?.profilePicture || user?.profilepicture ? (
+                    {(user?.profilePicture || user?.profilepicture) ? (
                       <img
                         src={user.profilePicture || user.profilepicture}
                         alt={`${user?.firstName} ${user?.lastName}`}
                         className="wrk-dashboard-dropdown-avatar-image"
+                        onError={(e) => {
+                          console.log('Dropdown profile picture failed to load:', user.profilePicture || user.profilepicture);
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
                       />
-                    ) : (
-                      <>
-                        {user?.firstName?.[0]}
-                        {user?.lastName?.[0]}
-                      </>
-                    )}
+                    ) : null}
+                    <div 
+                      style={{ 
+                        display: (user?.profilePicture || user?.profilepicture) ? 'none' : 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '100%',
+                        height: '100%',
+                        backgroundColor: '#e0e0e0',
+                        borderRadius: '50%',
+                        fontSize: '16px',
+                        fontWeight: 'bold',
+                        color: '#666'
+                      }}
+                    >
+                      {user?.firstName?.[0]}
+                      {user?.lastName?.[0]}
+                    </div>
                   </div>
                   <div className="wrk-dashboard-dropdown-user-info">
                     <span className="wrk-dashboard-dropdown-name">
