@@ -79,6 +79,8 @@ function AppRoutes() {
     const handleAuthExpired = () => {
       // Check if we're on a public route that doesn't require auth
       const publicRoutes = [
+        '/login',
+        '/register',
         '/reference-check',
         '/forgot-password',
         '/reset-password',

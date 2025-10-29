@@ -240,7 +240,7 @@ const AuthProvider = ({ children }) => {
     };
 
     // Check if we're on a public route that doesn't need auth
-    const publicRoutes = ['/reference-check', '/forgot-password', '/reset-password', '/verify-email'];
+    const publicRoutes = ['/login', '/register', '/reference-check', '/forgot-password', '/reset-password', '/verify-email'];
     const currentPath = window.location.pathname;
     const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route));
     

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import LoginForm from '../../components/auth/LoginForm';
 import { useGoogleLogin } from '@react-oauth/google';
 import { googleAuth } from '../../api/auth';
@@ -353,12 +353,12 @@ const Login = () => {
             <div className="login__footer">
               <p className="login__footer-text">
                 New to our platform?{' '}
-                <a
-                  href="/register"
+                <Link
+                  to="/register"
                   className="login__signup-link"
                 >
                   Create an account
-                </a>
+                </Link>
               </p>
             </div>
           </div>
