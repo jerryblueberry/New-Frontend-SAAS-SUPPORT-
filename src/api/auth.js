@@ -38,6 +38,28 @@ export const register = async(userData) => {
 };
 
 /**
+ * Register a new client user
+ * @param {Object} userData - Client registration data
+ */
+export const registerClient = async(userData) => {
+  try {
+    const response = await api.post('/auth/signup/client', { 
+      ...userData, 
+      role: 'client' // Explicitly set role as client
+    });
+    if (response.data?.data?.accessToken) {
+      setAccessToken(response.data.data.accessToken, response.data.data.expiresIn);
+      setAuthProvider('email');
+      window.dispatchEvent(new Event('auth:login'));
+    }
+    return response.data;
+  } catch (error) {
+    console.error('Client registration error:', error);
+    throw error;
+  }
+};
+
+/**
  * Log in a user with email/password
  * @param {Object} credentials - Login credentials
  * @returns {Promise<Object>} Login response with user data
@@ -231,12 +253,49 @@ export const googleAuth = async (accessToken, extra = {}) => {
   }
 };
 
+/**
+ * Authenticate client with Google OAuth (client endpoint)
+ */
+export const googleAuthClient = async (accessToken, extra = {}) => {
+  try {
+    const googleResponse = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`);
+    if (!googleResponse.ok) {
+      throw new Error(`Google token validation failed: ${googleResponse.statusText}`);
+    }
+    const response = await api.post('/auth/google/client', { 
+      access_token: accessToken,
+      role: 'client', // Explicitly set role as client
+      ...extra
+    });
+    if (response.data?.data?.accessToken) {
+      setAccessToken(response.data.data.accessToken, response.data.data.expiresIn);
+      setRefreshToken(response.data.data.refreshToken);
+      localStorage.setItem('google_token', accessToken);
+      setAuthProvider('google');
+      window.dispatchEvent(new Event('auth:login'));
+    }
+    return {
+      ...response.data,
+      isGoogleUser: true
+    };
+  } catch (error) {
+    console.error('Google client auth error:', error);
+    const errorMessage = error.response?.data?.message || 'Failed to authenticate with Google. Please try again.';
+    const enhancedError = new Error(errorMessage);
+    enhancedError.originalError = error;
+    enhancedError.statusCode = error.response?.status;
+    throw enhancedError;
+  }
+};
+
 export default {
   register,
+  registerClient,
   login,
   refreshAuthToken,
   logout,
   getCurrentUser,
   verifyEmail,
-  googleAuth
+  googleAuth,
+  googleAuthClient
 };

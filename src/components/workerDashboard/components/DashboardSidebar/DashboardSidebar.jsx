@@ -169,8 +169,15 @@ const DashboardSidebar = ({
   const currentActiveTab = getCurrentActiveTab();
 
   const handleSignOut = async () => {
-    await signOut(false, isGoogleUser);
-    navigate('/login', { replace: true });
+    try {
+      await signOut(false);
+      // Navigate to home page after successful logout
+      navigate('/', { replace: true });
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Still navigate even if logout API fails
+      navigate('/', { replace: true });
+    }
   };
 
 

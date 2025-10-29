@@ -3,10 +3,14 @@ import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import PrivateRoute from './components/common/PrivateRoute';
+import ClientRoute from './components/common/ClientRoute';
 import PublicRoute from './components/common/PublicRoute';
 import Home from './pages/Home';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import ClientRegister from './pages/ClientPages/OnboardingPages/ClientRegister';
+import ClientDashboard from './pages/ClientPages/ClientDashboard/ClientDashboard';
+import { useAuth } from './context/AuthContext';
 import VerifyEmail from './pages/auth/VerifyEmail';
 
 
@@ -73,6 +77,7 @@ if (typeof window !== 'undefined') {
 
 function AppRoutes() {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Global listener for auth expiration
   useEffect(() => {
@@ -86,7 +91,7 @@ function AppRoutes() {
         '/reset-password',
         '/verify-email',
         '/terms-and-conditions',
-        '/certificate'
+        // '/certificate'
       ];
       
       const currentPath = window.location.pathname;
@@ -138,6 +143,11 @@ function AppRoutes() {
             <Register />
           </PublicRoute>
         } />
+        <Route path="/client/register" element={
+          <PublicRoute>
+            <ClientRegister />
+          </PublicRoute>
+        } />
         <Route path="/verify-email/:token" element={
           <PublicRoute>
             <VerifyEmail />
@@ -172,8 +182,22 @@ function AppRoutes() {
           path="/dashboard"
           element={
             <PrivateRoute>
-              <Navigate to="/overview" replace />
+              {user?.role === 'client' ? (
+                <Navigate to="/client-dashboard" replace />
+              ) : user?.role === 'admin' ? (
+                <Navigate to="/admin-dashboard" replace />
+              ) : (
+                <Navigate to="/overview" replace />
+              )}
             </PrivateRoute>
+          }
+        />
+        <Route
+          path="/client-dashboard"
+          element={
+            <ClientRoute>
+              <ClientDashboard />
+            </ClientRoute>
           }
         />
         <Route

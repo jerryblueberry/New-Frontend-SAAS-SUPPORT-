@@ -145,6 +145,14 @@ const AuthProvider = ({ children }) => {
     }
     // Dispatch logout event
     window.dispatchEvent(new Event('auth:logout'));
+    // Broadcast to other tabs
+    try {
+      if ('BroadcastChannel' in window) {
+        const bc = new BroadcastChannel('auth');
+        bc.postMessage({ type: 'logout' });
+        bc.close();
+      }
+    } catch (_) {}
   }, []);
 
   // Enhanced auth verification with connection monitoring
@@ -240,20 +248,27 @@ const AuthProvider = ({ children }) => {
     };
 
     // Check if we're on a public route that doesn't need auth
-    const publicRoutes = ['/login', '/register', '/reference-check', '/forgot-password', '/reset-password', '/verify-email'];
+    const publicRoutes = ['/login', '/register', '/client/register', '/reference-check', '/forgot-password', '/reset-password', '/verify-email'];
     const currentPath = window.location.pathname;
     const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route));
+    const isHomePage = currentPath === '/';
     
-    // Only verify auth if not on a public route
-    if (!isPublicRoute) {
+    // Verify auth when needed
+    const hasAuth = hasValidAuth();
+    if (!isPublicRoute && !isHomePage) {
+      // Protected routes - always verify
+      verifyAuth();
+    } else if ((isHomePage || isPublicRoute) && hasAuth) {
+      // If user has tokens on public routes or home, verify so we can redirect away
       verifyAuth();
     } else {
-      // On public route, just mark loading as complete without auth
+      // On public routes/home without tokens - no auth verification
       dispatch({ type: 'SET_LOADING', payload: false });
     }
     
-    // Set up periodic token refresh (only if not on public route)
-    const tokenCheckInterval = !isPublicRoute ? setInterval(checkAndRefreshToken, TOKEN_REFRESH_INTERVAL) : null;
+    // Set up periodic token refresh only if authenticated
+    const shouldRefreshTokens = state.isAuthenticated && hasAuth;
+    const tokenCheckInterval = shouldRefreshTokens ? setInterval(checkAndRefreshToken, TOKEN_REFRESH_INTERVAL) : null;
     
     // Listen for connection events
     const handleConnectionRestored = () => {
@@ -338,14 +353,13 @@ const AuthProvider = ({ children }) => {
     dispatch({ type: 'AUTH_START' });
     
     try {
-      const refreshToken = getRefreshToken();
       const isGoogleUser = getAuthProvider() === 'google';
-      
-      if (refreshToken) {
-        await api.post('/auth/logout', { 
-          refreshToken, 
-          allDevices 
-        });
+      // Always call server logout; backend should use httpOnly cookie when body is empty
+      try {
+        await api.post('/auth/logout', { allDevices }, { withCredentials: true });
+      } catch (e) {
+        // proceed with local cleanup regardless
+        // console.warn('Server logout failed, proceeding with local cleanup');
       }
       
       if (isGoogleUser) {
@@ -369,6 +383,46 @@ const AuthProvider = ({ children }) => {
       handleAuthExpired();
     }
   };
+
+  // Cross-tab logout listener and idle timeout
+  useEffect(() => {
+    // BroadcastChannel listener
+    let bc;
+    try {
+      if ('BroadcastChannel' in window) {
+        bc = new BroadcastChannel('auth');
+        bc.onmessage = (event) => {
+          if (event?.data?.type === 'logout') {
+            handleAuthExpired();
+          }
+        };
+      }
+    } catch (_) {}
+
+    // Idle timeout (30 minutes)
+    const IDLE_LIMIT_MS = 30 * 60 * 1000;
+    let idleTimer;
+    const resetIdleTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      // Only set timer when authenticated
+      if (state.isAuthenticated) {
+        idleTimer = setTimeout(() => {
+          // Auto logout on idle
+          signOut(false).catch(() => handleAuthExpired());
+        }, IDLE_LIMIT_MS);
+      }
+    };
+
+    const activityEvents = ['mousemove', 'keydown', 'click', 'touchstart'];
+    activityEvents.forEach((evt) => window.addEventListener(evt, resetIdleTimer));
+    resetIdleTimer();
+
+    return () => {
+      if (bc) bc.close();
+      if (idleTimer) clearTimeout(idleTimer);
+      activityEvents.forEach((evt) => window.removeEventListener(evt, resetIdleTimer));
+    };
+  }, [state.isAuthenticated, handleAuthExpired]);
 
   return (
     <AuthContext.Provider value={{

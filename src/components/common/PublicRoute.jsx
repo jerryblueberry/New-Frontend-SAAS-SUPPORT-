@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 
 const PublicRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -26,8 +26,10 @@ const PublicRoute = ({ children }) => {
   }
 
   if (isAuthenticated && !loading) {
-    const from = location.state?.from?.pathname || '/dashboard';
-    return <Navigate to={from} replace />;
+    // Always send authenticated users to their role-specific home
+    if (user?.role === 'client') return <Navigate to="/client-dashboard" replace />;
+    if (user?.role === 'admin') return <Navigate to="/admin-dashboard" replace />;
+    return <Navigate to="/overview" replace />;
   }
 
   return children;

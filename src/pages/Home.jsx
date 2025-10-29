@@ -1,20 +1,36 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Link } from 'react-router-dom';
 import './css/Home.css';
 
 const Home = () => {
   const { isAuthenticated } = useAuth();
+  const [authState, setAuthState] = useState(isAuthenticated);
+
+  // Update local state when auth context changes
+  useEffect(() => {
+    setAuthState(isAuthenticated);
+  }, [isAuthenticated]);
+
+  // Listen for logout events to immediately update UI
+  useEffect(() => {
+    const handleLogout = () => {
+      setAuthState(false);
+    };
+
+    window.addEventListener('auth:logout', handleLogout);
+    return () => window.removeEventListener('auth:logout', handleLogout);
+  }, []);
 
   return (
     <div className="home-container">
       <header className="home-header">
-        <h1 className="home-title">AecusCare</h1>
+        <h1 className="home-title">AecusTech</h1>
         <p className="home-subtitle">Connecting Support Workers with Meaningful Opportunities</p>
       </header>
 
       <main className="home-main">
-        {isAuthenticated ? (
+        {authState ? (
           <div className="auth-links">
             <h2>Welcome Back!</h2>
             <div className="button-group">
@@ -38,7 +54,10 @@ const Home = () => {
                 Login
               </Link>
               <Link to="/register" className="home-button secondary">
-                Register
+                Register as a Support Worker
+              </Link>
+              <Link to="/client/register" className="home-button secondary">
+                Register as an Organization
               </Link>
             </div>
           </div>
