@@ -72,6 +72,7 @@ const MyProfile = () => {
                 <DashboardSidebar modalOpen={isModalOpen} />
                 <Box sx={{
                     flex: 1,
+                    mt:{xs:0,md:8},
                     overflow: 'auto',
                     ml: { xs: 0, md: isModalOpen ? '280px' : '0' },
                     transition: 'margin-left 0.3s ease',

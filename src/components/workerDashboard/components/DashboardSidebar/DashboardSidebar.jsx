@@ -391,14 +391,14 @@ const DashboardSidebar = ({
         <Box
           sx={{
             position: 'fixed',
-            top: { xs: '12px', sm: '26px' },
+            top: { xs: '20px', sm: '26px' },
             left: { xs: '16px', sm: '20px' },
             zIndex: 1301,
             display: { xs: 'block', md: 'none' },
           }}
         >
           <IconButton
-            color="primary"
+            color="inherit"
             aria-label="open drawer"
             edge="start"
             onClick={handleDrawerToggle}

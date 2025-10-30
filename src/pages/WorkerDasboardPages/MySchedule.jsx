@@ -26,7 +26,7 @@ const MySchedule = () => {
             }}>
                 <DashboardSidebar modalOpen={isModalOpen}/>
                 <Box sx={{
-                    mt:0,
+                    mt:{xs:10,md:5},
                 }}>
                 <DashboardAvailability onboardingData={onboardingData} setModalOpen={setIsModalOpen} modalOpen={isModalOpen} />
                 </Box>
