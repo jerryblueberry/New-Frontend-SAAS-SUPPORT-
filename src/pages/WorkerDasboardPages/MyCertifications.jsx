@@ -1,12 +1,12 @@
-import { Box } from '@mui/material'
-import React, { useEffect, useState } from 'react'
+import { Box, LinearProgress, Skeleton } from '@mui/material'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import WorkerNavbar from '../../components/Navbar/WorkerNavbar'
 import DashboardSidebar from '../../components/workerDashboard/components/DashboardSidebar/DashboardSidebar'
 import { useOnboardingQuery } from '../../stores/useOnboardingStore';
 import DashboardCertification from '../../components/workerDashboard/components/DashboardCertificates/DashboardCertification';
 const MyCertifications = () => {
-    const { data: onboardingData } = useOnboardingQuery();
+    const { data: onboardingData, isLoading, isFetching } = useOnboardingQuery();
     const [drawerOpen, setDrawerOpen] = useState(false);
     const queryClient = useQueryClient();
 
@@ -24,18 +24,31 @@ const MyCertifications = () => {
 
     // Auto-refresh onboarding data after edits without reloading the page
     useEffect(() => {
+      let raf = 0;
       const handleOnboardingRefresh = () => {
         try {
-          queryClient.invalidateQueries({ queryKey: ['onboarding'] });
+          // debounce rapid events in the same frame
+          if (raf) cancelAnimationFrame(raf);
+          raf = requestAnimationFrame(() => {
+            queryClient.invalidateQueries({ queryKey: ['onboarding'] });
+          });
         } catch (_) {}
       };
       window.addEventListener('onboarding:refresh', handleOnboardingRefresh);
-      return () => window.removeEventListener('onboarding:refresh', handleOnboardingRefresh);
+      return () => {
+        if (raf) cancelAnimationFrame(raf);
+        window.removeEventListener('onboarding:refresh', handleOnboardingRefresh);
+      };
     }, [queryClient]);
+
+    // Removed drawer-open invalidation to avoid redundant resume calls. Prefetch is handled on Edit hover.
 
   return (
     <Box>
       <WorkerNavbar/>
+      {isFetching && !isLoading && (
+        <LinearProgress sx={{ position: 'sticky', top: 0, zIndex: 10 }} />
+      )}
       <Box
         sx={{
           display: 'flex',
@@ -46,12 +59,21 @@ const MyCertifications = () => {
       >
         {!drawerOpen && <DashboardSidebar/>}
         <Box sx={{
-          mt: 0,
+          mt: {xs:10,md:10},
           flex: 1,
           width: '100%',
           minWidth: 0
         }}>
-          <DashboardCertification onboardingData={onboardingData}/>
+          {isLoading ? (
+            <Box sx={{ p: 2 }}>
+              <Skeleton variant="rounded" height={120} sx={{ mb: 2 }} />
+              <Skeleton variant="rounded" height={56} sx={{ mb: 2 }} />
+              <Skeleton variant="rounded" height={320} sx={{ mb: 2 }} />
+              <Skeleton variant="rounded" height={320} />
+            </Box>
+          ) : (
+            <DashboardCertification onboardingData={onboardingData}/>
+          )}
         </Box>
         {drawerOpen && (
           <Box

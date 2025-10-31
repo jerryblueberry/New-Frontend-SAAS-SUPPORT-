@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useCallback, useRef, useState } from 'react';
 import {
     Box,
     Typography,
@@ -63,12 +63,16 @@ import { ExclamationCircleOutlined } from '@ant-design/icons';
 import CertificationCardDashboard from './CertificationCardDashboard';
 import CertificationEditorDrawer from '../../../certifications/CertificationEditorDrawer';
 import OtherCertificationEditorDrawer from '../../../certifications/OtherCertificationEditorDrawer';
+import { useQueryClient } from '@tanstack/react-query';
+import { onboardingApi } from '../../../../stores/useOnboardingStore';
 
 const DashboardCertification = ({ onboardingData }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
+    const lastPrefetchAtRef = useRef(0);
 
     const [previewOpen, setPreviewOpen] = useState(false);
     const [selectedDocument, setSelectedDocument] = useState(null);
@@ -79,13 +83,18 @@ const DashboardCertification = ({ onboardingData }) => {
     const [otherEditorOpen, setOtherEditorOpen] = useState(false);
     const [otherEditorId, setOtherEditorId] = useState(null);
 
-    const certifications = onboardingData?.data?.profile?.certifications || [];
-    console.log('Certifications:', certifications);
-    const otherCertifications = onboardingData?.data?.profile?.otherCertifications || [];
+    const certifications = useMemo(
+        () => onboardingData?.data?.profile?.certifications || [],
+        [onboardingData]
+    );
+    const otherCertifications = useMemo(
+        () => onboardingData?.data?.profile?.otherCertifications || [],
+        [onboardingData]
+    );
 
     // Derived datasets for tabs
-    const today = new Date();
-    const isExpired = (item) => {
+    const today = useMemo(() => new Date(), []);
+    const isExpired = useCallback((item) => {
         const status = (item?.verificationStatus || '').toLowerCase();
         // If backend already marks it expired, treat as expired even without expiryDate
         if (status === 'expired') return true;
@@ -95,21 +104,17 @@ const DashboardCertification = ({ onboardingData }) => {
         } catch (_) {
             return false;
         }
-    };
-    const isRejected = (item) => (item?.verificationStatus || '').toLowerCase() === 'rejected';
+    }, [today]);
+    const isRejected = useCallback((item) => (item?.verificationStatus || '').toLowerCase() === 'rejected', []);
 
-    const expiredCertifications = [...certifications, ...otherCertifications].filter(isExpired);
-    const rejectedCertifications = [...certifications, ...otherCertifications].filter(isRejected);
-    
-    // Console log for debugging rejected certifications
-    console.log('Rejected certifications:', rejectedCertifications.map(cert => ({
-        id: cert.id || cert._id,
-        title: cert.certificationType?.name || cert.certificationTitle,
-        status: cert.verificationStatus,
-        rejectionReason: cert.rejectionReason,
-        verificationDate: cert.verificationDate,
-        verifiedBy: cert.verifiedBy
-    })));
+    const expiredCertifications = useMemo(
+        () => [...certifications, ...otherCertifications].filter(isExpired),
+        [certifications, otherCertifications, isExpired]
+    );
+    const rejectedCertifications = useMemo(
+        () => [...certifications, ...otherCertifications].filter(isRejected),
+        [certifications, otherCertifications, isRejected]
+    );
     const getStatusColor = (status) => {
         switch (status?.toLowerCase()) {
             case 'verified': return 'success';
@@ -128,23 +133,72 @@ const DashboardCertification = ({ onboardingData }) => {
         }
     };
 
-    const formatDate = (dateString) => {
+    const formatDate = useCallback((dateString) => {
         if (!dateString) return 'Not specified';
         return new Date(dateString).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric'
         });
-    };
+    }, []);
 
-    const isExpiringSoon = (expiryDate) => {
+    const isExpiringSoon = useCallback((expiryDate) => {
         if (!expiryDate) return false;
         const today = new Date();
         const expiry = new Date(expiryDate);
         const diffTime = expiry - today;
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         return diffDays <= 90 && diffDays > 0;
-    };
+    }, []);
+
+    const prefetchOnboarding = useCallback(() => {
+        const now = Date.now();
+        // throttle: at most once every 2s
+        if (now - lastPrefetchAtRef.current < 2000) return;
+
+        // condition: skip if cache is warm (updated within last 2 minutes)
+        const state = queryClient.getQueryState(['onboarding']);
+        if (state?.dataUpdatedAt && now - state.dataUpdatedAt < 2 * 60 * 1000) {
+            return;
+        }
+
+        lastPrefetchAtRef.current = now;
+        try {
+            queryClient.prefetchQuery({
+                queryKey: ['onboarding'],
+                queryFn: onboardingApi.fetchOnboardingProgress,
+                staleTime: 5 * 60 * 1000
+            });
+        } catch (_) {}
+    }, [queryClient]);
+
+    // Compute missing fields for a certification using its type definition
+    const computeMissingFields = useCallback((cert) => {
+        if (!cert) return [];
+        const missing = [];
+        const type = cert.certificationType || {};
+        const requiredFields = Array.isArray(type.requiredFields) ? type.requiredFields : [];
+        // Required simple fields
+        for (const field of requiredFields) {
+            if (field === 'degree' || field === 'insuranceType') continue; // handled separately
+            if (!cert[field]) missing.push(field);
+        }
+        // Education
+        if (type.isEducation) {
+            if (!Array.isArray(cert.degree) || cert.degree.length === 0) {
+                missing.push('degree');
+            }
+        }
+        // Insurance
+        if (requiredFields.includes('insuranceType') && !cert.insuranceType) {
+            missing.push('insuranceType');
+        }
+        // Documents
+        if (type.documentRequired && (!Array.isArray(cert.documents) || cert.documents.length === 0)) {
+            missing.push('documents');
+        }
+        return missing;
+    }, []);
 
     const handleTabChange = (event, newValue) => {
         setActiveTab(newValue);
@@ -218,6 +272,11 @@ const DashboardCertification = ({ onboardingData }) => {
                                         size="small"
                                         sx={{ fontSize: '0.7rem', height: '24px' }}
                                     />
+                                    {(() => { const m = computeMissingFields(cert); return m.length > 0 ? (
+                                        <Tooltip title={`Missing: ${m.join(', ')}`}>
+                                            <Chip label={`Missing ${m.length}`} color="error" size="small" variant="outlined" sx={{ height: '24px' }} />
+                                        </Tooltip>
+                                    ) : null; })()}
                                     {cert.documents?.length > 0 && (
                                         <Chip
                                             icon={<Assignment />}
@@ -231,10 +290,11 @@ const DashboardCertification = ({ onboardingData }) => {
                             </Box>
                             <Stack direction="row" spacing={0.5} alignItems="center">
                                 {/* Mobile edit/delete action bar */}
-                                {(type === 'other' || ['rejected','expired','pending'].includes((cert.verificationStatus||'').toLowerCase())) && (
+                                    {(type === 'other' || ['rejected','expired','pending'].includes((cert.verificationStatus||'').toLowerCase())) && (
                                   <Tooltip title="Edit">
                                     <IconButton
                                       size="small"
+                                          onMouseEnter={prefetchOnboarding}
                                       onClick={(e)=>{
                                         e.stopPropagation();
                                         if (type === 'professional') {
@@ -503,6 +563,11 @@ const DashboardCertification = ({ onboardingData }) => {
                                                 size="small"
                                                 sx={{ fontWeight: 600 }}
                                             />
+                                            {(() => { const m = computeMissingFields(cert); return m.length > 0 ? (
+                                                <Tooltip title={`Missing: ${m.join(', ')}`}>
+                                                    <Chip label={`Missing ${m.length}`} color="error" size="small" variant="outlined" sx={{ ml: 1 }} />
+                                                </Tooltip>
+                                            ) : null; })()}
                                         </TableCell>
                                         <TableCell>
                                             {cert.issuedDate ? (
@@ -547,6 +612,7 @@ const DashboardCertification = ({ onboardingData }) => {
                                                         <IconButton 
                                                             size="small" 
                                                             color="primary"
+                                                            onMouseEnter={prefetchOnboarding}
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 if (type === 'professional') {
@@ -932,6 +998,7 @@ const DashboardCertification = ({ onboardingData }) => {
                                         <IconButton
                                             size="small"
                                             className="edit-button"
+                                            onMouseEnter={prefetchOnboarding}
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 const typeId = cert?.certificationType?._id || cert?.certificationType;

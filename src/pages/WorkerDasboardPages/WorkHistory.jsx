@@ -4,6 +4,7 @@ import {
   Typography,
   Card,
   CardContent,
+  CardActions,
   Chip,
   IconButton,
   Paper,
@@ -35,10 +36,23 @@ import WorkerNavbar from '../../components/Navbar/WorkerNavbar';
 import DashboardSidebar from '../../components/workerDashboard/components/DashboardSidebar/DashboardSidebar';
 import { useOnboardingQuery } from '../../stores/useOnboardingStore';
 import DocumentPreview from '../../components/workerForm/Modals/DocumentPreview';
+import { useQuery } from '@tanstack/react-query';
+import { getCurrentUser } from '../../api/auth';
+import { useReferenceManagement } from '../../hooks/useReferences';
 
 const WorkHistory = () => {
   const { data: onboardingData } = useOnboardingQuery();
   const [previewDocument, setPreviewDocument] = useState(null);
+  const { data: user } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: getCurrentUser,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const {
+    references: apiReferences,
+    isLoading: isRefsLoading,
+  } = useReferenceManagement({ workerId: user?._id, limit: 20, enabled: !!user });
 
   const formatDateForInput = (dateValue) => {
     if (!dateValue) return '';
@@ -233,98 +247,94 @@ const WorkHistory = () => {
                 </Stack>
 
                 {onboardingData?.data?.profile?.workHistory?.length > 0 ? (
-                  <Stack spacing={3}>
+                  <Grid container spacing={2}>
                     {onboardingData.data.profile.workHistory.map((history, index) => (
-                      <Card 
-                        key={history.id || index}
-                        sx={{ 
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          borderRadius: 2,
-                          transition: 'all 0.2s ease-in-out',
-                          '&:hover': {
-                            borderColor: 'primary.main',
-                            boxShadow: 1
-                          }
-                        }}
-                      >
-                        <CardContent sx={{ p: 3 }}>
-                          <Stack spacing={2}>
-                            {/* Header with company and status */}
-                            <Stack 
-                              direction={{ xs: 'column', sm: 'row' }} 
-                              justifyContent="space-between" 
-                              alignItems={{ xs: 'flex-start', sm: 'center' }}
-                              spacing={2}
-                            >
-                              <Box>
-                                <Typography variant="h6" fontWeight={600} gutterBottom>
-                                  {history.title}
-                                </Typography>
-                                <Stack direction="row" alignItems="center" spacing={1}>
-                                  <Business fontSize="small" color="action" />
-                                  <Typography variant="subtitle1" color="text.primary">
-                                    {history.company}
+                      <Grid item xs={12} sm={6} key={history.id || index}>
+                        <Card 
+                          sx={{ 
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 2,
+                            height: '100%',
+                            transition: 'all 0.2s ease-in-out',
+                            '&:hover': {
+                              borderColor: 'primary.main',
+                              boxShadow: 2,
+                              transform: 'translateY(-2px)'
+                            }
+                          }}
+                        >
+                          <CardContent sx={{ p: 3 }}>
+                            <Stack spacing={2}>
+                              <Stack 
+                                direction={{ xs: 'column', sm: 'row' }} 
+                                justifyContent="space-between" 
+                                alignItems={{ xs: 'flex-start', sm: 'center' }}
+                                spacing={2}
+                              >
+                                <Box>
+                                  <Typography variant="h6" fontWeight={600} gutterBottom>
+                                    {history.title}
                                   </Typography>
-                                </Stack>
-                              </Box>
-                              
-                              {history.current && (
-                                <Chip 
-                                  label="Current Position" 
-                                  size="small"
-                                  color="success"
-                                  variant="outlined"
-                                  sx={{ fontWeight: 500 }}
-                                />
-                              )}
-                            </Stack>
-
-                            {/* Date and Location Info */}
-                            <Grid container spacing={2}>
-                              <Grid item xs={12} sm={6}>
-                                <Stack direction="row" alignItems="center" spacing={1}>
-                                  <CalendarToday fontSize="small" sx={{ color: 'text.secondary' }} />
-                                  <Typography variant="body2" color="text.secondary">
-                                    {formatDisplayDate(history.startDate)} - {formatDisplayDate(history.endDate)}
-                                  </Typography>
-                                  <Chip 
-                                    label={calculateDuration(history.startDate, history.endDate)}
-                                    size="small"
-                                    variant="outlined"
-                                    sx={{ ml: 1, fontSize: '0.75rem' }}
-                                  />
-                                </Stack>
-                              </Grid>
-                              
-                              {history.location && (
-                                <Grid item xs={12} sm={6}>
                                   <Stack direction="row" alignItems="center" spacing={1}>
-                                    <LocationOn fontSize="small" sx={{ color: 'text.secondary' }} />
-                                    <Typography variant="body2" color="text.secondary">
-                                      {history.location}
+                                    <Business fontSize="small" color="action" />
+                                    <Typography variant="subtitle1" color="text.primary">
+                                      {history.company}
                                     </Typography>
                                   </Stack>
+                                </Box>
+                                {history.current && (
+                                  <Chip 
+                                    label="Current Position" 
+                                    size="small"
+                                    color="success"
+                                    variant="outlined"
+                                    sx={{ fontWeight: 500 }}
+                                  />
+                                )}
+                              </Stack>
+                              <Grid container spacing={2}>
+                                <Grid item xs={12}>
+                                  <Stack direction="row" alignItems="center" spacing={1}>
+                                    <CalendarToday fontSize="small" sx={{ color: 'text.secondary' }} />
+                                    <Typography variant="body2" color="text.secondary">
+                                      {formatDisplayDate(history.startDate)} - {formatDisplayDate(history.endDate)}
+                                    </Typography>
+                                    <Chip 
+                                      label={calculateDuration(history.startDate, history.endDate)}
+                                      size="small"
+                                      variant="outlined"
+                                      sx={{ ml: 1, fontSize: '0.75rem' }}
+                                    />
+                                  </Stack>
                                 </Grid>
+                                {history.location && (
+                                  <Grid item xs={12}>
+                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                      <LocationOn fontSize="small" sx={{ color: 'text.secondary' }} />
+                                      <Typography variant="body2" color="text.secondary">
+                                        {history.location}
+                                      </Typography>
+                                    </Stack>
+                                  </Grid>
+                                )}
+                              </Grid>
+                              {history.description && (
+                                <Box sx={{ mt: 1 }}>
+                                  <Stack direction="row" alignItems="flex-start" spacing={1}>
+                                    <Description fontSize="small" sx={{ color: 'text.secondary', mt: 0.5 }} />
+                                    <Typography variant="body2" color="text.primary">
+                                      {history.description}
+                                    </Typography>
+                                  </Stack>
+                                </Box>
                               )}
-                            </Grid>
-
-                            {/* Description */}
-                            {history.description && (
-                              <Box sx={{ mt: 2 }}>
-                                <Stack direction="row" alignItems="flex-start" spacing={1}>
-                                  <Description fontSize="small" sx={{ color: 'text.secondary', mt: 0.5 }} />
-                                  <Typography variant="body2" color="text.primary">
-                                    {history.description}
-                                  </Typography>
-                                </Stack>
-                              </Box>
-                            )}
-                          </Stack>
-                        </CardContent>
-                      </Card>
+                            </Stack>
+                          </CardContent>
+                        </Card>
+                      </Grid>
                     ))}
-                  </Stack>
+                  </Grid>
                 ) : (
                   <Box 
                     sx={{ 
@@ -346,14 +356,12 @@ const WorkHistory = () => {
             </Grid>
 
             {/* References Section */}
-     
-          </Grid>
-                 <Grid item xs={12} lg={4}>
+            <Grid item xs={12} lg={4}>
               <Paper 
                 elevation={0} 
                 sx={{ 
                   p: 3, 
-                  mt:3,
+                  mt: 0,
                   border: '1px solid',
                   borderColor: 'divider',
                   borderRadius: 2,
@@ -370,16 +378,18 @@ const WorkHistory = () => {
                       References
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {onboardingData?.data?.profile?.references?.length || 0} reference(s)
+                      {isRefsLoading ? 'Loading...' : (apiReferences?.length || 0)} reference(s)
                     </Typography>
                   </Box>
                 </Stack>
 
-                {onboardingData?.data?.profile?.references?.length > 0 ? (
+                {isRefsLoading ? (
+                  <Typography variant="body2" color="text.secondary">Loading references...</Typography>
+                ) : apiReferences?.length > 0 ? (
                   <Stack spacing={2}>
-                    {onboardingData.data.profile.references.map((reference, index) => (
+                    {apiReferences.map((reference, index) => (
                       <Card 
-                        key={reference.id || index}
+                        key={reference._id || index}
                         sx={{ 
                           border: '1px solid',
                           borderColor: 'divider',
@@ -393,7 +403,6 @@ const WorkHistory = () => {
                       >
                         <CardContent sx={{ p: 2.5 }}>
                           <Stack spacing={2}>
-                            {/* Reference Header */}
                             <Stack direction="row" alignItems="center" justifyContent="space-between">
                               <Stack direction="row" alignItems="center" spacing={2}>
                                 <Avatar 
@@ -404,11 +413,11 @@ const WorkHistory = () => {
                                     height: 40
                                   }}
                                 >
-                                  {reference.name?.charAt(0)?.toUpperCase() || 'R'}
+                                  {(reference.referenceInfo?.name || reference.name || 'R').charAt(0).toUpperCase()}
                                 </Avatar>
                                 <Box>
                                   <Typography variant="subtitle2" fontWeight={600}>
-                                    {reference.name}
+                                    {reference.referenceInfo?.name || reference.name}
                                   </Typography>
                                   <Typography variant="caption" color="text.secondary">
                                     Reference #{index + 1}
@@ -420,7 +429,7 @@ const WorkHistory = () => {
                                 overlap="circular"
                                 anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
                                 badgeContent={
-                                  reference.verified ? (
+                                  (reference.status === 'Completed') ? (
                                     <VerifiedUser 
                                       sx={{ 
                                         color: 'success.main', 
@@ -443,16 +452,15 @@ const WorkHistory = () => {
 
                             <Divider />
 
-                            {/* Reference Details */}
                             <Stack spacing={1.5}>
                               <Stack direction="row" alignItems="center" spacing={1}>
                                 <Business fontSize="small" sx={{ color: 'text.secondary' }} />
                                 <Box>
                                   <Typography variant="body2" fontWeight={500}>
-                                    {reference.company}
+                                    {reference.referenceInfo?.company || reference.company}
                                   </Typography>
                                   <Typography variant="caption" color="text.secondary">
-                                    {reference.position}
+                                    {reference.referenceInfo?.position || reference.position}
                                   </Typography>
                                 </Box>
                               </Stack>
@@ -460,27 +468,38 @@ const WorkHistory = () => {
                               <Stack direction="row" alignItems="center" spacing={1}>
                                 <Email fontSize="small" sx={{ color: 'text.secondary' }} />
                                 <Typography variant="body2" color="text.primary">
-                                  {reference.email}
+                                  {reference.referenceInfo?.email || reference.email}
                                 </Typography>
                               </Stack>
 
                               <Stack direction="row" alignItems="center" spacing={1}>
                                 <Phone fontSize="small" sx={{ color: 'text.secondary' }} />
                                 <Typography variant="body2" color="text.primary">
-                                  {reference.phone}
+                                  {reference.referenceInfo?.phone || reference.phone}
                                 </Typography>
                               </Stack>
                             </Stack>
 
-                            {/* Verification Status */}
                             <Chip
-                              icon={reference.verified ? <VerifiedUser /> : <Pending />}
-                              label={reference.verified ? 'Verified' : 'Pending Verification'}
+                              icon={reference.status === 'Completed' ? <VerifiedUser /> : <Pending />}
+                              label={reference.status || 'Pending'}
                               size="small"
-                              color={reference.verified ? 'success' : 'warning'}
+                              color={reference.status === 'Completed' ? 'success' : 'warning'}
                               variant="outlined"
                               sx={{ alignSelf: 'flex-start', fontWeight: 500 }}
                             />
+                            {Array.isArray(reference.statusHistory) && reference.statusHistory.length > 0 && (
+                              <Stack spacing={1} sx={{ mt: 1 }}>
+                                <Typography variant="caption" color="text.secondary">Recent activity</Typography>
+                                <Stack spacing={0.5}>
+                                  {reference.statusHistory.slice(-3).reverse().map((h, i) => (
+                                    <Typography key={i} variant="caption" color="text.secondary">
+                                      {new Date(h.timestamp).toLocaleString()} — {h.status}{h.notes ? ` · ${h.notes}` : ''}
+                                    </Typography>
+                                  ))}
+                                </Stack>
+                              </Stack>
+                            )}
                           </Stack>
                         </CardContent>
                       </Card>
@@ -505,6 +524,85 @@ const WorkHistory = () => {
                 )}
               </Paper>
             </Grid>
+
+            {/* Overall Reference History */}
+            <Grid item xs={12}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                  bgcolor: 'background.paper'
+                }}
+              >
+                <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
+                  <Avatar sx={{ bgcolor: 'primary.main' }}>
+                    <VerifiedUser />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="h6" fontWeight={600}>Overall Reference History</Typography>
+                    <Typography variant="body2" color="text.secondary">Recent status changes and responses</Typography>
+                  </Box>
+                </Stack>
+
+                {isRefsLoading ? (
+                  <Typography variant="body2" color="text.secondary">Loading history...</Typography>
+                ) : apiReferences?.length > 0 ? (
+                  <Grid container spacing={2}>
+                    {apiReferences.map((ref) => (
+                      <Grid item xs={12} md={6} lg={4} key={ref._id}>
+                        <Card sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                          <CardContent sx={{ p: 2 }}>
+                            <Stack spacing={1.5}>
+                              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                <Typography variant="subtitle2" fontWeight={600}>
+                                  {ref.referenceInfo?.name || ref.name}
+                                </Typography>
+                                <Chip size="small" label={ref.status} color={ref.status === 'Completed' ? 'success' : 'default'} />
+                              </Stack>
+                              <Typography variant="caption" color="text.secondary">
+                                {ref.referenceInfo?.company || ref.company} {ref.referenceInfo?.position ? `· ${ref.referenceInfo.position}` : ''}
+                              </Typography>
+                              {ref.progress && (
+                                <Typography variant="caption" color="text.secondary">
+                                  Progress: {ref.progress.answeredQuestions}/{ref.progress.totalQuestions} ({ref.progress.percentageComplete}%)
+                                </Typography>
+                              )}
+                              {Array.isArray(ref.statusHistory) && ref.statusHistory.length > 0 && (
+                                <Stack spacing={0.5}>
+                                  {ref.statusHistory.slice(-2).reverse().map((h, i) => (
+                                    <Typography key={i} variant="caption" color="text.secondary">
+                                      {new Date(h.timestamp).toLocaleString()} — {h.status}
+                                    </Typography>
+                                  ))}
+                                </Stack>
+                              )}
+                              {Array.isArray(ref.responses) && ref.responses.length > 0 && (
+                                <Box>
+                                  <Typography variant="caption" color="text.secondary">Latest responses</Typography>
+                                  <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+                                    {ref.responses.slice(-2).reverse().map((r, idx) => (
+                                      <Typography key={idx} variant="caption" color="text.secondary">
+                                        {r.questionText ? `${r.questionText}: ` : ''}{String(r.answer).slice(0, 60)}{String(r.answer).length > 60 ? '…' : ''}
+                                      </Typography>
+                                    ))}
+                                  </Stack>
+                                </Box>
+                              )}
+                            </Stack>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">No reference activity yet.</Typography>
+                )}
+              </Paper>
+            </Grid>
+          </Grid>
 
     
         </Container>

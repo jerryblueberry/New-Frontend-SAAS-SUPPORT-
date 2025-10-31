@@ -20,7 +20,8 @@ import {
     useTheme,
     Paper,
     Container,
-    useMediaQuery
+    useMediaQuery,
+    Skeleton
 } from '@mui/material'
 import WarningIcon from '@mui/icons-material/Warning';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
@@ -56,6 +57,37 @@ import WorkerNavbar from '../../components/Navbar/WorkerNavbar'
 import DashboardSidebar from '../../components/workerDashboard/components/DashboardSidebar/DashboardSidebar'
 import OnboardingPrompt from '../../components/workerDashboard/components/OnboardingPrompt/OnboardingPrompt'
 // CSS removed in favor of MUI sx-based styling
+
+// Hoisted status maps for stable references and perf
+const STATUS_COLOR_MAP = {
+    'Verified': 'success',
+    'Pending': 'warning',
+    'Rejected': 'error',
+    'Expiring Soon': 'warning',
+    'Expired': 'error',
+    'Completed': 'success',
+    'InProgress': 'info',
+    'EmailSent': 'info',
+    'Viewed': 'info',
+    'Submitted': 'info',
+    'Approved': 'success',
+    'Draft': 'default',
+};
+
+const STATUS_TEXT_MAP = {
+    'Verified': 'Verified',
+    'Pending': 'Pending Review',
+    'Rejected': 'Rejected',
+    'Expiring Soon': 'Expiring Soon',
+    'Expired': 'Expired',
+    'Completed': 'Completed',
+    'InProgress': 'In Progress',
+    'EmailSent': 'Email Sent',
+    'Viewed': 'Viewed',
+    'Submitted': 'Submitted',
+    'Approved': 'Approved',
+    'Draft': 'Draft',
+};
 
 const Overview = () => {
     const theme = useTheme();
@@ -100,6 +132,54 @@ const Overview = () => {
         enabled: !!user,
     });
 
+    // Lightweight references overview query (decoupled from onboarding overview)
+    const { data: referencesData, isLoading: isReferencesLoading } = useQuery({
+        queryKey: ['references.overview'],
+        queryFn: async () => {
+            const response = await api.get('/references/overview');
+            return response.data;
+        },
+        staleTime: 5 * 60 * 1000,
+        retry: false,
+        enabled: !!user,
+        select: (data) => ({
+            stats: data?.stats || {},
+            recent: Array.isArray(data?.recent) ? data.recent : [],
+        }),
+    });
+
+    // Lightweight notifications overview query
+    const { data: notificationsData, isLoading: isNotificationsLoading } = useQuery({
+        queryKey: ['notifications.overview'],
+        queryFn: async () => {
+            const response = await api.get('/notifications/overview');
+            return response.data;
+        },
+        staleTime: 3 * 60 * 1000,
+        retry: false,
+        enabled: !!user,
+        select: (data) => ({
+            recent: Array.isArray(data?.recent) ? data.recent : [],
+            unreadCount: Number(data?.unreadCount || 0),
+        }),
+    });
+
+    // Lightweight timesheets overview query
+    const { data: timesheetsData, isLoading: isTimesheetsLoading } = useQuery({
+        queryKey: ['timesheets.overview'],
+        queryFn: async () => {
+            const response = await api.get('/timesheet/overview');
+            return response.data;
+        },
+        staleTime: 3 * 60 * 1000,
+        retry: false,
+        enabled: !!user,
+        select: (data) => ({
+            stats: data?.stats || {},
+            recent: Array.isArray(data?.recent) ? data.recent : [],
+        }),
+    });
+
     const verificationStatus =
         typeof profileStatus?.verificationStatus === 'object'
             ? profileStatus?.verificationStatus?.overall
@@ -137,41 +217,9 @@ const Overview = () => {
 
     const continueOnboarding = () => navigate('/onboarding');
 
-    const getStatusColor = (status) => {
-        const statusMap = {
-            'Verified': 'success',
-            'Pending': 'warning',
-            'Rejected': 'error',
-            'Expiring Soon': 'warning',
-            'Expired': 'error',
-            'Completed': 'success',
-            'InProgress': 'info',
-            'EmailSent': 'info',
-            'Viewed': 'info',
-            'Submitted': 'info',
-            'Approved': 'success',
-            'Draft': 'default',
-        };
-        return statusMap[status] || 'default';
-    };
+    const getStatusColor = (status) => STATUS_COLOR_MAP[status] || 'default';
 
-    const getStatusText = (status) => {
-        const statusMap = {
-            'Verified': 'Verified',
-            'Pending': 'Pending Review',
-            'Rejected': 'Rejected',
-            'Expiring Soon': 'Expiring Soon',
-            'Expired': 'Expired',
-            'Completed': 'Completed',
-            'InProgress': 'In Progress',
-            'EmailSent': 'Email Sent',
-            'Viewed': 'Viewed',
-            'Submitted': 'Submitted',
-            'Approved': 'Approved',
-            'Draft': 'Draft',
-        };
-        return statusMap[status] || status;
-    };
+    const getStatusText = (status) => STATUS_TEXT_MAP[status] || status;
 
     const getStatusIcon = (status) => {
         const iconMap = {
@@ -206,12 +254,12 @@ const Overview = () => {
     // Data extraction
     const unverifiedCertifications = overviewData?.certifications?.unverified || profileStatus?.unverifiedCertifications || [];
     const certStats = overviewData?.certifications?.stats || {};
-    const referenceStats = overviewData?.references?.stats || {};
-    const recentReferences = overviewData?.references?.recent || [];
-    const recentNotifications = overviewData?.notifications?.recent || [];
-    const unreadNotifications = overviewData?.notifications?.unreadCount || 0;
-    const timesheetStats = overviewData?.timesheets?.stats || {};
-    const recentTimesheets = overviewData?.timesheets?.recent || [];
+    const referenceStats = referencesData?.stats || overviewData?.references?.stats || {};
+    const recentReferences = referencesData?.recent || overviewData?.references?.recent || [];
+    const recentNotifications = notificationsData?.recent || overviewData?.notifications?.recent || [];
+    const unreadNotifications = notificationsData?.unreadCount || overviewData?.notifications?.unreadCount || 0;
+    const timesheetStats = timesheetsData?.stats || overviewData?.timesheets?.stats || {};
+    const recentTimesheets = timesheetsData?.recent || overviewData?.timesheets?.recent || [];
     const verificationDetail = overviewData?.verificationStatus || {};
     const profileCompleteness = overviewData?.profileCompleteness || profileStatus?.profileCompleteness?.percentage || 0;
 
@@ -345,7 +393,16 @@ const Overview = () => {
                                             </Stack>
                                             <Button size="small" endIcon={<KeyboardArrowRightIcon />} onClick={() => navigate('/notifications')}>View All</Button>
                                         </Stack>
-                                        {recentNotifications.length > 0 ? (
+                                        {isNotificationsLoading && recentNotifications.length === 0 ? (
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                                {[...Array(6)].map((_, i) => (
+                                                    <Box key={i} sx={{ p: 1.25, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                                                        <Skeleton variant="text" width="60%" height={18} />
+                                                        <Skeleton variant="text" width="40%" height={14} />
+                                                    </Box>
+                                                ))}
+                                            </Box>
+                                        ) : recentNotifications.length > 0 ? (
                                             <List sx={{
                                                 p: 0, overflowY: 'auto', pr: 1,
                                                 '&::-webkit-scrollbar': { width: 6 },
@@ -460,15 +517,27 @@ const Overview = () => {
                                                 <AccessTimeIcon sx={{ color: 'primary.main' }} />
                                             </Avatar>
                                             <Box sx={{ flex: 1, minWidth: 0 }}>
-                                                <Stack direction="row" spacing={1.1} alignItems="center">
-                                                    <Typography variant="subtitle2" color="text.secondary">Timesheets</Typography>
-                                                    <Typography variant="subtitle1" fontWeight={700}>{(timesheetStats.approved || 0) + (timesheetStats.submitted || 0) + (timesheetStats.pending_review || 0) + (timesheetStats.draft || 0)}</Typography>
-                                                </Stack>
-                                                <Stack direction="row" spacing={1} sx={{ mt: 0.75, flexWrap: 'wrap' }}>
-                                                    {(timesheetStats.approved || 0) > 0 && <Chip size="small" label={`Approved ${timesheetStats.approved}`} color="success" variant="outlined" />}
-                                                    {(timesheetStats.pending_review || 0) > 0 && <Chip size="small" label={`Pending ${timesheetStats.pending_review}`} color="warning" variant="outlined" />}
-                                                    {(timesheetStats.draft || 0) > 0 && <Chip size="small" label={`Draft ${timesheetStats.draft}`} variant="outlined" />}
-                                                </Stack>
+                                                {isTimesheetsLoading ? (
+                                                    <>
+                                                        <Skeleton variant="text" width={120} height={18} />
+                                                        <Stack direction="row" spacing={1} sx={{ mt: 0.75, flexWrap: 'wrap' }}>
+                                                            <Skeleton variant="rounded" width={90} height={24} />
+                                                            <Skeleton variant="rounded" width={90} height={24} />
+                                                        </Stack>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Stack direction="row" spacing={1.1} alignItems="center">
+                                                            <Typography variant="subtitle2" color="text.secondary">Timesheets</Typography>
+                                                            <Typography variant="subtitle1" fontWeight={700}>{(timesheetStats.approved || 0) + (timesheetStats.submitted || 0) + (timesheetStats.pending_review || 0) + (timesheetStats.draft || 0)}</Typography>
+                                                        </Stack>
+                                                        <Stack direction="row" spacing={1} sx={{ mt: 0.75, flexWrap: 'wrap' }}>
+                                                            {(timesheetStats.approved || 0) > 0 && <Chip size="small" label={`Approved ${timesheetStats.approved}`} color="success" variant="outlined" />}
+                                                            {(timesheetStats.pending_review || 0) > 0 && <Chip size="small" label={`Pending ${timesheetStats.pending_review}`} color="warning" variant="outlined" />}
+                                                            {(timesheetStats.draft || 0) > 0 && <Chip size="small" label={`Draft ${timesheetStats.draft}`} variant="outlined" />}
+                                                        </Stack>
+                                                    </>
+                                                )}
                                             </Box>
                                             <Button size="small" onClick={() => navigate('/timesheets')}>Open</Button>
                                         </Stack>
@@ -479,15 +548,27 @@ const Overview = () => {
                                                 <PersonIcon sx={{ color: 'secondary.main' }} />
                                             </Avatar>
                                             <Box sx={{ flex: 1, minWidth: 0 }}>
-                                                <Stack direction="row" spacing={1} alignItems="center">
-                                                    <Typography variant="subtitle2" color="text.secondary">References</Typography>
-                                                    <Typography variant="subtitle1" fontWeight={700}>{referenceStats.total || 0}</Typography>
-                                                </Stack>
-                                                <Stack direction="row" spacing={1.1} sx={{ mt: 0.75, flexWrap: 'wrap' }}>
-                                                    {(referenceStats.completed || 0) > 0 && <Chip size="small" label={`Completed ${referenceStats.completed}`} color="success" variant="outlined" />}
-                                                    {(referenceStats.pending || 0) > 0 && <Chip size="small" label={`Pending ${referenceStats.pending}`} color="warning" variant="outlined" />}
-                                                    {(referenceStats.inProgress || 0) > 0 && <Chip size="small" label={`In Progress ${referenceStats.inProgress}`} color="info" variant="outlined" />}
-                                                </Stack>
+                                                {isReferencesLoading ? (
+                                                    <>
+                                                        <Skeleton variant="text" width={120} height={18} />
+                                                        <Stack direction="row" spacing={1} sx={{ mt: 0.75, flexWrap: 'wrap' }}>
+                                                            <Skeleton variant="rounded" width={110} height={24} />
+                                                            <Skeleton variant="rounded" width={110} height={24} />
+                                                        </Stack>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Stack direction="row" spacing={1} alignItems="center">
+                                                            <Typography variant="subtitle2" color="text.secondary">References</Typography>
+                                                            <Typography variant="subtitle1" fontWeight={700}>{referenceStats.total || 0}</Typography>
+                                                        </Stack>
+                                                        <Stack direction="row" spacing={1.1} sx={{ mt: 0.75, flexWrap: 'wrap' }}>
+                                                            {(referenceStats.completed || 0) > 0 && <Chip size="small" label={`Completed ${referenceStats.completed}`} color="success" variant="outlined" />}
+                                                            {(referenceStats.pending || 0) > 0 && <Chip size="small" label={`Pending ${referenceStats.pending}`} color="warning" variant="outlined" />}
+                                                            {(referenceStats.inProgress || 0) > 0 && <Chip size="small" label={`In Progress ${referenceStats.inProgress}`} color="info" variant="outlined" />}
+                                                        </Stack>
+                                                    </>
+                                                )}
                                             </Box>
                                             <Button size="small" onClick={() => navigate('/work-history')}>Open</Button>
                                         </Stack>
@@ -574,7 +655,7 @@ const Overview = () => {
                         {/* Recent Activity Section */}
                         <Grid container spacing={3}>
                             {/* Recent Notifications */}
-                            {recentNotifications.length > 0 && overviewVerificationStatus !== 'Unverified' && (
+                            {overviewVerificationStatus !== 'Unverified' && (
                                 <Grid item xs={12} md={6}>
                                     <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'grey.200', borderRadius: 2, p: 3 }}>
                                         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
@@ -584,26 +665,39 @@ const Overview = () => {
                                             </Stack>
                                             <Button size="small" endIcon={<KeyboardArrowRightIcon />} onClick={() => navigate('/notifications')}>View All</Button>
                                         </Stack>
-                                        <List sx={{ p: 0 }}>
-                                            {recentNotifications.slice(0, 6).map((notification, idx) => (
-                                                <React.Fragment key={notification.id || idx}>
-                                                    <ListItem sx={{ px: 1, py: 1.25, borderRadius: 2, border: '1px solid', borderColor: 'divider', mb: 1, bgcolor: notification.read ? 'background.paper' : alpha(theme.palette.info.main, 0.05), '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) }, position: 'relative', overflow: 'hidden' }}>
-                                                        <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, bgcolor: notification.priority === 'high' ? 'error.main' : (notification.read ? 'divider' : 'info.main') }} />
-                                                        <ListItemIcon sx={{ minWidth: 40 }}>
-                                                            {notification.read ? <NotificationsIcon sx={{ color: 'text.disabled', fontSize: 20 }} /> : <NotificationsActiveIcon sx={{ color: 'info.main', fontSize: 20 }} />}
-                                                        </ListItemIcon>
-                                                        <ListItemText primary={<Typography variant="body2" fontWeight={notification.read ? 400 : 600} noWrap>{notification.title || 'Notification'}</Typography>} secondary={<Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>{formatDate(notification.createdAt)} • {formatTime(notification.createdAt)}</Typography>} />
-                                                        {notification.priority === 'high' && (<Chip label="High" color="error" size="small" sx={{ fontSize: '0.65rem', height: 20 }} />)}
-                                                    </ListItem>
-                                                </React.Fragment>
-                                            ))}
-                                        </List>
+                                        {isNotificationsLoading && recentNotifications.length === 0 ? (
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                                {[...Array(6)].map((_, i) => (
+                                                    <Box key={i} sx={{ p: 1.25, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                                                        <Skeleton variant="text" width="60%" height={18} />
+                                                        <Skeleton variant="text" width="40%" height={14} />
+                                                    </Box>
+                                                ))}
+                                            </Box>
+                                        ) : recentNotifications.length > 0 ? (
+                                            <List sx={{ p: 0 }}>
+                                                {recentNotifications.slice(0, 6).map((notification, idx) => (
+                                                    <React.Fragment key={notification.id || idx}>
+                                                        <ListItem sx={{ px: 1, py: 1.25, borderRadius: 2, border: '1px solid', borderColor: 'divider', mb: 1, bgcolor: notification.read ? 'background.paper' : alpha(theme.palette.info.main, 0.05), '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) }, position: 'relative', overflow: 'hidden' }}>
+                                                            <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, bgcolor: notification.priority === 'high' ? 'error.main' : (notification.read ? 'divider' : 'info.main') }} />
+                                                            <ListItemIcon sx={{ minWidth: 40 }}>
+                                                                {notification.read ? <NotificationsIcon sx={{ color: 'text.disabled', fontSize: 20 }} /> : <NotificationsActiveIcon sx={{ color: 'info.main', fontSize: 20 }} />}
+                                                            </ListItemIcon>
+                                                            <ListItemText primary={<Typography variant="body2" fontWeight={notification.read ? 400 : 600} noWrap>{notification.title || 'Notification'}</Typography>} secondary={<Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>{formatDate(notification.createdAt)} • {formatTime(notification.createdAt)}</Typography>} />
+                                                            {notification.priority === 'high' && (<Chip label="High" color="error" size="small" sx={{ fontSize: '0.65rem', height: 20 }} />)}
+                                                        </ListItem>
+                                                    </React.Fragment>
+                                                ))}
+                                            </List>
+                                        ) : (
+                                            <Typography variant="body2" color="text.secondary">No recent notifications</Typography>
+                                        )}
                                     </Paper>
                                 </Grid>
                             )}
 
                             {/* Recent Timesheets */}
-                            {recentTimesheets.length > 0 && (
+                            {true && (
                                 <Grid item xs={12} md={6}>
                                     <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, p: 3 }}>
                                         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
@@ -618,57 +712,70 @@ const Overview = () => {
                                                 View All
                                             </Button>
                                         </Stack>
-                                        <List sx={{ p: 0 }}>
-                                            {recentTimesheets.slice(0, 5).map((timesheet, idx) => (
-                                                <React.Fragment key={timesheet.id || idx}>
-                                                    <ListItem
-                                                        sx={{
-                                                            px: 0,
-                                                            py: 1.5,
-                                                            borderRadius: 2,
-                                                            '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.04) },
-                                                        }}
-                                                    >
-                                                        <ListItemIcon sx={{ minWidth: 40 }}>
-                                                            <AccessTimeIcon sx={{ color: 'primary.main', fontSize: 20 }} />
-                                                        </ListItemIcon>
-                                                        <ListItemText
-                                                            primary={
-                                                                <Typography variant="body2" fontWeight={600}>
-                                                                    {timesheet.clientName || 'Client'}
-                                                                </Typography>
-                                                            }
-                                                            secondary={
-                                                                <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
-                                                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                                                                        {formatDate(timesheet.clockIn)} • {timesheet.totalHours || 0}h
+                                        {isTimesheetsLoading && recentTimesheets.length === 0 ? (
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                                                {[...Array(5)].map((_, i) => (
+                                                    <Box key={i}>
+                                                        <Skeleton variant="text" width="40%" height={18} />
+                                                        <Skeleton variant="text" width="30%" height={14} />
+                                                    </Box>
+                                                ))}
+                                            </Box>
+                                        ) : recentTimesheets.length > 0 ? (
+                                            <List sx={{ p: 0 }}>
+                                                {recentTimesheets.slice(0, 5).map((timesheet, idx) => (
+                                                    <React.Fragment key={timesheet.id || idx}>
+                                                        <ListItem
+                                                            sx={{
+                                                                px: 0,
+                                                                py: 1.5,
+                                                                borderRadius: 2,
+                                                                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.04) },
+                                                            }}
+                                                        >
+                                                            <ListItemIcon sx={{ minWidth: 40 }}>
+                                                                <AccessTimeIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+                                                            </ListItemIcon>
+                                                            <ListItemText
+                                                                primary={
+                                                                    <Typography variant="body2" fontWeight={600}>
+                                                                        {timesheet.clientName || 'Client'}
                                                                     </Typography>
-                                                                    {timesheet.totalPay && (
-                                                                        <Typography variant="caption" color="success.main" fontWeight={600} sx={{ fontSize: '0.75rem' }}>
-                                                                            ${timesheet.totalPay}
+                                                                }
+                                                                secondary={
+                                                                    <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
+                                                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                                                            {formatDate(timesheet.clockIn)} • {timesheet.totalHours || 0}h
                                                                         </Typography>
-                                                                    )}
-                                                                </Stack>
-                                                            }
-                                                        />
-                                                        <Chip
-                                                            icon={getStatusIcon(timesheet.status)}
-                                                            label={getStatusText(timesheet.status)}
-                                                            color={getStatusColor(timesheet.status)}
-                                                            size="small"
-                                                            sx={{ fontSize: '0.7rem', height: 24 }}
-                                                        />
-                                                    </ListItem>
-                                                    {idx < recentTimesheets.slice(0, 5).length - 1 && <Divider />}
-                                                </React.Fragment>
-                                            ))}
-                                        </List>
+                                                                        {timesheet.totalPay && (
+                                                                            <Typography variant="caption" color="success.main" fontWeight={600} sx={{ fontSize: '0.75rem' }}>
+                                                                                ${timesheet.totalPay}
+                                                                            </Typography>
+                                                                        )}
+                                                                    </Stack>
+                                                                }
+                                                            />
+                                                            <Chip
+                                                                icon={getStatusIcon(timesheet.status)}
+                                                                label={getStatusText(timesheet.status)}
+                                                                color={getStatusColor(timesheet.status)}
+                                                                size="small"
+                                                                sx={{ fontSize: '0.7rem', height: 24 }}
+                                                            />
+                                                        </ListItem>
+                                                        {idx < recentTimesheets.slice(0, 5).length - 1 && <Divider />}
+                                                    </React.Fragment>
+                                                ))}
+                                            </List>
+                                        ) : (
+                                            <Typography variant="body2" color="text.secondary">No recent timesheets</Typography>
+                                        )}
                                     </Card>
                                 </Grid>
                             )}
 
                             {/* Recent References */}
-                            {recentReferences.length > 0 && (
+                            {true && (
                                 <Grid item xs={12} md={recentNotifications.length > 0 || recentTimesheets.length > 0 ? 12 : 6} sx={{ mt: { xs: 2, md: 5 }, minWidth: { md: '100%' } }}>
                                     <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3, p: 3 }}>
                                         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
@@ -683,44 +790,57 @@ const Overview = () => {
                                                 View All
                                             </Button>
                                         </Stack>
-                                        <List sx={{ p: 0 }}>
-                                            {recentReferences.slice(0, 5).map((ref, idx) => (
-                                                <React.Fragment key={idx}>
-                                                    <ListItem
-                                                        sx={{
-                                                            px: 0,
-                                                            py: 1.5,
-                                                            borderRadius: 2,
-                                                            '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.04) },
-                                                        }}
-                                                    >
-                                                        <ListItemIcon sx={{ minWidth: 40 }}>
-                                                            <BusinessIcon sx={{ color: 'secondary.main', fontSize: 20 }} />
-                                                        </ListItemIcon>
-                                                        <ListItemText
-                                                            primary={
-                                                                <Typography variant="body2" fontWeight={600}>
-                                                                    {ref.name}
-                                                                </Typography>
-                                                            }
-                                                            secondary={
-                                                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                                                                    {ref.company || 'Reference'} • {ref.progress}% Complete
-                                                                </Typography>
-                                                            }
-                                                        />
-                                                        <Chip
-                                                            icon={getStatusIcon(ref.status)}
-                                                            label={getStatusText(ref.status)}
-                                                            color={getStatusColor(ref.status)}
-                                                            size="small"
-                                                            sx={{ fontSize: '0.7rem', height: 24 }}
-                                                        />
-                                                    </ListItem>
-                                                    {idx < recentReferences.slice(0, 5).length - 1 && <Divider />}
-                                                </React.Fragment>
-                                            ))}
-                                        </List>
+                                        {isReferencesLoading && recentReferences.length === 0 ? (
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                                                {[...Array(5)].map((_, i) => (
+                                                    <Box key={i}>
+                                                        <Skeleton variant="text" width="35%" height={18} />
+                                                        <Skeleton variant="text" width="30%" height={14} />
+                                                    </Box>
+                                                ))}
+                                            </Box>
+                                        ) : recentReferences.length > 0 ? (
+                                            <List sx={{ p: 0 }}>
+                                                {recentReferences.slice(0, 5).map((ref, idx) => (
+                                                    <React.Fragment key={idx}>
+                                                        <ListItem
+                                                            sx={{
+                                                                px: 0,
+                                                                py: 1.5,
+                                                                borderRadius: 2,
+                                                                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.04) },
+                                                            }}
+                                                        >
+                                                            <ListItemIcon sx={{ minWidth: 40 }}>
+                                                                <BusinessIcon sx={{ color: 'secondary.main', fontSize: 20 }} />
+                                                            </ListItemIcon>
+                                                            <ListItemText
+                                                                primary={
+                                                                    <Typography variant="body2" fontWeight={600}>
+                                                                        {ref.name}
+                                                                    </Typography>
+                                                                }
+                                                                secondary={
+                                                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                                                        {ref.company || 'Reference'} • {ref.progress}% Complete
+                                                                    </Typography>
+                                                                }
+                                                            />
+                                                            <Chip
+                                                                icon={getStatusIcon(ref.status)}
+                                                                label={getStatusText(ref.status)}
+                                                                color={getStatusColor(ref.status)}
+                                                                size="small"
+                                                                sx={{ fontSize: '0.7rem', height: 24 }}
+                                                            />
+                                                        </ListItem>
+                                                        {idx < recentReferences.slice(0, 5).length - 1 && <Divider />}
+                                                    </React.Fragment>
+                                                ))}
+                                            </List>
+                                        ) : (
+                                            <Typography variant="body2" color="text.secondary">No recent references</Typography>
+                                        )}
                                     </Card>
                                 </Grid>
                             )}

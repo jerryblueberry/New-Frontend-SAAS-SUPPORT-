@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { Drawer, Form, Input, DatePicker, Select, Button, Alert, Space, Upload, Tooltip, Typography, message, Skeleton, Spin } from 'antd';
-import { useQueryClient } from '@tanstack/react-query';
+import { Drawer, Form, Input, DatePicker, Select, Button, Alert, Space, Upload, Tooltip, Typography, message, Skeleton, Spin, Tag } from 'antd';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { EyeOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import { fetchCertificationByType, updateCertificationByType } from '../../api/axios';
+import { fetchCertificationByType, updateCertificationByType, deleteCertificationDocument } from '../../api/axios';
 import RenderEducationFields from '../WorkerCertificateOnboarding/RenderEducationFields';
 import RenderInsuranceField from '../WorkerCertificateOnboarding/RenderInsuranceField';
 import DocumentPreview from '../workerForm/Modals/DocumentPreview';
@@ -16,6 +16,23 @@ const allowedFileTypes = ['application/pdf', 'image/jpeg', 'image/png'];
 const maxFileSize = 5 * 1024 * 1024; // 5MB
 const maxFiles = 2;
 
+// LocalStorage tracking key used elsewhere in the app for uploaded documents
+const DOCUMENT_TRACKING_KEY = 'certification_documents_tracking';
+
+// Remove a document (by publicId) from localStorage tracking immediately
+function removeDocumentFromLocalStorage(publicId) {
+  if (!publicId || typeof window === 'undefined') return;
+  try {
+    const stored = localStorage.getItem(DOCUMENT_TRACKING_KEY);
+    if (!stored) return;
+    const tracked = JSON.parse(stored);
+    if (tracked && typeof tracked === 'object' && tracked[publicId]) {
+      delete tracked[publicId];
+      localStorage.setItem(DOCUMENT_TRACKING_KEY, JSON.stringify(tracked));
+    }
+  } catch (_) {}
+}
+
 export default function CertificationEditorDrawer({
   open,
   typeId,
@@ -24,13 +41,16 @@ export default function CertificationEditorDrawer({
 }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   const [error, setError] = useState(null);
   const [cert, setCert] = useState(null);
   const [form] = Form.useForm();
   const [uploading, setUploading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState(null);
+  const [deletingIds, setDeletingIds] = useState(new Set());
   const queryClient = useQueryClient();
+  const isDeletingAny = useMemo(() => deletingIds.size > 0, [deletingIds]);
 
   // Local UI helpers reused from onboarding
   const [showCustomDegree, setShowCustomDegree] = useState(false);
@@ -46,21 +66,72 @@ export default function CertificationEditorDrawer({
   const isDateField = (field) => field.toLowerCase().includes('date');
   const formatFieldLabel = (field) => field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1');
 
-  const fetchData = useCallback(async () => {
-    if (!open || !typeId) return;
-    setLoading(true);
-    setError(null);
-    try {
+  // Live missing field detection (auto-hides when filled)
+  const watchedValues = Form.useWatch([], form);
+  const missingFields = useMemo(() => {
+    const m = [];
+    const type = cert?.certificationType || {};
+    const requiredFields = Array.isArray(type.requiredFields) ? type.requiredFields : [];
+    // simple required fields
+    for (const f of requiredFields) {
+      if (f === 'degree' || f === 'insuranceType') continue;
+      if (!watchedValues || !watchedValues[f]) m.push(f);
+    }
+    // education
+    if (type.isEducation) {
+      const deg = watchedValues?.degree ?? (cert?.degree);
+      const degOk = Array.isArray(deg) ? deg.length > 0 : !!deg;
+      if (!degOk) m.push('degree');
+    }
+    // insurance
+    if (requiredFields.includes('insuranceType') && !watchedValues?.insuranceType) {
+      m.push('insuranceType');
+    }
+    // documents
+    if (type.documentRequired) {
+      const docs = watchedValues?.documents ?? cert?.documents;
+      if (!Array.isArray(docs) || docs.length === 0) m.push('documents');
+    }
+    return m;
+  }, [cert, watchedValues]);
+
+  const { data: certData, isLoading: certLoading, error: certQueryError } = useQuery({
+    queryKey: ['certificationByType', typeId],
+    queryFn: async () => {
       const res = await fetchCertificationByType(typeId);
       if (!res?.data?.success) throw new Error('Failed to fetch certification');
-      const data = res.data.data;
-      // Normalize dates for form
-      // Normalize education degree to onboarding format: string 'Other|value' or a known option
+      return res.data.data;
+    },
+    enabled: !!open && !!typeId,
+    staleTime: 5 * 60 * 1000,
+    cacheTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    keepPreviousData: true,
+  });
+
+  // Track initial snapshot for dirty-check
+  const initialSnapshotRef = useRef(null);
+
+  useEffect(() => {
+    if (certQueryError) setError(certQueryError.message || 'Failed to load certification');
+  }, [certQueryError]);
+
+  // hydrate form when data arrives
+  useEffect(() => {
+    if (!open) {
+      form.resetFields();
+      setCert(null);
+      setError(null);
+      setSaving(false);
+      return;
+    }
+    if (certData) {
+      // Normalize education field for form
       let normalizedDegree;
       let normalizedDegreeSelect;
-      if (data?.certificationType?.isEducation) {
-        const options = data?.certificationType?.educationSetting?.degreeOptions || [];
-        let raw = Array.isArray(data.degree) ? (data.degree[0] || '') : (data.degree || '');
+      if (certData?.certificationType?.isEducation) {
+        const options = certData?.certificationType?.educationSetting?.degreeOptions || [];
+        let raw = Array.isArray(certData.degree) ? (certData.degree[0] || '') : (certData.degree || '');
         if (raw) {
           if (typeof raw === 'string' && !raw.startsWith('Other|')) {
             normalizedDegree = options.includes(raw) ? raw : `Other|${raw}`;
@@ -69,39 +140,23 @@ export default function CertificationEditorDrawer({
             normalizedDegree = raw;
             normalizedDegreeSelect = 'Other';
           }
-        } else {
-          normalizedDegree = undefined;
-          normalizedDegreeSelect = undefined;
         }
       }
 
       const initial = {
-        ...data,
-        issuedDate: data.issuedDate ? dayjs(data.issuedDate) : null,
-        expiryDate: data.expiryDate ? dayjs(data.expiryDate) : null,
-        dateOfCompletion: data.dateOfCompletion ? dayjs(data.dateOfCompletion) : null,
+        ...certData,
+        issuedDate: certData.issuedDate ? dayjs(certData.issuedDate) : null,
+        expiryDate: certData.expiryDate ? dayjs(certData.expiryDate) : null,
+        dateOfCompletion: certData.dateOfCompletion ? dayjs(certData.dateOfCompletion) : null,
         degree: normalizedDegree,
         degreeSelect: normalizedDegreeSelect,
       };
-      setCert(data);
+      setCert(certData);
       form.setFieldsValue(initial);
-    } catch (e) {
-      setError(e.message || 'Failed to load certification');
-    } finally {
-      setLoading(false);
+      // store initial snapshot for dirty detection
+      initialSnapshotRef.current = initial;
     }
-  }, [open, typeId, form]);
-
-  useEffect(() => {
-    fetchData();
-    // reset when closed
-    if (!open) {
-      form.resetFields();
-      setCert(null);
-      setError(null);
-      setSaving(false);
-    }
-  }, [open, typeId, fetchData, form]);
+  }, [open, certData, form]);
 
   // Manage global UI when drawer is open: prevent body scroll and notify layout
   useEffect(() => {
@@ -149,6 +204,7 @@ export default function CertificationEditorDrawer({
         fileType: processed.type || file.type,
         uploadedAt: new Date().toISOString(),
         status: 'done',
+        isNew: true,
       };
     } catch (e) {
       message.error(e.message || 'Upload failed');
@@ -210,7 +266,12 @@ export default function CertificationEditorDrawer({
       form.setFieldsValue({ documents: next });
       message.success('Document uploaded successfully');
       try {
-        await queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey.join('|').includes('onboarding') });
+        await queryClient.invalidateQueries({ predicate: (q) => {
+          if (!Array.isArray(q.queryKey)) return false;
+          const key = q.queryKey.join('|');
+          return key.includes('certifications') && (typeId ? key.includes(String(typeId)) : true);
+        }});
+        if (typeId) await queryClient.invalidateQueries({ queryKey: ['certificationByType', typeId] });
       } catch (_) {}
     }
     setUploading(false);
@@ -218,21 +279,62 @@ export default function CertificationEditorDrawer({
   };
 
   const onRemove = async (file) => {
+    // Block starting another deletion while one is in progress (unless it's the same file re-triggered)
+    if (isDeletingAny && !(file?.publicId && deletingIds.has(file.publicId))) {
+      message.info('Please wait for the current deletion to complete');
+      return;
+    }
+    if (file?.publicId && deletingIds.has(file.publicId)) return;
+    if (file?.publicId) setDeletingIds(prev => new Set(prev).add(file.publicId));
     const current = form.getFieldValue('documents') || cert?.documents || [];
     const next = current.filter((d) => d.uid !== file.uid && d.publicId !== file.publicId);
     form.setFieldsValue({ documents: next });
+    // Immediately remove from localStorage tracking if present
+    if (file?.publicId) removeDocumentFromLocalStorage(file.publicId);
     if (file?.publicId) {
       const hide = message.loading('Removing document...', 0);
       try {
-        await deleteCloudinaryImage(file.publicId);
+        if (file?.isNew) {
+          // Newly added but not persisted to server: try cloud delete, but don't warn on failure
+          try {
+            await deleteCloudinaryImage(file.publicId);
+          } catch (_) {}
+          hide();
+          message.success('Document removed');
+          try {
+            if (typeId) await queryClient.invalidateQueries({ queryKey: ['certificationByType', typeId] });
+          } catch (_) {}
+          return;
+        }
+        if (typeId) {
+          const res = await deleteCertificationDocument(typeId, file.publicId);
+          if (res?.data?.data) {
+            const updated = res.data.data;
+            form.setFieldsValue({ documents: updated.documents || [] });
+          }
+        } else {
+          await deleteCloudinaryImage(file.publicId);
+        }
         hide();
         message.success('Document removed');
         try {
-          await queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey.join('|').includes('onboarding') });
+          await queryClient.invalidateQueries({ predicate: (q) => {
+            if (!Array.isArray(q.queryKey)) return false;
+            const key = q.queryKey.join('|');
+            return key.includes('certifications') && (typeId ? key.includes(String(typeId)) : true);
+          }});
+          if (typeId) await queryClient.invalidateQueries({ queryKey: ['certificationByType', typeId] });
         } catch (_) {}
       } catch (e) {
         hide();
-        message.warning('Removed locally but failed to delete in cloud');
+        // If the file was newly added, silently succeed; otherwise, warn
+        if (file?.isNew) {
+          message.success('Document removed');
+        } else {
+          message.warning('Removed locally but failed to delete in cloud');
+        }
+      } finally {
+        if (file?.publicId) setDeletingIds(prev => { const s = new Set(prev); s.delete(file.publicId); return s; });
       }
     }
   };
@@ -241,6 +343,18 @@ export default function CertificationEditorDrawer({
     try {
       setSaving(true);
       const values = await form.validateFields();
+      // Sanitize documents (strip client-only fields like isNew)
+      const docs = Array.isArray(values.documents)
+        ? values.documents.map(d => ({
+            uid: d.uid,
+            url: d.url,
+            publicId: d.publicId,
+            fileName: d.fileName,
+            fileType: d.fileType,
+            uploadedAt: d.uploadedAt,
+            status: d.status,
+          }))
+        : undefined;
       const payload = {
         ...values,
         issuedDate: values.issuedDate ? values.issuedDate.toISOString() : undefined,
@@ -248,12 +362,45 @@ export default function CertificationEditorDrawer({
         dateOfCompletion: values.dateOfCompletion ? values.dateOfCompletion.toISOString() : undefined,
         // Persist degree as array like onboarding submit
         degree: values.degree ? [values.degree] : [],
+        documents: docs,
       };
+      // Optimistic updates: cache snapshots
+      const prevCert = queryClient.getQueryData(['certificationByType', typeId]);
+      const prevOnboarding = queryClient.getQueryData(['onboarding']);
+      // apply optimistic cache for detail
+      queryClient.setQueryData(['certificationByType', typeId], (old) => ({ ...(old || {}), ...payload }));
+      // apply optimistic patch to onboarding if present
+      if (prevOnboarding?.success && prevOnboarding.data?.profile?.certifications) {
+        queryClient.setQueryData(['onboarding'], (old) => {
+          if (!old?.data?.profile?.certifications) return old;
+          const next = { ...old, data: { ...old.data, profile: { ...old.data.profile } } };
+          next.data.profile.certifications = old.data.profile.certifications.map((c) => {
+            const id = c?.certificationType?._id || c?.certificationType;
+            return id === typeId ? { ...c, ...payload, verificationStatus: 'Pending', rejectionReason: undefined, verificationDate: undefined, verifiedBy: undefined } : c;
+          });
+          return next;
+        });
+      }
       await updateCertificationByType(typeId, payload);
       message.success('Certification updated');
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 1500);
+      try {
+        await queryClient.invalidateQueries({ queryKey: ['onboarding'] });
+        if (typeId) await queryClient.invalidateQueries({ queryKey: ['certificationByType', typeId] });
+      } catch (_) {}
+      try {
+        const evt = typeof window.CustomEvent === 'function'
+          ? new CustomEvent('onboarding:refresh')
+          : (function(){ const e = document.createEvent('Event'); e.initEvent('onboarding:refresh', true, true); return e; })();
+        window.dispatchEvent(evt);
+      } catch (_) {}
       if (onSaved) onSaved();
       onClose?.();
     } catch (e) {
+      // rollback optimistic caches on error
+      try { queryClient.setQueryData(['certificationByType', typeId], prevCert); } catch (_) {}
+      try { if (prevOnboarding) queryClient.setQueryData(['onboarding'], prevOnboarding); } catch (_) {}
       if (e?.errorFields) return; // antd validation
       message.error(e.message || 'Failed to save');
     } finally {
@@ -265,10 +412,23 @@ export default function CertificationEditorDrawer({
 
   const requiredFields = Array.isArray(cert?.certificationType?.requiredFields) ? cert.certificationType.requiredFields : [];
   const documentRequired = !!cert?.certificationType?.documentRequired;
+  const isLoadingComputed = loading || certLoading;
 
   return (
     <Drawer
-      title={loading ? 'Loading certification...' : (cert?.certificationType?.name || 'Edit Certification')}
+      title={isLoadingComputed ? 'Loading certification...' : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span>{cert?.certificationType?.name || 'Edit Certification'}</span>
+          {Array.isArray(missingFields) && missingFields.length > 0 && (
+            <Tooltip title={`Missing: ${missingFields.map(formatFieldLabel).join(', ')}`}>
+              <Tag color="red">Missing {missingFields.length}</Tag>
+            </Tooltip>
+          )}
+          {justSaved && (
+            <Tag color="green">Saved</Tag>
+          )}
+        </div>
+      )}
       width={600}
       open={open}
       onClose={onClose}
@@ -278,14 +438,14 @@ export default function CertificationEditorDrawer({
           <Button onClick={onClose} style={{ marginRight: 8 }}>
             Cancel
           </Button>
-          <Button type="primary" onClick={handleSave} loading={saving} disabled={loading}>
+          <Button type="primary" onClick={handleSave} loading={saving} disabled={isLoadingComputed}>
             Save
           </Button>
         </div>
       }
       bodyStyle={{ paddingBottom: 80 }}
     >
-      {loading && !uploading && (
+      {isLoadingComputed && !uploading && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
           <Skeleton active paragraph={{ rows: 1 }} title={{ width: '60%' }} />
           {/* Simulate 4 required fields */}
@@ -312,6 +472,27 @@ export default function CertificationEditorDrawer({
 
       {error && (
         <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />
+      )}
+
+      {Array.isArray(missingFields) && missingFields.length > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Some required fields are missing"
+          description={
+            <div>
+              <Text>Please complete:</Text>
+              <ul style={{ margin: '8px 0 0 16px', padding: 0 }}>
+                {missingFields.map((f) => (
+                  <li key={f}>
+                    <Text strong>{formatFieldLabel(f)}</Text>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          }
+        />
       )}
 
       <Form
@@ -393,7 +574,7 @@ export default function CertificationEditorDrawer({
               onRemove={onRemove}
               multiple
               listType="picture-card"
-              disabled={uploading}
+              disabled={uploading || isDeletingAny}
               onPreview={(file) => {
                 const list = form.getFieldValue('documents') || cert?.documents || [];
                 const found = list.find((d) => d.uid === file.uid || d.publicId === file.publicId);
@@ -413,8 +594,8 @@ export default function CertificationEditorDrawer({
                   </Tooltip>
                 ),
                 removeIcon: () => (
-                  <Tooltip title="Delete Document">
-                    <button type="button" style={{ border: 'none', background: '#ff4d4f', color: '#fff', borderRadius: '50%', width: 28, height: 28 }}>
+                  <Tooltip title={isDeletingAny ? 'Deletion in progress' : 'Delete Document'}>
+                    <button type="button" disabled={isDeletingAny} aria-disabled={isDeletingAny} style={{ border: 'none', background: isDeletingAny ? '#ffccc7' : '#ff4d4f', color: '#fff', borderRadius: '50%', width: 28, height: 28, cursor: isDeletingAny ? 'not-allowed' : 'pointer' }}>
                       <DeleteOutlined />
                     </button>
                   </Tooltip>
@@ -440,18 +621,50 @@ export default function CertificationEditorDrawer({
         onClose={() => setPreviewOpen(false)}
         onDelete={async () => {
           if (!previewDoc) return;
+          if (isDeletingAny && !(previewDoc?.publicId && deletingIds.has(previewDoc.publicId))) {
+            message.info('Please wait for the current deletion to complete');
+            return;
+          }
+          if (previewDoc?.publicId && deletingIds.has(previewDoc.publicId)) return;
+          if (previewDoc?.publicId) setDeletingIds(prev => new Set(prev).add(previewDoc.publicId));
           const current = form.getFieldValue('documents') || cert?.documents || [];
           const next = current.filter((d) => d.publicId !== previewDoc.publicId);
           form.setFieldsValue({ documents: next });
           setPreviewOpen(false);
+          // Immediately remove from localStorage tracking if present
+          if (previewDoc?.publicId) removeDocumentFromLocalStorage(previewDoc.publicId);
           try {
             const hide = message.loading('Removing document...', 0);
-            await deleteCloudinaryImage(previewDoc.publicId);
+            if (previewDoc?.isNew) {
+              try { await deleteCloudinaryImage(previewDoc.publicId); } catch (_) {}
+            } else if (typeId) {
+              const res = await deleteCertificationDocument(typeId, previewDoc.publicId);
+              if (res?.data?.data) {
+                const updated = res.data.data;
+                form.setFieldsValue({ documents: updated.documents || [] });
+              }
+            } else {
+              await deleteCloudinaryImage(previewDoc.publicId);
+            }
             hide();
             message.success('Document removed');
-            try { await queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey.join('|').includes('onboarding') }); } catch (_) {}
+            try { 
+              await queryClient.invalidateQueries({ predicate: (q) => {
+                if (!Array.isArray(q.queryKey)) return false;
+                const key = q.queryKey.join('|');
+                return key.includes('certifications') && (typeId ? key.includes(String(typeId)) : true);
+              }}); 
+              if (typeId) await queryClient.invalidateQueries({ queryKey: ['certificationByType', typeId] });
+            } catch (_) {}
           } catch (_) {
-            message.warning('Removed locally but failed to delete in cloud');
+            // For newly added, silently succeed; otherwise warn
+            if (previewDoc?.isNew) {
+              message.success('Document removed');
+            } else {
+              message.warning('Removed locally but failed to delete in cloud');
+            }
+          } finally {
+            if (previewDoc?.publicId) setDeletingIds(prev => { const s = new Set(prev); s.delete(previewDoc.publicId); return s; });
           }
         }}
       />
