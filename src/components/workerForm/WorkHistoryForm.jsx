@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { toE164Au, isValidAuMobile, formatAuInternational } from '../../utils/phone';
 import { useWorkHistoryMutation } from '../../stores/useOnboardingStore';
 import useOnboardingStore from '../../stores/useOnboardingStore';
 import { shallow } from 'zustand/shallow';
@@ -196,13 +197,33 @@ const WorkHistoryForm = ({ onNextStep }) => {
         references: updatedReferences,
       }));
 
-      // Clear any error for this field
-      if (formErrors[`ref${index}_${field}`]) {
-        setFormErrors((prev) => ({
-          ...prev,
-          [`ref${index}_${field}`]: null,
-        }));
-      }
+      // Field-level validation and error clearing
+      setFormErrors((prev) => {
+        const next = { ...prev };
+        const ref = updatedReferences[index] || {};
+        const emailOk = (val) => /^(?:[a-zA-Z0-9_'^&+\-])+(?:\.(?:[a-zA-Z0-9_'^&+\-])+)*@(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/.test(String(val || '').trim());
+        const fieldValidMap = {
+          name: !!(ref.name && String(ref.name).trim()),
+          position: !!(ref.position && String(ref.position).trim()),
+          company: !!(ref.company && String(ref.company).trim()),
+          phone: !!(ref.phone && isValidAustralianPhone(ref.phone)),
+          email: !!(ref.email && emailOk(ref.email)),
+        };
+        // Clear this field if now valid
+        if (fieldValidMap[field]) {
+          delete next[`ref${index}_${field}`];
+        }
+        // If the reference is fully valid, clear all its field errors
+        const allValid = Object.values(fieldValidMap).every(Boolean);
+        if (allValid) {
+          ['name','position','company','phone','email'].forEach((f) => delete next[`ref${index}_${f}`]);
+        }
+        // Clear generic count error if we now have exactly 2
+        if (updatedReferences.length === 2) {
+          delete next.references;
+        }
+        return next;
+      });
     },
     [updateWorkHistory, localWorkHistory, formErrors]
   );
@@ -241,6 +262,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
     setFormErrors((prev) => ({
       ...prev,
       refLimit: null,
+      references: null,
     }));
 
     // Auto-expand the new reference
@@ -275,10 +297,16 @@ const WorkHistoryForm = ({ onNextStep }) => {
       setLocalWorkHistory(updatedWorkHistory);
 
       setExpandedReference(null);
-      setFormErrors((prev) => ({
-        ...prev,
-        refLimit: null,
-      }));
+      setFormErrors((prev) => {
+        const next = { ...prev };
+        // Clear reference-related errors when removing
+        Object.keys(next).forEach((k) => {
+          if (k.startsWith('ref')) delete next[k];
+        });
+        next.refLimit = null;
+        next.references = null;
+        return next;
+      });
 
       toast.success('Reference removed successfully', {
         position: 'top-right',
@@ -404,6 +432,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
     if (!localWorkHistory.references || localWorkHistory.references.length !== 2) {
       errors.references = 'Exactly two references are required';
       isValid = false;
+      firstReferenceErrorIndex = 0;
     } else {
       // Duplicate detection across references (use normalized E.164 for phones)
       const emails = localWorkHistory.references.map(r => (r.email || '').trim().toLowerCase()).filter(Boolean);
@@ -447,7 +476,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
           missingFields.push(`Reference ${refNumber} - Phone`);
           if (firstReferenceErrorIndex === null) firstReferenceErrorIndex = index;
         } else if (!isValidAustralianPhone(ref.phone)) {
-          errors[`ref${index}_phone`] = 'Enter a valid Australian phone (e.g. 412 345 678)';
+          errors[`ref${index}_phone`] = 'Enter a valid Australian phone (e.g. +61 412 345 678)';
           isValid = false;
           missingFields.push(`Reference ${refNumber} - Phone (invalid format)`);
           if (firstReferenceErrorIndex === null) firstReferenceErrorIndex = index;
@@ -534,8 +563,8 @@ const WorkHistoryForm = ({ onNextStep }) => {
         toast.dismiss();
         // Build specific first error message
         const firstKey = firstErrorKey || Object.keys(errors)[0];
-        let message = 'Please fix all validation errors before submitting';
-        if (firstKey) {
+        let message = (firstKey && errors[firstKey]) || 'Please fix all validation errors before submitting';
+        if (firstKey && !errors[firstKey]) {
           const friendly = firstKey
             .replace(/^ref(\d+)_/, (m, idx) => `Reference ${Number(idx) + 1} - `)
             .replace(/^job(\d+)_/, (m, idx) => `Job ${Number(idx) + 1} - `)
@@ -637,44 +666,10 @@ const WorkHistoryForm = ({ onNextStep }) => {
     return isNaN(date.getTime()) ? '' : date.toISOString().split('T')[0];
   };
 
-  // Helper for Australian phone formatting and validation
-  const formatAustralianPhone = (input) => {
-    // Accept inputs like 0412345678, +61412345678, 0412 345 678, etc.
-    let digits = String(input || '').replace(/\D/g, '');
-    // Normalize to local 10-digit starting with 0 for display
-    if (digits.startsWith('61')) {
-      digits = digits.slice(2);
-      if (!digits.startsWith('0')) digits = `0${digits}`;
-    }
-    if (!digits.startsWith('0') && digits.length === 9) {
-      digits = `0${digits}`;
-    }
-    digits = digits.slice(0, 10);
-    if (!/^0\d{9}$/.test(digits)) {
-      // Fallback: show partial grouping as user types
-      const d = digits;
-      if (d.length <= 4) return d;
-      if (d.length <= 7) return `${d.slice(0, 4)} ${d.slice(4)}`;
-      return `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}`.trim();
-    }
-    // Format as 0412 345 678
-    return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7, 10)}`;
-  };
-
-  const toE164Australian = (input) => {
-    // Always return +61XXXXXXXXX for AU numbers
-    let digits = String(input || '').replace(/\D/g, '');
-    if (digits.startsWith('61')) digits = digits.slice(2);
-    else if (digits.startsWith('0')) digits = digits.slice(1);
-    // Keep exactly 9 subscriber digits
-    digits = digits.slice(0, 9);
-    return digits ? `+61${digits}` : '';
-  };
-
-  const isValidAustralianPhone = (input) => {
-    const cleaned = String(input || '').replace(/\D/g, '');
-    return /^0\d{9}$/.test(cleaned) || /^61\d{9}$/.test(cleaned);
-  };
+  // Helper for Australian phone formatting and validation (shared utils) - memoized to avoid child re-renders
+  const formatAustralianPhone = useCallback((input) => formatAuInternational(input), []);
+  const toE164Australian = useCallback((input) => toE164Au(input), []);
+  const isValidAustralianPhone = useCallback((input) => isValidAuMobile(input), []);
 
   // Helper to get CV document object for preview
   const getCVDocument = () => {
@@ -706,7 +701,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
     });
   }, [localWorkHistory.jobs]);
 
-  console.log('ONBORDING DTA', workHistory);
+  
 
   return (
     <Box component="form" onSubmit={handleSubmit} noValidate>

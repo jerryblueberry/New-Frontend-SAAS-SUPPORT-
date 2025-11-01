@@ -31,32 +31,20 @@ export const referenceAPI = {
     if (dateTo) queryParams.append('dateTo', dateTo);
 
     const url = `/references?${queryParams.toString()}`;
-    console.log('Making API call to:', url);
-    console.log('Query params:', {
-      page,
-      limit,
-      status,
-      workerId,
-      search,
-      sortBy,
-      sortOrder,
-      dateFrom,
-      dateTo
-    });
     
-    console.log('Full API URL will be:', api.defaults.baseURL + url);
-    console.log('API headers:', api.defaults.headers);
+    // Log only in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('References API call:', url, { params: { page, limit, status, workerId, search } });
+    }
     
     return api.get(url)
-      .then(response => {
-        console.log('API Response received:', response);
-        console.log('Response data:', response.data);
-        return response;
-      })
       .catch(error => {
-        console.error('API Error:', error);
-        console.error('Error response:', error.response);
-        console.error('Error message:', error.message);
+        // Always log errors for debugging
+        console.error('References API Error:', {
+          url,
+          status: error.response?.status,
+          message: error.response?.data?.message || error.message
+        });
         throw error;
       });
   },

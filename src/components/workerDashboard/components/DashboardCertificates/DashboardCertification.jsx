@@ -133,6 +133,14 @@ const DashboardCertification = ({ onboardingData }) => {
         }
     };
 
+    // Frontend-computed status with expiry override
+    const getComputedStatus = useCallback((cert) => {
+        if (!cert) return 'pending';
+        if (isExpired(cert)) return 'expired';
+        const s = (cert?.verificationStatus || '').toLowerCase();
+        return s || 'pending';
+    }, [isExpired]);
+
     const formatDate = useCallback((dateString) => {
         if (!dateString) return 'Not specified';
         return new Date(dateString).toLocaleDateString('en-US', {
@@ -265,13 +273,15 @@ const DashboardCertification = ({ onboardingData }) => {
                                     {type === 'professional' ? cert.certificationType?.name : cert.certificationTitle}
                                 </Typography>
                                 <Stack direction="row" spacing={1} flexWrap="wrap">
-                                    <Chip
-                                        icon={getStatusIcon(cert.verificationStatus)}
-                                        label={cert.verificationStatus || 'Pending'}
-                                        color={getStatusColor(cert.verificationStatus)}
-                                        size="small"
-                                        sx={{ fontSize: '0.7rem', height: '24px' }}
-                                    />
+                                    {(() => { const cs = getComputedStatus(cert); return (
+                                        <Chip
+                                            icon={getStatusIcon(cs)}
+                                            label={cs.charAt(0).toUpperCase() + cs.slice(1)}
+                                            color={getStatusColor(cs)}
+                                            size="small"
+                                            sx={{ fontSize: '0.7rem', height: '24px' }}
+                                        />
+                                    ); })()}
                                     {(() => { const m = computeMissingFields(cert); return m.length > 0 ? (
                                         <Tooltip title={`Missing: ${m.join(', ')}`}>
                                             <Chip label={`Missing ${m.length}`} color="error" size="small" variant="outlined" sx={{ height: '24px' }} />
@@ -290,7 +300,7 @@ const DashboardCertification = ({ onboardingData }) => {
                             </Box>
                             <Stack direction="row" spacing={0.5} alignItems="center">
                                 {/* Mobile edit/delete action bar */}
-                                    {(type === 'other' || ['rejected','expired','pending'].includes((cert.verificationStatus||'').toLowerCase())) && (
+                                    {(function(){ const cs = getComputedStatus(cert); return (type === 'other' || ['rejected','expired','pending'].includes(cs)); })() && (
                                   <Tooltip title="Edit">
                                     <IconButton
                                       size="small"
@@ -311,7 +321,7 @@ const DashboardCertification = ({ onboardingData }) => {
                                     </IconButton>
                                   </Tooltip>
                                 )}
-                                {type === 'other' && (cert.verificationStatus||'').toLowerCase() !== 'verified' && (
+                                {(() => { const cs = getComputedStatus(cert); return type === 'other' && cs !== 'verified'; })() && (
                                   <Tooltip title="Delete">
                                     <IconButton
                                       size="small"
@@ -556,13 +566,15 @@ const DashboardCertification = ({ onboardingData }) => {
                                             </Box>
                                         </TableCell>
                                         <TableCell>
-                                            <Chip
-                                                icon={getStatusIcon(cert.verificationStatus)}
-                                                label={cert.verificationStatus || 'Pending'}
-                                                color={getStatusColor(cert.verificationStatus)}
-                                                size="small"
-                                                sx={{ fontWeight: 600 }}
-                                            />
+                                            {(() => { const cs = getComputedStatus(cert); return (
+                                                <Chip
+                                                    icon={getStatusIcon(cs)}
+                                                    label={cs.charAt(0).toUpperCase() + cs.slice(1)}
+                                                    color={getStatusColor(cs)}
+                                                    size="small"
+                                                    sx={{ fontWeight: 600 }}
+                                                />
+                                            ); })()}
                                             {(() => { const m = computeMissingFields(cert); return m.length > 0 ? (
                                                 <Tooltip title={`Missing: ${m.join(', ')}`}>
                                                     <Chip label={`Missing ${m.length}`} color="error" size="small" variant="outlined" sx={{ ml: 1 }} />
@@ -607,7 +619,7 @@ const DashboardCertification = ({ onboardingData }) => {
                                         <TableCell>
                                             <Stack direction="row" spacing={1}>
                                                 {/* Edit button - only show for rejected or expired */}
-                                                {(type === 'other' || cert.verificationStatus?.toLowerCase() === 'rejected' || cert.verificationStatus?.toLowerCase() === 'expired' || cert.verificationStatus?.toLowerCase() === 'pending') && (
+                                                {(function(){ const cs = getComputedStatus(cert); return (type === 'other' || ['rejected','expired','pending'].includes(cs)); })() && (
                                                     <Tooltip title="Edit">
                                                         <IconButton 
                                                             size="small" 
@@ -629,7 +641,7 @@ const DashboardCertification = ({ onboardingData }) => {
                                                     </Tooltip>
                                                 )}
                                                 {/* Delete for other certifications if not verified */}
-                                                {type === 'other' && cert.verificationStatus?.toLowerCase() !== 'verified' && (
+                                                {(() => { const cs = getComputedStatus(cert); return type === 'other' && cs !== 'verified'; })() && (
                                                   <Tooltip title="Delete">
                                                     <IconButton
                                                       size="small"
@@ -982,19 +994,21 @@ const DashboardCertification = ({ onboardingData }) => {
                                 </Typography>
 
                                 <Stack direction="row" spacing={1} alignItems="center">
-                                    <Chip
-                                        icon={getStatusIcon(cert.verificationStatus)}
-                                        label={cert.verificationStatus || 'Pending'}
-                                        color={getStatusColor(cert.verificationStatus)}
-                                        size="small"
-                                        sx={{
-                                            fontWeight: 600,
-                                            '& .MuiChip-icon': { fontSize: '16px' }
-                                        }}
-                                    />
+                                    {(() => { const cs = getComputedStatus(cert); return (
+                                        <Chip
+                                            icon={getStatusIcon(cs)}
+                                            label={cs.charAt(0).toUpperCase() + cs.slice(1)}
+                                            color={getStatusColor(cs)}
+                                            size="small"
+                                            sx={{
+                                                fontWeight: 600,
+                                                '& .MuiChip-icon': { fontSize: '16px' }
+                                            }}
+                                        />
+                                    ); })()}
 
-                                    {/* Edit button - only show for rejected or expired */}
-                                    {(cert.verificationStatus?.toLowerCase() === 'rejected' || cert.verificationStatus?.toLowerCase() === 'expired' || cert.verificationStatus?.toLowerCase() === 'pending') && (
+                                    {/* Edit button - only show for rejected, expired, or pending (computed) */}
+                                    {(() => { const cs = getComputedStatus(cert); return ['rejected','expired','pending'].includes(cs); })() && (
                                         <IconButton
                                             size="small"
                                             className="edit-button"

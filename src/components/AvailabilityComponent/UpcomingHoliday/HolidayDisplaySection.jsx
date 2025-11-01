@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import {
-  Grid,
   Card,
   CardContent,
   Typography,
@@ -9,26 +8,16 @@ import {
   Alert,
   LinearProgress,
   Paper,
-  List,
-  ListItem,
   Chip,
   IconButton,
   Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Stack,
-  InputAdornment,
   Avatar,
-  alpha,
-  useTheme,
   useMediaQuery,
   Fade,
   Badge,
   Divider
 } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import {
   CalendarMonth as CalendarIcon,
   Edit as EditIcon,
@@ -127,12 +116,10 @@ const HolidayDisplaySection = ({
   holidaysError,
   setOpenHolidayDialog,
   setEditingHoliday,
-  deleteHoliday,
-  theme
+  deleteHoliday
 }) => {
+  const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
-  const isLargeScreen = useMediaQuery(theme.breakpoints.up('xl'));
   
   const sortedHolidays = useMemo(() => {
     if (!upcomingHolidays || upcomingHolidays.length === 0) return [];
@@ -422,30 +409,30 @@ const HolidayDisplaySection = ({
   };
 
   return (
-    <Grid item xs={12} sm={12} md={4} lg={4} xl={4} sx={{ display: 'flex', width: '100%' }}>
-      <Card
-        elevation={0}
-        sx={{
-          borderRadius: 3,
-          border: '1px solid',
-          borderColor: 'divider',
-          height: '100%',
-          boxShadow: theme.shadows[1],
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          minWidth: 0,
-          width: '100%',
-          p: { xs: 1, md: 0 },
-          background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)} 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
-        }}
-      >
-        <CardContent sx={{ 
-          p: { xs: 2, md: 2 },
-          flex: 1, 
-          display: 'flex', 
-          flexDirection: 'column' 
-        }}>
+    <Card
+      elevation={0}
+      sx={{
+        borderRadius: 3,
+        border: '1px solid',
+        borderColor: 'divider',
+        height: '100%',
+        boxShadow: theme.shadows[1],
+        display: 'flex',
+        flexDirection: 'column',
+        minWidth: 0,
+        width: '100%',
+        p: { xs: 1, md: 0 },
+        background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)} 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
+      }}
+    >
+      <CardContent sx={{ 
+        p: { xs: 2, md: 2 },
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: { xs: 1.5, md: 2 },
+        minHeight: 0
+      }}>
           {/* Header */}
           <Box mb={2}>
             <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
@@ -493,17 +480,20 @@ const HolidayDisplaySection = ({
                       />
                     )}
                   </Box>
-                  <Typography 
-                    variant="body2" 
-                    color="text.secondary" 
-                    sx={{ 
-                      fontSize: { xs: '0.75rem', lg: '0.78rem' },
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}
-                  >
-                    Track your upcoming holidays
-                  </Typography>
+                  {isMobile  && (
+                       <Typography 
+                       variant="body2" 
+                       color="text.secondary" 
+                       sx={{ 
+                         fontSize: { xs: '0.75rem', lg: '0.78rem' },
+                         overflow: 'hidden',
+                         textOverflow: 'ellipsis'
+                       }}
+                     >
+                       Track your upcoming holidays
+                     </Typography>
+                  )}
+               
                 </Box>
               </Box>
               <Button 
@@ -515,17 +505,22 @@ const HolidayDisplaySection = ({
                   textTransform: 'none',
                   fontWeight: 600,
                   minWidth: 'auto',
-                  px: { xs: 2, lg: 1.5 },
-                  py: 0.8,
-                  fontSize: { xs: '0.8rem', lg: '0.85rem' },
-                  boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}`,
+                  px: { xs: 1, lg: 1.25 },
+                  py: 0.4,
+                  height: 30,
+                  lineHeight: 1.2,
+                  fontSize: { xs: '0.72rem', lg: '0.78rem' },
+                  boxShadow: `0 2px 6px ${alpha(theme.palette.primary.main, 0.25)}`,
+                  '& .MuiButton-startIcon': { mr: 0.5 },
+                  '& .MuiButton-startIcon > svg': { fontSize: 16 },
+                  flexShrink: 0,
                   '&:hover': {
-                    boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.4)}`,
+                    boxShadow: `0 4px 10px ${alpha(theme.palette.primary.main, 0.3)}`,
                     transform: 'translateY(-1px)'
                   },
                   transition: 'all 0.2s ease-in-out'
                 }}
-                startIcon={<AddIcon fontSize="small" />}
+                startIcon={<AddIcon />}
               >
                 {isMobile ? 'Add' : 'Add Holiday'}
               </Button>
@@ -559,9 +554,9 @@ const HolidayDisplaySection = ({
             </Alert>
           ) : (
             <Box sx={{ 
-              flex: 1, 
-              overflowY: 'auto', 
-              maxHeight: { xs: 400, md: 450, lg: 500 },
+              flex: 1,
+              minHeight: 0,
+              overflowY: 'auto',
               // Better scrollbar styling
               '&::-webkit-scrollbar': {
                 width: '6px',
@@ -644,9 +639,8 @@ const HolidayDisplaySection = ({
               )}
             </Box>
           )}
-        </CardContent>
-      </Card>
-    </Grid>
+      </CardContent>
+    </Card>
   );
 };
 

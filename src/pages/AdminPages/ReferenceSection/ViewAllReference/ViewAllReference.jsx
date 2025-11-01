@@ -54,7 +54,7 @@ import {
   HourglassEmpty,
   Error as ErrorIcon
 } from '@mui/icons-material'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 const SIDEBAR_WIDTH = 280;
 const SIDEBAR_GAP = 4;
@@ -62,6 +62,7 @@ const SIDEBAR_GAP = 4;
 const ViewAllReference = () => {
   const theme = useTheme();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
   
@@ -213,7 +214,7 @@ const ViewAllReference = () => {
             width: '100%',
             ml: { md: `${SIDEBAR_WIDTH + SIDEBAR_GAP}px` },
             p: { xs: 2, sm: 3, md: 0 },
-            mt: { xs: 8, md: 1 },
+            mt: { xs: 8, md: 8 },
             minHeight: '100vh',
             fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
             transition: theme.transitions.create('margin', {
@@ -361,11 +362,15 @@ const ViewAllReference = () => {
 
                     {/* Reference Table */}
                     <Box sx={{ p: isMobile ? 0.5 : 2 }}>
+                      {/* Pass workerId from URL to filter table if present */}
                       <ReferenceTable 
                         showFilters={true}
                         showBulkActions={true}
                         onReferenceSelect={handleReferenceSelect}
                         onSendEmail={handleSendEmail}
+                        initialFilters={{
+                          workerId: searchParams.get('workerId') || undefined,
+                        }}
                       />
                     </Box>
                   </Box>

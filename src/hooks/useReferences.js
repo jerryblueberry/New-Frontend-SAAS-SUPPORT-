@@ -34,23 +34,11 @@ export const useReferences = (params = {}) => {
     refetchOnWindowFocus = true
   } = params;
 
-  console.log('useReferences hook called with params:', {
-    page,
-    limit,
-    status,
-    workerId,
-    search,
-    sortBy,
-    sortOrder,
-    dateFrom,
-    dateTo,
-    enabled
-  });
-
-  if (!enabled) {
-    console.warn('useReferences query is DISABLED!');
-  } else {
-    console.log('useReferences query is ENABLED');
+  // Development-only logging
+  if (process.env.NODE_ENV === 'development') {
+    if (!enabled) {
+      console.debug('useReferences query is disabled');
+    }
   }
 
   const queryKey = referenceKeys.list({
@@ -65,12 +53,9 @@ export const useReferences = (params = {}) => {
     dateTo
   });
 
-  console.log('useReferences queryKey:', queryKey);
-
   return useQuery({
     queryKey,
     queryFn: async () => {
-      console.log('useReferences queryFn called');
       try {
         const result = await referenceAPI.getAllReferences({
           page,
@@ -83,10 +68,9 @@ export const useReferences = (params = {}) => {
           dateFrom,
           dateTo
         });
-        console.log('useReferences queryFn result:', result);
         return result;
       } catch (error) {
-        console.error('useReferences queryFn error:', error);
+        // Error is already logged in API layer
         throw error;
       }
     },
@@ -97,13 +81,13 @@ export const useReferences = (params = {}) => {
     refetchOnMount: true,
     refetchInterval,
     refetchIntervalInBackground: false,
-    retry: 3,
-    retryDelay: 1000,
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     onError: (error) => {
-      console.error('useReferences API Error:', error);
-    },
-    onSuccess: (data) => {
-      console.log('useReferences API Success:', data);
+      // Errors are handled by React Query and logged in API layer
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('useReferences query error:', error.message);
+      }
     }
   });
 };
@@ -136,14 +120,28 @@ export const useReferenceByToken = (token, options = {}) => {
 
 // Hook for worker references
 export const useWorkerReferences = (workerId, options = {}) => {
-  const { enabled = true } = options;
+  const { enabled = true, ...restOptions } = options;
 
   return useQuery({
     queryKey: referenceKeys.worker(workerId),
-    queryFn: () => referenceAPI.getWorkerReferences(workerId),
+    queryFn: async () => {
+      try {
+        const response = await referenceAPI.getWorkerReferences(workerId);
+        return response;
+      } catch (error) {
+        // Log error in development only
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error fetching worker references:', error);
+        }
+        throw error;
+      }
+    },
     enabled: enabled && !!workerId,
-    staleTime: 60000,
-    cacheTime: 300000
+    staleTime: 60000, // 1 minute
+    cacheTime: 300000, // 5 minutes
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    ...restOptions
   });
 };
 
@@ -352,7 +350,6 @@ export const useExportReferences = () => {
 
 // Combined hook for reference management
 export const useReferenceManagement = (params = {}) => {
-  console.log('useReferenceManagement called with params:', params);
   const referencesQuery = useReferences(params);
   const statsQuery = useReferenceStats();
   
@@ -365,17 +362,6 @@ export const useReferenceManagement = (params = {}) => {
   const bulkUpdateMutation = useBulkUpdateStatus();
   const bulkSendMutation = useBulkSendEmails();
   const exportMutation = useExportReferences();
-
-  // Debug the data structure
-  console.log('useReferenceManagement data debug:', {
-    referencesQueryData: referencesQuery.data,
-    referencesArray: referencesQuery.data?.data?.data?.references,
-    totalReferences: referencesQuery.data?.data?.data?.total,
-    isLoading: referencesQuery.isLoading,
-    error: referencesQuery.error,
-    statsData: statsQuery.data,
-    statsProcessed: statsQuery.data?.data?.data
-  });
 
   return {
     // Queries

@@ -1,7 +1,5 @@
 // src/components/Onboarding/AvailabilityForm.jsx
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import EventRepeatIcon from '@mui/icons-material/EventRepeat';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import {
   Box,
   Grid,
@@ -36,17 +34,10 @@ import {
   LinearProgress,
   Avatar,
   Badge,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
+  
   InputAdornment,
-  ClickAwayListener,
-  Popper,
-  Switch
+  
 } from '@mui/material';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -55,15 +46,10 @@ import {
   Info as InfoIcon,
   ArrowBack as ArrowBackIcon,
   ArrowForward as ArrowForwardIcon,
-  LocationOn as LocationIcon,
   Schedule as ScheduleIcon,
-  DirectionsWalk as TravelIcon,
   DirectionsCar as CarIcon,
   CheckCircle as CheckIcon,
-  Warning as WarningIcon,
   CalendarMonth as CalendarIcon,
-  Search as SearchIcon,
-  Place as PlaceIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
 import { alpha } from '@mui/material/styles';
@@ -75,9 +61,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchUserUpcomingHolidays, createUserUpcomingHoliday, deleteUserUpcomingHoliday, updateUserUpcomingHoliday } from '../../api/holidays';
 
 import SuburbSelector from './SuburbSelector';
-import api from '../../api/axios';
-// import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import UpcomingHolidayDatePicker from '../AvailabilityComponent/DatePicker/UpcomingHolidayDatePicker';
 import HolidayDisplaySection from '../AvailabilityComponent/UpcomingHoliday/HolidayDisplaySection';
 
@@ -93,68 +76,7 @@ const DAY_COLORS = {
 };
 
 
-const groupHolidaysByMonth = (holidays) => {
-  if (!holidays || holidays.length === 0) return [];
-
-  // Create a map to hold our month groups
-  const monthMap = new Map();
-
-  holidays.forEach(holiday => {
-    const startDate = new Date(holiday.startDate);
-    const endDate = new Date(holiday.endDate);
-
-    // If it's a single day or within the same month
-    if (startDate.getMonth() === endDate.getMonth() &&
-      startDate.getFullYear() === endDate.getFullYear()) {
-      const monthKey = `${startDate.getFullYear()}-${startDate.getMonth()}`;
-
-      if (!monthMap.has(monthKey)) {
-        monthMap.set(monthKey, {
-          monthKey,
-          monthName: startDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-          holidays: []
-        });
-      }
-
-      monthMap.get(monthKey).holidays.push(holiday);
-    } else {
-      // For multi-month holidays, we need to split them
-      let currentDate = new Date(startDate);
-
-      while (currentDate <= endDate) {
-        const monthKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
-
-        if (!monthMap.has(monthKey)) {
-          monthMap.set(monthKey, {
-            monthKey,
-            monthName: currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-            holidays: []
-          });
-        }
-
-        // Only add if not already present (to avoid duplicates)
-        if (!monthMap.get(monthKey).holidays.some(h => h._id === holiday._id)) {
-          monthMap.get(monthKey).holidays.push(holiday);
-        }
-
-        // Move to next month
-        currentDate = new Date(
-          currentDate.getFullYear(),
-          currentDate.getMonth() + 1,
-          1
-        );
-      }
-    }
-  });
-
-
-  // Convert map to array and sort by date
-  return Array.from(monthMap.values()).sort((a, b) => {
-    const [aYear, aMonth] = a.monthKey.split('-').map(Number);
-    const [bYear, bMonth] = b.monthKey.split('-').map(Number);
-    return aYear === bYear ? aMonth - bMonth : aYear - bYear;
-  });
-};
+// Removed unused groupHolidaysByMonth
 
 // Enhanced custom time slot card with better visual design
 const CustomTimeSlotCard = ({ slot, index, onEdit, onRemove, disabled }) => {
@@ -632,117 +554,18 @@ const TimeSlotDialog = ({ open, onClose, onSave, initialData, daysOfWeek, existi
   );
 };
 
-// Custom format function to remove year padding
-const formatDateWithoutYearPadding = (date) => {
-  if (!date) return '';
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const year = String(date.getFullYear()); // No padding for year
-  return `${month}/${day}/${year}`;
-};
-
-// Custom DatePicker with TextField override
-const CustomDatePicker = ({ value, onChange, label, ...props }) => {
-  const [inputValue, setInputValue] = useState(
-    value ? formatDateWithoutYearPadding(value) : ''
-  );
-
-  const handleInputChange = (event) => {
-    const newValue = event.target.value;
-    setInputValue(newValue);
-
-    // Try to parse and update the actual date value
-    const parsedDate = parseDateInput(newValue);
-    if (parsedDate || newValue === '') {
-      onChange(parsedDate);
-    }
-  };
-
-  const handleDatePickerChange = (newDate) => {
-    onChange(newDate);
-    setInputValue(newDate ? formatDateWithoutYearPadding(newDate) : '');
-  };
-
-  return (
-    <DatePicker
-      value={value}
-      onChange={handleDatePickerChange}
-      label={label}
-      renderInput={(params) => (
-        <TextField
-          {...params}
-          value={inputValue}
-          onChange={handleInputChange}
-          placeholder="MM/DD/YYYY"
-          inputProps={{
-            ...params.inputProps,
-            placeholder: "MM/DD/YYYY"
-          }}
-        />
-      )}
-      {...props}
-    />
-  );
-};
 
 const AvailabilityForm = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
+  
 
   // Use these throughout the component
   const {
     availability,
   } = useOnboardingStore();
 
-  // Helper function to check if a date is within a range
-  const isDateInRange = (date, start, end) => {
-    return date >= start && date <= end;
-  };
-
-  // Improved date range formatting
-  const formatDateRange = (start, end) => {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-
-    const isSameDay = startDate.toDateString() === endDate.toDateString();
-    const isSameMonth = startDate.getMonth() === endDate.getMonth() &&
-      startDate.getFullYear() === endDate.getFullYear();
-
-    const dayDifference = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-
-    const formatOptions = (date, options) =>
-      date.toLocaleDateString('en-US', options);
-
-    if (isSameDay) {
-      return formatOptions(startDate, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      });
-    }
-
-    if (isSameMonth) {
-      return `${formatOptions(startDate, {
-        month: 'short',
-        day: 'numeric'
-      })} - ${formatOptions(endDate, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      })} (${dayDifference} days)`;
-    }
-
-    return `${formatOptions(startDate, {
-      month: 'short',
-      day: 'numeric'
-    })} - ${formatOptions(endDate, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    })} (${dayDifference} days)`;
-  };
+  
 
 
   // Remove holidays from Zustand, use TanStack Query instead
@@ -895,9 +718,7 @@ const AvailabilityForm = () => {
   const [editingIndex, setEditingIndex] = useState(null);
   const [errors, setErrors] = useState({});
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
-  const inputRef = React.useRef(null);
-  const dropdownRef = React.useRef(null);
-  const [anchorEl, setAnchorEl] = React.useState(null);
+  
 
   // Initialize availability if not present
   useEffect(() => {
@@ -923,10 +744,16 @@ const AvailabilityForm = () => {
     return groups;
   }, [availability.customTimeSlots]);
 
-  // Group holidays by month for display
-  const groupedHolidays = useMemo(() => {
-    return groupHolidaysByMonth(upcomingHolidays);
-  }, [upcomingHolidays]);
+  
+
+  // Adjustable card widths for larger devices
+  const CARD_LAYOUT = {
+    suburb: { md: 4, lg: 4, xl: 4 },
+    travel: { md: 4, lg: 4, xl: 4 },
+    holiday: { md: 4, lg: 4, xl: 4 }
+  };
+
+  const getWidth = (cols) => `${(cols / 12) * 100}%`;
 
   const totalSlots = availability.customTimeSlots?.length || 0;
   const travelDistance = availability.kmWillingToTravel || 20;
@@ -1242,21 +1069,21 @@ const AvailabilityForm = () => {
           </CardContent>
         </Card>
 
-        {/* Preferences Section - Three cards side by side on desktop, stacked on mobile */}
-        <Grid
-          container
-          spacing={{ xs: 2, md: 3 }}
+        {/* Preferences Section - Responsive Box flex layout */}
+        <Box
           sx={{
             mt: { xs: 2, md: 4 },
             mb: { xs: 2, md: 4 },
             px: { xs: 0, md: 0 },
             display: 'flex',
-            justifyContent: 'space-between',
+            flexDirection: { xs: 'column', md: 'row' },
+            gap: { xs: 2, md: 2, lg: 3 },
             alignItems: 'stretch',
+            width: '100%'
           }}
         >
           {/* Suburb Card */}
-          <Grid item xs={12} md={4} lg={4} xl={4} sx={{ display: 'flex' }}>
+          <Box sx={{ width: { xs: '100%', md: getWidth(CARD_LAYOUT.suburb.md), lg: getWidth(CARD_LAYOUT.suburb.lg), xl: getWidth(CARD_LAYOUT.suburb.xl) }, display: 'flex', minWidth: 0 }}>
             <Card
               elevation={0}
               sx={{
@@ -1281,10 +1108,10 @@ const AvailabilityForm = () => {
                 />
               </CardContent>
             </Card>
-          </Grid>
+          </Box>
 
           {/* Travel Distance Card */}
-          <Grid item xs={12} md={4} lg={4} xl={4} sx={{ display: 'flex' }}>
+          <Box sx={{ width: { xs: '100%', md: getWidth(CARD_LAYOUT.travel.md), lg: getWidth(CARD_LAYOUT.travel.lg), xl: getWidth(CARD_LAYOUT.travel.xl) }, display: 'flex', minWidth: 0 }}>
             <Card
               elevation={0}
               sx={{
@@ -1401,20 +1228,19 @@ const AvailabilityForm = () => {
                 )}
               </CardContent>
             </Card>
-          </Grid>
+          </Box>
 
-          {/* Upcoming Holidays Card - Render directly, internal Grid sizing controls width */}
-         <Box sx={{width: {xs:'100%',md:'10%',lg:'10%',xl:'30%'}}}>
-         <HolidayDisplaySection 
-            upcomingHolidays={upcomingHolidays}
-            holidaysLoading={holidaysLoading}
-            holidaysError={holidaysError}
-            setOpenHolidayDialog={setOpenHolidayDialog}
-            setEditingHoliday={setEditingHoliday}
-            deleteHoliday={deleteHoliday}
-            theme={theme}
-          />
-         </Box>
+          {/* Upcoming Holidays Card */}
+          <Box sx={{ width: { xs: '100%', md: getWidth(CARD_LAYOUT.holiday.md), lg: getWidth(CARD_LAYOUT.holiday.lg), xl: getWidth(CARD_LAYOUT.holiday.xl) }, display: 'flex', minWidth: 0 }}>
+            <HolidayDisplaySection 
+              upcomingHolidays={upcomingHolidays}
+              holidaysLoading={holidaysLoading}
+              holidaysError={holidaysError}
+              setOpenHolidayDialog={setOpenHolidayDialog}
+              setEditingHoliday={setEditingHoliday}
+              deleteHoliday={deleteHoliday}
+            />
+          </Box>
     
          
        
@@ -1604,7 +1430,7 @@ const AvailabilityForm = () => {
                 </Button>
               </DialogActions>
             </Dialog>
-        </Grid>
+        </Box>
 
         {/* Form Actions */}
         <Box

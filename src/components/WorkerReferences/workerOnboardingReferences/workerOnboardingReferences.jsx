@@ -14,12 +14,8 @@ import {
   IconButton,
   Collapse,
   Avatar,
-  LinearProgress,
   Stack,
   Divider,
-  Paper,
-  Fade,
-  Tooltip,
   useTheme,
   alpha,
 } from '@mui/material';
@@ -35,11 +31,10 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   Clear as ClearIcon,
-  PriorityHigh as PriorityHighIcon,
-  Shield as ShieldIcon,
   Verified as VerifiedIcon,
   ContactPhone as ContactPhoneIcon,
 } from '@mui/icons-material';
+import { toE164Au as toE164AuUtil, isValidAuMobile as isValidAuMobileUtil, formatAuInternational } from '../../../utils/phone';
 
 const WorkerOnboardingReferences = ({
   references,
@@ -61,21 +56,8 @@ const WorkerOnboardingReferences = ({
     return re.test(String(email).trim());
   }, []);
 
-  const normalizePhone = useCallback((value) => (value || '').replace(/\D/g, ''), []);
-
-  const isValidAuMobile = useCallback((value) => {
-    const digits = normalizePhone(value);
-    // Accept local 0XXXXXXXXX (10 digits) or 61XXXXXXXXX (country code + 9)
-    return /^0\d{9}$/.test(digits) || /^61\d{9}$/.test(digits);
-  }, [normalizePhone]);
-
-  const toE164 = useCallback((value) => {
-    let digits = normalizePhone(value);
-    if (digits.startsWith('61')) digits = digits.slice(2);
-    else if (digits.startsWith('0')) digits = digits.slice(1);
-    digits = digits.slice(0, 9);
-    return digits ? `+61${digits}` : '';
-  }, [normalizePhone]);
+  const toE164Au = useCallback((value) => toE164AuUtil(value), []);
+  const isValidAuMobile = useCallback((value) => isValidAuMobileUtil(value), []);
 
   const isValidName = useCallback((name) => {
     const n = (name || '').trim();
@@ -83,76 +65,37 @@ const WorkerOnboardingReferences = ({
     return /^[\p{L} .'-]{2,}$/u.test(n);
   }, []);
 
-  const issues = useMemo(() => {
-    const msgs = [];
-    const emails = references.map(r => (r?.email || '').trim().toLowerCase()).filter(Boolean);
-    const phones = references.map(r => normalizePhone(r?.phone || '')).filter(Boolean);
-    const names = references.map(r => (r?.name || '').trim().toLowerCase()).filter(Boolean);
-
-    // Duplicates
-    const dup = (arr) => arr.filter((v, i) => arr.indexOf(v) !== i);
-    const dupEmails = [...new Set(dup(emails))];
-    const dupPhones = [...new Set(dup(phones))];
-    const dupNames = [...new Set(dup(names))];
-    if (dupEmails.length) msgs.push(`Duplicate email detected: ${dupEmails[0]}`);
-    if (dupPhones.length) msgs.push(`Duplicate phone detected`);
-    if (dupNames.length) msgs.push(`Duplicate name detected`);
-
-    // Format validation
-    references.forEach((r, idx) => {
-      const label = `Reference ${idx + 1}`;
-      if (r?.email && !isValidEmail(r.email)) msgs.push(`${label}: Invalid email format`);
-      if (r?.phone && !isValidAuMobile(r.phone)) msgs.push(`${label}: Invalid AU mobile format`);
-      if (r?.name && !isValidName(r.name)) msgs.push(`${label}: Name must be at least 2 letters`);
-    });
-
-    // Missing fields
-    references.forEach((r, idx) => {
-      const missing = [];
-      if (!r?.name) missing.push('Full Name');
-      if (!r?.position) missing.push('Job Title');
-      if (!r?.company) missing.push('Company');
-      if (!r?.phone) missing.push('Phone');
-      if (!r?.email) missing.push('Email');
-      if (missing.length) msgs.push(`Reference ${idx + 1}: Missing ${missing.join(', ')}`);
-    });
-
-    // Hard rule: exactly 2 unique references when submitting elsewhere; here just signal if over limit
-    if (references.length > maxReferences) msgs.push(`Only ${maxReferences} references allowed`);
-
-    return msgs;
-  }, [references, isValidEmail, isValidAuMobile, isValidName, normalizePhone, maxReferences]);
+  // Removed separate `issues` list as inline field errors provide sufficient guidance
 
   // No toasts here to avoid duplicates; inline errors will guide the user
 
-  // Duplicate indices for inline error highlighting
+  // Duplicate indices for inline error highlighting (simplified)
   const duplicateIndexSets = useMemo(() => {
-    const emailMap = new Map();
-    const phoneMap = new Map();
-    const nameMap = new Map();
-    references.forEach((r, idx) => {
-      const e = (r?.email || '').trim().toLowerCase();
-      const p = normalizePhone(r?.phone || '');
-      const n = (r?.name || '').trim().toLowerCase();
-      if (e) emailMap.set(e, [...(emailMap.get(e) || []), idx]);
-      if (p) phoneMap.set(p, [...(phoneMap.get(p) || []), idx]);
-      if (n) nameMap.set(n, [...(nameMap.get(n) || []), idx]);
-    });
-    const toDupSet = (m) => new Set(
-      Array.from(m.values()).flat().filter((_, __, arr) => arr.length > 0).filter((v, i, arr) => {
-        // keep all indices that appear in groups with length > 1
-        return Array.from(m.values()).some(g => g.length > 1 && g.includes(v));
-      })
-    );
-    return {
-      email: new Set(Array.from(emailMap.values()).filter(g => g.length > 1).flat()),
-      phone: new Set(Array.from(phoneMap.values()).filter(g => g.length > 1).flat()),
-      name: new Set(Array.from(nameMap.values()).filter(g => g.length > 1).flat()),
+    const emails = references.map(r => (r?.email || '').trim().toLowerCase());
+    const phones = references.map(r => toE164Au(r?.phone || ''));
+    const names = references.map(r => (r?.name || '').trim().toLowerCase());
+
+    const duplicateIndices = (arr) => {
+      return arr
+        .map((v, i) => ({ v, i }))
+        .filter(({ v }, _, a) => v && a.filter(x => x.v === v).length > 1)
+        .map(({ i }) => i);
     };
-  }, [references, normalizePhone]);
+
+    return {
+      email: new Set(duplicateIndices(emails)),
+      phone: new Set(duplicateIndices(phones)),
+      name: new Set(duplicateIndices(names)),
+    };
+  }, [references, toE164Au]);
   
-  // Always show two references (fill with empty objects if needed)
-  const filledReferences = [0, 1].map(i => 
+  const displayPhone = useCallback((value) => {
+    const formatter = formatAustralianPhone || formatAuInternational;
+    return formatter(value || '');
+  }, [formatAustralianPhone]);
+
+  // Always show up to maxReferences (fill with empty objects if needed)
+  const filledReferences = Array.from({ length: maxReferences }).map((_, i) =>
     references[i] || { name: '', position: '', company: '', phone: '', email: '' }
   );
   
@@ -160,16 +103,12 @@ const WorkerOnboardingReferences = ({
     ref.name && ref.position && ref.company && ref.phone && ref.email
   );
   
-  const complete = filledReferences.filter(ref => 
-    ref.name && ref.position && ref.company && ref.phone && ref.email
-  ).length;
-  
-  const progressPercentage = (complete / maxReferences) * 100;
+  // Removed unused progress calculations
 
   // Enhanced status calculation
-  const getStatus = (ref) => {
+  const getStatus = (ref, idx) => {
     const hasErrors = ['name', 'position', 'company', 'phone', 'email'].some(field => 
-      formErrors?.[`ref${filledReferences.indexOf(ref)}_${field}`]
+      formErrors?.[`ref${idx}_${field}`]
     );
     const isComplete = ref.name && ref.position && ref.company && ref.phone && ref.email;
     const hasContent = Object.values(ref).some(value => value && value.trim());
@@ -243,7 +182,7 @@ const WorkerOnboardingReferences = ({
         </Box>
         
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1}}>
-          Provide 2 professional references who can verify your work experience.
+          Provide {maxReferences} professional references who can verify your work experience.
         </Typography>
         
        
@@ -266,7 +205,7 @@ const WorkerOnboardingReferences = ({
         </AlertTitle>
         <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
           {allComplete ? (
-            'Both references are ready for verification. We\'ll contact them within 24-48 hours.'
+            `${maxReferences === 1 ? 'Reference is' : `All ${maxReferences} references are`} ready for verification. We\'ll contact them within 24-48 hours.`
           ) : (
             'All fields are required. We\'ll verify references before activating your profile.'
           )}
@@ -288,7 +227,7 @@ const WorkerOnboardingReferences = ({
         <Stack spacing={2}>
           {filledReferences.map((ref, index) => {
             const isExpanded = expandedReference === index;
-            const status = getStatus(ref);
+            const status = getStatus(ref, index);
             const statusConfig = getStatusConfig(status);
             
             return (
@@ -471,15 +410,14 @@ const WorkerOnboardingReferences = ({
                       <Grid item xs={12} sm={6}>
                         <TextField
                           fullWidth
-                          label="Phone"
+                          label="Phone (+61)"
                           size="small"
-                          value={formatAustralianPhone(ref.phone || '')}
+                          value={displayPhone(ref.phone || '')}
                           onChange={e => {
-                            let raw = e.target.value.replace(/[^\d ]/g, '');
-                            const formatted = formatAustralianPhone(raw);
-                            onUpdateReference(index, 'phone', formatted);
+                            const e164 = toE164Au(e.target.value);
+                            onUpdateReference(index, 'phone', e164);
                           }}
-                          placeholder="0412 345 678"
+                          placeholder="+61 412 345 678"
                           id={`ref${index}_phone`}
                           name={`ref${index}_phone`}
                           error={
@@ -491,7 +429,7 @@ const WorkerOnboardingReferences = ({
                             duplicateIndexSets.phone.has(index)
                               ? 'Duplicate phone. Each reference must have a unique number.'
                               : formErrors?.[`ref${index}_phone`]
-                                || (!!ref.phone && !isValidAuMobile(ref.phone) ? 'Enter a valid AU mobile (e.g. 0412 345 678)' : 'Format: 0412 345 678')
+                                || (!!ref.phone && !isValidAuMobile(ref.phone) ? 'Enter a valid AU mobile (e.g. +61 412 345 678)' : 'Format: +61 412 345 678')
                           }
                           required
                           InputProps={{
