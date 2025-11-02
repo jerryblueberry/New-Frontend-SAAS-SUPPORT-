@@ -95,7 +95,7 @@ const ClientDashboard = () => {
           flexGrow: 0.5,
         // width: '100%',
 
-          pt: { xs: '12px', md: '12px' },
+          pt: { xs: 10, md: 8.7 },
           px: { xs: 2, sm: 3, md: 0}
         }}>
           <Box sx={{ maxWidth: 1200, mx: 'auto' }}>

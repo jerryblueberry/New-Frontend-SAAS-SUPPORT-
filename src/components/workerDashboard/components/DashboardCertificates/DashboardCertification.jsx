@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useRef, useState } from 'react';
+import React, { useMemo, useCallback, useRef, useState, useEffect } from 'react';
 import {
     Box,
     Typography,
@@ -107,6 +107,25 @@ const DashboardCertification = ({ onboardingData }) => {
     }, [today]);
     const isRejected = useCallback((item) => (item?.verificationStatus || '').toLowerCase() === 'rejected', []);
 
+    // Frontend-computed status with expiry override (must be defined before filtered arrays)
+    const getComputedStatus = useCallback((cert) => {
+        if (!cert) return 'pending';
+        if (isExpired(cert)) return 'expired';
+        const s = (cert?.verificationStatus || '').toLowerCase();
+        // Handle "expiring soon" status from API (case-insensitive)
+        if (s === 'expiring soon') return 'expiring soon';
+        return s || 'pending';
+    }, [isExpired]);
+
+    const isExpiringSoon = useCallback((expiryDate) => {
+        if (!expiryDate) return false;
+        const today = new Date();
+        const expiry = new Date(expiryDate);
+        const diffTime = expiry - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays <= 90 && diffDays > 0;
+    }, []);
+
     const expiredCertifications = useMemo(
         () => [...certifications, ...otherCertifications].filter(isExpired),
         [certifications, otherCertifications, isExpired]
@@ -115,11 +134,27 @@ const DashboardCertification = ({ onboardingData }) => {
         () => [...certifications, ...otherCertifications].filter(isRejected),
         [certifications, otherCertifications, isRejected]
     );
+    // Expiring soon certifications: 
+    // 1. API returns "Expiring Soon" status, OR
+    // 2. Verified certifications expiring within 90 days (frontend computed)
+    const expiringSoonCertifications = useMemo(
+        () => [...certifications, ...otherCertifications].filter((cert) => {
+            if (isExpired(cert)) return false;
+            const status = getComputedStatus(cert);
+            // Include if API status is "expiring soon"
+            if (status === 'expiring soon') return true;
+            // OR if verified and frontend computed as expiring soon
+            if (status === 'verified' && isExpiringSoon(cert.expiryDate)) return true;
+            return false;
+        }),
+        [certifications, otherCertifications, getComputedStatus, isExpiringSoon, isExpired]
+    );
     const getStatusColor = (status) => {
         switch (status?.toLowerCase()) {
             case 'verified': return 'success';
             case 'pending': return 'warning';
             case 'expired': return 'error';
+            case 'expiring soon': return 'warning';
             default: return 'default';
         }
     };
@@ -129,17 +164,10 @@ const DashboardCertification = ({ onboardingData }) => {
             case 'verified': return <Verified fontSize="small" />;
             case 'pending': return <Schedule fontSize="small" />;
             case 'expired': return <Cancel fontSize="small" />;
+            case 'expiring soon': return <Schedule fontSize="small" />;
             default: return <Schedule fontSize="small" />;
         }
     };
-
-    // Frontend-computed status with expiry override
-    const getComputedStatus = useCallback((cert) => {
-        if (!cert) return 'pending';
-        if (isExpired(cert)) return 'expired';
-        const s = (cert?.verificationStatus || '').toLowerCase();
-        return s || 'pending';
-    }, [isExpired]);
 
     const formatDate = useCallback((dateString) => {
         if (!dateString) return 'Not specified';
@@ -150,14 +178,74 @@ const DashboardCertification = ({ onboardingData }) => {
         });
     }, []);
 
-    const isExpiringSoon = useCallback((expiryDate) => {
-        if (!expiryDate) return false;
-        const today = new Date();
-        const expiry = new Date(expiryDate);
-        const diffTime = expiry - today;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays <= 90 && diffDays > 0;
-    }, []);
+    // Helper to determine if edit button should be shown
+    // Shows for: rejected, expired, pending, expiring soon (from API), OR verified but expiring soon (frontend computed)
+    const shouldShowEdit = useCallback((cert) => {
+        if (!cert) {
+            console.warn('shouldShowEdit: cert is null/undefined');
+            return false;
+        }
+        
+        const status = getComputedStatus(cert);
+        const expiryDate = cert.expiryDate;
+        const isExpiring = isExpiringSoon(expiryDate);
+        
+        // Show for rejected, expired, pending, or expiring soon (from API)
+        if (['rejected', 'expired', 'pending', 'expiring soon'].includes(status)) {
+            console.log('✅ Edit button will show (status match):', {
+                certName: cert?.certificationType?.name || cert?.certificationTitle,
+                status
+            });
+            return true;
+        }
+        // Show for verified certifications that are expiring soon (frontend computed)
+        if (status === 'verified' && isExpiring) {
+            console.log('✅ Edit button will show (verified + expiring soon):', {
+                certName: cert?.certificationType?.name || cert?.certificationTitle,
+                expiryDate,
+                isExpiring
+            });
+            return true;
+        }
+        
+        return false;
+    }, [getComputedStatus, isExpiringSoon]);
+
+    // Debug: Log all certifications with their statuses
+    useEffect(() => {
+        if (certifications.length === 0 && otherCertifications.length === 0) return;
+        
+        console.group('🔍 Certification Status Debug');
+        console.log('=== ALL CERTIFICATIONS ===');
+        [...certifications, ...otherCertifications].forEach((cert, index) => {
+            const apiStatus = cert?.verificationStatus || 'N/A';
+            const computedStatus = getComputedStatus(cert);
+            const expiryDate = cert?.expiryDate || 'N/A';
+            const isExpiring = isExpiringSoon(cert?.expiryDate);
+            const shouldEdit = shouldShowEdit(cert);
+            
+            console.log(`\n📋 Certification ${index + 1}:`, {
+                name: cert?.certificationType?.name || cert?.certificationTitle || 'Unknown',
+                apiStatus,
+                computedStatus,
+                expiryDate,
+                isExpiring,
+                shouldShowEdit: shouldEdit,
+                rawCert: cert
+            });
+        });
+        console.log('\n=== EXPIRING SOON CERTIFICATIONS ===');
+        console.log('Count:', expiringSoonCertifications.length);
+        expiringSoonCertifications.forEach((cert, index) => {
+            console.log(`Expiring Soon ${index + 1}:`, {
+                name: cert?.certificationType?.name || cert?.certificationTitle,
+                expiryDate: cert?.expiryDate,
+                status: getComputedStatus(cert),
+                shouldShowEdit: shouldShowEdit(cert)
+            });
+        });
+        console.groupEnd();
+    }, [certifications, otherCertifications, expiringSoonCertifications, getComputedStatus, isExpiringSoon, shouldShowEdit]);
 
     const prefetchOnboarding = useCallback(() => {
         const now = Date.now();
@@ -300,7 +388,7 @@ const DashboardCertification = ({ onboardingData }) => {
                             </Box>
                             <Stack direction="row" spacing={0.5} alignItems="center">
                                 {/* Mobile edit/delete action bar */}
-                                    {(function(){ const cs = getComputedStatus(cert); return (type === 'other' || ['rejected','expired','pending'].includes(cs)); })() && (
+                                    {(type === 'other' || shouldShowEdit(cert)) && (
                                   <Tooltip title="Edit">
                                     <IconButton
                                       size="small"
@@ -618,8 +706,8 @@ const DashboardCertification = ({ onboardingData }) => {
                                         </TableCell>
                                         <TableCell>
                                             <Stack direction="row" spacing={1}>
-                                                {/* Edit button - only show for rejected or expired */}
-                                                {(function(){ const cs = getComputedStatus(cert); return (type === 'other' || ['rejected','expired','pending'].includes(cs)); })() && (
+                                                {/* Edit button - show for other certifications OR professional with edit conditions */}
+                                                {(type === 'other' || shouldShowEdit(cert)) && (
                                                     <Tooltip title="Edit">
                                                         <IconButton 
                                                             size="small" 
@@ -1007,8 +1095,8 @@ const DashboardCertification = ({ onboardingData }) => {
                                         />
                                     ); })()}
 
-                                    {/* Edit button - only show for rejected, expired, or pending (computed) */}
-                                    {(() => { const cs = getComputedStatus(cert); return ['rejected','expired','pending'].includes(cs); })() && (
+                                    {/* Edit button - show for rejected/expired/pending OR verified expiring soon */}
+                                    {shouldShowEdit(cert) && (
                                         <IconButton
                                             size="small"
                                             className="edit-button"
@@ -1526,7 +1614,25 @@ const DashboardCertification = ({ onboardingData }) => {
                     </Stack>
                   }
                 />
-                      <Tab
+                <Tab
+                  label={
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Schedule fontSize="small" />
+                      <Typography sx={{ fontSize: { xs: '0.8rem', md: '1rem' } }}>
+                        Expiring Soon
+                      </Typography>
+                      {expiringSoonCertifications.length > 0 && (
+                        <Chip
+                          label={expiringSoonCertifications.length}
+                          size="small"
+                          color="warning"
+                          sx={{ height: 20, fontSize: '0.75rem' }}
+                        />
+                      )}
+                    </Stack>
+                  }
+                />
+                <Tab
                   label={
                     <Stack direction="row" alignItems="center" spacing={1}>
                       <Cancel fontSize="small" />
@@ -1633,6 +1739,29 @@ const DashboardCertification = ({ onboardingData }) => {
               )}
             </TabPanel>
             <TabPanel value={activeTab} index={3}>
+              {expiringSoonCertifications.length > 0 ? (
+                isDesktop ? (
+                  <DesktopCertificationTable 
+                    certifications={expiringSoonCertifications} 
+                    type={expiringSoonCertifications[0]?.certificationType ? 'professional' : 'other'} 
+                  />
+                ) : (
+                  <Box>
+                    {expiringSoonCertifications.map((cert, index) => (
+                      <MobileCertificationCard
+                        key={cert.id || cert._id || `expiring-${index}`}
+                        cert={cert}
+                        index={index}
+                        type={cert?.certificationType ? 'professional' : 'other'}
+                      />
+                    ))}
+                  </Box>
+                )
+              ) : (
+                <EmptyState type="professional" />
+              )}
+            </TabPanel>
+            <TabPanel value={activeTab} index={4}>
               {rejectedCertifications.length > 0 ? (
                 isDesktop ? (
                   <DesktopCertificationTable 

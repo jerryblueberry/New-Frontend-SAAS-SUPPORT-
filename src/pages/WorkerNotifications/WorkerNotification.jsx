@@ -114,11 +114,18 @@ const WorkerNotification = () => {
     refetchRecent
   } = useNotificationManagement();
 
-  // Auto mark as read functionality with controlled behavior
+  // Auto mark as read functionality with production-ready batch processing
   const {
     markAsReadOnHover,
+    markAsReadImmediate,
     clearViewedCache
-  } = useAutoMarkAsRead(markAsRead, markAllAsRead);
+  } = useAutoMarkAsRead({
+    debounceMs: 800, // 800ms debounce for batching
+    batchSize: 5, // Process 5 notifications per batch
+    enableOptimistic: true, // Optimistic UI updates
+    enableRetry: true, // Retry failed requests
+    maxRetries: 2
+  });
 
   // Connection status monitoring
   const { isOnline, hasConnectionError, connectionError } = useConnectionStatus();
@@ -211,10 +218,10 @@ const WorkerNotification = () => {
       expandedNotification === notification._id ? null : notification._id
     );
     
-    // Mark as read if unread (on click interaction)
+    // Mark as read immediately if unread (on click interaction)
     if (!notification.read) {
-      markAsRead(notification._id);
-      // Refetch counts and list after short delay for smooth UX
+      markAsReadImmediate(notification._id, notification.read);
+      // Optimistic update already handled by hook, but refetch for consistency
       setTimeout(() => {
         refetchUnreadCount();
         refetchNotifications();
@@ -247,7 +254,7 @@ const WorkerNotification = () => {
         {/* Main Content */}
         <Box component="main" sx={{
           flexGrow: 1,
-          mt: { xs: 0.5, sm: 1,md:0 },
+          mt: { xs: 8, sm: 8,md:7 },
           p: { xs: 1, sm: 1.5, md: 2 },
           minHeight: '100vh',
           maxWidth: { xs: '100%', md: 'calc(100% - 280px)' }
@@ -566,6 +573,13 @@ const WorkerNotification = () => {
                           cursor: 'pointer'
                         }}
                         onClick={() => handleNotificationClick(notification)}
+                        onMouseEnter={() => markAsReadOnHover(notification._id, notification.read)}
+                        onTouchStart={(e) => {
+                          // Prevent double-triggering with click on touch devices
+                          if (!notification.read) {
+                            markAsReadOnHover(notification._id, notification.read);
+                          }
+                        }}
                       >
                         <Box sx={{ p: { xs: 1, sm: 1.25 } }}>
                           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
