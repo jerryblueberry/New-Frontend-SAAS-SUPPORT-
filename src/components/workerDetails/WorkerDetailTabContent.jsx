@@ -22,7 +22,8 @@ import {
   Divider,
   Paper,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  alpha
 } from "@mui/material";
 import {
   Info as InfoIcon,
@@ -39,7 +40,13 @@ import {
   Person as PersonIcon,
   MedicalServices as MedicalServicesIcon,
   Schedule as ScheduleIcon,
-  Star as StarIcon
+  Star as StarIcon,
+  Vaccines as VaccinesIcon,
+  LocalHospital as LocalHospitalIcon,
+  FitnessCenter as FitnessCenterIcon,
+  CalendarToday as CalendarTodayIcon,
+  Notes as NotesIcon,
+  HealthAndSafety as HealthAndSafetyIcon
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
@@ -346,47 +353,421 @@ const WorkerDetailTabContent = ({
     </Card>
   );
 
-  // Health info card component
-  const HealthInfoCard = ({ healthInfo }) => (
-    <Card variant="outlined">
-      <CardHeader
-        title="Health Information"
-        avatar={<MedicalServicesIcon color="primary" />}
-        sx={{ pb: 1 }}
-        titleTypographyProps={{ variant: 'subtitle1', fontWeight: 600 }}
-      />
-      <CardContent sx={{ pt: 0 }}>
-        <Grid container spacing={2}>
-          {Object.entries(healthInfo).map(([key, value]) => {
-            if (typeof value === "boolean") {
-              return (
-                <Grid item xs={6} sm={4} md={3} key={key}>
-                  <Paper variant="outlined" sx={{ p: 1.5, height: '100%' }}>
-                    <Stack direction="row" alignItems="center" spacing={1.5}>
-                      {value ? (
-                        <CheckCircleIcon color="success" fontSize="small" />
-                      ) : (
-                        <CancelIcon color="error" fontSize="small" />
+  // Format field name for display
+  const formatFieldName = (key) => {
+    return key
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, (str) => str.toUpperCase())
+      .trim();
+  };
+
+  // Get icon for health field
+  const getHealthIcon = (key) => {
+    const iconMap = {
+      covidVaccinated: <VaccinesIcon />,
+      fluVaccinated: <VaccinesIcon />,
+      otherVaccinations: <VaccinesIcon />,
+      hasHealthClearance: <HealthAndSafetyIcon />,
+      canLiftPatients: <FitnessCenterIcon />,
+      hasWorkersCompensation: <LocalHospitalIcon />,
+      hasMedicalConditions: <MedicalServicesIcon />,
+      requiresSpecialAccommodation: <InfoIcon />,
+    };
+    return iconMap[key] || <MedicalServicesIcon />;
+  };
+
+  // Health info card component - Enhanced with better design and responsiveness
+  const HealthInfoCard = ({ healthInfo }) => {
+    if (!healthInfo) {
+      return (
+        <Paper variant="outlined" sx={{ p: 4, textAlign: 'center' }}>
+          <MedicalServicesIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
+          <Typography color="text.secondary">No health information available</Typography>
+        </Paper>
+      );
+    }
+
+    // Group health info into categories
+    const vaccinations = [
+      { key: 'covidVaccinated', value: healthInfo.covidVaccinated },
+      { key: 'fluVaccinated', value: healthInfo.fluVaccinated },
+      { key: 'otherVaccinations', value: healthInfo.otherVaccinations }
+    ].filter(item => item.value !== undefined);
+
+    const medicalInfo = [
+      { key: 'hasHealthClearance', value: healthInfo.hasHealthClearance },
+      { key: 'hasMedicalConditions', value: healthInfo.hasMedicalConditions },
+      { key: 'canLiftPatients', value: healthInfo.canLiftPatients },
+      { key: 'hasWorkersCompensation', value: healthInfo.hasWorkersCompensation },
+      { key: 'requiresSpecialAccommodation', value: healthInfo.requiresSpecialAccommodation }
+    ].filter(item => item.value !== undefined);
+
+    const hasDetails = healthInfo.workersCompensationDetails || 
+                      healthInfo.medicalConditionsDescription || 
+                      healthInfo.conditionsAffectingWork ||
+                      healthInfo.healthClearanceNotes ||
+                      healthInfo.healthClearanceDate;
+
+    return (
+      <Stack spacing={3}>
+        {/* Vaccinations Section */}
+        {vaccinations.length > 0 && (
+          <Card 
+            variant="outlined" 
+            sx={{ 
+              borderRadius: 3,
+              overflow: 'hidden',
+              border: '2px solid',
+              borderColor: alpha(theme.palette.success.main, 0.2),
+              bgcolor: alpha(theme.palette.success.main, 0.02)
+            }}
+          >
+            <CardHeader
+              title={
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <VaccinesIcon color="success" />
+                  <Typography variant="h6" fontWeight={700} sx={{ color: 'success.dark' }}>
+                    Vaccinations
+                  </Typography>
+                </Stack>
+              }
+              sx={{ 
+                pb: 1,
+                bgcolor: alpha(theme.palette.success.main, 0.05),
+                borderBottom: `1px solid ${alpha(theme.palette.success.main, 0.1)}`
+              }}
+            />
+            <CardContent sx={{ pt: 2 }}>
+              <Grid container spacing={{ xs: 1.5, sm: 2 }}>
+                {vaccinations.map(({ key, value }) => (
+                  <Grid item xs={12} sm={6} md={4} key={key}>
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: { xs: 1.5, sm: 2 },
+                        borderRadius: 2,
+                        bgcolor: value ? alpha(theme.palette.success.main, 0.08) : alpha(theme.palette.grey[500], 0.08),
+                        border: `1.5px solid ${value ? theme.palette.success.main : alpha(theme.palette.grey[400], 0.3)}`,
+                        borderLeft: `4px solid ${value ? theme.palette.success.main : theme.palette.grey[400]}`,
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: value ? 2 : 1,
+                          borderColor: value ? theme.palette.success.dark : theme.palette.grey[500]
+                        }
+                      }}
+                    >
+                      <Stack direction="row" alignItems="center" spacing={1.5}>
+                        <Box
+                          sx={{
+                            p: 1,
+                            borderRadius: 1.5,
+                            bgcolor: value ? alpha(theme.palette.success.main, 0.15) : alpha(theme.palette.grey[500], 0.15),
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          {React.cloneElement(getHealthIcon(key), {
+                            fontSize: 'small',
+                            sx: { color: value ? 'success.main' : 'text.disabled' }
+                          })}
+                        </Box>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography 
+                            variant="body2" 
+                            fontWeight={600}
+                            sx={{ 
+                              color: value ? 'success.dark' : 'text.secondary',
+                              fontSize: { xs: '0.875rem', sm: '0.9rem' },
+                              mb: 0.25
+                            }}
+                            noWrap
+                          >
+                            {formatFieldName(key)}
+                          </Typography>
+                          <Stack direction="row" alignItems="center" spacing={0.5}>
+                            {value ? (
+                              <>
+                                <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                                <Typography variant="caption" sx={{ color: 'success.dark', fontWeight: 600 }}>
+                                  Yes
+                                </Typography>
+                              </>
+                            ) : (
+                              <>
+                                <CancelIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                                <Typography variant="caption" color="text.disabled">
+                                  No
+                                </Typography>
+                              </>
+                            )}
+                          </Stack>
+                        </Box>
+                      </Stack>
+                    </Paper>
+                  </Grid>
+                ))}
+              </Grid>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Medical Information Section */}
+        {medicalInfo.length > 0 && (
+          <Card 
+            variant="outlined" 
+            sx={{ 
+              borderRadius: 3,
+              overflow: 'hidden',
+              border: '2px solid',
+              borderColor: alpha(theme.palette.info.main, 0.2),
+              bgcolor: alpha(theme.palette.info.main, 0.02)
+            }}
+          >
+            <CardHeader
+              title={
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <MedicalServicesIcon color="info" />
+                  <Typography variant="h6" fontWeight={700} sx={{ color: 'info.dark' }}>
+                    Medical Information
+                  </Typography>
+                </Stack>
+              }
+              sx={{ 
+                pb: 1,
+                bgcolor: alpha(theme.palette.info.main, 0.05),
+                borderBottom: `1px solid ${alpha(theme.palette.info.main, 0.1)}`
+              }}
+            />
+            <CardContent sx={{ pt: 2 }}>
+              <Grid container spacing={{ xs: 1.5, sm: 2 }}>
+                {medicalInfo.map(({ key, value }) => (
+                  <Grid item xs={12} sm={6} md={4} key={key}>
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: { xs: 1.5, sm: 2 },
+                        borderRadius: 2,
+                        bgcolor: value ? alpha(theme.palette.info.main, 0.08) : alpha(theme.palette.grey[500], 0.08),
+                        border: `1.5px solid ${value ? theme.palette.info.main : alpha(theme.palette.grey[400], 0.3)}`,
+                        borderLeft: `4px solid ${value ? theme.palette.info.main : theme.palette.grey[400]}`,
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: value ? 2 : 1,
+                          borderColor: value ? theme.palette.info.dark : theme.palette.grey[500]
+                        }
+                      }}
+                    >
+                      <Stack direction="row" alignItems="center" spacing={1.5}>
+                        <Box
+                          sx={{
+                            p: 1,
+                            borderRadius: 1.5,
+                            bgcolor: value ? alpha(theme.palette.info.main, 0.15) : alpha(theme.palette.grey[500], 0.15),
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          {React.cloneElement(getHealthIcon(key), {
+                            fontSize: 'small',
+                            sx: { color: value ? 'info.main' : 'text.disabled' }
+                          })}
+                        </Box>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography 
+                            variant="body2" 
+                            fontWeight={600}
+                            sx={{ 
+                              color: value ? 'info.dark' : 'text.secondary',
+                              fontSize: { xs: '0.875rem', sm: '0.9rem' },
+                              mb: 0.25
+                            }}
+                            noWrap
+                          >
+                            {formatFieldName(key)}
+                          </Typography>
+                          <Stack direction="row" alignItems="center" spacing={0.5}>
+                            {value ? (
+                              <>
+                                <CheckCircleIcon sx={{ fontSize: 16, color: 'info.main' }} />
+                                <Typography variant="caption" sx={{ color: 'info.dark', fontWeight: 600 }}>
+                                  Yes
+                                </Typography>
+                              </>
+                            ) : (
+                              <>
+                                <CancelIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                                <Typography variant="caption" color="text.disabled">
+                                  No
+                                </Typography>
+                              </>
+                            )}
+                          </Stack>
+                        </Box>
+                      </Stack>
+                    </Paper>
+                  </Grid>
+                ))}
+              </Grid>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Additional Details Section */}
+        {hasDetails && (
+          <Card 
+            variant="outlined" 
+            sx={{ 
+              borderRadius: 3,
+              overflow: 'hidden',
+              border: '2px solid',
+              borderColor: alpha(theme.palette.warning.main, 0.2),
+              bgcolor: alpha(theme.palette.warning.main, 0.02)
+            }}
+          >
+            <CardHeader
+              title={
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <NotesIcon color="warning" />
+                  <Typography variant="h6" fontWeight={700} sx={{ color: 'warning.dark' }}>
+                    Additional Details
+                  </Typography>
+                </Stack>
+              }
+              sx={{ 
+                pb: 1,
+                bgcolor: alpha(theme.palette.warning.main, 0.05),
+                borderBottom: `1px solid ${alpha(theme.palette.warning.main, 0.1)}`
+              }}
+            />
+            <CardContent sx={{ pt: 2 }}>
+              <Stack spacing={2.5}>
+                {healthInfo.workersCompensationDetails && (
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2,
+                      borderRadius: 2,
+                      bgcolor: 'background.paper',
+                      border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                      borderLeft: `4px solid ${theme.palette.warning.main}`
+                    }}
+                  >
+                    <Stack direction="row" alignItems="flex-start" spacing={1.5} mb={1}>
+                      <LocalHospitalIcon sx={{ fontSize: 20, color: 'warning.main', mt: 0.25 }} />
+                      <Typography variant="subtitle2" fontWeight={700} sx={{ color: 'warning.dark' }}>
+                        Workers Compensation Details
+                      </Typography>
+                    </Stack>
+                    <Typography variant="body2" sx={{ ml: 4, color: 'text.primary', lineHeight: 1.6 }}>
+                      {healthInfo.workersCompensationDetails}
+                    </Typography>
+                  </Paper>
+                )}
+
+                {healthInfo.medicalConditionsDescription && (
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2,
+                      borderRadius: 2,
+                      bgcolor: 'background.paper',
+                      border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+                      borderLeft: `4px solid ${theme.palette.error.main}`
+                    }}
+                  >
+                    <Stack direction="row" alignItems="flex-start" spacing={1.5} mb={1}>
+                      <MedicalServicesIcon sx={{ fontSize: 20, color: 'error.main', mt: 0.25 }} />
+                      <Typography variant="subtitle2" fontWeight={700} sx={{ color: 'error.dark' }}>
+                        Medical Conditions
+                      </Typography>
+                    </Stack>
+                    <Typography variant="body2" sx={{ ml: 4, color: 'text.primary', lineHeight: 1.6 }}>
+                      {healthInfo.medicalConditionsDescription}
+                    </Typography>
+                  </Paper>
+                )}
+
+                {healthInfo.conditionsAffectingWork && (
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2,
+                      borderRadius: 2,
+                      bgcolor: 'background.paper',
+                      border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+                      borderLeft: `4px solid ${theme.palette.error.main}`
+                    }}
+                  >
+                    <Stack direction="row" alignItems="flex-start" spacing={1.5} mb={1}>
+                      <WarningIcon sx={{ fontSize: 20, color: 'error.main', mt: 0.25 }} />
+                      <Typography variant="subtitle2" fontWeight={700} sx={{ color: 'error.dark' }}>
+                        Conditions Affecting Work
+                      </Typography>
+                    </Stack>
+                    <Typography variant="body2" sx={{ ml: 4, color: 'text.primary', lineHeight: 1.6 }}>
+                      {healthInfo.conditionsAffectingWork}
+                    </Typography>
+                  </Paper>
+                )}
+
+                {(healthInfo.healthClearanceDate || healthInfo.healthClearanceNotes) && (
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2,
+                      borderRadius: 2,
+                      bgcolor: 'background.paper',
+                      border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+                      borderLeft: `4px solid ${theme.palette.success.main}`
+                    }}
+                  >
+                    <Stack direction="row" alignItems="flex-start" spacing={1.5} mb={1.5}>
+                      <HealthAndSafetyIcon sx={{ fontSize: 20, color: 'success.main', mt: 0.25 }} />
+                      <Typography variant="subtitle2" fontWeight={700} sx={{ color: 'success.dark' }}>
+                        Health Clearance
+                      </Typography>
+                    </Stack>
+                    <Stack spacing={1} sx={{ ml: 4 }}>
+                      {healthInfo.healthClearanceDate && (
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <CalendarTodayIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                          <Typography variant="body2" color="text.primary">
+                            <strong>Date:</strong> {formatDate(healthInfo.healthClearanceDate)}
+                          </Typography>
+                        </Stack>
                       )}
-                      <Box>
-                        <Typography variant="body2" fontWeight={500}>
-                          {key.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase())}
+                      {healthInfo.healthClearanceNotes && (
+                        <Typography variant="body2" sx={{ color: 'text.primary', lineHeight: 1.6, mt: 0.5 }}>
+                          <strong>Notes:</strong> {healthInfo.healthClearanceNotes}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {value ? "Yes" : "No"}
-                        </Typography>
-                      </Box>
+                      )}
                     </Stack>
                   </Paper>
-                </Grid>
-              );
-            }
-            return null;
-          })}
-        </Grid>
-      </CardContent>
-    </Card>
-  );
+                )}
+              </Stack>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Empty State */}
+        {vaccinations.length === 0 && medicalInfo.length === 0 && !hasDetails && (
+          <Paper variant="outlined" sx={{ p: { xs: 4, sm: 6 }, textAlign: 'center', borderRadius: 3 }}>
+            <MedicalServicesIcon sx={{ fontSize: { xs: 48, sm: 64 }, color: 'text.disabled', mb: 2 }} />
+            <Typography variant="h6" color="text.secondary" fontWeight={600} mb={1}>
+              No Health Information Available
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Health information has not been provided yet
+            </Typography>
+          </Paper>
+        )}
+      </Stack>
+    );
+  };
 
   // Reference card component
   const ReferenceCard = ({ reference }) => (

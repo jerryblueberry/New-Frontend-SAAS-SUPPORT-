@@ -20,15 +20,22 @@ export default defineConfig({
     port: 5173,
     host: true,
     strictPort: true,
+    hmr: {
+      overlay: true
+    }
   },
   optimizeDeps: {
     force: true,
+    exclude: [], // Don't exclude anything
     include: [
       '@mui/material',
       '@mui/icons-material',
+      '@mui/lab',
+      '@mui/x-date-pickers',
       'react',
       'react-dom',
-      'react-router-dom'
+      'react-router-dom',
+      '@tanstack/react-query'
     ]
   },
   build: {
