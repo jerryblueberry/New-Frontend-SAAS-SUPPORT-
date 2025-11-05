@@ -10,6 +10,8 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import ClientRegister from './pages/ClientPages/OnboardingPages/ClientRegister';
 import ClientDashboard from './pages/ClientPages/ClientDashboard/ClientDashboard';
+import React, { Suspense } from 'react';
+const ClientOnboarding = React.lazy(() => import('./pages/ClientPages/OnboardingPages/ClientOnboarding'));
 import { useAuth } from './context/AuthContext';
 import VerifyEmail from './pages/auth/VerifyEmail';
 
@@ -356,6 +358,17 @@ function AppRoutes() {
 
         {/* 404 page */}
         <Route path="*" element={<PageNotFound />} />
+
+
+        {/*  For the Client Onboarding */}
+        <Route path="/client-onboarding" element={
+          <ClientRoute>
+            <Suspense fallback={<div />}> 
+              <ClientOnboarding />
+            </Suspense>
+          </ClientRoute>
+        }
+        />
       </Routes>
   );
 }

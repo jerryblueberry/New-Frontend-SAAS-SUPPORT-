@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   Box,
   Card,
@@ -37,6 +37,8 @@ import {
   RadioButtonUnchecked
 } from '@mui/icons-material'
 import { useAuth } from '../../../context/AuthContext'
+import { useQuery } from '@tanstack/react-query'
+import { getClientProfile } from '../../../api/clientProfile'
 
 const ClientDashboard = () => {
   const theme = useTheme()
@@ -45,7 +47,7 @@ const ClientDashboard = () => {
 
   const { user } = useAuth()
 
-  const [activeStep, setActiveStep] = useState(2)
+  const [activeStep, setActiveStep] = useState(0)
   const [topOffset, setTopOffset] = useState(64)
 
   useEffect(() => {
@@ -64,10 +66,30 @@ const ClientDashboard = () => {
     'Profile Setup',
     'Document Upload',
     'Care Preferences',
-    'Schedule Setup'
+    'Review & Activate'
   ]
+  
+  const { data: profileResp } = useQuery({
+    queryKey: ['clientProfile'],
+    queryFn: async () => {
+      const res = await getClientProfile()
+      return res.data?.profile || null
+    },
+    staleTime: 5 * 60 * 1000,
+  })
 
-  const progressPercentage = (activeStep / onboardingSteps.length) * 100
+  const progressPercentage = useMemo(() => {
+    if (profileResp?.profileCompleteness?.percentage != null) {
+      return profileResp.profileCompleteness.percentage
+    }
+    return (activeStep / onboardingSteps.length) * 100
+  }, [profileResp, activeStep])
+
+  useEffect(() => {
+    if (profileResp?.progressStep) {
+      setActiveStep(Math.max(0, Math.min(onboardingSteps.length, profileResp.progressStep)) - 1)
+    }
+  }, [profileResp])
 
   const quickStats = [
     { icon: <Schedule sx={{ fontSize: 40 }} />, value: '12', label: 'Hours This Week', color: '#3f51b5' },
@@ -131,7 +153,7 @@ const ClientDashboard = () => {
               Complete Your Profile Setup
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              {`Just ${onboardingSteps.length - activeStep} steps away from your personalized care experience`}
+              {`Just ${Math.max(0, onboardingSteps.length - (activeStep + 1))} steps away from your personalized care experience`}
             </Typography>
 
             {/* Progress Bar */}
@@ -175,6 +197,7 @@ const ClientDashboard = () => {
               endIcon={<ChevronRight />}
               fullWidth={isMobile}
               sx={{ mt: 2, textTransform: 'none' }}
+              onClick={() => navigate('/client-onboarding')}
             >
               Continue Setup
             </Button>
