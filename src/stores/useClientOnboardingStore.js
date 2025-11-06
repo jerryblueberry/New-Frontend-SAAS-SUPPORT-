@@ -3,7 +3,7 @@ import { devtools, persist } from 'zustand/middleware'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getClientProfile, upsertClientProfileStep } from '../api/clientProfile'
 
-const STEP_ORDER = ['basicInformation', 'verification', 'preferences', 'review']
+const STEP_ORDER = ['basicInformation', 'preferences']
 
 // Store shape with persistence
 const useClientOnboardingStore = create(
@@ -11,7 +11,7 @@ const useClientOnboardingStore = create(
 		persist(
 			(set, get) => ({
 				profile: null,
-				activeStep: 0, // 0-based for UI (0-3)
+				activeStep: 0, // 0-based for UI (0-1)
 				isFetching: false,
 				isSaving: false,
 				error: null,
@@ -23,12 +23,21 @@ const useClientOnboardingStore = create(
 						
 						// Auto-sync activeStep with backend progressStep
 						if (profile?.progressStep) {
-							const backendStep = Math.max(1, Math.min(4, profile.progressStep))
+							const backendStep = Math.max(1, Math.min(2, profile.progressStep))
 							// Convert 1-based backend to 0-based UI
 							const nextStep = backendStep - 1
 							
-							// Only update if backend suggests higher step
-							if (nextStep > state.activeStep) {
+							// If profile is 100% complete, allow user to navigate anywhere
+							// Otherwise, only update if backend suggests higher step
+							const completeness = profile?.profileCompleteness?.percentage ?? 0
+							if (completeness === 100) {
+								// Don't auto-change step if complete - let user navigate freely
+								// Keep current step or use backend step if no step set
+								if (state.activeStep === 0 && nextStep > 0) {
+									updates.activeStep = nextStep
+								}
+							} else if (nextStep > state.activeStep) {
+								// Only advance if not complete and backend suggests higher step
 								updates.activeStep = nextStep
 							}
 						}
@@ -38,7 +47,18 @@ const useClientOnboardingStore = create(
 				},
 
 				setActiveStep(step) {
-					const clampedStep = Math.max(0, Math.min(3, step))
+					const profile = get().profile
+					const completeness = profile?.profileCompleteness?.percentage ?? 0
+					
+					// If 100% complete, allow any step navigation
+					if (completeness === 100) {
+						const clampedStep = Math.max(0, Math.min(STEP_ORDER.length - 1, step))
+						set({ activeStep: clampedStep })
+						return
+					}
+					
+					// Otherwise, respect the normal constraints
+					const clampedStep = Math.max(0, Math.min(1, step))
 					set({ activeStep: clampedStep })
 				},
 
@@ -74,24 +94,38 @@ const useClientOnboardingStore = create(
 					return get().profile?.profileCompleteness?.completedSteps ?? {}
 				},
 
-				// Navigation logic - similar to worker onboarding
+				// Navigation logic - Best Practice: Allow navigation to any completed step
 				getMaxReachableStepIndex() {
+					const profile = get().profile
+					const completeness = profile?.profileCompleteness?.percentage ?? 0
+					
+					// If profile is 100% complete, allow navigation to all steps
+					if (completeness === 100) {
+						return STEP_ORDER.length - 1
+					}
+					
 					const completed = get().getCompletedSteps()
 					const currentActive = get().activeStep
 					
-					let maxReachable = 0
+					// Find the highest completed step index
+					// This allows navigation to ANY completed step, not just sequential
+					let maxReachable = currentActive // Always allow current step
 					
-					// Calculate based on completed steps
 					for (let i = 0; i < STEP_ORDER.length; i++) {
 						if (completed[STEP_ORDER[i]]) {
-							maxReachable = i + 1 // Allow access to next step after completion
-						} else {
-							break
+							maxReachable = Math.max(maxReachable, i)
 						}
 					}
 					
-					// Always allow current active step even if not completed
-					maxReachable = Math.max(maxReachable, currentActive)
+					// If a step is completed, also allow the next step
+					// This enables users to proceed after completing a step
+					if (maxReachable < STEP_ORDER.length - 1) {
+						for (let i = 0; i <= maxReachable; i++) {
+							if (completed[STEP_ORDER[i]]) {
+								maxReachable = Math.max(maxReachable, i + 1)
+							}
+						}
+					}
 					
 					// Cap at last step index
 					return Math.min(maxReachable, STEP_ORDER.length - 1)
@@ -116,8 +150,39 @@ const useClientOnboardingStore = create(
 						return false
 					}
 					
-					const maxReachable = get().getMaxReachableStepIndex()
-					return stepIndex <= maxReachable
+					const profile = get().profile
+					const completeness = profile?.profileCompleteness?.percentage ?? 0
+					
+					// If profile is 100% complete, allow navigation to any step
+					if (completeness === 100) {
+						return true
+					}
+					
+					const completed = get().getCompletedSteps()
+					const currentActive = get().activeStep
+					
+					// Best Practice: Allow navigation to ANY completed step
+					// This allows users to freely navigate between all previously completed steps
+					if (completed[STEP_ORDER[stepIndex]]) {
+						return true
+					}
+					
+					// Allow navigation to current step
+					if (stepIndex === currentActive) {
+						return true
+					}
+					
+					// Allow next step if previous step is completed
+					if (stepIndex > 0 && completed[STEP_ORDER[stepIndex - 1]]) {
+						return true
+					}
+					
+					// Allow first step always
+					if (stepIndex === 0) {
+						return true
+					}
+					
+					return false
 				},
 
 				// Navigation actions
@@ -127,6 +192,12 @@ const useClientOnboardingStore = create(
 						return true
 					}
 					return false
+				},
+				
+				// Check if profile is fully complete
+				isProfileComplete() {
+					const completeness = get().getCompleteness()
+					return completeness === 100
 				},
 
 				goNext() {

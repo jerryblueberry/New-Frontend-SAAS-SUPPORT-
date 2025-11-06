@@ -1,17 +1,13 @@
-import React, { useMemo, useEffect, useCallback, useState } from 'react'
+import React, { useMemo, useCallback, useState } from 'react'
 import { Box, Card, CardContent, Typography, LinearProgress, Stepper, Step, StepLabel, StepButton, Chip, useMediaQuery, useTheme, Snackbar, Alert, Tooltip } from '@mui/material'
 import { useClientProfileQuery, useClientOnboarding } from '../../../stores/useClientOnboardingStore'
 import { CheckCircle, RadioButtonUnchecked, Lock } from '@mui/icons-material'
 import ClientProfile from '../../../components/ClientComponents/ClientOnboarding/ClientProfile'
-import ClientDocumentUpload from '../../../components/ClientComponents/ClientOnboarding/ClientDocumentUpload'
 import ClientCarePreferences from '../../../components/ClientComponents/ClientOnboarding/ClientCarePreferences'
-import ClientReview from '../../../components/ClientComponents/ClientOnboarding/ClientReview'
 
 const STEPS = [
   { label: 'Profile Setup', key: 'basicInformation' },
-  { label: 'Document Upload', key: 'verification' },
-  { label: 'Care Preferences', key: 'preferences' },
-  { label: 'Review & Activate', key: 'review' }
+  { label: 'Care Preferences', key: 'preferences' }
 ]
 
 const ClientOnboarding = () => {
@@ -20,21 +16,78 @@ const ClientOnboarding = () => {
   const { data: profile, isLoading } = useClientProfileQuery()
   const store = useClientOnboarding()
   const [toast, setToast] = useState({ open: false, message: '', severity: 'info' })
-
+  
+  // Destructure store values first
   const {
     activeStep,
-    getCompleteness,
-    getCompletedStepIndices,
-    getMaxReachableStepIndex,
-    canGoTo,
-    goTo,
-    isStepCompleted
+    setActiveStep,
   } = store
+  
+  // Check URL params for step navigation
+  const urlParams = new URLSearchParams(window.location.search)
+  const stepParam = urlParams.get('step')
+  
+  // Sync step from URL if provided
+  React.useEffect(() => {
+    if (stepParam && profile) {
+      const stepIndex = parseInt(stepParam, 10) - 1 // Convert 1-based to 0-based
+      if (stepIndex >= 0 && stepIndex < STEPS.length) {
+        const completed = profile?.profileCompleteness?.completedSteps || {}
+        const completeness = profile?.profileCompleteness?.percentage ?? 0
+        
+        // Allow URL navigation if:
+        // 1. Profile is complete (100%)
+        // 2. OR the specific step is completed
+        // 3. OR it's the first step
+        if (completeness === 100 || completed[STEPS[stepIndex].key] || stepIndex === 0) {
+          setActiveStep(stepIndex)
+        }
+      }
+    }
+  }, [stepParam, profile, setActiveStep])
+  
+  // Use profile data directly for step completion checks (not store cache)
+  const isStepCompleted = useCallback((stepIndex) => {
+    const stepKey = STEPS[stepIndex]?.key
+    if (!stepKey || !profile?.profileCompleteness?.completedSteps) return false
+    return profile.profileCompleteness.completedSteps[stepKey] === true
+  }, [profile])
+  
+  const getMaxReachableStepIndex = useCallback(() => {
+    if (!profile) return 0
+    
+    const completeness = profile?.profileCompleteness?.percentage ?? 0
+    if (completeness === 100) return STEPS.length - 1
+    
+    const completed = profile?.profileCompleteness?.completedSteps || {}
+    let maxReachable = activeStep
+    
+    for (let i = 0; i < STEPS.length; i++) {
+      if (completed[STEPS[i].key]) {
+        maxReachable = Math.max(maxReachable, i)
+      }
+    }
+    
+    if (maxReachable < STEPS.length - 1) {
+      for (let i = 0; i <= maxReachable; i++) {
+        if (completed[STEPS[i].key]) {
+          maxReachable = Math.max(maxReachable, i + 1)
+        }
+      }
+    }
+    
+    return Math.min(maxReachable, STEPS.length - 1)
+  }, [profile, activeStep])
 
   // Calculate overall progress percentage
   const progressPercentage = useMemo(() => {
     return profile?.profileCompleteness?.percentage ?? 0
   }, [profile])
+  
+  // Check if profile is complete for free navigation
+  const isProfileComplete = useMemo(() => {
+    return progressPercentage === 100
+  }, [progressPercentage])
 
   // Get prerequisite step name
   const getPrerequisiteStep = useCallback((targetStepIndex) => {
@@ -46,6 +99,26 @@ const ClientOnboarding = () => {
     return null
   }, [isStepCompleted])
 
+  // Check if step is accessible based on profile data
+  const canNavigateToStep = useCallback((stepIndex) => {
+    if (stepIndex < 0 || stepIndex >= STEPS.length) return false
+    if (stepIndex === activeStep) return true
+    if (stepIndex === 0) return true // First step always accessible
+    
+    const completeness = profile?.profileCompleteness?.percentage ?? 0
+    if (completeness === 100) return true // All steps accessible if complete
+    
+    const completed = profile?.profileCompleteness?.completedSteps || {}
+    
+    // Can navigate to any completed step
+    if (completed[STEPS[stepIndex].key]) return true
+    
+    // Can navigate to next step if previous step is completed
+    if (stepIndex > 0 && completed[STEPS[stepIndex - 1].key]) return true
+    
+    return false
+  }, [profile, activeStep])
+  
   // Handle step click with navigation guards and feedback
   const handleStepClick = useCallback((stepIndex) => {
     // Same step - no action needed
@@ -53,15 +126,25 @@ const ClientOnboarding = () => {
       return
     }
 
-    // Allow navigation if step is accessible
-    if (canGoTo(stepIndex)) {
-      goTo(stepIndex)
+    // Check if navigation is allowed based on profile data
+    if (canNavigateToStep(stepIndex)) {
+      // Force navigation by directly setting the active step
+      // This bypasses any store restrictions for completed steps
+      store.setActiveStep(stepIndex)
       
-      // Optional: Show feedback for navigation to completed steps
-      if (isStepCompleted(stepIndex) && stepIndex < activeStep) {
+      // Show feedback for navigation
+      if (isStepCompleted(stepIndex)) {
+        // Navigating to a completed step
         setToast({
           open: true,
-          message: `Navigated to "${STEPS[stepIndex].label}" - You can review and make changes`,
+          message: `Navigated to "${STEPS[stepIndex].label}" - Your saved data is loaded. You can review and edit.`,
+          severity: 'success'
+        })
+      } else if (stepIndex > activeStep) {
+        // Navigating forward to next incomplete step
+        setToast({
+          open: true,
+          message: `Navigated to "${STEPS[stepIndex].label}" - Complete this step to continue`,
           severity: 'info'
         })
       }
@@ -69,42 +152,42 @@ const ClientOnboarding = () => {
     }
 
     // User tried to access a locked step - provide helpful feedback
-    const prerequisite = getPrerequisiteStep(stepIndex)
-    const maxReachable = getMaxReachableStepIndex()
-    
-    if (stepIndex > maxReachable) {
-      if (prerequisite) {
-        // Show which step needs to be completed first
-        setToast({
-          open: true,
-          message: `🔒 Please complete "${prerequisite.label}" (Step ${prerequisite.index + 1}) to access "${STEPS[stepIndex].label}"`,
-          severity: 'warning'
-        })
-      } else {
-        // Generic message if can't determine prerequisite
-        setToast({
-          open: true,
-          message: `🔒 Please complete previous steps to access "${STEPS[stepIndex].label}"`,
-          severity: 'warning'
-        })
+    if (!isProfileComplete) {
+      const prerequisite = getPrerequisiteStep(stepIndex)
+      const maxReachable = getMaxReachableStepIndex()
+      
+      if (stepIndex > maxReachable) {
+        if (prerequisite) {
+          setToast({
+            open: true,
+            message: `🔒 Please complete "${prerequisite.label}" (Step ${prerequisite.index + 1}) to access "${STEPS[stepIndex].label}"`,
+            severity: 'warning'
+          })
+        } else {
+          setToast({
+            open: true,
+            message: `🔒 Please complete previous steps to access "${STEPS[stepIndex].label}"`,
+            severity: 'warning'
+          })
+        }
       }
     }
-  }, [activeStep, canGoTo, goTo, getPrerequisiteStep, getMaxReachableStepIndex, isStepCompleted])
+  }, [activeStep, store, isStepCompleted, isProfileComplete, getPrerequisiteStep, getMaxReachableStepIndex, canNavigateToStep])
 
-  // Get step status for styling
+  // Get step status for styling based on profile data
   const getStepStatus = useCallback((stepIndex) => {
-    if (isStepCompleted(stepIndex)) return 'completed'
+    if (isStepCompleted(stepIndex)) {
+      return stepIndex === activeStep ? 'active-completed' : 'completed'
+    }
     if (stepIndex === activeStep) return 'active'
-    if (canGoTo(stepIndex)) return 'available'
+    if (canNavigateToStep(stepIndex)) return 'available'
     return 'locked'
-  }, [isStepCompleted, activeStep, canGoTo])
+  }, [isStepCompleted, activeStep, canNavigateToStep])
 
   // Memoize step components to prevent unnecessary re-renders
   const stepComponents = useMemo(() => ({
     0: <ClientProfile />,
-    1: <ClientDocumentUpload />,
-    2: <ClientCarePreferences />,
-    3: <ClientReview />
+    1: <ClientCarePreferences />
   }), [])
 
   return (
@@ -161,14 +244,16 @@ const ClientOnboarding = () => {
             <Stepper activeStep={activeStep} alternativeLabel sx={{ mt: 2 }}>
               {STEPS.map((step, idx) => {
                 const status = getStepStatus(idx)
-                const clickable = canGoTo(idx)
+                const clickable = canNavigateToStep(idx)
                 const isLocked = status === 'locked'
                 const prerequisite = isLocked ? getPrerequisiteStep(idx) : null
                 
-                const tooltipTitle = isLocked && prerequisite
+                const tooltipTitle = isStepCompleted(idx)
+                  ? idx === activeStep
+                    ? 'Currently viewing (Completed ✓)'
+                    : 'Completed ✓ - Click to review/edit'
+                  : isLocked && prerequisite
                   ? `Complete "${prerequisite.label}" first`
-                  : isStepCompleted(idx)
-                  ? 'Completed ✓'
                   : clickable
                   ? 'Click to navigate'
                   : ''
@@ -193,11 +278,20 @@ const ClientOnboarding = () => {
                             cursor: clickable ? 'pointer' : 'not-allowed',
                             '& .MuiStepLabel-label': {
                               fontSize: { sm: '0.875rem', md: '0.9375rem' },
-                              fontWeight: status === 'active' ? 600 : 400,
-                              color: status === 'locked' ? 'text.disabled' : 'text.primary'
+                              fontWeight: status === 'active' || status === 'active-completed' ? 700 : isStepCompleted(idx) ? 600 : 400,
+                              color: status === 'locked' ? 'text.disabled' : 'text.primary',
+                              '&:hover': clickable ? {
+                                color: 'primary.main',
+                                textDecoration: isStepCompleted(idx) ? 'underline' : 'none'
+                              } : {}
                             },
                             '& .MuiStepIcon-root': {
-                              color: isLocked ? 'action.disabled' : undefined
+                              color: isLocked ? 'action.disabled' : undefined,
+                              fontSize: isStepCompleted(idx) && idx !== activeStep ? '1.75rem' : undefined,
+                              '&:hover': clickable && !isLocked ? {
+                                transform: 'scale(1.15)',
+                                transition: 'transform 0.2s ease'
+                              } : {}
                             }
                           }}
                         >
@@ -217,7 +311,7 @@ const ClientOnboarding = () => {
               {STEPS.map((step, idx) => {
                 const status = getStepStatus(idx)
                 const completed = isStepCompleted(idx)
-                const clickable = canGoTo(idx)
+                const clickable = canNavigateToStep(idx)
                 const isLocked = status === 'locked'
                 
                 return (

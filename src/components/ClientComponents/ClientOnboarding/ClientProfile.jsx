@@ -5,7 +5,6 @@ import { useClientProfileQuery, useUpsertClientStepMutation, useClientOnboarding
 import { useAuth } from '../../../context/AuthContext'
 
 const ACCOUNT_TYPES = ['individual', 'organization']
-const CONTACT_METHODS = ['email', 'phone', 'sms']
 
 export default function ClientProfile() {
   const { user } = useAuth()
@@ -25,8 +24,10 @@ export default function ClientProfile() {
       state: profile?.address?.state || '',
       postcode: profile?.address?.postcode || '',
     },
-    preferredLanguage: profile?.preferredLanguage || '',
-    preferredContactMethod: profile?.preferredContactMethod || '',
+    emergencyContact: {
+      name: profile?.emergencyContact?.name || '',
+      phone: profile?.emergencyContact?.phone || '',
+    },
   }), [profile])
 
   const { register, handleSubmit, watch, reset } = useForm({ defaultValues })
@@ -78,11 +79,13 @@ export default function ClientProfile() {
       return out
     }
     const payload = prune(values)
+    const isComplete = profile?.profileCompleteness?.percentage === 100
+    
     upsert.mutate({ step: 1, payload }, {
       onSuccess: (data) => {
         setSnack({ open: true, message: 'Profile saved successfully', severity: 'success' })
-        // Auto-advance to next step if this step is now complete
-        if (data?.profileCompleteness?.completedSteps?.basicInformation) {
+        // Only auto-advance if profile is not already complete and step is now complete
+        if (!isComplete && data?.profileCompleteness?.completedSteps?.basicInformation) {
           setTimeout(() => {
             store.goNext()
           }, 800)
@@ -92,6 +95,9 @@ export default function ClientProfile() {
     })
   }
 
+  const isStepComplete = profile?.profileCompleteness?.completedSteps?.basicInformation
+  const isProfileComplete = profile?.profileCompleteness?.percentage === 100
+
   return (
     <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
       <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2 }, mb: 2, borderRadius: 2 }}>
@@ -100,6 +106,14 @@ export default function ClientProfile() {
             <Chip label={user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : 'Name'} />
             <Chip label={user?.email || 'Email'} />
             {user?.phone ? <Chip label={user.phone} /> : null}
+            {isStepComplete && (
+              <Chip 
+                label="Saved" 
+                color="success" 
+                size="small"
+                sx={{ fontWeight: 600 }}
+              />
+            )}
           </Stack>
           <Stack sx={{ minWidth: { xs: '100%', sm: 260 } }}>
             <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
@@ -110,6 +124,12 @@ export default function ClientProfile() {
           </Stack>
         </Stack>
       </Paper>
+      
+      {isProfileComplete && isStepComplete && (
+        <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+          Your profile data is loaded from the database. You can review and make changes without needing to save to navigate.
+        </Alert>
+      )}
       <Grid container spacing={2}>
         <Grid item xs={12} md={4}>
           <TextField select fullWidth size="small" label="Account Type" defaultValue={defaultValues.accountType} {...register('accountType')}>
@@ -141,13 +161,11 @@ export default function ClientProfile() {
         <Grid item xs={12} md={1.5}>
           <TextField fullWidth size="small" label="Postcode" {...register('address.postcode')} />
         </Grid>
-        <Grid item xs={12} md={4}>
-          <TextField fullWidth size="small" label="Preferred Language" {...register('preferredLanguage')} />
+        <Grid item xs={12} md={6}>
+          <TextField fullWidth size="small" label="Emergency Contact Name (optional)" {...register('emergencyContact.name')} />
         </Grid>
-        <Grid item xs={12} md={4}>
-          <TextField select fullWidth size="small" label="Preferred Contact" defaultValue={defaultValues.preferredContactMethod} {...register('preferredContactMethod')}>
-            {CONTACT_METHODS.map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}
-          </TextField>
+        <Grid item xs={12} md={6}>
+          <TextField fullWidth size="small" label="Emergency Contact Phone (optional)" {...register('emergencyContact.phone')} />
         </Grid>
         <Grid item xs={12}>
           <Divider sx={{ my: 0.5 }} />

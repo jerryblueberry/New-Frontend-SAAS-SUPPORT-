@@ -35,7 +35,9 @@ import {
   ArrowForward,
   CheckCircle,
   Pending,
-  Error
+  Error,
+  Business,
+  Person
 } from "@mui/icons-material";
 import AdminSidebar from "../../../components/adminSidebar/AdminSidebar";
 import { useNavigate } from "react-router-dom";
@@ -43,73 +45,147 @@ import WorkerNavbar from "../../../components/Navbar/WorkerNavbar";
 import { useQuery } from "@tanstack/react-query";
 import api from "../../../api/axios";
 import { format } from "date-fns";
+import GrowthChart from "../../../components/AdminDashboard/GrowthChart";
+import StatusDistributionChart from "../../../components/AdminDashboard/StatusDistributionChart";
+import TopItemsChart from "../../../components/AdminDashboard/TopItemsChart";
+import AnalyticsOverviewCard from "../../../components/AdminDashboard/AnalyticsOverviewCard";
+import InsightsCard from "../../../components/AdminDashboard/InsightsCard";
 
 const SIDEBAR_WIDTH = 280;
 const SIDEBAR_GAP = 4;
 
-// Compact Metric Card Component
+// Compact Production-Ready Metric Card
 const MetricCard = ({ title, value, icon, color = "primary", subtitle, trend }) => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
   return (
-    <Card 
+    <Box 
       sx={{ 
-        height: '100%', 
-        background: `linear-gradient(135deg, ${alpha(theme.palette[color].main, 0.1)} 0%, ${alpha(theme.palette[color].main, 0.05)} 100%)`,
-        border: `1px solid ${alpha(theme.palette[color].main, 0.2)}`,
-        borderRadius: 3,
-        transition: 'all 0.3s ease',
+        height: { xs: 105, sm: 115, md: 120 },
+        background: theme.palette.background.paper,
+        border: `1px solid ${theme.palette.divider}`,
+        borderRadius: { xs: 1.5, sm: 2 },
+        p: { xs: 1.5, sm: 2 },
+        position: 'relative',
+        overflow: 'hidden',
+        transition: 'all 0.2s ease',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
         '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: `0 8px 25px ${alpha(theme.palette[color].main, 0.15)}`,
+          borderColor: theme.palette[color].main,
+          '&::before': {
+            opacity: 1
+          }
+        },
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 3,
+          background: `linear-gradient(90deg, ${theme.palette[color].main}, ${theme.palette[color].light})`,
+          opacity: 0.8,
+          transition: 'opacity 0.2s ease'
         }
       }}
     >
-      <CardContent sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box
-              sx={{
-                width: 48,
-                height: 48,
-                borderRadius: 2,
-                background: `linear-gradient(135deg, ${theme.palette[color].main}, ${theme.palette[color].dark})`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                boxShadow: `0 4px 12px ${alpha(theme.palette[color].main, 0.3)}`
+      {/* Top Row: Icon, Title & Trend */}
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.25 }, flex: 1, minWidth: 0 }}>
+          <Box
+            sx={{
+              width: { xs: 36, sm: 40 },
+              height: { xs: 36, sm: 40 },
+              borderRadius: { xs: 1.25, sm: 1.5 },
+              background: alpha(theme.palette[color].main, 0.1),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: theme.palette[color].main,
+              flexShrink: 0
+            }}
+          >
+            {React.cloneElement(icon, { sx: { fontSize: { xs: 20, sm: 22 } } })}
+          </Box>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                color: 'text.primary', 
+                fontWeight: 600,
+                fontSize: { xs: '0.813rem', sm: '0.875rem' },
+                lineHeight: 1.3,
+                mb: subtitle ? 0.25 : 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
               }}
             >
-              {icon}
-            </Box>
-            <Box>
-              <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500, mb: 0.5 }}>
-                {title}
+              {title}
+            </Typography>
+            {subtitle && (
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  color: 'text.secondary', 
+                  opacity: 0.75,
+                  fontSize: { xs: '0.688rem', sm: '0.75rem' },
+                  lineHeight: 1.2,
+                  display: 'block',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {subtitle}
               </Typography>
-              {subtitle && (
-                <Typography variant="caption" sx={{ color: 'text.secondary', opacity: 0.8 }}>
-                  {subtitle}
-                </Typography>
-              )}
-            </Box>
+            )}
           </Box>
-          {trend && (
-            <Chip
-              icon={trend > 0 ? <TrendingUp sx={{ fontSize: 16 }} /> : <TrendingDown sx={{ fontSize: 16 }} />}
-              label={`${Math.abs(trend)}%`}
-              size="small"
-              color={trend > 0 ? 'success' : 'error'}
-              variant="outlined"
-              sx={{ fontSize: '0.75rem' }}
-            />
-          )}
         </Box>
-        <Typography variant="h3" sx={{ fontWeight: 700, color: theme.palette[color].main, mb: 0 }}>
+        {trend && (
+          <Chip
+            icon={trend > 0 ? <TrendingUp sx={{ fontSize: 11 }} /> : <TrendingDown sx={{ fontSize: 11 }} />}
+            label={`${Math.abs(trend)}%`}
+            size="small"
+            color={trend > 0 ? 'success' : 'error'}
+            variant="outlined"
+            sx={{ 
+              fontSize: '0.688rem',
+              height: 18,
+              borderRadius: 0.75,
+              flexShrink: 0,
+              '& .MuiChip-label': {
+                px: 0.625,
+                py: 0
+              },
+              '& .MuiChip-icon': {
+                ml: 0.5,
+                mr: -0.25
+              }
+            }}
+          />
+        )}
+      </Box>
+
+      {/* Value - Large and Bold */}
+      <Box>
+        <Typography 
+          variant="h3" 
+          sx={{ 
+            fontWeight: 700, 
+            color: 'text.primary',
+            fontSize: { xs: '1.75rem', sm: '2rem', md: '2.25rem' },
+            lineHeight: 1,
+            letterSpacing: '-0.03em'
+          }}
+        >
           {value?.toLocaleString() || 0}
         </Typography>
-      </CardContent>
-    </Card>
+      </Box>
+    </Box>
   );
 };
 
@@ -218,15 +294,29 @@ const SystemHealthCard = ({ systemHealth }) => {
   ];
 
   return (
-    <Card sx={{ 
-      height: '100%', 
-      borderRadius: 3,
-      background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.8) 100%)',
-      border: '1px solid rgba(0,0,0,0.06)',
-      backdropFilter: 'blur(10px)',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+    <Box sx={{ 
+      height: '100%',
+      background: theme.palette.background.paper,
+      border: `1px solid ${theme.palette.divider}`,
+      borderRadius: 2,
+      p: { xs: 2, sm: 2.5 },
+      position: 'relative',
+      overflow: 'hidden',
+      transition: 'all 0.2s ease',
+      '&:hover': {
+        borderColor: theme.palette.success.main
+      },
+      '&::before': {
+        content: '""',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 2,
+        background: `linear-gradient(90deg, ${theme.palette.success.main}, ${theme.palette.success.light})`,
+        opacity: 0.8
+      }
     }}>
-      <CardContent sx={{ p: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
@@ -352,8 +442,7 @@ const SystemHealthCard = ({ systemHealth }) => {
             </Box>
           </Box>
         </Box>
-      </CardContent>
-    </Card>
+      </Box>
   );
 };
 
@@ -445,7 +534,7 @@ const AdminDashboard = () => {
               width: '100%',
               ml: { md: `${SIDEBAR_WIDTH + SIDEBAR_GAP}px`, xs: 0 },
               p: { xs: 2, sm: 3, md: 4 },
-              mt: { xs: 8, md: 3 },
+              mt: { xs: 8, md: 8 },
               minHeight: '100vh',
             }}
           >
@@ -465,12 +554,24 @@ const AdminDashboard = () => {
   }
 
   const { data } = dashboardData || {};
-  const { overview, recentActivity, systemHealth } = data || {};
+  const { 
+    overview, 
+    userAnalytics,
+    workerAnalytics,
+    clientAnalytics, 
+    referenceAnalytics,
+    notificationAnalytics,
+    engagementMetrics,
+    insights,
+    recentActivity, 
+    systemHealth,
+    meta
+  } = data || {};
 
   return (
     <>
       <WorkerNavbar />
-      <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: '#fafbfc' }}>
+      <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
         {/* Sidebar */}
         <Box sx={{
           width: { xs: '0px', md: `${SIDEBAR_WIDTH}px` },
@@ -492,95 +593,446 @@ const AdminDashboard = () => {
             width: '100%',
             ml: { md: `${SIDEBAR_WIDTH + SIDEBAR_GAP}px`, xs: 0 },
             p: { xs: 2, sm: 3, md: 4 },
-            mt: { xs: 8, md: 3 },
+            mt: { xs: 8, md: 8 },
             minHeight: '100vh',
             transition: 'margin-left 0.2s',
           }}
         >
           <Container maxWidth={false} disableGutters sx={{ width: '100%', p: 0, m: 0 }}>
             {/* Header */}
-            <Box sx={{ mb: 4 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-                <Box>
-                  <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary', mb: 1 }}>
+            <Box sx={{ mb: { xs: 3, sm: 4, md: 5 } }}>
+              <Stack 
+                direction={{ xs: 'column', sm: 'row' }}
+                justifyContent="space-between"
+                alignItems={{ xs: 'flex-start', sm: 'center' }}
+                spacing={{ xs: 2, sm: 3 }}
+                sx={{ mb: { xs: 2, sm: 3 } }}
+              >
+                {/* Title Section */}
+                <Box sx={{ flex: { sm: '0 0 auto', md: '1 1 auto' } }}>
+                  <Typography 
+                    variant="h4" 
+                    sx={{ 
+                      fontWeight: 700, 
+                      color: 'text.primary', 
+                      mb: { xs: 0.5, sm: 1 },
+                      fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2.125rem' },
+                      lineHeight: { xs: 1.3, sm: 1.4, md: 1.5 }
+                    }}
+                  >
                     Dashboard
                   </Typography>
-                  <Typography variant="body1" sx={{ color: 'text.secondary', fontWeight: 400 }}>
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      color: 'text.secondary', 
+                      fontWeight: 400,
+                      fontSize: { xs: '0.813rem', sm: '0.875rem', md: '1rem' },
+                      lineHeight: { xs: 1.4, sm: 1.5 }
+                    }}
+                  >
                     Platform overview and key metrics
                   </Typography>
                 </Box>
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                  <Tooltip title="Refresh Data">
+
+                {/* Action Buttons Section */}
+                <Stack 
+                  direction={{ xs: 'column-reverse', sm: 'row' }}
+                  spacing={{ xs: 1.5, sm: 1.5, md: 2 }}
+                  alignItems={{ xs: 'stretch', sm: 'center' }}
+                  sx={{ 
+                    width: { xs: '100%', sm: 'auto' },
+                    flexShrink: 0
+                  }}
+                >
+                  {/* Refresh Button - Icon only on mobile, with tooltip */}
+                  <Tooltip title="Refresh Data" arrow placement="top">
                     <IconButton 
                       onClick={handleRefresh} 
+                      size="medium"
                       sx={{ 
                         backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                        width: { xs: '100%', sm: 'auto' },
+                        height: { xs: 40, sm: 40, md: 44 },
+                        borderRadius: { xs: 2, sm: 1 },
                         '&:hover': {
                           backgroundColor: alpha(theme.palette.primary.main, 0.2),
-                        }
+                          // transform: 'rotate(90deg)',
+                          // transition: 'transform 0.3s ease'
+                        },
+                        transition: 'all 0.2s ease'
                       }}
                     >
-                      <Refresh />
+                      <Refresh sx={{ fontSize: { xs: 20, sm: 22, md: 24 } }} />
                     </IconButton>
                   </Tooltip>
+
+                  {/* Manage Workers Button */}
                   <Button
                     variant="contained"
                     onClick={() => navigate('/admin/workers')}
-                    endIcon={<ArrowForward />}
-                    sx={{ borderRadius: 2, px: 3, py: 1.5 }}
+                    endIcon={<ArrowForward sx={{ fontSize: { xs: 18, sm: 20 } }} />}
+                    sx={{ 
+                      borderRadius: { xs: 2, sm: 2 },
+                      px: { xs: 2, sm: 2.5, md: 3 },
+                      py: { xs: 1.25, sm: 1.5 },
+                      fontSize: { xs: '0.813rem', sm: '0.875rem', md: '0.9375rem' },
+                      fontWeight: { xs: 600, sm: 600, md: 600 },
+                      textTransform: 'none',
+                      minWidth: { xs: '100%', sm: 'auto' },
+                      whiteSpace: 'nowrap',
+                      boxShadow: { xs: 'none', sm: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}` },
+                      '&:hover': {
+                        boxShadow: { xs: 'none', sm: `0 4px 12px ${alpha(theme.palette.primary.main, 0.4)}` },
+                        transform: { xs: 'none', sm: 'translateY(-2px)' },
+                        transition: 'all 0.2s ease'
+                      },
+                      transition: 'all 0.2s ease'
+                    }}
                   >
                     Manage Workers
                   </Button>
-                </Box>
-              </Box>
+
+                  {/* Manage Clients Button */}
+                  <Button
+                    variant="outlined"
+                    onClick={() => navigate('/admin/clients')}
+                    endIcon={<ArrowForward sx={{ fontSize: { xs: 18, sm: 20 } }} />}
+                    sx={{ 
+                      borderRadius: { xs: 2, sm: 2 },
+                      px: { xs: 2, sm: 2.5, md: 3 },
+                      py: { xs: 1.25, sm: 1.5 },
+                      fontSize: { xs: '0.813rem', sm: '0.875rem', md: '0.9375rem' },
+                      fontWeight: { xs: 600, sm: 600, md: 600 },
+                      textTransform: 'none',
+                      minWidth: { xs: '100%', sm: 'auto' },
+                      whiteSpace: 'nowrap',
+                      borderColor: 'rgba(255, 99, 71, 0.5)',
+                      color: 'rgba(255, 99, 71, 1)',
+                      '&:hover': { 
+                        backgroundColor: 'rgba(255, 99, 71, 0.08)',
+                        color: 'rgba(255, 99, 71, 1)',
+                        borderColor: 'rgba(255, 99, 71, 0.8)',
+                        transform: { xs: 'none', sm: 'translateY(-2px)' },
+                        boxShadow: { xs: 'none', sm: `0 4px 12px ${alpha('#ff6347', 0.3)}` },
+                        transition: 'all 0.2s ease'
+                      },
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    Manage Clients
+                  </Button>
+                </Stack>
+              </Stack>
             </Box>
 
-            {/* Key Metrics */}
-            <Grid container spacing={3} sx={{ mb: 4 }}>
-              <Grid item xs={12} sm={6} lg={3}>
+            {/* Key Metrics - Ultra Compact Production Grid */}
+            <Grid 
+              container 
+              spacing={{ xs: 1, sm: 1.5, md: 2 }} 
+              sx={{ 
+                mb: { xs: 2, sm: 2.5, md: 3 }
+              }}
+            >
+              <Grid item xs={6} sm={4} md={4} lg={2}>
                 <MetricCard
                   title="Total Users"
                   value={overview?.totalUsers || 0}
                   icon={<People />}
                   color="primary"
-                  subtitle="All registered users"
+                  subtitle="Registered"
                 />
               </Grid>
-              <Grid item xs={12} sm={6} lg={3}>
+              <Grid item xs={6} sm={4} md={4} lg={2}>
                 <MetricCard
-                  title="Active Workers"
+                  title="Workers"
                   value={overview?.activeWorkers || 0}
                   icon={<Work />}
                   color="success"
-                  subtitle="Active in last 7 days"
+                  subtitle="Active now"
                 />
               </Grid>
-              <Grid item xs={12} sm={6} lg={3}>
+              <Grid item xs={6} sm={4} md={4} lg={2}>
                 <MetricCard
-                  title="Pending References"
+                  title="Total Clients"
+                  value={overview?.totalClients || 0}
+                  icon={<Business />}
+                  color="secondary"
+                  subtitle="Profiles"
+                />
+              </Grid>
+              <Grid item xs={6} sm={4} md={4} lg={2}>
+                <MetricCard
+                  title="Clients"
+                  value={overview?.activeClients || 0}
+                  icon={<Person />}
+                  color="info"
+                  subtitle="Verified"
+                />
+              </Grid>
+              <Grid item xs={6} sm={4} md={4} lg={2}>
+                <MetricCard
+                  title="References"
                   value={overview?.pendingReferences || 0}
                   icon={<Assignment />}
                   color="warning"
-                  subtitle="Awaiting completion"
+                  subtitle="Pending"
                 />
               </Grid>
-              <Grid item xs={12} sm={6} lg={3}>
+              <Grid item xs={6} sm={4} md={4} lg={2}>
                 <MetricCard
-                  title="Pending Timesheets"
+                  title="Timesheets"
                   value={overview?.pendingTimesheets || 0}
                   icon={<Schedule />}
-                  color="info"
-                  subtitle="Awaiting approval"
+                  color="error"
+                  subtitle="To approve"
                 />
               </Grid>
             </Grid>
 
+            {/* Insights Section - Strategic recommendations */}
+            {insights && (insights.insights?.length > 0 || insights.summary) && (
+              <Box sx={{ mb: 3 }}>
+                <InsightsCard insights={insights} loading={isLoading} />
+              </Box>
+            )}
+
+            {/* Growth Charts Section */}
+            <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mb: 3 }}>
+              {/* User Growth Chart */}
+              <Grid item xs={12} lg={4}>
+                <GrowthChart
+                  title="User Growth"
+                  data={userAnalytics?.userGrowth || []}
+                  color="primary"
+                  subtitle="New users over time"
+                  height={isMobile ? 250 : 300}
+                />
+              </Grid>
+              
+              {/* Worker Growth Chart */}
+              <Grid item xs={12} lg={4}>
+                <GrowthChart
+                  title="Worker Growth"
+                  data={workerAnalytics?.workerGrowth || []}
+                  color="success"
+                  subtitle="New workers over time"
+                  height={isMobile ? 250 : 300}
+                />
+              </Grid>
+              
+              {/* Client Growth Chart */}
+              <Grid item xs={12} lg={4}>
+                <GrowthChart
+                  title="Client Growth"
+                  data={clientAnalytics?.clientGrowth || []}
+                  color="secondary"
+                  subtitle="New clients over time"
+                  height={isMobile ? 250 : 300}
+                />
+              </Grid>
+            </Grid>
+
+            {/* Client Analytics Section */}
+            {clientAnalytics && (
+              <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mb: 3, mt:15 }}>
+                {/* Client Status Distribution Chart */}
+                <Grid item xs={12} lg={6}>
+                  <StatusDistributionChart
+                    title="Client Status Distribution"
+                    data={clientAnalytics.clientsByStatus || {}}
+                    colorScheme="status"
+                    subtitle="Breakdown by verification status"
+                    height={isMobile ? 280 : 320}
+                  />
+                </Grid>
+
+                {/* Client Onboarding Progress */}
+                <Grid item xs={12} lg={6}>
+                  <AnalyticsOverviewCard
+                    title="Client Onboarding"
+                    icon={Assessment}
+                    color="info"
+                    data={clientAnalytics}
+                    metrics={[
+                      {
+                        key: 'onboardingCompletionRate',
+                        label: 'Completion Rate',
+                        max: 100,
+                        unit: '%'
+                      },
+                      {
+                        key: 'averageOnboardingProgress',
+                        label: 'Average Progress',
+                        max: 100,
+                        unit: '%'
+                      },
+                      {
+                        key: 'pendingVerification',
+                        label: 'Pending Verification',
+                        showIcon: true,
+                        threshold: 0
+                      }
+                    ]}
+                  />
+                </Grid>
+              </Grid>
+            )}
+
+            {/* Top Items Charts Section */}
+            <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mb: 3,mt:15 }}>
+              {/* Top Support Categories */}
+              {clientAnalytics?.topSupportCategories && clientAnalytics.topSupportCategories.length > 0 && (
+                <Grid item xs={12} lg={6}>
+                  <TopItemsChart
+                    title="Top Support Categories"
+                    data={clientAnalytics.topSupportCategories}
+                    color="secondary"
+                    subtitle="Most requested support types"
+                    height={isMobile ? 280 : 320}
+                    maxItems={8}
+                  />
+                </Grid>
+              )}
+
+              {/* Top Service Regions */}
+              {clientAnalytics?.topServiceRegions && clientAnalytics.topServiceRegions.length > 0 && (
+                <Grid item xs={12} lg={6}>
+                  <TopItemsChart
+                    title="Top Service Regions"
+                    data={clientAnalytics.topServiceRegions}
+                    color="info"
+                    subtitle="Most requested locations"
+                    height={isMobile ? 280 : 320}
+                    maxItems={8}
+                  />
+                </Grid>
+              )}
+            </Grid>
+
+            {/* Worker Skills Chart */}
+            {workerAnalytics?.topSkills && workerAnalytics.topSkills.length > 0 && (
+              <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mb: 3,mt:15 }}>
+                <Grid item xs={12}>
+                  <TopItemsChart
+                    title="Top Worker Skills"
+                    data={workerAnalytics.topSkills}
+                    color="success"
+                    subtitle="Most common skills among workers"
+                    height={isMobile ? 250 : 280}
+                    maxItems={10}
+                  />
+                </Grid>
+              </Grid>
+            )}
+
+            {/* Reference Analytics */}
+            {referenceAnalytics && (
+              <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mb: 3,mt:15 }}>
+                <Grid item xs={12} lg={6}>
+                  <StatusDistributionChart
+                    title="Reference Status"
+                    data={referenceAnalytics.referencesByStatus || {}}
+                    colorScheme="status"
+                    subtitle="Reference check status breakdown"
+                    height={isMobile ? 280 : 320}
+                  />
+                </Grid>
+                <Grid item xs={12} lg={6}>
+                  <AnalyticsOverviewCard
+                    title="Reference Analytics"
+                    icon={Assignment}
+                    color="warning"
+                    data={referenceAnalytics}
+                    metrics={[
+                      {
+                        key: 'completionRate',
+                        label: 'Completion Rate',
+                        max: 100,
+                        unit: '%'
+                      },
+                      {
+                        key: 'averageCompletionTime',
+                        label: 'Avg Completion Time',
+                        unit: ' days'
+                      },
+                      {
+                        key: 'pendingReferences',
+                        label: 'Pending References',
+                        showIcon: true,
+                        threshold: 0
+                      }
+                    ]}
+                  />
+                </Grid>
+              </Grid>
+            )}
+
+            {/* Notification Analytics */}
+            {notificationAnalytics && (
+              <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mb: 3,mt:15 }}>
+                <Grid item xs={12} lg={6}>
+                  <StatusDistributionChart
+                    title="Notification Types"
+                    data={notificationAnalytics.notificationsByType || {}}
+                    colorScheme="default"
+                    subtitle="Breakdown by notification type"
+                    height={isMobile ? 280 : 320}
+                  />
+                </Grid>
+                <Grid item xs={12} lg={6}>
+                  <AnalyticsOverviewCard
+                    title="Notification Analytics"
+                    icon={Assessment}
+                    color="info"
+                    data={notificationAnalytics}
+                    metrics={[
+                      {
+                        key: 'readRate',
+                        label: 'Read Rate',
+                        max: 100,
+                        unit: '%'
+                      },
+                      {
+                        key: 'unreadCount',
+                        label: 'Unread Notifications',
+                        showIcon: true,
+                        threshold: 0
+                      },
+                      {
+                        key: 'totalNotifications',
+                        label: 'Total Notifications',
+                        unit: ''
+                      }
+                    ]}
+                  />
+                </Grid>
+              </Grid>
+            )}
+
             {/* Main Content Row */}
-            <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mb: 3,mt:15 }}>
               {/* Recent Activity */}
               <Grid item xs={12} lg={8}>
-                <Card sx={{ height: '100%', borderRadius: 3 }}>
-                  <CardContent sx={{ p: 3 }}>
+                <Box sx={{ 
+                  height: '100%',
+                  background: theme.palette.background.paper,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: 2,
+                  p: { xs: 2, sm: 2.5 },
+                  position: 'relative',
+                  overflow: 'hidden',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 2,
+                    background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
+                    opacity: 0.8
+                  }
+                }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
                       <Typography variant="h6" sx={{ fontWeight: 600 }}>
                         Recent Activity
@@ -605,8 +1057,7 @@ const AdminDashboard = () => {
                         </Box>
                       )}
                     </Box>
-                  </CardContent>
-                </Card>
+                  </Box>
               </Grid>
 
               {/* System Health */}
@@ -616,8 +1067,25 @@ const AdminDashboard = () => {
             </Grid>
 
             {/* Quick Actions */}
-            <Card sx={{ borderRadius: 3 }}>
-              <CardContent sx={{ p: 3 }}>
+            <Box sx={{ 
+              background: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+              mt:15,
+              p: { xs: 2, sm: 2.5 },
+              position: 'relative',
+              overflow: 'hidden',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 2,
+                background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
+                opacity: 0.8
+              }
+            }}>
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
                   Quick Actions
                 </Typography>
@@ -667,8 +1135,7 @@ const AdminDashboard = () => {
                     </Button>
                   </Grid>
                 </Grid>
-              </CardContent>
-            </Card>
+              </Box>
           </Container>
         </Box>
       </Box>
