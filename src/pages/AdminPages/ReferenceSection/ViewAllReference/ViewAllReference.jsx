@@ -110,7 +110,6 @@ const ViewAllReference = () => {
   const handleReferenceSelect = useCallback((referenceId) => {
     setSelectedReferenceId(referenceId);
     setModalOpen(true);
-    setModalTab(0);
   }, []);
 
   // Send email to reference with optimistic updates

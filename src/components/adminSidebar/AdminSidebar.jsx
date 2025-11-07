@@ -175,6 +175,17 @@ const AdminSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
         { id: 'user-roles', label: 'Roles & Permissions', icon: <AdminPanelSettings />, path: '/users/roles' }
       ]
     },
+    //  for the clients management
+    {
+      id: 'clients',
+      label: 'Client Management',
+      icon: <People />,
+      children: [
+        { id: 'all-clients', label: 'All Clients', icon: <Group />, path: '/admin/clients' },
+        { id: 'add-client', label: 'Add Client', icon: <PersonAdd />, path: '/clients/add' },
+        { id: 'client-roles', label: 'Roles & Permissions', icon: <AdminPanelSettings />, path: '/clients/roles' }
+      ]
+    },
     {
       id: 'timesheet',
       label: 'Timesheets',

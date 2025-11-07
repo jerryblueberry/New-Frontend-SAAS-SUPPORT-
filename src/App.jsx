@@ -17,6 +17,8 @@ import VerifyEmail from './pages/auth/VerifyEmail';
 
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import EmailVerifyInstruction from './pages/auth/EmailVerifyInstruction';
 import Onboarding from './pages/Workers/Onboarding';
 import { GoogleOAuthProvider } from '@react-oauth/google';
@@ -51,11 +53,13 @@ import Overview from './pages/WorkerDasboardPages/Overview';
 import WorkerNotification from './pages/WorkerNotifications/WorkerNotification';
 import ViewAllDocuments from './pages/AdminPages/CloudinaryDocuments/ViewAllDocuments';
 import ViewAllReference from './pages/AdminPages/ReferenceSection/ViewAllReference/ViewAllReference';
+import ViewAllClients from './pages/AdminPages/ClientManagement/ViewAllClients';
+import ViewClientDetails from './pages/AdminPages/ClientManagement/ViewClientDetails';
 
 
 // Create React Query client with optimized settings
 const queryClient = new QueryClient({
-  defaultOptions: {
+  defaultOptions: { 
     queries: {
       retry: (failureCount, error) => {
         // Don't retry on 401/403 errors
@@ -369,6 +373,20 @@ function AppRoutes() {
           </ClientRoute>
         }
         />
+
+        {/*  FOr the admin client management pages */}
+        <Route path='/admin/clients' element={
+          <AdminRoute>
+            <ViewAllClients/> 
+          </AdminRoute>
+        }
+        />
+        <Route path='/admin/clients/:id' element={
+          <AdminRoute>
+            <ViewClientDetails/>
+          </AdminRoute>
+        }
+        />
       </Routes>
   );
 }
@@ -382,6 +400,19 @@ function App() {
           <AuthProvider>
             <GoogleOAuthProvider clientId={Google_clientId}>
               <AppRoutes />
+              <ToastContainer
+                position="top-right"
+                autoClose={3000}
+                hideProgressBar={false}
+                newestOnTop
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                theme="light"
+                style={{ zIndex: 9999 }}
+              />
             </GoogleOAuthProvider>
           </AuthProvider>
         </AuthErrorBoundary>

@@ -1,7 +1,7 @@
-import React, { useMemo, useCallback, useState } from 'react'
+import React, { useMemo, useCallback, useState, useEffect } from 'react'
 import { Box, Card, CardContent, Typography, LinearProgress, Stepper, Step, StepLabel, StepButton, Chip, useMediaQuery, useTheme, Snackbar, Alert, Tooltip } from '@mui/material'
 import { useClientProfileQuery, useClientOnboarding } from '../../../stores/useClientOnboardingStore'
-import { CheckCircle, RadioButtonUnchecked, Lock } from '@mui/icons-material'
+import { CheckCircle, RadioButtonUnchecked, Lock, Info } from '@mui/icons-material'
 import ClientProfile from '../../../components/ClientComponents/ClientOnboarding/ClientProfile'
 import ClientCarePreferences from '../../../components/ClientComponents/ClientOnboarding/ClientCarePreferences'
 
@@ -10,10 +10,24 @@ const STEPS = [
   { label: 'Care Preferences', key: 'preferences' }
 ]
 
+// Status configuration from backend model
+const STATUS_CONFIG = {
+  draft: { label: 'Draft', color: 'default', description: 'Profile is being created' },
+  unverified: { label: 'Unverified', color: 'warning', description: 'Awaiting admin verification' },
+  submitted: { label: 'Submitted', color: 'info', description: 'Submitted for review' },
+  verified: { label: 'Verified', color: 'success', description: 'Approved by admin' },
+  rejected: { label: 'Rejected', color: 'error', description: 'Rejected - please review' },
+  active: { label: 'Active', color: 'success', description: 'Profile is active' }
+}
+
 const ClientOnboarding = () => {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
-  const { data: profile, isLoading } = useClientProfileQuery()
+  const { data: profile, isLoading, error, refetch } = useClientProfileQuery({
+    refetchOnWindowFocus: true,
+    staleTime: 30000, // 30 seconds
+    refetchInterval: 60000, // Refetch every minute for status updates
+  })
   const store = useClientOnboarding()
   const [toast, setToast] = useState({ open: false, message: '', severity: 'info' })
   
@@ -22,6 +36,29 @@ const ClientOnboarding = () => {
     activeStep,
     setActiveStep,
   } = store
+
+  // Get actual status from backend (not default 'draft')
+  const currentStatus = useMemo(() => {
+    return profile?.status || 'draft'
+  }, [profile?.status])
+
+  const statusConfig = useMemo(() => {
+    return STATUS_CONFIG[currentStatus] || STATUS_CONFIG.draft
+  }, [currentStatus])
+
+  // Sync activeStep with backend progressStep when profile loads
+  useEffect(() => {
+    if (profile?.progressStep) {
+      const backendStep = Math.max(1, Math.min(2, profile.progressStep))
+      const nextStep = backendStep - 1 // Convert 1-based to 0-based
+      
+      // Only update if different and profile is not complete
+      const completeness = profile?.profileCompleteness?.percentage ?? 0
+      if (completeness < 100 && nextStep !== activeStep && nextStep >= activeStep) {
+        setActiveStep(nextStep)
+      }
+    }
+  }, [profile?.progressStep, activeStep, setActiveStep, profile?.profileCompleteness?.percentage])
   
   // Check URL params for step navigation
   const urlParams = new URLSearchParams(window.location.search)
@@ -79,15 +116,29 @@ const ClientOnboarding = () => {
     return Math.min(maxReachable, STEPS.length - 1)
   }, [profile, activeStep])
 
-  // Calculate overall progress percentage
+  // Calculate overall progress percentage - robust calculation
   const progressPercentage = useMemo(() => {
-    return profile?.profileCompleteness?.percentage ?? 0
+    if (!profile) return 0
+    const percentage = profile?.profileCompleteness?.percentage ?? 0
+    // Ensure percentage is between 0 and 100
+    return Math.max(0, Math.min(100, percentage))
   }, [profile])
   
   // Check if profile is complete for free navigation
   const isProfileComplete = useMemo(() => {
     return progressPercentage === 100
   }, [progressPercentage])
+
+  // Check if profile can be edited based on status
+  const canEditProfile = useMemo(() => {
+    // Can edit if: draft, unverified, or rejected
+    return ['draft', 'unverified', 'rejected'].includes(currentStatus)
+  }, [currentStatus])
+
+  // Check if profile is pending admin review
+  const isPendingReview = useMemo(() => {
+    return ['submitted', 'unverified'].includes(currentStatus)
+  }, [currentStatus])
 
   // Get prerequisite step name
   const getPrerequisiteStep = useCallback((targetStepIndex) => {
@@ -200,12 +251,73 @@ const ClientOnboarding = () => {
     }}>
       {/* Header */}
       <Box sx={{ mb: 3 }}>
-        <Typography variant={isMobile ? 'h5' : 'h4'} fontWeight={700} gutterBottom>
-          Client Onboarding
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Complete your profile to get matched with the best support workers
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+          <Box>
+            <Typography variant={isMobile ? 'h5' : 'h4'} fontWeight={700} gutterBottom>
+              Client Onboarding
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Complete your profile to get matched with the best support workers
+            </Typography>
+          </Box>
+          {/* Status Badge */}
+          {profile && (
+            <Chip
+              icon={<Info fontSize="small" />}
+              label={statusConfig.label}
+              color={statusConfig.color}
+              size="small"
+              sx={{ 
+                fontWeight: 600,
+                height: 28,
+                '& .MuiChip-icon': { fontSize: '0.875rem' }
+              }}
+            />
+          )}
+        </Box>
+        {/* Status Message */}
+        {isPendingReview && (
+          <Alert 
+            severity="info" 
+            sx={{ mt: 2, borderRadius: 2 }}
+            icon={<Info />}
+          >
+            <Typography variant="body2" fontWeight={600}>
+              {statusConfig.description}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {currentStatus === 'submitted' 
+                ? 'Your profile has been submitted and is awaiting admin review. You can still make edits if needed.'
+                : 'Your profile is awaiting admin verification. You can continue editing your profile.'}
+            </Typography>
+          </Alert>
+        )}
+        {currentStatus === 'rejected' && (
+          <Alert 
+            severity="warning" 
+            sx={{ mt: 2, borderRadius: 2 }}
+          >
+            <Typography variant="body2" fontWeight={600}>
+              Profile Rejected
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {profile?.rejectionReason || 'Please review and update your profile information.'}
+            </Typography>
+          </Alert>
+        )}
+        {currentStatus === 'verified' && (
+          <Alert 
+            severity="success" 
+            sx={{ mt: 2, borderRadius: 2 }}
+          >
+            <Typography variant="body2" fontWeight={600}>
+              Profile Verified
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Your profile has been verified by an admin. You can continue to update your information.
+            </Typography>
+          </Alert>
+        )}
       </Box>
 
       {/* Progress Card */}
@@ -383,9 +495,49 @@ const ClientOnboarding = () => {
         <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
           {isLoading ? (
             <Box sx={{ textAlign: 'center', py: 4 }}>
-              <Typography variant="body2" color="text.secondary">Loading...</Typography>
+              <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />
+              <Typography variant="body2" color="text.secondary">Loading profile...</Typography>
             </Box>
-          ) : (
+          ) : error ? (
+            <Alert 
+              severity="error" 
+              action={
+                <Typography 
+                  variant="button" 
+                  sx={{ cursor: 'pointer', textDecoration: 'underline' }}
+                  onClick={() => refetch()}
+                >
+                  Retry
+                </Typography>
+              }
+            >
+              <Typography variant="body2" fontWeight={600}>
+                Failed to load profile
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {error?.message || 'An error occurred while loading your profile'}
+              </Typography>
+            </Alert>
+          ) : !profile ? (
+            <Alert severity="info">
+              <Typography variant="body2">
+                No profile found. Please start by completing the first step.
+              </Typography>
+            </Alert>
+          ) : !canEditProfile && currentStatus !== 'draft' ? (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="body2" fontWeight={600}>
+                Profile Status: {statusConfig.label}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {currentStatus === 'verified' || currentStatus === 'active'
+                  ? 'Your profile is verified. You can view and update your information.'
+                  : 'Your profile is currently being reviewed.'}
+              </Typography>
+            </Alert>
+          ) : null}
+          
+          {profile && (canEditProfile || currentStatus === 'draft') && (
             stepComponents[activeStep] || <Typography>Invalid step</Typography>
           )}
         </CardContent>
