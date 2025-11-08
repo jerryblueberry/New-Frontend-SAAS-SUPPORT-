@@ -23,6 +23,18 @@ export const isValidAuMobile = (value) => {
   return /^\+614\d{8}$/.test(e164);
 };
 
+// Validate AU phone (both mobile and landline) in E.164 format
+// Mobile: +614XXXXXXXX (starts with 4)
+// Landline: +612XXXXXXXX, +613XXXXXXXX, +617XXXXXXXX, +618XXXXXXXX (starts with 2, 3, 7, or 8)
+export const isValidAuPhone = (value) => {
+  if (!value || !value.trim()) return false;
+  const e164 = toE164Au(value);
+  if (!/^\+61\d{9}$/.test(e164)) return false;
+  // First digit after +61 must be 2, 3, 4, 7, or 8
+  const firstDigit = e164[3];
+  return ['2', '3', '4', '7', '8'].includes(firstDigit);
+};
+
 // Format to local AU mobile display: 0412 345 678 (progressive spacing)
 export const formatAuLocal = (value) => {
   const raw = String(value || '').trim();

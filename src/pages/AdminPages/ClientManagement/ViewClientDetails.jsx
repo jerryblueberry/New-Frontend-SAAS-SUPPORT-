@@ -804,50 +804,6 @@ const ViewClientDetails = () => {
 
                         <Divider />
 
-                        {/* Communication Preferences */}
-                        {client.preferences.communicationPreferences && (
-                          <Box>
-                            <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ fontSize: '0.875rem' }}>
-                              Communication Preferences
-                            </Typography>
-                            <Grid container spacing={2}>
-                              <Grid item xs={6} sm={4}>
-                                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
-                                  Contact Method
-                                </Typography>
-                                <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.875rem', textTransform: 'capitalize' }}>
-                                  {client.preferences.communicationPreferences.preferredContactMethod || 'N/A'}
-                                </Typography>
-                              </Grid>
-                              <Grid item xs={6} sm={4}>
-                                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
-                                  Language
-                                </Typography>
-                                <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.875rem' }}>
-                                  {client.preferences.communicationPreferences.language || 'N/A'}
-                                </Typography>
-                              </Grid>
-                              <Grid item xs={12} sm={4}>
-                                {client.preferences.communicationPreferences.requireInterpreter && (
-                                  <Chip label="Requires Interpreter" size="small" color="info" icon={<LanguageIcon />} />
-                                )}
-                              </Grid>
-                              {client.preferences.communicationPreferences.communicationNotes && (
-                                <Grid item xs={12}>
-                                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
-                                    Notes
-                                  </Typography>
-                                  <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                                    {client.preferences.communicationPreferences.communicationNotes}
-                                  </Typography>
-                                </Grid>
-                              )}
-                            </Grid>
-                          </Box>
-                        )}
-
-                        <Divider />
-
                         {/* Worker Preferences */}
                         {client.preferences.workerPreferences && (
                           <Box>

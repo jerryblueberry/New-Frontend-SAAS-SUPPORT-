@@ -175,18 +175,22 @@ const ClientDashboard = () => {
       <WorkerNavbar />
 
       {/* Layout container with sidebar */}
-      <Box sx={{ display: 'flex' }}>
+      <Box sx={{ display: 'flex', width: '100%' }}>
         <ClientSidebar topOffset={topOffset} navigate={navigate} />
 
         {/* Main content */}
         <Box sx={{
-          flexGrow: 0.5,
-        // width: '100%',
-
+          flexGrow: 1,
+          width: { xs: '100%', md: `calc(100% - ${CLIENT_SIDEBAR_WIDTH}px)` },
+          minWidth: 0, // Prevents overflow
           pt: { xs: 10, md: 8.7 },
-          px: { xs: 2, sm: 3, md: 0}
+          px: { xs: 2, sm: 3, md: 4, lg: 5, xl: 6 }
         }}>
-          <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
+          <Box sx={{ 
+            maxWidth: { xs: '100%', sm: '100%', md: '100%', lg: '1400px', xl: '1600px' }, 
+            mx: 'auto',
+            width: '100%'
+          }}>
         
         {/* Welcome Header */}
         <Paper 
@@ -431,9 +435,9 @@ const ClientDashboard = () => {
         )}
 
         {/* Quick Stats Grid */}
-        <Grid container spacing={{ xs: 1.5, sm: 2, md: 3 }} sx={{ mb: { xs: 2, sm: 3 } }}>
+        <Grid container spacing={{ xs: 1.5, sm: 2, md: 3, lg: 3, xl: 4 }} sx={{ mb: { xs: 2, sm: 3 } }}>
           {quickStats.map((stat, index) => (
-            <Grid item xs={6} sm={6} md={3} key={index}>
+            <Grid item xs={6} sm={6} md={3} lg={3} xl={3} key={index}>
               <Card elevation={0} sx={{ height: '100%', borderRadius: 2, border: '1px solid #e5e7eb' }}>
                 <CardContent sx={{ p: { xs: 2, sm: 2.5, md: 3 } }}>
                   <Typography variant={isMobile ? 'h5' : 'h4'} fontWeight="700" gutterBottom>
@@ -449,9 +453,9 @@ const ClientDashboard = () => {
         </Grid>
 
         {/* Action Items & Notifications Grid */}
-        <Grid container spacing={{ xs: 2, sm: 2, md: 3 }}>
+        <Grid container spacing={{ xs: 2, sm: 2, md: 3, lg: 3, xl: 4 }}>
           {/* Action Items */}
-          <Grid item xs={12} md={7}>
+          <Grid item xs={12} md={7} lg={7} xl={7}>
             <Card elevation={0} sx={{ borderRadius: 2, height: '100%', border: '1px solid #e5e7eb' }}>
               <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -491,7 +495,7 @@ const ClientDashboard = () => {
           </Grid>
 
           {/* Quick Links */}
-          <Grid item xs={12} md={5}>
+          <Grid item xs={12} md={5} lg={5} xl={5}>
             <Card elevation={0} sx={{ borderRadius: 3, height: '100%' }}>
               <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
                 <Typography variant="h6" fontWeight="700" gutterBottom sx={{ color: '#1a237e', mb: 3 }}>

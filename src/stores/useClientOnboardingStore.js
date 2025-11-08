@@ -1,309 +1,361 @@
+/**
+ * Client Onboarding Store
+ * Refactored to follow Worker Onboarding Pattern
+ * - Separate mutations for each step
+ * - Better progress tracking with completedSteps array
+ * - 1-based step indexing (Step 1, Step 2)
+ * - TanStack Query for data fetching
+ */
+
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getClientProfile, upsertClientProfileStep } from '../api/clientProfile'
+import * as clientOnboardingApi from '../api/clientProfile'
 
+// Step configuration
 const STEP_ORDER = ['basicInformation', 'preferences']
+const TOTAL_STEPS = 2
 
-// Store shape with persistence
+// Initial state
+const initialState = {
+	currentStep: 1, // 1-based indexing (1-2)
+	completedSteps: [], // Array of completed step numbers [1, 2]
+	profile: null,
+	profileCompleteness: {
+		percentage: 0,
+		completedSections: {
+			basicInformation: false,
+			preferences: false,
+		},
+	},
+	isLoading: false,
+	isSaving: false,
+	error: null,
+}
+
+// ────────────────────────────────────────────────────────────
+// Zustand Store
+// ────────────────────────────────────────────────────────────
+
 const useClientOnboardingStore = create(
 	devtools(
 		persist(
 			(set, get) => ({
-				profile: null,
-				activeStep: 0, // 0-based for UI (0-1)
-				isFetching: false,
-				isSaving: false,
-				error: null,
+				...initialState,
 
-				// Actions
-				setProfile(profile) {
-					set((state) => {
-						const updates = { profile }
-						
-						// Auto-sync activeStep with backend progressStep
-						if (profile?.progressStep) {
-							const backendStep = Math.max(1, Math.min(2, profile.progressStep))
-							// Convert 1-based backend to 0-based UI
-							const nextStep = backendStep - 1
-							
-							// If profile is 100% complete, allow user to navigate anywhere
-							// Otherwise, only update if backend suggests higher step
-							const completeness = profile?.profileCompleteness?.percentage ?? 0
-							if (completeness === 100) {
-								// Don't auto-change step if complete - let user navigate freely
-								// Keep current step or use backend step if no step set
-								if (state.activeStep === 0 && nextStep > 0) {
-									updates.activeStep = nextStep
-								}
-							} else if (nextStep > state.activeStep) {
-								// Only advance if not complete and backend suggests higher step
-								updates.activeStep = nextStep
-							}
-						}
-						
-						return { ...state, ...updates }
-					})
-				},
+				// ─── Actions ───────────────────────────────────────────
 
-				setActiveStep(step) {
-					const profile = get().profile
-					const completeness = profile?.profileCompleteness?.percentage ?? 0
-					
-					// If 100% complete, allow any step navigation
-					if (completeness === 100) {
-						const clampedStep = Math.max(0, Math.min(STEP_ORDER.length - 1, step))
-						set({ activeStep: clampedStep })
-						return
+				setStep: (step) => {
+					if (step >= 1 && step <= TOTAL_STEPS) {
+						set({ currentStep: step })
+						window.scrollTo(0, 0)
 					}
-					
-					// Otherwise, respect the normal constraints
-					const clampedStep = Math.max(0, Math.min(1, step))
-					set({ activeStep: clampedStep })
 				},
 
-				setFetching(v) {
-					set({ isFetching: !!v })
+				nextStep: () => {
+					const currentStep = get().currentStep
+					if (currentStep < TOTAL_STEPS) {
+						set({ currentStep: currentStep + 1 })
+						window.scrollTo(0, 0)
+					}
 				},
 
-				setSaving(v) {
-					set({ isSaving: !!v })
+				prevStep: () => {
+					const currentStep = get().currentStep
+					if (currentStep > 1) {
+						set({ currentStep: currentStep - 1 })
+						window.scrollTo(0, 0)
+					}
 				},
 
-				setError(err) {
-					set({ error: err })
+				setProfile: (profile) => {
+					set({ profile })
 				},
 
-				resetStore() {
+				setLoading: (isLoading) => {
+					set({ isLoading })
+				},
+
+				setSaving: (isSaving) => {
+					set({ isSaving })
+				},
+
+				setError: (error) => {
+					set({ error })
+				},
+
+				updateProfileCompleteness: (data) => {
+					if (data?.profileCompletion) {
+						set({ profileCompleteness: data.profileCompletion })
+					}
+				},
+
+				// Hydrate store from API response
+				hydrateFromApi: (data) => {
+					if (!data) return
+
+					const { profile, profileCompletion, currentStep } = data
+
+					// Determine completed steps based on profileCompletion
+					const completedSteps = []
+					if (profileCompletion?.completedSections?.basicInformation) {
+						completedSteps.push(1)
+					}
+					if (profileCompletion?.completedSections?.preferences) {
+						completedSteps.push(2)
+					}
+
 					set({
-						profile: null,
-						activeStep: 0,
-						isFetching: false,
-						isSaving: false,
-						error: null,
+						currentStep: currentStep || 1,
+						completedSteps,
+						profile: profile || null,
+						profileCompleteness: profileCompletion || initialState.profileCompleteness,
 					})
 				},
 
-				// Selectors
-				getCompleteness() {
-					const p = get().profile
-					return p?.profileCompleteness?.percentage ?? 0
+				resetStore: () => {
+					set(initialState)
 				},
 
-				getCompletedSteps() {
-					return get().profile?.profileCompleteness?.completedSteps ?? {}
+				// ─── Selectors ─────────────────────────────────────────
+
+				getCompleteness: () => {
+					return get().profileCompleteness.percentage || 0
 				},
 
-				// Navigation logic - Best Practice: Allow navigation to any completed step
-				getMaxReachableStepIndex() {
+				getCompletedSections: () => {
+					return get().profileCompleteness.completedSections || {}
+				},
+
+				isProfileComplete: () => {
+					return get().profileCompleteness.percentage === 100
+				},
+
+				isProfileDeleted: () => {
 					const profile = get().profile
-					const completeness = profile?.profileCompleteness?.percentage ?? 0
-					
-					// If profile is 100% complete, allow navigation to all steps
-					if (completeness === 100) {
-						return STEP_ORDER.length - 1
-					}
-					
-					const completed = get().getCompletedSteps()
-					const currentActive = get().activeStep
-					
-					// Find the highest completed step index
-					// This allows navigation to ANY completed step, not just sequential
-					let maxReachable = currentActive // Always allow current step
-					
-					for (let i = 0; i < STEP_ORDER.length; i++) {
-						if (completed[STEP_ORDER[i]]) {
-							maxReachable = Math.max(maxReachable, i)
-						}
-					}
-					
-					// If a step is completed, also allow the next step
-					// This enables users to proceed after completing a step
-					if (maxReachable < STEP_ORDER.length - 1) {
-						for (let i = 0; i <= maxReachable; i++) {
-							if (completed[STEP_ORDER[i]]) {
-								maxReachable = Math.max(maxReachable, i + 1)
-							}
-						}
-					}
-					
-					// Cap at last step index
-					return Math.min(maxReachable, STEP_ORDER.length - 1)
+					return profile?.isDeleted === true
 				},
 
-				getNextAvailableStep() {
-					const completed = get().getCompletedSteps()
-					
-					for (let i = 0; i < STEP_ORDER.length; i++) {
-						if (!completed[STEP_ORDER[i]]) {
+				canEditProfile: () => {
+					const profile = get().profile
+					if (!profile) return true // New users can create profiles
+					if (profile.isDeleted) return false // Deleted profiles cannot be edited
+
+					const editableStatuses = ['draft', 'unverified', 'rejected']
+					return editableStatuses.includes(profile.status)
+				},
+
+				getProfileStatus: () => {
+					const profile = get().profile
+					if (!profile)
+						return { status: 'draft', canEdit: true, isDeleted: false }
+
+					return {
+						status: profile.status || 'draft',
+						canEdit: get().canEditProfile(),
+						isDeleted: profile.isDeleted || false,
+						completeness: get().getCompleteness(),
+					}
+				},
+
+				// Check if step is completed
+				isStepCompleted: (stepNumber) => {
+					const completedSteps = get().completedSteps
+					return completedSteps.includes(stepNumber)
+				},
+
+				// Get next available step
+				getNextAvailableStep: () => {
+					const completedSteps = get().completedSteps
+					for (let i = 1; i <= TOTAL_STEPS; i++) {
+						if (!completedSteps.includes(i)) {
 							return i
 						}
 					}
-					
-					// All complete, return last step
-					return STEP_ORDER.length - 1
+					return TOTAL_STEPS // All complete
 				},
 
-				canGoTo(stepIndex) {
-					// Validate step index
-					if (stepIndex < 0 || stepIndex >= STEP_ORDER.length) {
-						return false
+				// Check persistence on app load
+				checkPersistence: async () => {
+					const { hydrateFromApi, resetStore } = get()
+					try {
+						const data = await clientOnboardingApi.fetchClientOnboardingProgress()
+						if (data.success && data.data) {
+							hydrateFromApi(data.data)
+						} else {
+							resetStore()
+						}
+					} catch (error) {
+						console.error('Failed to check persistence:', error)
+						resetStore()
 					}
-					
-					const profile = get().profile
-					const completeness = profile?.profileCompleteness?.percentage ?? 0
-					
-					// If profile is 100% complete, allow navigation to any step
-					if (completeness === 100) {
-						return true
-					}
-					
-					const completed = get().getCompletedSteps()
-					const currentActive = get().activeStep
-					
-					// Best Practice: Allow navigation to ANY completed step
-					// This allows users to freely navigate between all previously completed steps
-					if (completed[STEP_ORDER[stepIndex]]) {
-						return true
-					}
-					
-					// Allow navigation to current step
-					if (stepIndex === currentActive) {
-						return true
-					}
-					
-					// Allow next step if previous step is completed
-					if (stepIndex > 0 && completed[STEP_ORDER[stepIndex - 1]]) {
-						return true
-					}
-					
-					// Allow first step always
-					if (stepIndex === 0) {
-						return true
-					}
-					
-					return false
-				},
-
-				// Navigation actions
-				goTo(stepIndex) {
-					if (get().canGoTo(stepIndex)) {
-						set({ activeStep: stepIndex })
-						return true
-					}
-					return false
-				},
-				
-				// Check if profile is fully complete
-				isProfileComplete() {
-					const completeness = get().getCompleteness()
-					return completeness === 100
-				},
-
-				goNext() {
-					const current = get().activeStep
-					const maxReachable = get().getMaxReachableStepIndex()
-					const nextStep = current + 1
-					
-					if (nextStep < STEP_ORDER.length && nextStep <= maxReachable) {
-						set({ activeStep: nextStep })
-						return true
-					}
-					return false
-				},
-
-				goPrev() {
-					const current = get().activeStep
-					if (current > 0) {
-						set({ activeStep: current - 1 })
-						return true
-					}
-					return false
-				},
-
-				// Check if current step is completed
-				isStepCompleted(stepIndex) {
-					const completed = get().getCompletedSteps()
-					return !!completed[STEP_ORDER[stepIndex]]
-				},
-
-				// Get all completed step indices
-				getCompletedStepIndices() {
-					const completed = get().getCompletedSteps()
-					return STEP_ORDER.map((key, idx) => completed[key] ? idx : null).filter(idx => idx !== null)
 				},
 			}),
 			{
 				name: 'client-onboarding-storage',
 				partialize: (state) => ({
-					activeStep: state.activeStep,
+					currentStep: state.currentStep,
+					completedSteps: state.completedSteps,
+					profileCompleteness: state.profileCompleteness,
 				}),
 			}
 		)
 	)
 )
 
-// Hook: fetch profile with caching and store sync
-export function useClientProfileQuery(options = {}) {
-	const setProfile = useClientOnboardingStore((s) => s.setProfile)
-	const setFetching = useClientOnboardingStore((s) => s.setFetching)
-	const setError = useClientOnboardingStore((s) => s.setError)
+// ────────────────────────────────────────────────────────────
+// TanStack Query Hooks (Following Worker Pattern)
+// ────────────────────────────────────────────────────────────
 
+/**
+ * Fetch onboarding progress
+ * Similar to worker's useOnboardingQuery
+ */
+export const useClientOnboardingQuery = () => {
 	return useQuery({
-		queryKey: ['clientProfile'],
+		queryKey: ['clientOnboarding'],
 		queryFn: async () => {
-			setFetching(true)
-			const res = await getClientProfile()
-			return res.data?.profile || null
+			try {
+				const response = await clientOnboardingApi.fetchClientOnboardingProgress()
+				if (!response.success && response.message === 'Client profile not found') {
+					return { success: true, data: null, isNewUser: true }
+				}
+				return response
+			} catch (error) {
+				if (error.response?.status === 404) {
+					return { success: true, data: null, isNewUser: true }
+				}
+				throw error
+			}
 		},
-		staleTime: 5 * 60 * 1000,
+		onSuccess: (data) => {
+			if (data?.success && data.data) {
+				const store = useClientOnboardingStore.getState()
+				store.hydrateFromApi(data.data)
+			}
+		},
+		retry: false,
 		refetchOnWindowFocus: false,
-		onSuccess: (profile) => { setProfile(profile); setFetching(false) },
-		onError: (err) => { setError(err?.response?.data?.message || err.message); setFetching(false) },
-		...options,
+		staleTime: 5 * 60 * 1000, // 5 minutes
 	})
 }
 
-// Hook: upsert step with optimistic update
-export function useUpsertClientStepMutation() {
+/**
+ * Step 1: Basic Information Mutation
+ */
+export const useBasicInformationMutation = () => {
 	const queryClient = useQueryClient()
-	const setSaving = useClientOnboardingStore((s) => s.setSaving)
-	const setProfile = useClientOnboardingStore((s) => s.setProfile)
-	const currentProfile = useClientOnboardingStore((s) => s.profile)
 
 	return useMutation({
-		mutationFn: async ({ step, payload }) => {
-			setSaving(true)
-			const res = await upsertClientProfileStep(step, payload)
-			return res.data?.profile
+		mutationFn: async (basicInfoData) => {
+			try {
+				const response = await clientOnboardingApi.saveBasicInformationStep(basicInfoData)
+				if (!response.success) {
+					throw new Error(response.message || 'Failed to save basic information')
+				}
+				return response
+			} catch (error) {
+				throw new Error(error.message || 'Failed to save basic information')
+			}
 		},
-		onMutate: async ({ step, payload }) => {
-			await queryClient.cancelQueries({ queryKey: ['clientProfile'] })
-			const prev = queryClient.getQueryData(['clientProfile'])
-			// Optimistically merge minimal payload
-			const optimistic = { ...(currentProfile || {}), ...(payload || {}) }
-			queryClient.setQueryData(['clientProfile'], optimistic)
-			setProfile(optimistic)
-			return { prev }
+		onSuccess: (data) => {
+			if (data.success) {
+				const { updateProfileCompleteness, nextStep, setProfile } = useClientOnboardingStore.getState()
+				
+				// Update profile
+				if (data.data?.profile) {
+					setProfile(data.data.profile)
+				}
+				
+				// Update completeness
+				updateProfileCompleteness(data.data)
+				
+				// Invalidate query
+				queryClient.invalidateQueries({ queryKey: ['clientOnboarding'] })
+				
+				// Auto-advance to next step
+				nextStep()
+			}
 		},
-		onError: (err, _vars, ctx) => {
-			if (ctx?.prev) queryClient.setQueryData(['clientProfile'], ctx.prev)
-		},
-		onSuccess: (profile) => {
-			setProfile(profile)
-			queryClient.setQueryData(['clientProfile'], profile)
-		},
-		onSettled: async () => {
-			setSaving(false)
-			await queryClient.invalidateQueries({ queryKey: ['clientProfile'] })
+		onError: (error) => {
+			console.error('Basic Information mutation error:', error)
 		},
 	})
 }
 
-// Selectors helpers
+/**
+ * Step 2: Preferences Mutation
+ */
+export const usePreferencesMutation = () => {
+	const queryClient = useQueryClient()
+
+	return useMutation({
+		mutationFn: async (preferencesData) => {
+			try {
+				const response = await clientOnboardingApi.savePreferencesStep(preferencesData)
+				if (!response.success) {
+					throw new Error(response.message || 'Failed to save preferences')
+				}
+				return response
+			} catch (error) {
+				throw new Error(error.message || 'Failed to save preferences')
+			}
+		},
+		onSuccess: (data) => {
+			if (data.success) {
+				const { updateProfileCompleteness, setProfile } = useClientOnboardingStore.getState()
+				
+				// Update profile
+				if (data.data?.profile) {
+					setProfile(data.data.profile)
+				}
+				
+				// Update completeness
+				updateProfileCompleteness(data.data)
+				
+				// Invalidate query
+				queryClient.invalidateQueries({ queryKey: ['clientOnboarding'] })
+				
+				// Don't auto-advance - this is the last step
+			}
+		},
+		onError: (error) => {
+			console.error('Preferences mutation error:', error)
+		},
+	})
+}
+
+/**
+ * Submit Profile Mutation
+ */
+export const useSubmitProfileMutation = () => {
+	const queryClient = useQueryClient()
+
+	return useMutation({
+		mutationFn: clientOnboardingApi.submitProfileForReview,
+		onSuccess: (data) => {
+			if (data.success) {
+				queryClient.invalidateQueries({ queryKey: ['clientOnboarding'] })
+			} else {
+				throw new Error(data.message || 'Profile is not complete yet')
+			}
+		},
+		onError: (error) => {
+			console.error('Submit profile error:', error)
+		},
+	})
+}
+
+// ────────────────────────────────────────────────────────────
+// Selector Hooks (For Component Usage)
+// ────────────────────────────────────────────────────────────
+
 export const useClientOnboarding = () => useClientOnboardingStore()
-export const useClientActiveStep = () => useClientOnboardingStore((s) => s.activeStep)
+export const useClientCurrentStep = () => useClientOnboardingStore((s) => s.currentStep)
 export const useClientCompleteness = () => useClientOnboardingStore((s) => s.getCompleteness())
-export const useClientCompletedSteps = () => useClientOnboardingStore((s) => s.getCompletedSteps())
+export const useClientCompletedSteps = () => useClientOnboardingStore((s) => s.completedSteps)
+export const useClientProfileStatus = () => useClientOnboardingStore((s) => s.getProfileStatus())
+export const useCanEditProfile = () => useClientOnboardingStore((s) => s.canEditProfile())
+export const useIsProfileDeleted = () => useClientOnboardingStore((s) => s.isProfileDeleted())
 
 export default useClientOnboardingStore

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Grid,
   Card,
@@ -49,7 +49,8 @@ const SuburbSelector = ({
   setSuburbInput, 
   updateAvailability, 
   errors, 
-  setErrors
+  setErrors,
+  gridProps = { xs: 12, md: 6 } // Allow custom grid sizing
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -67,6 +68,28 @@ const SuburbSelector = ({
   const inputRef = useRef(null);
   const customInputRef = useRef(null);
   const listRef = useRef(null);
+  
+  // Normalize suburbInput to always be a string (prevent [object Object] display)
+  const normalizedSuburbInput = useMemo(() => {
+    if (typeof suburbInput === 'string') {
+      return suburbInput;
+    }
+    if (suburbInput && typeof suburbInput === 'object') {
+      // Handle object format: { suburb: 'value' } or { place_name: 'value' }
+      return suburbInput.suburb || suburbInput.place_name || String(suburbInput || '');
+    }
+    return String(suburbInput || '');
+  }, [suburbInput]);
+  
+  // Sync normalized value if prop is an object (one-time fix)
+  useEffect(() => {
+    if (suburbInput && typeof suburbInput === 'object' && typeof setSuburbInput === 'function') {
+      const normalized = suburbInput.suburb || suburbInput.place_name || '';
+      if (normalized && normalized !== suburbInput) {
+        setSuburbInput(normalized);
+      }
+    }
+  }, [suburbInput, setSuburbInput]);
 
   // Debounced search for better performance
   const debounceSearch = useCallback((value) => {
@@ -90,9 +113,9 @@ const SuburbSelector = ({
 
   // Filter suburbs with debouncing
   useEffect(() => {
-    const cleanup = debounceSearch(suburbInput);
+    const cleanup = debounceSearch(normalizedSuburbInput);
     return cleanup;
-  }, [suburbInput, debounceSearch]);
+  }, [normalizedSuburbInput, debounceSearch]);
 
   // Auto-focus custom input when shown
   useEffect(() => {
@@ -103,7 +126,9 @@ const SuburbSelector = ({
 
   const handleSuburbInputChange = (e) => {
     const value = e.target.value;
-    setSuburbInput(value);
+    // Ensure value is always a string
+    const stringValue = typeof value === 'string' ? value : String(value || '');
+    setSuburbInput(stringValue);
     setShowCustomInput(false);
     setFocusedIndex(-1);
     
@@ -113,7 +138,7 @@ const SuburbSelector = ({
     }
     
     // Open dropdown if there's input
-    if (value.length > 0) {
+    if (stringValue.length > 0) {
       setDropdownOpen(true);
       setAnchorEl(e.currentTarget);
     } else {
@@ -125,7 +150,10 @@ const SuburbSelector = ({
 
   const handleSuburbSelect = (suburbItem) => {
     const fullSuburb = `${suburbItem.place_name}, ${suburbItem.postcode}`;
-    setSuburbInput(fullSuburb);
+    // Ensure we pass a string to setSuburbInput
+    if (typeof setSuburbInput === 'function') {
+      setSuburbInput(fullSuburb);
+    }
     setSelectedSuburb(suburbItem);
     setDropdownOpen(false);
     setShowCustomInput(false);
@@ -137,18 +165,25 @@ const SuburbSelector = ({
 
   const handleCustomSuburbAdd = () => {
     if (customSuburb.trim()) {
-      setSuburbInput(customSuburb.trim());
-      setSelectedSuburb({ place_name: customSuburb.trim(), custom: true });
+      const trimmedSuburb = customSuburb.trim();
+      // Ensure we pass a string to setSuburbInput
+      if (typeof setSuburbInput === 'function') {
+        setSuburbInput(trimmedSuburb);
+      }
+      setSelectedSuburb({ place_name: trimmedSuburb, custom: true });
       setDropdownOpen(false);
       setShowCustomInput(false);
       setCustomSuburb('');
-      updateAvailability({ suburb: customSuburb.trim() });
+      updateAvailability({ suburb: trimmedSuburb });
       setErrors(prev => ({ ...prev, suburb: null }));
     }
   };
 
   const handleClear = () => {
-    setSuburbInput('');
+    // Ensure we pass a string to setSuburbInput
+    if (typeof setSuburbInput === 'function') {
+      setSuburbInput('');
+    }
     setSelectedSuburb(null);
     setCustomSuburb('');
     setShowCustomInput(false);
@@ -177,9 +212,9 @@ const SuburbSelector = ({
         e.preventDefault();
         if (focusedIndex >= 0 && focusedIndex < filteredSuburbs.length) {
           handleSuburbSelect(filteredSuburbs[focusedIndex]);
-        } else if (filteredSuburbs.length === 0 && suburbInput.trim()) {
+        } else if (filteredSuburbs.length === 0 && normalizedSuburbInput.trim()) {
           setShowCustomInput(true);
-          setCustomSuburb(suburbInput);
+          setCustomSuburb(normalizedSuburbInput);
         }
         break;
       case 'Escape':
@@ -190,10 +225,10 @@ const SuburbSelector = ({
   };
 
   const hasResults = filteredSuburbs.length > 0;
-  const showNoResults = !hasResults && suburbInput.length > 0 && !isLoading;
+  const showNoResults = !hasResults && normalizedSuburbInput.length > 0 && !isLoading;
 
   return (
-    <Grid item xs={12} md={6} >
+    <Grid item {...gridProps}>
       <Card 
         elevation={0}
         sx={{
@@ -270,10 +305,10 @@ const SuburbSelector = ({
           }}>
             <TextField
               fullWidth
-              value={suburbInput}
+              value={normalizedSuburbInput}
               onChange={handleSuburbInputChange}
               onFocus={(e) => {
-                if (suburbInput.length > 0) {
+                if (normalizedSuburbInput.length > 0) {
                   setDropdownOpen(true);
                   setAnchorEl(e.currentTarget);
                 }
@@ -314,7 +349,7 @@ const SuburbSelector = ({
                           />
                         </Box>
                       )}
-                      {suburbInput && (
+                      {normalizedSuburbInput && (
                         <Tooltip title="Clear search" arrow>
                           <IconButton
                             aria-label="Clear suburb input"
@@ -630,7 +665,7 @@ const SuburbSelector = ({
                                     fontSize: { xs: '0.875rem', sm: '0.9rem' }
                                   }}
                                 >
-                                  We couldn't find "{suburbInput}" in our location database
+                                  We couldn't find "{normalizedSuburbInput}" in our location database
                                 </Typography>
                               </ListItem>
                               
@@ -698,7 +733,7 @@ const SuburbSelector = ({
                                   button
                                   onClick={() => {
                                     setShowCustomInput(true);
-                                    setCustomSuburb(suburbInput);
+                                    setCustomSuburb(normalizedSuburbInput);
                                   }}
                                   sx={{
                                     width: { xs: '100%', sm: 'auto' },
