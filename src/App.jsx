@@ -55,9 +55,14 @@ import ViewAllDocuments from './pages/AdminPages/CloudinaryDocuments/ViewAllDocu
 import ViewAllReference from './pages/AdminPages/ReferenceSection/ViewAllReference/ViewAllReference';
 import ViewAllClients from './pages/AdminPages/ClientManagement/ViewAllClients';
 import ViewClientDetails from './pages/AdminPages/ClientManagement/ViewClientDetails';
+import ClientProfile from './pages/ClientPages/ClientProfile/ClientProfile';
+import BasicInformation from './pages/ClientPages/ClientProfile/BasicInformation';
+import Preferences from './pages/ClientPages/ClientProfile/Preferences';
+import CarePlan from './pages/ClientPages/ClientProfile/CarePlan';
+import Communication from './pages/ClientPages/ClientProfile/Communication';
 
 
-// Create React Query client with optimized settings
+// Create React Query client with optimized settings    
 const queryClient = new QueryClient({
   defaultOptions: { 
     queries: {
@@ -370,6 +375,31 @@ function AppRoutes() {
             <Suspense fallback={<div />}> 
               <ClientOnboarding />
             </Suspense>
+          </ClientRoute>
+        }
+        />
+        {/* Client Profile Routes */}
+        <Route path="/client/profile" element={
+          <ClientRoute>
+            <BasicInformation />
+          </ClientRoute>
+        }
+        />
+        <Route path="/client/profile/preferences" element={
+          <ClientRoute>
+            <Preferences />
+          </ClientRoute>
+        }
+        />
+        <Route path="/client/profile/care-plan" element={
+          <ClientRoute>
+            <CarePlan />
+          </ClientRoute>
+        }
+        />
+        <Route path="/client/profile/communication" element={
+          <ClientRoute>
+            <Communication />
           </ClientRoute>
         }
         />

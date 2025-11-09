@@ -1,8 +1,36 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * CLIENT BASIC INFORMATION - Step 1 of Onboarding
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 
+ * Minimal, production-ready onboarding flow for NDIS clients.
+ * 
+ * REQUIRED FIELDS (For onboarding completion):
+ * - Account Type: Individual or Organization
+ * - Address: Street, Suburb, State, Postcode
+ * - Organization Name (if organization account)
+ * - ABN (if organization account)
+ * 
+ * OPTIONAL FIELDS (Can be added later via dashboard):
+ * - NDIS Number
+ * - Emergency Contact
+ * - Location Coordinates (auto-detect or manual)
+ * 
+ * Features:
+ * - Smart validation based on account type
+ * - Auto-geolocation with fallback to manual entry
+ * - Real-time form validation with helpful error messages
+ * - Progress tracking and completion percentage
+ * - Mobile-responsive design
+ * 
+ * @module components/ClientOnboarding/ClientProfile
+ */
+
 import React, { useMemo, useEffect, useState } from 'react'
 import {
   Box, Grid, TextField, MenuItem, Button, Paper, Chip, Snackbar, Alert,
   LinearProgress, Typography, Stack, Divider, CircularProgress, useTheme, useMediaQuery,
-  Card, CardContent, Tooltip, IconButton, alpha, Fade, Collapse
+  Card, CardContent, Tooltip, IconButton, alpha, Fade, Collapse, Accordion, AccordionSummary, AccordionDetails
 } from '@mui/material'
 import {
   MyLocation as MyLocationIcon,
@@ -15,7 +43,9 @@ import {
   Phone as PhoneIcon,
   Badge as BadgeIcon,
   Edit as EditIcon,
-  Save as SaveIcon
+  Save as SaveIcon,
+  ExpandMore as ExpandMoreIcon,
+  InfoOutlined as InfoOutlinedIcon
 } from '@mui/icons-material'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -24,6 +54,11 @@ import { useClientOnboardingQuery, useBasicInformationMutation, useClientOnboard
 import { useAuth } from '../../../context/AuthContext'
 import { toast } from 'react-hot-toast'
 import { toE164Au, isValidAuPhone, formatAuInternational } from '../../../utils/phone'
+import { formatApiError, formatSuccessMessage } from '../../../utils/errorFormatter'
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════════════
 
 const ACCOUNT_TYPES = ['individual', 'organization']
 
@@ -275,13 +310,43 @@ export default function ClientProfile() {
 
     saveBasicInfo(cleanedPayload, {
       onSuccess: (data) => {
-        toast.success(data.message || 'Profile saved successfully!')
-        setSnack({ open: true, message: 'Profile saved successfully', severity: 'success' })
+        const successMessage = formatSuccessMessage(data, 'Profile saved successfully!')
+        toast.success(successMessage, {
+          id: 'profile-save-success', // Use ID to prevent duplicate toasts
+          duration: 3000,
+        })
+        setSnack({ 
+          open: true, 
+          message: successMessage, 
+          severity: 'success',
+          autoHideDuration: 3000
+        })
       },
       onError: (error) => {
-        const errorMessage = error?.response?.data?.message || error?.message || 'Save failed'
-        toast.error(errorMessage)
-        setSnack({ open: true, message: errorMessage, severity: 'error' })
+        // Ensure we always show a user-friendly message
+        let errorMessage = 'Unable to save your profile. Please try again.'
+        
+        try {
+          errorMessage = formatApiError(error)
+        } catch (formatError) {
+          // Fallback if error formatter fails
+          console.error('Error formatting message:', formatError)
+          if (error?.response?.data?.message) {
+            errorMessage = error.response.data.message
+          } else if (error?.message) {
+            errorMessage = error.message
+          }
+        }
+        
+        // Show only one toast notification (remove snackbar for errors to avoid duplicates)
+        toast.error(errorMessage, {
+          duration: 6000,
+          id: 'profile-save-error', // Use ID to prevent duplicate toasts
+          style: {
+            maxWidth: '500px',
+            whiteSpace: 'pre-line',
+          }
+        })
       }
     })
   }
@@ -437,6 +502,27 @@ export default function ClientProfile() {
         </CardContent>
       </Card>
 
+      {/* Info Alert - Minimal Onboarding */}
+      <Fade in>
+        <Alert
+          icon={<InfoOutlinedIcon />}
+          severity="info"
+          sx={{
+            mb: 3,
+            borderRadius: 2,
+            border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+            bgcolor: alpha(theme.palette.info.main, 0.05)
+          }}
+        >
+          <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>
+            Quick Start Onboarding
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            We only need essential details to get you started. Optional fields (like NDIS Number and Emergency Contact) can be added later from your dashboard.
+          </Typography>
+        </Alert>
+      </Fade>
+
       {/* Success Alert */}
       {isProfileComplete && isStepComplete && (
         <Fade in>
@@ -469,20 +555,29 @@ export default function ClientProfile() {
         {/* Account Type Section */}
         <Box sx={{ p: { xs: 2.5, sm: 3.5 }, bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
           <Stack spacing={2.5}>
-            <Stack direction="row" alignItems="center" spacing={1.5}>
-              <BusinessIcon sx={{ color: 'primary.main', fontSize: 22 }} />
-              <Typography variant="h6" fontWeight={700} color="text.primary">
-                Account Information
-              </Typography>
+            <Stack direction="row" alignItems="center" spacing={1.5} justifyContent="space-between" flexWrap="wrap">
+              <Stack direction="row" alignItems="center" spacing={1.5}>
+                <BusinessIcon sx={{ color: 'primary.main', fontSize: 22 }} />
+                <Typography variant="h6" fontWeight={700} color="text.primary">
+                  Account Information
+                </Typography>
+              </Stack>
+              <Chip
+                size="small"
+                label="Required"
+                color="error"
+                sx={{ fontWeight: 600, fontSize: '0.75rem' }}
+              />
             </Stack>
 
             <Grid container spacing={2.5}>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={accountType === 'individual' ? 12 : 6}>
                 <TextField
                   select
                   fullWidth
+                  required
                   size={isMobile ? "small" : "medium"}
-                  label="Account Type"
+                  label="Account Type *"
                   defaultValue={defaultValues.accountType}
                   {...register('accountType')}
                   sx={{
@@ -500,12 +595,12 @@ export default function ClientProfile() {
                       {v === 'individual' ? (
                         <Stack direction="row" spacing={1} alignItems="center">
                           <PersonIcon fontSize="small" />
-                          <span>Individual</span>
+                          <span>Individual Client</span>
                         </Stack>
                       ) : (
                         <Stack direction="row" spacing={1} alignItems="center">
                           <BusinessIcon fontSize="small" />
-                          <span>Organization</span>
+                          <span>Organization / Care Provider</span>
                         </Stack>
                       )}
                     </MenuItem>
@@ -518,11 +613,13 @@ export default function ClientProfile() {
                   <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
+                      required
                       size={isMobile ? "small" : "medium"}
-                      label="Organization Name"
+                      label="Organization Name *"
+                      placeholder="Enter your organization's legal name"
                       {...register('organizationName')}
                       error={!!errors.organizationName}
-                      helperText={errors.organizationName?.message}
+                      helperText={errors.organizationName?.message || 'Required for organization accounts'}
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 2,
@@ -534,11 +631,13 @@ export default function ClientProfile() {
                   <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
+                      required
                       size={isMobile ? "small" : "medium"}
-                      label="ABN"
+                      label="ABN (Australian Business Number) *"
+                      placeholder="11 digits"
                       {...register('abn')}
                       error={!!errors.abn}
-                      helperText={errors.abn?.message}
+                      helperText={errors.abn?.message || 'Required for organization accounts'}
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 2,
@@ -549,21 +648,6 @@ export default function ClientProfile() {
                   </Grid>
                 </>
               )}
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  size={isMobile ? "small" : "medium"}
-                  label="NDIS Number (Optional)"
-                  {...register('ndisNumber')}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
-                      bgcolor: 'background.paper'
-                    }
-                  }}
-                />
-              </Grid>
             </Grid>
           </Stack>
         </Box>
@@ -573,11 +657,19 @@ export default function ClientProfile() {
         {/* Address Section */}
         <Box sx={{ p: { xs: 2.5, sm: 3.5 } }}>
           <Stack spacing={3}>
-            <Stack direction="row" alignItems="center" spacing={1.5}>
-              <LocationIcon sx={{ color: 'primary.main', fontSize: 22 }} />
-              <Typography variant="h6" fontWeight={700} color="text.primary">
-                Service Address
-              </Typography>
+            <Stack direction="row" alignItems="center" spacing={1.5} justifyContent="space-between" flexWrap="wrap">
+              <Stack direction="row" alignItems="center" spacing={1.5}>
+                <LocationIcon sx={{ color: 'primary.main', fontSize: 22 }} />
+                <Typography variant="h6" fontWeight={700} color="text.primary">
+                  Service Address
+                </Typography>
+              </Stack>
+              <Chip
+                size="small"
+                label="Required"
+                color="error"
+                sx={{ fontWeight: 600, fontSize: '0.75rem' }}
+              />
             </Stack>
 
             {/* Address Method Selection */}
@@ -751,8 +843,9 @@ export default function ClientProfile() {
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
+                    required
                     size={isMobile ? "small" : "medium"}
-                    label="Street Address"
+                    label="Street Address *"
                     placeholder="123 Main Street"
                     {...register('address.street')}
                     error={!!errors.address?.street}
@@ -774,8 +867,9 @@ export default function ClientProfile() {
                 <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
+                    required
                     size={isMobile ? "small" : "medium"}
-                    label="Suburb / City"
+                    label="Suburb / City *"
                     placeholder="Perth"
                     {...register('address.suburb')}
                     error={!!errors.address?.suburb}
@@ -792,8 +886,9 @@ export default function ClientProfile() {
                 <Grid item xs={6} sm={3}>
                   <TextField
                     fullWidth
+                    required
                     size={isMobile ? "small" : "medium"}
-                    label="State"
+                    label="State *"
                     placeholder="WA"
                     {...register('address.state')}
                     error={!!errors.address?.state}
@@ -814,8 +909,9 @@ export default function ClientProfile() {
                     render={({ field: { onChange, value, onBlur }, fieldState: { error } }) => (
                       <TextField
                         fullWidth
+                        required
                         size={isMobile ? "small" : "medium"}
-                        label="Postcode"
+                        label="Postcode *"
                         placeholder="6000"
                         value={value || ''}
                         onChange={(e) => {
@@ -843,25 +939,56 @@ export default function ClientProfile() {
 
         <Divider />
 
-        {/* Emergency Contact Section */}
-        <Box sx={{ p: { xs: 2.5, sm: 3.5 }, bgcolor: alpha(theme.palette.background.default, 0.3) }}>
-          <Stack spacing={2.5}>
-            <Stack direction="row" alignItems="center" spacing={1.5}>
-              <PhoneIcon sx={{ color: 'primary.main', fontSize: 22 }} />
-              <Typography variant="h6" fontWeight={700} color="text.primary">
-                Emergency Contact
+        {/* Optional Fields - Collapsible */}
+        <Accordion
+          elevation={0}
+          disableGutters
+          sx={{
+            '&:before': { display: 'none' },
+            bgcolor: alpha(theme.palette.grey[100], 0.4),
+            borderRadius: 0,
+          }}
+        >
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            sx={{
+              px: { xs: 2.5, sm: 3.5 },
+              py: 1,
+              '&:hover': {
+                bgcolor: alpha(theme.palette.primary.main, 0.02)
+              }
+            }}
+          >
+            <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap">
+              <InfoOutlinedIcon sx={{ color: 'info.main', fontSize: 20 }} />
+              <Typography variant="subtitle1" fontWeight={600} color="text.primary">
+                Additional Information (Optional)
               </Typography>
-              <Chip label="Optional" size="small" variant="outlined" />
+              <Chip
+                label="Can be added later"
+                size="small"
+                color="info"
+                variant="outlined"
+                sx={{ fontSize: '0.7rem', height: 20 }}
+              />
             </Stack>
-
-            <Grid container spacing={2.5}>
-              <Grid item xs={12} md={6}>
+          </AccordionSummary>
+          <AccordionDetails sx={{ p: { xs: 2.5, sm: 3.5 }, pt: 0 }}>
+            <Stack spacing={3}>
+              {/* NDIS Number */}
+              <Box>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+                  <BadgeIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                  <Typography variant="subtitle2" fontWeight={600} color="text.secondary">
+                    NDIS Number
+                  </Typography>
+                </Stack>
                 <TextField
                   fullWidth
                   size={isMobile ? "small" : "medium"}
-                  label="Contact Name"
-                  placeholder="John Doe"
-                  {...register('emergencyContact.name')}
+                  label="NDIS Number (Optional)"
+                  placeholder="Enter your NDIS participant number"
+                  {...register('ndisNumber')}
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       borderRadius: 2,
@@ -869,32 +996,29 @@ export default function ClientProfile() {
                     }
                   }}
                 />
-              </Grid>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                  You can add this later from your dashboard if you don't have it handy.
+                </Typography>
+              </Box>
 
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name="emergencyContact.phone"
-                  control={control}
-                  render={({ field: { onChange, value, onBlur }, fieldState: { error } }) => (
+              <Divider sx={{ my: 1 }} />
+
+              {/* Emergency Contact */}
+              <Box>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+                  <PhoneIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                  <Typography variant="subtitle2" fontWeight={600} color="text.secondary">
+                    Emergency Contact
+                  </Typography>
+                </Stack>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
                       size={isMobile ? "small" : "medium"}
-                      label="Contact Phone"
-                      placeholder="+61 4XX XXX XXX or +61 2XX XXX XXX"
-                      value={formatAustralianPhone(value || '')}
-                      onChange={(e) => {
-                        const e164 = toE164Au(e.target.value)
-                        onChange(e164)
-                      }}
-                      onBlur={onBlur}
-                      error={!!error || (!!value && !isValidAuPhone(value))}
-                      helperText={
-                        error?.message 
-                          || (!!value && !isValidAuPhone(value) 
-                            ? 'Enter a valid Australian number (mobile: +61 4XX XXX XXX, landline: +61 2/3/7/8XX XXX XXX)' 
-                            : 'Australian format: +61 followed by 9 digits (mobile or landline)')
-                      }
-                      inputProps={{ maxLength: 18 }}
+                      label="Contact Name (Optional)"
+                      placeholder="John Doe"
+                      {...register('emergencyContact.name')}
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 2,
@@ -902,12 +1026,50 @@ export default function ClientProfile() {
                         }
                       }}
                     />
-                  )}
-                />
-              </Grid>
-            </Grid>
-          </Stack>
-        </Box>
+                  </Grid>
+
+                  <Grid item xs={12} md={6}>
+                    <Controller
+                      name="emergencyContact.phone"
+                      control={control}
+                      render={({ field: { onChange, value, onBlur }, fieldState: { error } }) => (
+                        <TextField
+                          fullWidth
+                          size={isMobile ? "small" : "medium"}
+                          label="Contact Phone (Optional)"
+                          placeholder="+61 4XX XXX XXX or +61 2XX XXX XXX"
+                          value={formatAustralianPhone(value || '')}
+                          onChange={(e) => {
+                            const e164 = toE164Au(e.target.value)
+                            onChange(e164)
+                          }}
+                          onBlur={onBlur}
+                          error={!!error || (!!value && !isValidAuPhone(value))}
+                          helperText={
+                            error?.message 
+                              || (!!value && !isValidAuPhone(value) 
+                                ? 'Enter a valid Australian number (mobile: +61 4XX XXX XXX, landline: +61 2/3/7/8XX XXX XXX)' 
+                                : 'Australian format: +61 followed by 9 digits')
+                          }
+                          inputProps={{ maxLength: 18 }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2,
+                              bgcolor: 'background.paper'
+                            }
+                          }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                </Grid>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  Emergency contact details can be updated anytime from your dashboard.
+                </Typography>
+              </Box>
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
 
         <Divider />
 

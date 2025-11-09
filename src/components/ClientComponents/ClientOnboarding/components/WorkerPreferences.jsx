@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Grid, TextField, MenuItem, Stack, Typography, Accordion, AccordionSummary, AccordionDetails, alpha, useTheme } from '@mui/material'
+import { Box, Grid, TextField, MenuItem, Stack, Typography, Accordion, AccordionSummary, AccordionDetails, Chip, alpha, useTheme } from '@mui/material'
 import { ExpandMore, People as PeopleIcon } from '@mui/icons-material'
 import { Controller, useFormContext } from 'react-hook-form'
 import { PREFERRED_WORKER_GENDER, PREFERRED_WORKER_GENDER_LABELS, PREFERRED_AGE_GROUP, PREFERRED_AGE_GROUP_LABELS } from '../constants'
@@ -47,38 +47,47 @@ const WorkerPreferences = ({ isOrganization }) => {
           }
         }}
       >
-        <Stack direction="row" alignItems="center" spacing={2} sx={{ width: '100%' }}>
-          <Box
-            sx={{
-              width: { xs: 56, sm: 64 },
-              height: { xs: 56, sm: 64 },
-              borderRadius: 3,
-              bgcolor: `linear-gradient(135deg, ${alpha(theme.palette.secondary?.main || theme.palette.warning.main, 0.2)}, ${alpha(theme.palette.secondary?.main || theme.palette.warning.main, 0.1)})`,
-              background: `linear-gradient(135deg, ${alpha(theme.palette.secondary?.main || theme.palette.warning.main, 0.2)}, ${alpha(theme.palette.secondary?.main || theme.palette.warning.main, 0.1)})`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: `2px solid ${alpha(theme.palette.secondary?.main || theme.palette.warning.main, 0.3)}`,
-              boxShadow: `0 4px 16px ${alpha(theme.palette.secondary?.main || theme.palette.warning.main, 0.2)}`
-            }}
-          >
-            <PeopleIcon sx={{ fontSize: { xs: 28, sm: 32 }, color: 'secondary.main' }} />
-          </Box>
-          <Box sx={{ flex: 1 }}>
-            <Typography 
-              variant="h5" 
-              fontWeight={800} 
-              color="text.primary"
-              sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' }, mb: 0.5 }}
+        <Stack direction="row" alignItems="center" spacing={2} justifyContent="space-between" flexWrap="wrap" sx={{ width: '100%' }}>
+          <Stack direction="row" alignItems="center" spacing={2}>
+            <Box
+              sx={{
+                width: { xs: 56, sm: 64 },
+                height: { xs: 56, sm: 64 },
+                borderRadius: 3,
+                bgcolor: `linear-gradient(135deg, ${alpha(theme.palette.secondary?.main || theme.palette.warning.main, 0.2)}, ${alpha(theme.palette.secondary?.main || theme.palette.warning.main, 0.1)})`,
+                background: `linear-gradient(135deg, ${alpha(theme.palette.secondary?.main || theme.palette.warning.main, 0.2)}, ${alpha(theme.palette.secondary?.main || theme.palette.warning.main, 0.1)})`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: `2px solid ${alpha(theme.palette.secondary?.main || theme.palette.warning.main, 0.3)}`,
+                boxShadow: `0 4px 16px ${alpha(theme.palette.secondary?.main || theme.palette.warning.main, 0.2)}`
+              }}
             >
-              Worker Preferences
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.875rem', sm: '0.9rem' } }}>
-              {isOrganization 
-                ? 'Specify your ideal worker requirements. These will be used as default criteria when creating job postings.'
-                : 'Tell us about your preferred worker characteristics. These preferences help match you with suitable workers and can be used in job postings.'}
-            </Typography>
-          </Box>
+              <PeopleIcon sx={{ fontSize: { xs: 28, sm: 32 }, color: 'secondary.main' }} />
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography 
+                variant="h5" 
+                fontWeight={800} 
+                color="text.primary"
+                sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' }, mb: 0.5 }}
+              >
+                Worker Preferences
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.875rem', sm: '0.9rem' } }}>
+                {isOrganization 
+                  ? 'Specify your ideal worker requirements. These will be used as default criteria when creating job postings.'
+                  : 'Tell us about your preferred worker characteristics. These preferences help match you with suitable workers and can be used in job postings.'}
+              </Typography>
+            </Box>
+          </Stack>
+          <Chip
+            size="small"
+            label="Optional"
+            color="info"
+            variant="outlined"
+            sx={{ fontWeight: 600, fontSize: '0.75rem' }}
+          />
         </Stack>
       </AccordionSummary>
       <AccordionDetails sx={{ px: { xs: 3, sm: 4, md: 5 }, py: { xs: 3, sm: 4, md: 5 } }}>

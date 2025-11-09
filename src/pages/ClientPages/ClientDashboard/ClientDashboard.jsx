@@ -18,7 +18,8 @@ import {
   Divider,
   Stack,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  Tooltip
 } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import ClientSidebar from '../../../components/ClientComponents/ClientSidebar/ClientSidebar'
@@ -39,7 +40,9 @@ import {
   Pending,
   Verified,
   Lock,
-  HourglassEmpty
+  HourglassEmpty,
+  AttachMoney,
+  Warning
 } from '@mui/icons-material'
 import { useAuth } from '../../../context/AuthContext'
 import { useQuery } from '@tanstack/react-query'
@@ -157,18 +160,127 @@ const ClientDashboard = () => {
 
   const statusConfig = getStatusConfig(profileStatus)
 
-  const quickStats = [
-    { icon: <Schedule sx={{ fontSize: 40 }} />, value: '12', label: 'Hours This Week', color: '#3f51b5' },
-    { icon: <CalendarToday sx={{ fontSize: 40 }} />, value: '3', label: 'Upcoming Sessions', color: '#9c27b0' },
-    { icon: <Description sx={{ fontSize: 40 }} />, value: '8', label: 'Documents', color: '#00bcd4' },
-    { icon: <TrendingUp sx={{ fontSize: 40 }} />, value: '94%', label: 'Goal Progress', color: '#4caf50' }
-  ]
+  // Calculate real-time stats from profile data
+  const quickStats = useMemo(() => {
+    const engagement = profileResp?.engagementMetrics || {}
+    const documents = profileResp?.documents || []
+    const carePlan = profileResp?.carePlanSummary || {}
+    
+    // Calculate document stats
+    const totalDocuments = documents.length
+    const verifiedDocuments = documents.filter(doc => doc.verified).length
+    const pendingDocuments = documents.filter(doc => !doc.verified).length
+    const expiringSoon = documents.filter(doc => {
+      if (!doc.expiresAt) return false
+      const daysUntilExpiry = Math.ceil((new Date(doc.expiresAt) - new Date()) / (1000 * 60 * 60 * 24))
+      return daysUntilExpiry <= 30 && daysUntilExpiry > 0
+    }).length
+    
+    // Calculate care plan budget percentage
+    const budgetUsed = carePlan.totalBudget && carePlan.usedBudget 
+      ? Math.round((carePlan.usedBudget / carePlan.totalBudget) * 100)
+      : 0
+    
+    return [
+      { 
+        icon: <Schedule sx={{ fontSize: 40 }} />, 
+        value: engagement.jobsActive?.toString() || '0', 
+        label: 'Active Jobs', 
+        color: '#3f51b5',
+        tooltip: 'Number of active job postings'
+      },
+      { 
+        icon: <CalendarToday sx={{ fontSize: 40 }} />, 
+        value: engagement.totalLogins?.toString() || '0', 
+        label: 'Total Logins', 
+        color: '#9c27b0',
+        tooltip: 'Total number of times you\'ve logged in'
+      },
+      { 
+        icon: <Description sx={{ fontSize: 40 }} />, 
+        value: `${verifiedDocuments}/${totalDocuments}`, 
+        label: 'Documents', 
+        color: totalDocuments > 0 && pendingDocuments > 0 ? '#ff9800' : '#00bcd4',
+        tooltip: `${verifiedDocuments} verified, ${pendingDocuments} pending${expiringSoon > 0 ? `, ${expiringSoon} expiring soon` : ''}`
+      },
+      { 
+        icon: <TrendingUp sx={{ fontSize: 40 }} />, 
+        value: carePlan.totalBudget ? `${budgetUsed}%` : 'N/A', 
+        label: 'Budget Used', 
+        color: budgetUsed > 80 ? '#f44336' : budgetUsed > 50 ? '#ff9800' : '#4caf50',
+        tooltip: carePlan.totalBudget 
+          ? `$${carePlan.usedBudget?.toLocaleString() || 0} of $${carePlan.totalBudget.toLocaleString()} used`
+          : 'No care plan budget set'
+      }
+    ]
+  }, [profileResp])
 
-  const upcomingTasks = [
-    { title: 'Upload NDIS Plan Document', status: 'urgent', time: 'Due in 2 days' },
-    { title: 'Complete Health Assessment', status: 'pending', time: 'Due in 5 days' },
-    { title: 'Set Care Preferences', status: 'pending', time: 'Due in 1 week' }
-  ]
+  // Generate dynamic action items based on profile data
+  const upcomingTasks = useMemo(() => {
+    const tasks = []
+    const documents = profileResp?.documents || []
+    const carePlan = profileResp?.carePlanSummary || {}
+    const preferences = profileResp?.preferences || {}
+    
+    // Check for expiring documents
+    documents.forEach(doc => {
+      if (doc.expiresAt) {
+        const daysUntilExpiry = Math.ceil((new Date(doc.expiresAt) - new Date()) / (1000 * 60 * 60 * 24))
+        if (daysUntilExpiry <= 30 && daysUntilExpiry > 0) {
+          tasks.push({
+            title: `Renew ${doc.title || doc.type} Document`,
+            status: daysUntilExpiry <= 7 ? 'urgent' : 'pending',
+            time: daysUntilExpiry === 1 ? 'Due tomorrow' : `Due in ${daysUntilExpiry} days`,
+            type: 'document',
+            documentId: doc._id
+          })
+        }
+      }
+    })
+    
+    // Check for unverified documents
+    const unverifiedDocs = documents.filter(doc => !doc.verified)
+    if (unverifiedDocs.length > 0) {
+      tasks.push({
+        title: `${unverifiedDocs.length} Document${unverifiedDocs.length > 1 ? 's' : ''} Pending Verification`,
+        status: 'pending',
+        time: 'Awaiting admin review',
+        type: 'verification'
+      })
+    }
+    
+    // Check for missing NDIS plan
+    if (!carePlan.planStartDate || !carePlan.planEndDate) {
+      tasks.push({
+        title: 'Add NDIS Care Plan Details',
+        status: 'pending',
+        time: 'Optional but recommended',
+        type: 'care-plan'
+      })
+    }
+    
+    // Check for missing support categories
+    if (!preferences.supportCategories || preferences.supportCategories.length === 0) {
+      tasks.push({
+        title: 'Complete Care Preferences',
+        status: 'pending',
+        time: 'Required for job matching',
+        type: 'preferences'
+      })
+    }
+    
+    // Default tasks if none generated
+    if (tasks.length === 0) {
+      tasks.push({
+        title: 'All tasks completed!',
+        status: 'completed',
+        time: 'Great job keeping everything up to date',
+        type: 'none'
+      })
+    }
+    
+    return tasks.slice(0, 5) // Limit to 5 tasks
+  }, [profileResp])
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
@@ -438,19 +550,118 @@ const ClientDashboard = () => {
         <Grid container spacing={{ xs: 1.5, sm: 2, md: 3, lg: 3, xl: 4 }} sx={{ mb: { xs: 2, sm: 3 } }}>
           {quickStats.map((stat, index) => (
             <Grid item xs={6} sm={6} md={3} lg={3} xl={3} key={index}>
-              <Card elevation={0} sx={{ height: '100%', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-                <CardContent sx={{ p: { xs: 2, sm: 2.5, md: 3 } }}>
-                  <Typography variant={isMobile ? 'h5' : 'h4'} fontWeight="700" gutterBottom>
-                    {stat.value}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {stat.label}
-                  </Typography>
-                </CardContent>
-              </Card>
+              <Tooltip title={stat.tooltip || stat.label} arrow>
+                <Card 
+                  elevation={0} 
+                  sx={{ 
+                    height: '100%', 
+                    borderRadius: 2, 
+                    border: '1px solid #e5e7eb',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: 2,
+                      borderColor: stat.color
+                    }
+                  }}
+                >
+                  <CardContent sx={{ p: { xs: 2, sm: 2.5, md: 3 } }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Box sx={{ color: stat.color, mr: 1 }}>
+                        {stat.icon}
+                      </Box>
+                    </Box>
+                    <Typography variant={isMobile ? 'h5' : 'h4'} fontWeight="700" gutterBottom sx={{ color: stat.color }}>
+                      {stat.value}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {stat.label}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Tooltip>
             </Grid>
           ))}
         </Grid>
+
+        {/* Care Plan Summary - Show if available */}
+        {profileResp?.carePlanSummary?.totalBudget && (
+          <Card elevation={0} sx={{ mb: { xs: 2, sm: 3 }, borderRadius: 2, border: '1px solid #e5e7eb' }}>
+            <CardContent sx={{ p: { xs: 2.5, sm: 3, md: 4 } }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <AttachMoney sx={{ fontSize: 32, color: 'primary.main', mr: 1.5 }} />
+                <Typography variant={isMobile ? 'h6' : 'h5'} fontWeight="700">
+                  NDIS Care Plan Summary
+                </Typography>
+              </Box>
+              <Grid container spacing={3}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Total Budget
+                  </Typography>
+                  <Typography variant="h6" fontWeight="700" color="primary.main">
+                    ${profileResp.carePlanSummary.totalBudget?.toLocaleString() || '0'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Used Budget
+                  </Typography>
+                  <Typography variant="h6" fontWeight="700" color="warning.main">
+                    ${profileResp.carePlanSummary.usedBudget?.toLocaleString() || '0'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Remaining Budget
+                  </Typography>
+                  <Typography variant="h6" fontWeight="700" color="success.main">
+                    ${(profileResp.carePlanSummary.totalBudget - (profileResp.carePlanSummary.usedBudget || 0)).toLocaleString()}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Budget Usage
+                  </Typography>
+                  <Box sx={{ mt: 1 }}>
+                    <LinearProgress 
+                      variant="determinate" 
+                      value={Math.min(100, Math.round(((profileResp.carePlanSummary.usedBudget || 0) / profileResp.carePlanSummary.totalBudget) * 100))}
+                      sx={{
+                        height: 8,
+                        borderRadius: 1,
+                        bgcolor: 'action.hover',
+                        '& .MuiLinearProgress-bar': {
+                          borderRadius: 1,
+                          bgcolor: (profileResp.carePlanSummary.usedBudget || 0) / profileResp.carePlanSummary.totalBudget > 0.8 
+                            ? 'error.main' 
+                            : (profileResp.carePlanSummary.usedBudget || 0) / profileResp.carePlanSummary.totalBudget > 0.5
+                            ? 'warning.main'
+                            : 'success.main'
+                        }
+                      }}
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                      {Math.round(((profileResp.carePlanSummary.usedBudget || 0) / profileResp.carePlanSummary.totalBudget) * 100)}% used
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+              {(profileResp.carePlanSummary.planStartDate || profileResp.carePlanSummary.planEndDate) && (
+                <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e5e7eb' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Plan Period: {profileResp.carePlanSummary.planStartDate 
+                      ? new Date(profileResp.carePlanSummary.planStartDate).toLocaleDateString() 
+                      : 'Not set'} - {profileResp.carePlanSummary.planEndDate 
+                      ? new Date(profileResp.carePlanSummary.planEndDate).toLocaleDateString() 
+                      : 'Not set'}
+                  </Typography>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Action Items & Notifications Grid */}
         <Grid container spacing={{ xs: 2, sm: 2, md: 3, lg: 3, xl: 4 }}>

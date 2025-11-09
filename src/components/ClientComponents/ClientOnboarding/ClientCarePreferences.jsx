@@ -1,13 +1,49 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * CLIENT CARE PREFERENCES - Step 2 of Onboarding
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 
+ * Minimal, production-ready onboarding flow for NDIS client preferences.
+ * 
+ * REQUIRED FIELDS (For onboarding completion):
+ * - Support Categories: Array of NDIS support categories (core_supports, capacity_building, etc.)
+ * - Service Regions: Array of location strings (suburbs/cities)
+ * 
+ * OPTIONAL FIELDS (Can be added later via dashboard or when posting jobs):
+ * - Worker Preferences: Gender, age group, experience areas, notes
+ * - Cultural Preferences: Dietary requirements, religious considerations
+ * - Service Delivery: In-person/remote, start date, session duration (hidden in current onboarding)
+ * - Availability: Days and time slots (hidden in current onboarding)
+ * 
+ * Features:
+ * - Modular component architecture (BasicPreferences, WorkerPreferences, CulturalPreferences)
+ * - FormProvider context for nested form components
+ * - Smart progress tracking (only required fields count)
+ * - Real-time form validation
+ * - Auto-submission when 100% complete
+ * - Mobile-responsive accordion design
+ * 
+ * Design Philosophy:
+ * - Minimize friction during onboarding
+ * - Allow progressive completion via dashboard
+ * - Clear visual distinction between required and optional
+ * - Support both individual clients and organizations
+ * 
+ * @module components/ClientOnboarding/ClientCarePreferences
+ */
+
 import React, { useMemo, useEffect } from 'react'
 import { 
   Box, Grid, Button, Stack, Typography, 
   LinearProgress, Snackbar, Alert, Paper, Chip, alpha, useTheme,
   CircularProgress
 } from '@mui/material'
+import { Info } from '@mui/icons-material'
 import { useForm, FormProvider } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import { useClientOnboardingQuery, usePreferencesMutation, useClientOnboarding } from '../../../stores/useClientOnboardingStore'
+import { formatApiError, formatSuccessMessage, formatValidationErrors } from '../../../utils/errorFormatter'
 import BasicPreferences from './components/BasicPreferences'
 import WorkerPreferences from './components/WorkerPreferences'
 import CulturalPreferences from './components/CulturalPreferences'
@@ -73,35 +109,6 @@ export default function ClientCarePreferences() {
     return Math.round((done / total) * 100)
   }, [watch])
 
-  // Helper function to format validation errors into user-friendly messages
-  const formatValidationErrors = (errors) => {
-    if (!Array.isArray(errors)) {
-      return 'Please fill in all required fields correctly.'
-    }
-
-    const errorMap = {
-      'supportCategories': 'Support Categories',
-      'serviceRegions': 'Service Regions (Locations)'
-    }
-
-    const messages = errors.map((error) => {
-      const field = error.path?.[error.path.length - 1]
-      const fieldName = errorMap[field] || field || 'Field'
-      
-      if (error.code === 'invalid_type' && error.expected === 'array') {
-        return `${fieldName} is required. Please select at least one option.`
-      }
-      if (error.message) {
-        return `${fieldName}: ${error.message}`
-      }
-      return `${fieldName} is invalid.`
-    })
-
-    if (messages.length === 1) {
-      return messages[0]
-    }
-    return `Please complete the following:\n• ${messages.join('\n• ')}`
-  }
 
   // Form submission handler
   // Cleans up empty values and nested objects before sending to backend
@@ -156,7 +163,14 @@ export default function ClientCarePreferences() {
         // Show appropriate message
         if (isNowComplete && !wasComplete) {
           // First time completion
-          toast.success('Onboarding complete! Your profile has been submitted for review.')
+          const successMessage = 'Onboarding complete! Your profile has been submitted for review.'
+          toast.success(successMessage, {
+            id: 'onboarding-complete', // Use ID to prevent duplicate toasts
+            duration: 4000,
+            style: {
+              maxWidth: '500px',
+            }
+          })
           setSnack({ 
             open: true, 
             message: 'Onboarding complete! Redirecting to dashboard...', 
@@ -168,34 +182,43 @@ export default function ClientCarePreferences() {
             navigate('/client-dashboard', { replace: true })
           }, 2000)
         } else {
-          toast.success(data.message || 'Preferences saved successfully!')
+          const successMessage = formatSuccessMessage(data, 'Preferences saved successfully!')
+          toast.success(successMessage, {
+            id: 'preferences-save-success', // Use ID to prevent duplicate toasts
+            duration: 3000,
+          })
           setSnack({ 
             open: true, 
-            message: 'Preferences saved successfully!', 
+            message: successMessage, 
             severity: 'success',
             autoHideDuration: 3000
           })
         }
       },
       onError: (error) => {
-        // Handle validation errors from backend
-        let errorMessage = 'Save failed. Please try again.'
+        // Ensure we always show a user-friendly message
+        let errorMessage = 'Unable to save your preferences. Please try again.'
         
-        if (error?.response?.data?.errors) {
-          // Zod validation errors
-          errorMessage = formatValidationErrors(error.response.data.errors)
-        } else if (error?.response?.data?.message) {
-          errorMessage = error.response.data.message
-        } else if (error?.message) {
-          errorMessage = error.message
+        try {
+          errorMessage = formatApiError(error)
+        } catch (formatError) {
+          // Fallback if error formatter fails
+          console.error('Error formatting message:', formatError)
+          if (error?.response?.data?.message) {
+            errorMessage = error.response.data.message
+          } else if (error?.message) {
+            errorMessage = error.message
+          }
         }
         
-        toast.error(errorMessage)
-        setSnack({ 
-          open: true, 
-          message: errorMessage, 
-          severity: 'error',
-          autoHideDuration: 6000
+        // Show only one toast notification (remove snackbar for errors to avoid duplicates)
+        toast.error(errorMessage, {
+          duration: 6000,
+          id: 'preferences-save-error', // Use ID to prevent duplicate toasts
+          style: {
+            maxWidth: '500px',
+            whiteSpace: 'pre-line',
+          }
         })
       }
     })
@@ -203,77 +226,102 @@ export default function ClientCarePreferences() {
 
   return (
     <FormProvider {...methods}>
-      <Box 
-        component="form" 
-        onSubmit={handleSubmit(onSubmit)} 
-        noValidate
-        sx={{
-          width: '100%',
+    <Box 
+      component="form" 
+      onSubmit={handleSubmit(onSubmit)} 
+      noValidate
+      sx={{
+        width: '100%',
           maxWidth: { xs: '100%', sm: '100%', md: '100%', lg: '1600px', xl: '1800px' },
-          mx: 'auto',
+        mx: 'auto',
           px: { xs: 2, sm: 3, md: 4, lg: 5, xl: 6 },
           py: { xs: 3, sm: 4, md: 5 },
           minHeight: '100vh',
           bgcolor: alpha(theme.palette.background.default, 0.5),
-        }}
-      >
-        {/* Progress Header */}
-        <Paper 
-          elevation={0}
-          sx={{ 
+      }}
+    >
+      {/* Progress Header */}
+      <Paper 
+        elevation={0}
+        sx={{ 
             mb: { xs: 3, sm: 4, md: 5 },
             p: { xs: 2, sm: 2.5, md: 3 },
             borderRadius: 4,
             background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.12)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
             border: `2px solid ${alpha(theme.palette.primary.main, 0.15)}`,
             boxShadow: `0 4px 24px ${alpha(theme.palette.primary.main, 0.08)}`,
-          }}
-        >
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              <Typography variant="subtitle2" fontWeight={700} color="primary">
-                Step 2: Care Preferences
-              </Typography>
-              {isStepComplete && (
-                <Chip 
-                  label="Saved" 
-                  color="success" 
-                  size="small"
-                  sx={{ fontWeight: 600 }}
-                />
-              )}
-            </Stack>
-            <Chip 
-              label={`${localPct}% Complete`} 
-              size="small" 
-              color={localPct === 100 ? 'success' : 'primary'}
-              sx={{ fontWeight: 600 }}
-            />
+        }}
+      >
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Typography variant="subtitle2" fontWeight={700} color="primary">
+              Step 2: Care Preferences
+            </Typography>
+            {isStepComplete && (
+              <Chip 
+                label="Saved" 
+                color="success" 
+                size="small"
+                sx={{ fontWeight: 600 }}
+              />
+            )}
           </Stack>
-          <LinearProgress 
-            variant="determinate" 
-            value={localPct} 
-            sx={{ 
-              height: 8, 
-              borderRadius: 4,
-              bgcolor: alpha(theme.palette.primary.main, 0.1),
-              '& .MuiLinearProgress-bar': {
-                borderRadius: 4,
-                background: localPct === 100 
-                  ? `linear-gradient(90deg, ${theme.palette.success.main}, ${theme.palette.success.light})`
-                  : `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`
-              }
-            }} 
+          <Chip 
+            label={`${localPct}% Complete`} 
+            size="small" 
+            color={localPct === 100 ? 'success' : 'primary'}
+            sx={{ fontWeight: 600 }}
           />
-        </Paper>
-        
-        {isProfileComplete && isStepComplete && (
-          <Alert 
-            severity="info" 
+        </Stack>
+        <LinearProgress 
+          variant="determinate" 
+          value={localPct} 
+          sx={{ 
+            height: 8, 
+            borderRadius: 4,
+            bgcolor: alpha(theme.palette.primary.main, 0.1),
+            '& .MuiLinearProgress-bar': {
+              borderRadius: 4,
+              background: localPct === 100 
+                ? `linear-gradient(90deg, ${theme.palette.success.main}, ${theme.palette.success.light})`
+                : `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`
+            }
+          }} 
+        />
+      </Paper>
+      
+        {/* Info Banner - Minimal Onboarding */}
+      <Alert 
+        severity="info" 
+        icon={<Info />}
             sx={{ 
+          mb: { xs: 3, sm: 4 }, 
+              borderRadius: 3,
+          fontSize: '0.95rem',
+          border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+          bgcolor: alpha(theme.palette.info.main, 0.05),
+          '& .MuiAlert-icon': {
+            fontSize: '1.5rem'
+          }
+        }}
+      >
+        <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>
+          Quick Setup - Only Essentials Required
+              </Typography>
+        <Typography variant="body2" color="text.secondary">
+          We only need your <strong>Support Categories</strong> and <strong>Service Regions</strong> to complete onboarding. Worker preferences, cultural details, and availability can be added later from your dashboard when posting jobs.
+                </Typography>
+      </Alert>
+
+      {isProfileComplete && isStepComplete && (
+          <Alert 
+            severity="success"
+                      sx={{
               mb: { xs: 3, sm: 4 }, 
               borderRadius: 3,
               fontSize: '0.95rem',
+              border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+              bgcolor: alpha(theme.palette.success.main, 0.05),
               '& .MuiAlert-icon': {
                 fontSize: '1.5rem'
               }
@@ -285,45 +333,45 @@ export default function ClientCarePreferences() {
 
         <Grid container spacing={{ xs: 2.5, sm: 3, md: 4 }}>
           {/* Basic Preferences */}
-          <Grid item xs={12}>
+        <Grid item xs={12}>
             <BasicPreferences isOrganization={isOrganization} />
-          </Grid>
+        </Grid>
 
-          {/* Worker Preferences */}
-          <Grid item xs={12}>
+        {/* Worker Preferences */}
+        <Grid item xs={12}>
             <WorkerPreferences isOrganization={isOrganization} />
-          </Grid>
+        </Grid>
 
-          {/* Cultural Preferences */}
-          <Grid item xs={12}>
+        {/* Cultural Preferences */}
+        <Grid item xs={12}>
             <CulturalPreferences isOrganization={isOrganization} />
-          </Grid>
+                </Grid>
 
-          {/* Navigation Buttons */}
-          <Grid item xs={12}>
-            <Paper
-              elevation={0}
-              sx={{
+        {/* Navigation Buttons */}
+        <Grid item xs={12}>
+          <Paper
+            elevation={0}
+            sx={{
                 p: { xs: 3, sm: 4, md: 5 },
                 borderRadius: 4,
                 mt: { xs: 3, sm: 4, md: 5 },
                 bgcolor: alpha(theme.palette.grey[500], 0.06),
                 border: `2px solid ${alpha(theme.palette.divider, 0.12)}`,
                 boxShadow: `0 2px 12px ${alpha(theme.palette.common.black, 0.04)}`
-              }}
+            }}
+          >
+            <Stack 
+              direction={{ xs: 'column', sm: 'row' }} 
+              justifyContent="space-between" 
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+              spacing={2}
             >
-              <Stack 
-                direction={{ xs: 'column', sm: 'row' }} 
-                justifyContent="space-between" 
-                alignItems={{ xs: 'stretch', sm: 'center' }}
-                spacing={2}
-              >
-                <Button 
-                  variant="outlined" 
-                  onClick={() => store.prevStep()} 
+              <Button 
+                variant="outlined" 
+                onClick={() => store.prevStep()} 
                   size="large"
-                  sx={{ 
-                    textTransform: 'none',
+                sx={{ 
+                  textTransform: 'none',
                     borderRadius: 3,
                     px: { xs: 4, sm: 5 },
                     py: { xs: 1.5, sm: 1.75 },
@@ -337,75 +385,75 @@ export default function ClientCarePreferences() {
                       boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.2)}`
                     },
                     transition: 'all 0.2s ease'
-                  }}
-                  disabled={isSaving}
-                >
-                  Back
-                </Button>
-                <Stack 
-                  direction={{ xs: 'column', sm: 'row' }} 
+                }}
+                disabled={isSaving}
+              >
+                Back
+              </Button>
+              <Stack 
+                direction={{ xs: 'column', sm: 'row' }} 
                   spacing={2}
-                  sx={{ width: { xs: '100%', sm: 'auto' } }}
-                >
-                  <Button 
-                    type="submit" 
-                    variant="contained" 
+                sx={{ width: { xs: '100%', sm: 'auto' } }}
+              >
+                <Button 
+                  type="submit" 
+                  variant="contained" 
                     size="large"
-                    sx={{ 
-                      textTransform: 'none',
+                  sx={{ 
+                    textTransform: 'none',
                       borderRadius: 3,
                       px: { xs: 4, sm: 5 },
                       py: { xs: 1.5, sm: 1.75 },
                       minWidth: { xs: '100%', sm: 200 },
-                      fontWeight: 700,
+                    fontWeight: 700,
                       fontSize: { xs: '0.95rem', sm: '1rem' },
                       boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.35)}`,
-                      '&:hover': {
+                    '&:hover': {
                         boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.45)}`,
                         transform: 'translateY(-3px)'
-                      },
-                      transition: 'all 0.2s ease'
-                    }} 
-                    disabled={isSaving}
-                    startIcon={
-                      isSaving ? (
+                    },
+                    transition: 'all 0.2s ease'
+                  }} 
+                  disabled={isSaving}
+                  startIcon={
+                    isSaving ? (
                         <CircularProgress size={20} sx={{ color: 'inherit' }} />
-                      ) : null
-                    }
-                  >
-                    {isSaving 
-                      ? 'Saving...' 
-                      : localPct === 100 
-                        ? 'Save & Complete' 
-                        : 'Save & Continue'}
-                  </Button>
-                </Stack>
-              </Stack>
-            </Paper>
-          </Grid>
+                    ) : null
+                  }
+                >
+                  {isSaving 
+                    ? 'Saving...' 
+                    : localPct === 100 
+                      ? 'Save & Complete' 
+                      : 'Save & Continue'}
+                </Button>
+            </Stack>
+          </Stack>
+          </Paper>
         </Grid>
+      </Grid>
 
-        <Snackbar 
-          anchorOrigin={{ vertical: 'top', horizontal: 'right' }} 
-          open={snack.open} 
-          autoHideDuration={snack.autoHideDuration || 3000}
-          onClose={() => setSnack(s => ({ ...s, open: false }))}
+      <Snackbar 
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }} 
+        open={snack.open} 
+        autoHideDuration={snack.autoHideDuration || 3000}
+        onClose={() => setSnack(s => ({ ...s, open: false }))}
+      >
+        <Alert 
+          onClose={() => setSnack(s => ({ ...s, open: false }))} 
+          severity={snack.severity} 
+          sx={{ 
+            width: '100%',
+            whiteSpace: 'pre-line', // Allow line breaks in error messages
+            '& .MuiAlert-message': {
+              maxWidth: 400
+            }
+          }}
         >
-          <Alert 
-            onClose={() => setSnack(s => ({ ...s, open: false }))} 
-            severity={snack.severity} 
-            sx={{ 
-              width: '100%',
-              whiteSpace: 'pre-line', // Allow line breaks in error messages
-              '& .MuiAlert-message': {
-                maxWidth: 400
-              }
-            }}
-          >
-            {snack.message}
-          </Alert>
-        </Snackbar>
-      </Box>
+          {snack.message}
+        </Alert>
+      </Snackbar>
+    </Box>
     </FormProvider>
   )
 }

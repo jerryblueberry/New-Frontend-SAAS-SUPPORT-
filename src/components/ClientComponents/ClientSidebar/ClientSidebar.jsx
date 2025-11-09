@@ -19,6 +19,8 @@ import {
 } from '@mui/material';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
+import { useQuery } from '@tanstack/react-query';
+import { getClientProfile } from '../../../api/clientProfile';
 import { CLIENT_SIDEBAR_WIDTH, DEFAULT_TOP_OFFSET as DEFAULT_TOP_OFFSET_CONST } from '../../../constants/layout';
 import {
   Dashboard,
@@ -34,7 +36,26 @@ import {
   AccountCircle,
   Security,
   Backup,
-  Notifications
+  Notifications,
+  Person,
+  Favorite,
+  Payment,
+  Business,
+  Analytics,
+  History,
+  Language,
+  Phone,
+  Receipt,
+  People,
+  Assessment,
+  Flag,
+  Schedule,
+  LocalOffer,
+  FolderSpecial,
+  VerifiedUser,
+  Edit,
+  ViewList,
+  TrendingUp
 } from '@mui/icons-material';
 
 const DEFAULT_TOP_OFFSET = DEFAULT_TOP_OFFSET_CONST; // px
@@ -49,6 +70,20 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openMenus, setOpenMenus] = useState({});
   const [selectedItem, setSelectedItem] = useState('dashboard');
+
+  // Fetch profile to get account type
+  const { data: profileData } = useQuery({
+    queryKey: ['clientProfile'],
+    queryFn: async () => {
+      try {
+        const res = await getClientProfile();
+        return res.data?.profile || null;
+      } catch (error) {
+        return null;
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -71,6 +106,10 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
     }
   };
 
+  // Get account type from profile (if available)
+  const accountType = profileData?.accountType || 'individual';
+  const isOrganization = accountType === 'organization';
+
   const menuItems = [
     {
       id: 'dashboard',
@@ -79,12 +118,24 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
       path: '/client-dashboard'
     },
     {
+      id: 'profile',
+      label: 'Profile',
+      icon: <Person />,
+      children: [
+        { id: 'basic-info', label: 'Basic Information', icon: <AccountCircle />, path: '/client/profile' },
+        { id: 'preferences', label: 'Care Preferences', icon: <Favorite />, path: '/client/profile/preferences' },
+        { id: 'care-plan', label: 'Care Plan Summary', icon: <Assessment />, path: '/client/profile/care-plan' },
+        { id: 'communication', label: 'Communication', icon: <Phone />, path: '/client/profile/communication' }
+      ]
+    },
+    {
       id: 'workforce',
       label: 'Workforce',
       icon: <Group />,
       children: [
-        { id: 'requests', label: 'Requests', icon: <AssignmentTurnedIn />, path: '/client/requests' },
-        { id: 'messages', label: 'Messages', icon: <Message />, path: '/client/messages' }
+        { id: 'requests', label: 'Job Requests', icon: <AssignmentTurnedIn />, path: '/client/workforce/requests' },
+        { id: 'messages', label: 'Messages', icon: <Message />, path: '/client/workforce/messages' },
+        { id: 'sessions', label: 'Sessions', icon: <Schedule />, path: '/client/workforce/sessions' }
       ]
     },
     {
@@ -92,7 +143,39 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
       label: 'Documents',
       icon: <Description />,
       children: [
-        { id: 'all-documents', label: 'All Documents', icon: <Description />, path: '/client/documents' }
+        { id: 'all-documents', label: 'All Documents', icon: <ViewList />, path: '/client/documents' },
+        { id: 'pending-verification', label: 'Pending Verification', icon: <Flag />, path: '/client/documents/pending' },
+        { id: 'expiring-soon', label: 'Expiring Soon', icon: <Schedule />, path: '/client/documents/expiring' }
+      ]
+    },
+    {
+      id: 'billing',
+      label: 'Billing & Payments',
+      icon: <Payment />,
+      children: [
+        { id: 'preferences', label: 'Billing Preferences', icon: <Receipt />, path: '/client/billing/preferences' },
+        { id: 'invoices', label: 'Invoices', icon: <Description />, path: '/client/billing/invoices' },
+        { id: 'payment-methods', label: 'Payment Methods', icon: <Payment />, path: '/client/billing/payment-methods' }
+      ]
+    },
+    ...(isOrganization ? [{
+      id: 'team',
+      label: 'Team Management',
+      icon: <People />,
+      children: [
+        { id: 'members', label: 'Team Members', icon: <Group />, path: '/client/team/members' },
+        { id: 'invitations', label: 'Invitations', icon: <AssignmentTurnedIn />, path: '/client/team/invitations' },
+        { id: 'permissions', label: 'Roles & Permissions', icon: <Security />, path: '/client/team/permissions' }
+      ]
+    }] : []),
+    {
+      id: 'analytics',
+      label: 'Analytics & Insights',
+      icon: <Analytics />,
+      children: [
+        { id: 'engagement', label: 'Engagement Metrics', icon: <TrendingUp />, path: '/client/analytics/engagement' },
+        { id: 'activity', label: 'Activity History', icon: <History />, path: '/client/analytics/activity' },
+        { id: 'audit-log', label: 'Audit Log', icon: <History />, path: '/client/analytics/audit-log' }
       ]
     },
     {
@@ -100,10 +183,11 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
       label: 'Settings',
       icon: <Settings />,
       children: [
-        { id: 'general', label: 'General', icon: <Settings />, path: '/client/settings/general' },
-        { id: 'security', label: 'Security', icon: <Security />, path: '/client/settings/security' },
+        { id: 'general', label: 'General Settings', icon: <Settings />, path: '/client/settings/general' },
+        { id: 'security', label: 'Security & Privacy', icon: <Security />, path: '/client/settings/security' },
         { id: 'notifications', label: 'Notifications', icon: <Notifications />, path: '/client/settings/notifications' },
-        { id: 'backup', label: 'Backup', icon: <Backup />, path: '/client/settings/backup' }
+        { id: 'consents', label: 'Consents & Privacy', icon: <VerifiedUser />, path: '/client/settings/consents' },
+        { id: 'locale', label: 'Language & Region', icon: <Language />, path: '/client/settings/locale' }
       ]
     }
   ];

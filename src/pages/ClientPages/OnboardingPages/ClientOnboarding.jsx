@@ -13,6 +13,7 @@ import { Box, Card, CardContent, Typography, LinearProgress, Stepper, Step, Step
 import { CheckCircle, RadioButtonUnchecked, Lock, Info, Error } from '@mui/icons-material'
 import { Toaster, toast } from 'react-hot-toast'
 import WorkerNavbar from '../../../components/Navbar/WorkerNavbar'
+import { formatApiError } from '../../../utils/errorFormatter'
 
 // Store and API
 import useClientOnboardingStore, {
@@ -79,10 +80,23 @@ const ClientOnboarding = () => {
     }
   }, [isQueryLoading, isNewUser, resetStore])
 
-  // Auth redirect effect
+  // Auth redirect effect and error notifications
   useEffect(() => {
-    if (queryError?.response?.status === 401) {
-      navigate('/login')
+    if (queryError) {
+      if (queryError?.response?.status === 401) {
+        navigate('/login')
+        return
+      }
+      
+      // Show user-friendly error message
+      const errorMessage = formatApiError(queryError)
+      toast.error(errorMessage, {
+        duration: 6000,
+        style: {
+          maxWidth: '500px',
+          whiteSpace: 'pre-line',
+        }
+      })
     }
   }, [queryError, navigate])
 
@@ -182,12 +196,13 @@ const ClientOnboarding = () => {
 
   // Show error state
   if (queryError && !isQueryLoading) {
+    const errorMessage = formatApiError(queryError)
     return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Alert severity="error">
-          <Typography variant="h6">Error loading profile</Typography>
-          <Typography variant="body2">
-            {queryError.response?.data?.message || 'Failed to load your profile'}
+        <Alert severity="error" sx={{ maxWidth: 600, mx: 'auto' }}>
+          <Typography variant="h6" sx={{ mb: 1 }}>Unable to Load Profile</Typography>
+          <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+            {errorMessage}
           </Typography>
         </Alert>
       </Box>

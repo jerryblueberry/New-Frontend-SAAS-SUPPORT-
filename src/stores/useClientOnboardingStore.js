@@ -1,10 +1,22 @@
 /**
- * Client Onboarding Store
- * Refactored to follow Worker Onboarding Pattern
- * - Separate mutations for each step
- * - Better progress tracking with completedSteps array
- * - 1-based step indexing (Step 1, Step 2)
- * - TanStack Query for data fetching
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * CLIENT ONBOARDING STORE
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 
+ * Enterprise-grade client onboarding state management with:
+ * - Minimal onboarding flow (only essential fields required)
+ * - Audit log integration for compliance tracking
+ * - TanStack Query for efficient data fetching and caching
+ * - Zustand for local state management with persistence
+ * - Support for enterprise fields (documents, billing, engagement metrics)
+ * 
+ * Design Philosophy:
+ * - Step 1 (Basic Information): Account type, address, org details (if org)
+ * - Step 2 (Preferences): Support categories, service regions (required)
+ * - Optional fields: Worker preferences, cultural preferences (can be added later)
+ * - Audit trail: All profile changes tracked automatically
+ * 
+ * @module stores/useClientOnboardingStore
  */
 
 import { create } from 'zustand'
@@ -16,10 +28,20 @@ import * as clientOnboardingApi from '../api/clientProfile'
 const STEP_ORDER = ['basicInformation', 'preferences']
 const TOTAL_STEPS = 2
 
-// Initial state
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONSTANTS & INITIAL STATE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Initial state for client onboarding store
+ * Includes support for enterprise fields and audit logging
+ */
 const initialState = {
+	// Step management
 	currentStep: 1, // 1-based indexing (1-2)
 	completedSteps: [], // Array of completed step numbers [1, 2]
+	
+	// Profile data
 	profile: null,
 	profileCompleteness: {
 		percentage: 0,
@@ -28,6 +50,26 @@ const initialState = {
 			preferences: false,
 		},
 	},
+	
+	// Enterprise fields (optional, can be added later via dashboard)
+	enterpriseData: {
+		contactPreferences: null,
+		documents: [],
+		billingPreferences: null,
+		engagementMetrics: null,
+		consents: null,
+		organizationMembers: [],
+	},
+	
+	// Audit log state
+	auditLogs: {
+		history: [],
+		summary: null,
+		isLoading: false,
+		error: null,
+	},
+	
+	// Loading states
 	isLoading: false,
 	isSaving: false,
 	error: null,
@@ -105,11 +147,22 @@ const useClientOnboardingStore = create(
 						completedSteps.push(2)
 					}
 
+					// Extract enterprise fields from profile (optional fields)
+					const enterpriseData = {
+						contactPreferences: profile?.contactPreferences || null,
+						documents: profile?.documents || [],
+						billingPreferences: profile?.billingPreferences || null,
+						engagementMetrics: profile?.engagementMetrics || null,
+						consents: profile?.consents || null,
+						organizationMembers: profile?.organizationMembers || [],
+					}
+
 					set({
 						currentStep: currentStep || 1,
 						completedSteps,
 						profile: profile || null,
 						profileCompleteness: profileCompletion || initialState.profileCompleteness,
+						enterpriseData,
 					})
 				},
 
@@ -190,6 +243,142 @@ const useClientOnboardingStore = create(
 						resetStore()
 					}
 				},
+
+				// ═══════════════════════════════════════════════════════════════════
+				// AUDIT LOG ACTIONS
+				// ═══════════════════════════════════════════════════════════════════
+
+				/**
+				 * Set audit log history
+				 * @param {Array} history - Array of audit log entries
+				 */
+				setAuditHistory: (history) => {
+					set((state) => ({
+						auditLogs: {
+							...state.auditLogs,
+							history: history || [],
+							isLoading: false,
+							error: null,
+						},
+					}))
+				},
+
+				/**
+				 * Set audit log summary
+				 * @param {Object} summary - Audit summary statistics
+				 */
+				setAuditSummary: (summary) => {
+					set((state) => ({
+						auditLogs: {
+							...state.auditLogs,
+							summary: summary || null,
+							isLoading: false,
+							error: null,
+						},
+					}))
+				},
+
+				/**
+				 * Set audit log loading state
+				 * @param {boolean} isLoading - Loading state
+				 */
+				setAuditLoading: (isLoading) => {
+					set((state) => ({
+						auditLogs: {
+							...state.auditLogs,
+							isLoading,
+						},
+					}))
+				},
+
+				/**
+				 * Set audit log error
+				 * @param {Error|null} error - Error object or null
+				 */
+				setAuditError: (error) => {
+					set((state) => ({
+						auditLogs: {
+							...state.auditLogs,
+							error,
+							isLoading: false,
+						},
+					}))
+				},
+
+				// ═══════════════════════════════════════════════════════════════════
+				// VALIDATION HELPERS
+				// ═══════════════════════════════════════════════════════════════════
+
+				/**
+				 * Check if basic information step is valid (minimal onboarding)
+				 * Required: accountType, address (all fields), orgName/ABN if organization
+				 */
+				isBasicInformationValid: (profile) => {
+					if (!profile) return false
+					
+					const hasAccountType = Boolean(profile.accountType)
+					const hasAddress = Boolean(
+						profile.address?.street &&
+						profile.address?.suburb &&
+						profile.address?.state &&
+						profile.address?.postcode
+					)
+					
+					// If organization, require organizationName and ABN
+					if (profile.accountType === 'organization') {
+						return hasAccountType && hasAddress &&
+							Boolean(profile.organizationName?.trim()) &&
+							Boolean(profile.abn?.trim())
+					}
+					
+					return hasAccountType && hasAddress
+				},
+
+				/**
+				 * Check if preferences step is valid (minimal onboarding)
+				 * Required: supportCategories (at least 1), serviceRegions (at least 1)
+				 */
+				isPreferencesValid: (profile) => {
+					if (!profile?.preferences) return false
+					
+					const hasSupportCategories = Array.isArray(profile.preferences.supportCategories) &&
+						profile.preferences.supportCategories.length > 0
+					
+					const hasServiceRegions = Array.isArray(profile.preferences.serviceRegions) &&
+						profile.preferences.serviceRegions.length > 0
+					
+					return hasSupportCategories && hasServiceRegions
+				},
+
+				/**
+				 * Check if profile can post jobs
+				 * Requires: Profile verified/active AND 100% complete
+				 */
+				canPostJobs: () => {
+					const profile = get().profile
+					if (!profile) return false
+					
+					const isVerified = ['verified', 'active'].includes(profile.status)
+					const isComplete = get().profileCompleteness.percentage === 100
+					
+					return isVerified && isComplete && !profile.isDeleted
+				},
+
+				/**
+				 * Get enterprise field status
+				 * Returns object with boolean flags for each enterprise field
+				 */
+				getEnterpriseFieldStatus: () => {
+					const enterpriseData = get().enterpriseData
+					return {
+						hasContactPreferences: Boolean(enterpriseData.contactPreferences),
+						hasDocuments: Array.isArray(enterpriseData.documents) && enterpriseData.documents.length > 0,
+						hasBillingPreferences: Boolean(enterpriseData.billingPreferences),
+						hasEngagementMetrics: Boolean(enterpriseData.engagementMetrics),
+						hasConsents: Boolean(enterpriseData.consents),
+						hasOrganizationMembers: Array.isArray(enterpriseData.organizationMembers) && enterpriseData.organizationMembers.length > 0,
+					}
+				},
 			}),
 			{
 				name: 'client-onboarding-storage',
@@ -251,20 +440,44 @@ export const useBasicInformationMutation = () => {
 			try {
 				const response = await clientOnboardingApi.saveBasicInformationStep(basicInfoData)
 				if (!response.success) {
-					throw new Error(response.message || 'Failed to save basic information')
+					// Create error that preserves structure
+					const err = new Error(response.message || 'Failed to save basic information')
+					err.response = response // Preserve response structure
+					throw err
 				}
 				return response
 			} catch (error) {
-				throw new Error(error.message || 'Failed to save basic information')
+				// Preserve original error structure (axios error with response, status, etc.)
+				// This allows error formatter to access error.response.data.message and error.response.status
+				if (error.response) {
+					// Axios error - preserve it
+					throw error
+				}
+				// Non-axios error - create structured error
+				const err = new Error(error.message || 'Failed to save basic information')
+				err.originalError = error
+				throw err
 			}
 		},
 		onSuccess: (data) => {
 			if (data.success) {
 				const { updateProfileCompleteness, nextStep, setProfile } = useClientOnboardingStore.getState()
 				
-				// Update profile
+				// Update profile and extract enterprise data
 				if (data.data?.profile) {
 					setProfile(data.data.profile)
+					
+					// Extract enterprise fields (optional fields for dashboard)
+					const enterpriseData = {
+						contactPreferences: data.data.profile.contactPreferences || null,
+						documents: data.data.profile.documents || [],
+						billingPreferences: data.data.profile.billingPreferences || null,
+						engagementMetrics: data.data.profile.engagementMetrics || null,
+						consents: data.data.profile.consents || null,
+						organizationMembers: data.data.profile.organizationMembers || [],
+					}
+					
+					useClientOnboardingStore.setState({ enterpriseData })
 				}
 				
 				// Update completeness
@@ -294,20 +507,44 @@ export const usePreferencesMutation = () => {
 			try {
 				const response = await clientOnboardingApi.savePreferencesStep(preferencesData)
 				if (!response.success) {
-					throw new Error(response.message || 'Failed to save preferences')
+					// Create error that preserves structure
+					const err = new Error(response.message || 'Failed to save preferences')
+					err.response = response // Preserve response structure
+					throw err
 				}
 				return response
 			} catch (error) {
-				throw new Error(error.message || 'Failed to save preferences')
+				// Preserve original error structure (axios error with response, status, etc.)
+				// This allows error formatter to access error.response.data.message and error.response.status
+				if (error.response) {
+					// Axios error - preserve it
+					throw error
+				}
+				// Non-axios error - create structured error
+				const err = new Error(error.message || 'Failed to save preferences')
+				err.originalError = error
+				throw err
 			}
 		},
 		onSuccess: (data) => {
 			if (data.success) {
 				const { updateProfileCompleteness, setProfile } = useClientOnboardingStore.getState()
 				
-				// Update profile
+				// Update profile and extract enterprise data
 				if (data.data?.profile) {
 					setProfile(data.data.profile)
+					
+					// Extract enterprise fields (optional fields for dashboard)
+					const enterpriseData = {
+						contactPreferences: data.data.profile.contactPreferences || null,
+						documents: data.data.profile.documents || [],
+						billingPreferences: data.data.profile.billingPreferences || null,
+						engagementMetrics: data.data.profile.engagementMetrics || null,
+						consents: data.data.profile.consents || null,
+						organizationMembers: data.data.profile.organizationMembers || [],
+					}
+					
+					useClientOnboardingStore.setState({ enterpriseData })
 				}
 				
 				// Update completeness
@@ -346,6 +583,79 @@ export const useSubmitProfileMutation = () => {
 	})
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUDIT LOG QUERY HOOKS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Fetch audit history for a client profile
+ * @param {string} profileId - Client profile ID
+ * @param {Object} options - Query options (limit, skip, sortBy)
+ * @returns {Object} Query result with audit history
+ */
+export const useProfileAuditHistory = (profileId, options = {}) => {
+	const { setAuditHistory, setAuditLoading, setAuditError } = useClientOnboardingStore.getState()
+
+	return useQuery({
+		queryKey: ['clientProfileAuditHistory', profileId, options],
+		queryFn: async () => {
+			if (!profileId) return null
+			
+			setAuditLoading(true)
+			try {
+				const response = await clientOnboardingApi.fetchProfileAuditHistory(profileId, options)
+				if (response.success && response.data) {
+					setAuditHistory(response.data)
+					return response.data
+				}
+				return []
+			} catch (error) {
+				setAuditError(error)
+				throw error
+			} finally {
+				setAuditLoading(false)
+			}
+		},
+		enabled: Boolean(profileId),
+		staleTime: 2 * 60 * 1000, // 2 minutes
+		retry: 1,
+	})
+}
+
+/**
+ * Fetch audit summary for a client profile
+ * @param {string} profileId - Client profile ID
+ * @returns {Object} Query result with audit summary
+ */
+export const useProfileAuditSummary = (profileId) => {
+	const { setAuditSummary, setAuditLoading, setAuditError } = useClientOnboardingStore.getState()
+
+	return useQuery({
+		queryKey: ['clientProfileAuditSummary', profileId],
+		queryFn: async () => {
+			if (!profileId) return null
+			
+			setAuditLoading(true)
+			try {
+				const response = await clientOnboardingApi.fetchProfileAuditSummary(profileId)
+				if (response.success && response.data) {
+					setAuditSummary(response.data)
+					return response.data
+				}
+				return null
+			} catch (error) {
+				setAuditError(error)
+				throw error
+			} finally {
+				setAuditLoading(false)
+			}
+		},
+		enabled: Boolean(profileId),
+		staleTime: 5 * 60 * 1000, // 5 minutes
+		retry: 1,
+	})
+}
+
 // ────────────────────────────────────────────────────────────
 // Selector Hooks (For Component Usage)
 // ────────────────────────────────────────────────────────────
@@ -357,5 +667,29 @@ export const useClientCompletedSteps = () => useClientOnboardingStore((s) => s.c
 export const useClientProfileStatus = () => useClientOnboardingStore((s) => s.getProfileStatus())
 export const useCanEditProfile = () => useClientOnboardingStore((s) => s.canEditProfile())
 export const useIsProfileDeleted = () => useClientOnboardingStore((s) => s.isProfileDeleted())
+
+// Enterprise field hooks
+export const useEnterpriseData = () => useClientOnboardingStore((s) => s.enterpriseData)
+export const useEnterpriseFieldStatus = () => useClientOnboardingStore((s) => s.getEnterpriseFieldStatus())
+
+// Validation hooks
+export const useCanPostJobs = () => useClientOnboardingStore((s) => s.canPostJobs())
+export const useIsBasicInformationValid = () => {
+	const profile = useClientOnboardingStore((s) => s.profile)
+	const isValid = useClientOnboardingStore((s) => s.isBasicInformationValid)
+	return isValid(profile)
+}
+export const useIsPreferencesValid = () => {
+	const profile = useClientOnboardingStore((s) => s.profile)
+	const isValid = useClientOnboardingStore((s) => s.isPreferencesValid)
+	return isValid(profile)
+}
+
+// Audit log hooks
+export const useAuditLogs = () => useClientOnboardingStore((s) => s.auditLogs)
+export const useAuditHistory = () => useClientOnboardingStore((s) => s.auditLogs.history)
+export const useAuditSummary = () => useClientOnboardingStore((s) => s.auditLogs.summary)
+export const useAuditLoading = () => useClientOnboardingStore((s) => s.auditLogs.isLoading)
+export const useAuditError = () => useClientOnboardingStore((s) => s.auditLogs.error)
 
 export default useClientOnboardingStore

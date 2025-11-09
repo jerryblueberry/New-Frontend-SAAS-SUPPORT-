@@ -26,33 +26,41 @@ const BasicPreferences = ({ isOrganization }) => {
         }
       }}
     >
-      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
-        <Box
-          sx={{
-            width: { xs: 56, sm: 64 },
-            height: { xs: 56, sm: 64 },
-            borderRadius: 3,
-            bgcolor: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.2)}, ${alpha(theme.palette.primary.main, 0.1)})`,
-            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.2)}, ${alpha(theme.palette.primary.main, 0.1)})`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-            boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.2)}`
-          }}
-        >
-          <CategoryIcon sx={{ fontSize: { xs: 28, sm: 32 }, color: 'primary.main' }} />
-        </Box>
-        <Box sx={{ flex: 1 }}>
-          <Typography variant="h5" fontWeight={800} color="text.primary" sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' }, mb: 0.5 }}>
-            Basic Preferences
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.875rem', sm: '0.9rem' } }}>
-            {isOrganization 
-              ? 'Define your organization\'s service needs. These preferences will be used when posting jobs and matching workers.'
-              : 'Tell us about your support needs. These preferences help us match you with the right workers and can be used when posting jobs.'}
-          </Typography>
-        </Box>
+      <Stack direction="row" alignItems="center" spacing={2} justifyContent="space-between" flexWrap="wrap" sx={{ mb: 3 }}>
+        <Stack direction="row" alignItems="center" spacing={2}>
+          <Box
+            sx={{
+              width: { xs: 56, sm: 64 },
+              height: { xs: 56, sm: 64 },
+              borderRadius: 3,
+              bgcolor: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.2)}, ${alpha(theme.palette.primary.main, 0.1)})`,
+              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.2)}, ${alpha(theme.palette.primary.main, 0.1)})`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+              boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.2)}`
+            }}
+          >
+            <CategoryIcon sx={{ fontSize: { xs: 28, sm: 32 }, color: 'primary.main' }} />
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="h5" fontWeight={800} color="text.primary" sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' }, mb: 0.5 }}>
+              Basic Preferences
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.875rem', sm: '0.9rem' } }}>
+              {isOrganization 
+                ? 'Define your organization\'s service needs. These preferences will be used when posting jobs and matching workers.'
+                : 'Tell us about your support needs. These preferences help us match you with the right workers and can be used when posting jobs.'}
+            </Typography>
+          </Box>
+        </Stack>
+        <Chip
+          size="small"
+          label="Required"
+          color="error"
+          sx={{ fontWeight: 600, fontSize: '0.75rem' }}
+        />
       </Stack>
       
       <Grid container spacing={{ xs: 3, sm: 3.5, md: 4 }}>

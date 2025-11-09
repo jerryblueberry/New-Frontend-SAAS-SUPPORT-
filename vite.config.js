@@ -1,20 +1,13 @@
 // vite.config.js
 import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [
-    // Use built-in React support without external plugin
-    {
-      name: 'react',
-      transform(code, id) {
-        if (id.endsWith('.jsx') || id.endsWith('.tsx')) {
-          return {
-            code: code,
-            map: null
-          }
-        }
-      }
-    }
+    react({
+      jsxRuntime: 'automatic',
+      jsxImportSource: 'react'
+    })
   ],
   server: {
     port: 5173,
@@ -25,8 +18,7 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    force: true,
-    exclude: [], // Don't exclude anything
+    force: false,
     include: [
       '@mui/material',
       '@mui/icons-material',
@@ -35,14 +27,26 @@ export default defineConfig({
       'react',
       'react-dom',
       'react-router-dom',
-      '@tanstack/react-query'
-    ]
+      '@tanstack/react-query',
+      'react-hook-form',
+      '@hookform/resolvers',
+      'zod',
+      'date-fns',
+      'axios'
+    ],
+    esbuildOptions: {
+      target: 'es2020'
+    }
   },
   build: {
-    target: 'esnext', // Ensures modern browser compatibility
+    target: 'es2020',
     rollupOptions: {
-      external: ['fs', 'path', 'os', 'crypto'], // Prevent bundling Node-only modules
+      external: ['fs', 'path', 'os', 'crypto'],
     },
+    commonjsOptions: {
+      include: [/node_modules/],
+      transformMixedEsModules: true
+    }
   },
   resolve: {
     alias: {
@@ -52,9 +56,5 @@ export default defineConfig({
       os: false,
       crypto: false,
     },
-  },
-  esbuild: {
-    jsx: 'automatic',
-    jsxImportSource: 'react'
   }
 })

@@ -46,38 +46,47 @@ const CulturalPreferences = ({ isOrganization }) => {
           }
         }}
       >
-        <Stack direction="row" alignItems="center" spacing={2} sx={{ width: '100%' }}>
-          <Box
-            sx={{
-              width: { xs: 56, sm: 64 },
-              height: { xs: 56, sm: 64 },
-              borderRadius: 3,
-              bgcolor: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.2)}, ${alpha(theme.palette.warning.main, 0.1)})`,
-              background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.2)}, ${alpha(theme.palette.warning.main, 0.1)})`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: `2px solid ${alpha(theme.palette.warning.main, 0.3)}`,
-              boxShadow: `0 4px 16px ${alpha(theme.palette.warning.main, 0.2)}`
-            }}
-          >
-            <Diversity3Icon sx={{ fontSize: { xs: 28, sm: 32 }, color: 'warning.main' }} />
-          </Box>
-          <Box sx={{ flex: 1 }}>
-            <Typography 
-              variant="h5" 
-              fontWeight={800} 
-              color="text.primary"
-              sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' }, mb: 0.5 }}
+        <Stack direction="row" alignItems="center" spacing={2} justifyContent="space-between" flexWrap="wrap" sx={{ width: '100%' }}>
+          <Stack direction="row" alignItems="center" spacing={2}>
+            <Box
+              sx={{
+                width: { xs: 56, sm: 64 },
+                height: { xs: 56, sm: 64 },
+                borderRadius: 3,
+                bgcolor: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.2)}, ${alpha(theme.palette.warning.main, 0.1)})`,
+                background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.2)}, ${alpha(theme.palette.warning.main, 0.1)})`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: `2px solid ${alpha(theme.palette.warning.main, 0.3)}`,
+                boxShadow: `0 4px 16px ${alpha(theme.palette.warning.main, 0.2)}`
+              }}
             >
-              Cultural Preferences
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.875rem', sm: '0.9rem' } }}>
-              {isOrganization 
-                ? 'Specify cultural requirements for your clients. This helps match workers who understand and respect these needs.'
-                : 'Share important cultural considerations to help us match you with workers who understand and respect your needs.'}
-            </Typography>
-          </Box>
+              <Diversity3Icon sx={{ fontSize: { xs: 28, sm: 32 }, color: 'warning.main' }} />
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography 
+                variant="h5" 
+                fontWeight={800} 
+                color="text.primary"
+                sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem' }, mb: 0.5 }}
+              >
+                Cultural Preferences
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.875rem', sm: '0.9rem' } }}>
+                {isOrganization 
+                  ? 'Specify cultural requirements for your clients. This helps match workers who understand and respect these needs.'
+                  : 'Share important cultural considerations to help us match you with workers who understand and respect your needs.'}
+              </Typography>
+            </Box>
+          </Stack>
+          <Chip
+            size="small"
+            label="Optional"
+            color="info"
+            variant="outlined"
+            sx={{ fontWeight: 600, fontSize: '0.75rem' }}
+          />
         </Stack>
       </AccordionSummary>
       <AccordionDetails sx={{ px: { xs: 3, sm: 4, md: 5 }, py: { xs: 3, sm: 4, md: 5 } }}>
