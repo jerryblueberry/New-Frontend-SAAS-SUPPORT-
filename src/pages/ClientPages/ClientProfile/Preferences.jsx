@@ -65,7 +65,7 @@ import { format } from 'date-fns'
 import WorkerNavbar from '../../../components/Navbar/WorkerNavbar'
 import ClientSidebar from '../../../components/ClientComponents/ClientSidebar/ClientSidebar'
 import { CLIENT_SIDEBAR_WIDTH } from '../../../constants/layout'
-import { usePreferences } from '../../../stores/useClientProfileStore'
+import { usePreferences, useClientProfile } from '../../../stores/useClientProfileStore'
 import { useAuth } from '../../../context/AuthContext'
 import { toast } from 'react-hot-toast'
 import { formatApiError } from '../../../utils/errorFormatter'
@@ -145,8 +145,13 @@ const Preferences = () => {
   const [interestInput, setInterestInput] = useState('')
   const [valueInput, setValueInput] = useState('')
 
-  // TanStack Query hook
+  // TanStack Query hooks
   const { data: preferences, isLoading, isError, error, update, isUpdating } = usePreferences()
+  const { data: profile } = useClientProfile() // Get profile to check account type
+
+  // PRODUCTION-READY: Check account type - Organizations cannot access preferences
+  const accountType = profile?.accountType || 'individual'
+  const isOrganization = accountType === 'organization'
 
   // Measure navbar height
   useEffect(() => {
@@ -386,6 +391,43 @@ const Preferences = () => {
   }
 
   // Error state
+  // PRODUCTION-READY: Show error message for organizations
+  if (isOrganization) {
+    return (
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+        <WorkerNavbar />
+        <Box sx={{ display: 'flex', width: '100%' }}>
+          <ClientSidebar topOffset={topOffset} navigate={navigate} />
+          <Box
+            sx={{
+              flex: 1,
+              ml: { md: `${CLIENT_SIDEBAR_WIDTH}px` },
+              pt: `${topOffset}px`,
+              px: { xs: 2, sm: 3, md: 4 },
+              py: 4,
+            }}
+          >
+            <Alert severity="info" sx={{ borderRadius: 2, maxWidth: 800, mx: 'auto' }}>
+              <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>
+                Preferences Not Available
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                Organizations cannot set profile preferences. Each job you post can have unique requirements and preferences.
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={() => navigate('/client/dashboard')}
+                sx={{ mt: 1 }}
+              >
+                Go to Dashboard
+              </Button>
+            </Alert>
+          </Box>
+        </Box>
+      </Box>
+    )
+  }
+
   if (isError) {
     return (
       <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>

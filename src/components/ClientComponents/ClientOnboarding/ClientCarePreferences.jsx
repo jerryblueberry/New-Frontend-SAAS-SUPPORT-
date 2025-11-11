@@ -42,7 +42,7 @@ import { Info } from '@mui/icons-material'
 import { useForm, FormProvider } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
-import { useClientOnboardingQuery, usePreferencesMutation, useClientOnboarding } from '../../../stores/useClientOnboardingStore'
+import { useClientOnboardingQuery, usePreferencesMutation, useClientOnboarding, useClientOnboardingStore } from '../../../stores/useClientOnboardingStore'
 import { formatApiError, formatSuccessMessage, formatValidationErrors } from '../../../utils/errorFormatter'
 import BasicPreferences from './components/BasicPreferences'
 import WorkerPreferences from './components/WorkerPreferences'
@@ -55,12 +55,33 @@ export default function ClientCarePreferences() {
   const profile = onboardingData?.data?.profile || null
   const { mutate: savePreferences, isPending: isSaving } = usePreferencesMutation()
   const store = useClientOnboarding()
+  const onboarding = useClientOnboardingStore((state) => state.onboarding)
   const [snack, setSnack] = React.useState({ open: false, message: '', severity: 'success' })
   
-  const isStepComplete = profile?.profileCompleteness?.completedSteps?.preferences
-  const isProfileComplete = profile?.profileCompleteness?.percentage === 100
+  // ONE-STEP ONBOARDING: Preferences are optional
+  const isStepComplete = profile?.preferences?.supportCategories?.length > 0 || 
+                         profile?.preferences?.serviceRegions?.length > 0
+  const isProfileComplete = onboarding?.onboardingComplete === true
   const accountType = profile?.accountType || 'individual'
   const isOrganization = accountType === 'organization'
+  const canAddPreferences = onboarding?.canAddPreferences === true
+  
+  // Show error if organization tries to access preferences
+  if (isOrganization || !canAddPreferences) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Alert severity="info" sx={{ maxWidth: 600, mx: 'auto' }}>
+          <Typography variant="h6" sx={{ mb: 1 }}>
+            Preferences Not Available
+          </Typography>
+          <Typography variant="body2">
+            Preferences are only available for individual client accounts. 
+            Organization accounts should define preferences for each job posting instead.
+          </Typography>
+        </Alert>
+      </Box>
+    )
+  }
 
   const defaultValues = useMemo(() => {
     const prefs = profile?.preferences || {}
@@ -154,35 +175,13 @@ export default function ClientCarePreferences() {
       }
     }
     
-    const wasComplete = profile?.profileCompleteness?.percentage === 100
+    // ONE-STEP ONBOARDING: Preferences don't affect onboarding completion
+    const wasComplete = onboarding?.onboardingComplete === true
     
     savePreferences(payload, {
       onSuccess: (data) => {
-        const isNowComplete = data?.data?.isComplete || data?.data?.profileCompletion?.percentage === 100
-        
-        // Show appropriate message
-        if (isNowComplete && !wasComplete) {
-          // First time completion
-          const successMessage = 'Onboarding complete! Your profile has been submitted for review.'
-          toast.success(successMessage, {
-            id: 'onboarding-complete', // Use ID to prevent duplicate toasts
-            duration: 4000,
-            style: {
-              maxWidth: '500px',
-            }
-          })
-          setSnack({ 
-            open: true, 
-            message: 'Onboarding complete! Redirecting to dashboard...', 
-            severity: 'success',
-            autoHideDuration: 2000
-          })
-          // Navigate to dashboard on first completion
-          setTimeout(() => {
-            navigate('/client-dashboard', { replace: true })
-          }, 2000)
-        } else {
-          const successMessage = formatSuccessMessage(data, 'Preferences saved successfully!')
+        // ONE-STEP ONBOARDING: Preferences are optional - don't affect onboarding completion
+        const successMessage = formatSuccessMessage(data, 'Preferences saved successfully! (Optional)')
           toast.success(successMessage, {
             id: 'preferences-save-success', // Use ID to prevent duplicate toasts
             duration: 3000,
@@ -193,7 +192,9 @@ export default function ClientCarePreferences() {
             severity: 'success',
             autoHideDuration: 3000
           })
-        }
+        
+        // Don't auto-advance - preferences are optional
+        // User can navigate back to step 1 if needed
       },
       onError: (error) => {
         // Ensure we always show a user-friendly message

@@ -1,695 +1,355 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
- * CLIENT ONBOARDING STORE
+ * CLIENT ONBOARDING STORE (Backward Compatibility)
  * ═══════════════════════════════════════════════════════════════════════════════
  * 
- * Enterprise-grade client onboarding state management with:
- * - Minimal onboarding flow (only essential fields required)
- * - Audit log integration for compliance tracking
- * - TanStack Query for efficient data fetching and caching
- * - Zustand for local state management with persistence
- * - Support for enterprise fields (documents, billing, engagement metrics)
+ * This file maintains backward compatibility with existing imports.
+ * The store has been split into modular files in stores/clientStores/
  * 
- * Design Philosophy:
- * - Step 1 (Basic Information): Account type, address, org details (if org)
- * - Step 2 (Preferences): Support categories, service regions (required)
- * - Optional fields: Worker preferences, cultural preferences (can be added later)
- * - Audit trail: All profile changes tracked automatically
+ * This creates a combined store that merges onboarding, profile, and audit stores
+ * to maintain backward compatibility with existing code.
  * 
  * @module stores/useClientOnboardingStore
  */
 
 import { create } from 'zustand'
-import { devtools, persist } from 'zustand/middleware'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import * as clientOnboardingApi from '../api/clientProfile'
-
-// Step configuration
-const STEP_ORDER = ['basicInformation', 'preferences']
-const TOTAL_STEPS = 2
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// CONSTANTS & INITIAL STATE
-// ═══════════════════════════════════════════════════════════════════════════════
+import { devtools } from 'zustand/middleware'
+import { useClientOnboardingStore as onboardingStore } from './clientStores/clientOnboardingStore'
+import { useClientProfileStore as profileStore } from './clientStores/profileStore'
+import { useClientAuditLogStore as auditLogStore } from './clientStores/auditLogStore'
+import { useClientOnboardingStore as useOnboardingStore } from './clientStores/clientOnboardingStore'
+import { useClientProfileStore as useProfileStore } from './clientStores/profileStore'
+import { useClientAuditLogStore as useAuditLogStore } from './clientStores/auditLogStore'
 
 /**
- * Initial state for client onboarding store
- * Includes support for enterprise fields and audit logging
+ * Combined store for backward compatibility
+ * Merges onboarding, profile, and audit log stores into a single store
  */
-const initialState = {
-	// Step management
-	currentStep: 1, // 1-based indexing (1-2)
-	completedSteps: [], // Array of completed step numbers [1, 2]
-	
-	// Profile data
-	profile: null,
-	profileCompleteness: {
-		percentage: 0,
-		completedSections: {
-			basicInformation: false,
-			preferences: false,
-		},
-	},
-	
-	// Enterprise fields (optional, can be added later via dashboard)
-	enterpriseData: {
-		contactPreferences: null,
-		documents: [],
-		billingPreferences: null,
-		engagementMetrics: null,
-		consents: null,
-		organizationMembers: [],
-	},
+export const useClientOnboardingStore = create(
+	devtools(
+		(set, get) => {
+			// Helper to get combined state
+			const getCombinedState = () => {
+				const onboarding = onboardingStore.getState()
+				const profile = profileStore.getState()
+				const auditLogs = auditLogStore.getState()
+				
+				return {
+					// Onboarding state
+					currentStep: onboarding.currentStep,
+					completedSteps: onboarding.completedSteps,
+					
+					// Profile state
+					profile: profile.profile,
+					profileCompleteness: profile.profileCompleteness,
+					onboarding: profile.onboarding,
+					enterpriseData: profile.enterpriseData,
 	
 	// Audit log state
-	auditLogs: {
-		history: [],
-		summary: null,
-		isLoading: false,
-		error: null,
-	},
-	
-	// Loading states
-	isLoading: false,
-	isSaving: false,
-	error: null,
-}
-
-// ────────────────────────────────────────────────────────────
-// Zustand Store
-// ────────────────────────────────────────────────────────────
-
-const useClientOnboardingStore = create(
-	devtools(
-		persist(
-			(set, get) => ({
-				...initialState,
+					auditLogs: auditLogs,
+				}
+			}
+			
+			return {
+				// ─── State (read-only, computed from combined stores) ─────────────
+				get currentStep() {
+					return onboardingStore.getState().currentStep
+				},
+				get completedSteps() {
+					return onboardingStore.getState().completedSteps
+				},
+				get profile() {
+					return profileStore.getState().profile
+				},
+				get profileCompleteness() {
+					return profileStore.getState().profileCompleteness
+				},
+				get onboarding() {
+					return profileStore.getState().onboarding
+				},
+				get enterpriseData() {
+					return profileStore.getState().enterpriseData
+				},
+				get auditLogs() {
+					return auditLogStore.getState()
+				},
 
 				// ─── Actions ───────────────────────────────────────────
 
+				// Onboarding actions
 				setStep: (step) => {
-					if (step >= 1 && step <= TOTAL_STEPS) {
-						set({ currentStep: step })
-						window.scrollTo(0, 0)
-					}
+					onboardingStore.getState().setStep(step)
+					set({}) // Trigger re-render
 				},
-
 				nextStep: () => {
-					const currentStep = get().currentStep
-					if (currentStep < TOTAL_STEPS) {
-						set({ currentStep: currentStep + 1 })
-						window.scrollTo(0, 0)
-					}
+					onboardingStore.getState().nextStep()
+					set({})
 				},
-
 				prevStep: () => {
-					const currentStep = get().currentStep
-					if (currentStep > 1) {
-						set({ currentStep: currentStep - 1 })
-						window.scrollTo(0, 0)
-					}
+					onboardingStore.getState().prevStep()
+					set({})
 				},
-
+				
+				// Profile actions
 				setProfile: (profile) => {
-					set({ profile })
+					profileStore.getState().setProfile(profile)
+					set({})
 				},
-
-				setLoading: (isLoading) => {
-					set({ isLoading })
-				},
-
-				setSaving: (isSaving) => {
-					set({ isSaving })
-				},
-
-				setError: (error) => {
-					set({ error })
-				},
-
 				updateProfileCompleteness: (data) => {
-					if (data?.profileCompletion) {
-						set({ profileCompleteness: data.profileCompletion })
-					}
+					profileStore.getState().updateProfileCompleteness(data)
+					set({})
 				},
-
-				// Hydrate store from API response
+				markOnboardingComplete: () => {
+					profileStore.getState().markOnboardingComplete()
+					set({})
+				},
 				hydrateFromApi: (data) => {
-					if (!data) return
-
-					const { profile, profileCompletion, currentStep } = data
-
-					// Determine completed steps based on profileCompletion
+					profileStore.getState().hydrateFromApi(data)
+					// Update completed steps
 					const completedSteps = []
-					if (profileCompletion?.completedSections?.basicInformation) {
+					if (data?.profileCompletion?.completedSections?.basicInformation) {
 						completedSteps.push(1)
 					}
-					if (profileCompletion?.completedSections?.preferences) {
-						completedSteps.push(2)
-					}
-
-					// Extract enterprise fields from profile (optional fields)
-					const enterpriseData = {
-						contactPreferences: profile?.contactPreferences || null,
-						documents: profile?.documents || [],
-						billingPreferences: profile?.billingPreferences || null,
-						engagementMetrics: profile?.engagementMetrics || null,
-						consents: profile?.consents || null,
-						organizationMembers: profile?.organizationMembers || [],
-					}
-
-					set({
-						currentStep: currentStep || 1,
-						completedSteps,
-						profile: profile || null,
-						profileCompleteness: profileCompletion || initialState.profileCompleteness,
-						enterpriseData,
-					})
+					onboardingStore.setState({ completedSteps })
+					set({})
 				},
-
+				setEnterpriseData: (enterpriseData) => {
+					profileStore.getState().setEnterpriseData(enterpriseData)
+					set({})
+				},
+				
+				// Audit log actions
+				setAuditHistory: (history) => {
+					auditLogStore.getState().setAuditHistory(history)
+					set({})
+				},
+				setAuditSummary: (summary) => {
+					auditLogStore.getState().setAuditSummary(summary)
+					set({})
+				},
+				setAuditLoading: (isLoading) => {
+					auditLogStore.getState().setAuditLoading(isLoading)
+					set({})
+				},
+				setAuditError: (error) => {
+					auditLogStore.getState().setAuditError(error)
+					set({})
+				},
+				
+				// Legacy methods
+				setLoading: () => {}, // Deprecated
+				setSaving: () => {}, // Deprecated
+				setError: () => {}, // Deprecated
 				resetStore: () => {
-					set(initialState)
+					onboardingStore.getState().resetOnboarding()
+					profileStore.getState().resetProfile()
+					auditLogStore.getState().resetAuditLogs()
+					set({})
+				},
+				checkPersistence: async () => {
+					// Legacy method - now handled by queries
 				},
 
 				// ─── Selectors ─────────────────────────────────────────
 
 				getCompleteness: () => {
-					return get().profileCompleteness.percentage || 0
+					return profileStore.getState().getCompleteness()
 				},
-
 				getCompletedSections: () => {
-					return get().profileCompleteness.completedSections || {}
+					return profileStore.getState().getCompletedSections()
 				},
-
 				isProfileComplete: () => {
-					return get().profileCompleteness.percentage === 100
+					return profileStore.getState().isProfileComplete()
 				},
-
+				isOnboardingComplete: () => {
+					return profileStore.getState().isOnboardingComplete()
+				},
 				isProfileDeleted: () => {
-					const profile = get().profile
-					return profile?.isDeleted === true
+					return profileStore.getState().isProfileDeleted()
 				},
-
 				canEditProfile: () => {
-					const profile = get().profile
-					if (!profile) return true // New users can create profiles
-					if (profile.isDeleted) return false // Deleted profiles cannot be edited
-
-					const editableStatuses = ['draft', 'unverified', 'rejected']
-					return editableStatuses.includes(profile.status)
+					const { canEditProfile } = require('./clientStores/helpers')
+					return canEditProfile(profileStore.getState().profile)
 				},
-
 				getProfileStatus: () => {
-					const profile = get().profile
-					if (!profile)
-						return { status: 'draft', canEdit: true, isDeleted: false }
-
-					return {
-						status: profile.status || 'draft',
-						canEdit: get().canEditProfile(),
-						isDeleted: profile.isDeleted || false,
-						completeness: get().getCompleteness(),
-					}
+					const { getProfileStatus } = require('./clientStores/helpers')
+					const profile = profileStore.getState().profile
+					const completeness = profileStore.getState().getCompleteness()
+					return getProfileStatus(profile, completeness)
 				},
-
-				// Check if step is completed
 				isStepCompleted: (stepNumber) => {
-					const completedSteps = get().completedSteps
-					return completedSteps.includes(stepNumber)
+					return onboardingStore.getState().isStepCompleted(stepNumber)
 				},
-
-				// Get next available step
 				getNextAvailableStep: () => {
-					const completedSteps = get().completedSteps
-					for (let i = 1; i <= TOTAL_STEPS; i++) {
-						if (!completedSteps.includes(i)) {
-							return i
-						}
-					}
-					return TOTAL_STEPS // All complete
+					const onboarding = profileStore.getState().onboarding
+					return onboardingStore.getState().getNextAvailableStep(onboarding)
 				},
-
-				// Check persistence on app load
-				checkPersistence: async () => {
-					const { hydrateFromApi, resetStore } = get()
-					try {
-						const data = await clientOnboardingApi.fetchClientOnboardingProgress()
-						if (data.success && data.data) {
-							hydrateFromApi(data.data)
-						} else {
-							resetStore()
-						}
-					} catch (error) {
-						console.error('Failed to check persistence:', error)
-						resetStore()
-					}
-				},
-
-				// ═══════════════════════════════════════════════════════════════════
-				// AUDIT LOG ACTIONS
-				// ═══════════════════════════════════════════════════════════════════
-
-				/**
-				 * Set audit log history
-				 * @param {Array} history - Array of audit log entries
-				 */
-				setAuditHistory: (history) => {
-					set((state) => ({
-						auditLogs: {
-							...state.auditLogs,
-							history: history || [],
-							isLoading: false,
-							error: null,
-						},
-					}))
-				},
-
-				/**
-				 * Set audit log summary
-				 * @param {Object} summary - Audit summary statistics
-				 */
-				setAuditSummary: (summary) => {
-					set((state) => ({
-						auditLogs: {
-							...state.auditLogs,
-							summary: summary || null,
-							isLoading: false,
-							error: null,
-						},
-					}))
-				},
-
-				/**
-				 * Set audit log loading state
-				 * @param {boolean} isLoading - Loading state
-				 */
-				setAuditLoading: (isLoading) => {
-					set((state) => ({
-						auditLogs: {
-							...state.auditLogs,
-							isLoading,
-						},
-					}))
-				},
-
-				/**
-				 * Set audit log error
-				 * @param {Error|null} error - Error object or null
-				 */
-				setAuditError: (error) => {
-					set((state) => ({
-						auditLogs: {
-							...state.auditLogs,
-							error,
-							isLoading: false,
-						},
-					}))
-				},
-
-				// ═══════════════════════════════════════════════════════════════════
-				// VALIDATION HELPERS
-				// ═══════════════════════════════════════════════════════════════════
-
-				/**
-				 * Check if basic information step is valid (minimal onboarding)
-				 * Required: accountType, address (all fields), orgName/ABN if organization
-				 */
 				isBasicInformationValid: (profile) => {
-					if (!profile) return false
-					
-					const hasAccountType = Boolean(profile.accountType)
-					const hasAddress = Boolean(
-						profile.address?.street &&
-						profile.address?.suburb &&
-						profile.address?.state &&
-						profile.address?.postcode
-					)
-					
-					// If organization, require organizationName and ABN
-					if (profile.accountType === 'organization') {
-						return hasAccountType && hasAddress &&
-							Boolean(profile.organizationName?.trim()) &&
-							Boolean(profile.abn?.trim())
-					}
-					
-					return hasAccountType && hasAddress
+					const { isBasicInformationValid } = require('./clientStores/helpers')
+					return isBasicInformationValid(profile)
 				},
-
-				/**
-				 * Check if preferences step is valid (minimal onboarding)
-				 * Required: supportCategories (at least 1), serviceRegions (at least 1)
-				 */
 				isPreferencesValid: (profile) => {
-					if (!profile?.preferences) return false
-					
-					const hasSupportCategories = Array.isArray(profile.preferences.supportCategories) &&
-						profile.preferences.supportCategories.length > 0
-					
-					const hasServiceRegions = Array.isArray(profile.preferences.serviceRegions) &&
-						profile.preferences.serviceRegions.length > 0
-					
-					return hasSupportCategories && hasServiceRegions
+					const { isPreferencesValid } = require('./clientStores/helpers')
+					return isPreferencesValid(profile)
 				},
-
-				/**
-				 * Check if profile can post jobs
-				 * Requires: Profile verified/active AND 100% complete
-				 */
 				canPostJobs: () => {
-					const profile = get().profile
-					if (!profile) return false
-					
-					const isVerified = ['verified', 'active'].includes(profile.status)
-					const isComplete = get().profileCompleteness.percentage === 100
-					
-					return isVerified && isComplete && !profile.isDeleted
+					const { canPostJobs } = require('./clientStores/helpers')
+					const profile = profileStore.getState().profile
+					const onboarding = profileStore.getState().onboarding
+					return canPostJobs(profile, onboarding)
 				},
-
-				/**
-				 * Get enterprise field status
-				 * Returns object with boolean flags for each enterprise field
-				 */
 				getEnterpriseFieldStatus: () => {
-					const enterpriseData = get().enterpriseData
-					return {
-						hasContactPreferences: Boolean(enterpriseData.contactPreferences),
-						hasDocuments: Array.isArray(enterpriseData.documents) && enterpriseData.documents.length > 0,
-						hasBillingPreferences: Boolean(enterpriseData.billingPreferences),
-						hasEngagementMetrics: Boolean(enterpriseData.engagementMetrics),
-						hasConsents: Boolean(enterpriseData.consents),
-						hasOrganizationMembers: Array.isArray(enterpriseData.organizationMembers) && enterpriseData.organizationMembers.length > 0,
-					}
+					const { getEnterpriseFieldStatus } = require('./clientStores/helpers')
+					const enterpriseData = profileStore.getState().enterpriseData
+					return getEnterpriseFieldStatus(enterpriseData)
 				},
-			}),
-			{
-				name: 'client-onboarding-storage',
-				partialize: (state) => ({
-					currentStep: state.currentStep,
-					completedSteps: state.completedSteps,
-					profileCompleteness: state.profileCompleteness,
-				}),
 			}
-		)
+		},
+		{
+			name: 'client-onboarding-store-combined',
+		}
 	)
 )
 
-// ────────────────────────────────────────────────────────────
-// TanStack Query Hooks (Following Worker Pattern)
-// ────────────────────────────────────────────────────────────
+// Re-export everything from the new modular structure
+export {
+	// Queries
+	useClientOnboardingQuery,
+	useProfileAuditHistory,
+	useProfileAuditSummary,
+} from './clientStores/queries'
 
-/**
- * Fetch onboarding progress
- * Similar to worker's useOnboardingQuery
- */
-export const useClientOnboardingQuery = () => {
-	return useQuery({
-		queryKey: ['clientOnboarding'],
-		queryFn: async () => {
-			try {
-				const response = await clientOnboardingApi.fetchClientOnboardingProgress()
-				if (!response.success && response.message === 'Client profile not found') {
-					return { success: true, data: null, isNewUser: true }
-				}
-				return response
-			} catch (error) {
-				if (error.response?.status === 404) {
-					return { success: true, data: null, isNewUser: true }
-				}
-				throw error
-			}
-		},
-		onSuccess: (data) => {
-			if (data?.success && data.data) {
-				const store = useClientOnboardingStore.getState()
-				store.hydrateFromApi(data.data)
-			}
-		},
-		retry: false,
-		refetchOnWindowFocus: false,
-		staleTime: 5 * 60 * 1000, // 5 minutes
-	})
-}
+// Mutations
+export {
+	useBasicInformationMutation,
+	usePreferencesMutation,
+	useSubmitProfileMutation,
+} from './clientStores/mutations'
 
-/**
- * Step 1: Basic Information Mutation
- */
-export const useBasicInformationMutation = () => {
-	const queryClient = useQueryClient()
-
-	return useMutation({
-		mutationFn: async (basicInfoData) => {
-			try {
-				const response = await clientOnboardingApi.saveBasicInformationStep(basicInfoData)
-				if (!response.success) {
-					// Create error that preserves structure
-					const err = new Error(response.message || 'Failed to save basic information')
-					err.response = response // Preserve response structure
-					throw err
-				}
-				return response
-			} catch (error) {
-				// Preserve original error structure (axios error with response, status, etc.)
-				// This allows error formatter to access error.response.data.message and error.response.status
-				if (error.response) {
-					// Axios error - preserve it
-					throw error
-				}
-				// Non-axios error - create structured error
-				const err = new Error(error.message || 'Failed to save basic information')
-				err.originalError = error
-				throw err
-			}
-		},
-		onSuccess: (data) => {
-			if (data.success) {
-				const { updateProfileCompleteness, nextStep, setProfile } = useClientOnboardingStore.getState()
-				
-				// Update profile and extract enterprise data
-				if (data.data?.profile) {
-					setProfile(data.data.profile)
-					
-					// Extract enterprise fields (optional fields for dashboard)
-					const enterpriseData = {
-						contactPreferences: data.data.profile.contactPreferences || null,
-						documents: data.data.profile.documents || [],
-						billingPreferences: data.data.profile.billingPreferences || null,
-						engagementMetrics: data.data.profile.engagementMetrics || null,
-						consents: data.data.profile.consents || null,
-						organizationMembers: data.data.profile.organizationMembers || [],
-					}
-					
-					useClientOnboardingStore.setState({ enterpriseData })
-				}
-				
-				// Update completeness
-				updateProfileCompleteness(data.data)
-				
-				// Invalidate query
-				queryClient.invalidateQueries({ queryKey: ['clientOnboarding'] })
-				
-				// Auto-advance to next step
-				nextStep()
-			}
-		},
-		onError: (error) => {
-			console.error('Basic Information mutation error:', error)
-		},
-	})
-}
-
-/**
- * Step 2: Preferences Mutation
- */
-export const usePreferencesMutation = () => {
-	const queryClient = useQueryClient()
-
-	return useMutation({
-		mutationFn: async (preferencesData) => {
-			try {
-				const response = await clientOnboardingApi.savePreferencesStep(preferencesData)
-				if (!response.success) {
-					// Create error that preserves structure
-					const err = new Error(response.message || 'Failed to save preferences')
-					err.response = response // Preserve response structure
-					throw err
-				}
-				return response
-			} catch (error) {
-				// Preserve original error structure (axios error with response, status, etc.)
-				// This allows error formatter to access error.response.data.message and error.response.status
-				if (error.response) {
-					// Axios error - preserve it
-					throw error
-				}
-				// Non-axios error - create structured error
-				const err = new Error(error.message || 'Failed to save preferences')
-				err.originalError = error
-				throw err
-			}
-		},
-		onSuccess: (data) => {
-			if (data.success) {
-				const { updateProfileCompleteness, setProfile } = useClientOnboardingStore.getState()
-				
-				// Update profile and extract enterprise data
-				if (data.data?.profile) {
-					setProfile(data.data.profile)
-					
-					// Extract enterprise fields (optional fields for dashboard)
-					const enterpriseData = {
-						contactPreferences: data.data.profile.contactPreferences || null,
-						documents: data.data.profile.documents || [],
-						billingPreferences: data.data.profile.billingPreferences || null,
-						engagementMetrics: data.data.profile.engagementMetrics || null,
-						consents: data.data.profile.consents || null,
-						organizationMembers: data.data.profile.organizationMembers || [],
-					}
-					
-					useClientOnboardingStore.setState({ enterpriseData })
-				}
-				
-				// Update completeness
-				updateProfileCompleteness(data.data)
-				
-				// Invalidate query
-				queryClient.invalidateQueries({ queryKey: ['clientOnboarding'] })
-				
-				// Don't auto-advance - this is the last step
-			}
-		},
-		onError: (error) => {
-			console.error('Preferences mutation error:', error)
-		},
-	})
-}
-
-/**
- * Submit Profile Mutation
- */
-export const useSubmitProfileMutation = () => {
-	const queryClient = useQueryClient()
-
-	return useMutation({
-		mutationFn: clientOnboardingApi.submitProfileForReview,
-		onSuccess: (data) => {
-			if (data.success) {
-				queryClient.invalidateQueries({ queryKey: ['clientOnboarding'] })
-			} else {
-				throw new Error(data.message || 'Profile is not complete yet')
-			}
-		},
-		onError: (error) => {
-			console.error('Submit profile error:', error)
-		},
-	})
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// AUDIT LOG QUERY HOOKS
-// ═══════════════════════════════════════════════════════════════════════════════
-
-/**
- * Fetch audit history for a client profile
- * @param {string} profileId - Client profile ID
- * @param {Object} options - Query options (limit, skip, sortBy)
- * @returns {Object} Query result with audit history
- */
-export const useProfileAuditHistory = (profileId, options = {}) => {
-	const { setAuditHistory, setAuditLoading, setAuditError } = useClientOnboardingStore.getState()
-
-	return useQuery({
-		queryKey: ['clientProfileAuditHistory', profileId, options],
-		queryFn: async () => {
-			if (!profileId) return null
-			
-			setAuditLoading(true)
-			try {
-				const response = await clientOnboardingApi.fetchProfileAuditHistory(profileId, options)
-				if (response.success && response.data) {
-					setAuditHistory(response.data)
-					return response.data
-				}
-				return []
-			} catch (error) {
-				setAuditError(error)
-				throw error
-			} finally {
-				setAuditLoading(false)
-			}
-		},
-		enabled: Boolean(profileId),
-		staleTime: 2 * 60 * 1000, // 2 minutes
-		retry: 1,
-	})
-}
-
-/**
- * Fetch audit summary for a client profile
- * @param {string} profileId - Client profile ID
- * @returns {Object} Query result with audit summary
- */
-export const useProfileAuditSummary = (profileId) => {
-	const { setAuditSummary, setAuditLoading, setAuditError } = useClientOnboardingStore.getState()
-
-	return useQuery({
-		queryKey: ['clientProfileAuditSummary', profileId],
-		queryFn: async () => {
-			if (!profileId) return null
-			
-			setAuditLoading(true)
-			try {
-				const response = await clientOnboardingApi.fetchProfileAuditSummary(profileId)
-				if (response.success && response.data) {
-					setAuditSummary(response.data)
-					return response.data
-				}
-				return null
-			} catch (error) {
-				setAuditError(error)
-				throw error
-			} finally {
-				setAuditLoading(false)
-			}
-		},
-		enabled: Boolean(profileId),
-		staleTime: 5 * 60 * 1000, // 5 minutes
-		retry: 1,
-	})
-}
+// Selectors
+export {
+	useClientCurrentStep,
+	useClientCompletedSteps,
+	useSetStep,
+	useNextStep,
+	usePrevStep,
+	useIsStepCompleted,
+	useClientProfile,
+	useClientCompleteness,
+	useClientCompletedSections,
+	useClientOnboardingState,
+	useIsProfileComplete,
+	useIsOnboardingComplete,
+	useIsProfileDeleted,
+	useMarkOnboardingComplete,
+	useEnterpriseData,
+	useEnterpriseFieldStatus,
+	useIsBasicInformationValid,
+	useIsPreferencesValid,
+	useCanPostJobs,
+	useCanEditProfile,
+	useClientProfileStatus,
+	useAuditLogs,
+	useAuditHistory,
+	useAuditSummary,
+	useAuditLoading,
+	useAuditError,
+} from './clientStores/selectors'
 
 // ────────────────────────────────────────────────────────────
-// Selector Hooks (For Component Usage)
+// Combined Store Hook (defined here to avoid duplicate exports)
 // ────────────────────────────────────────────────────────────
 
-export const useClientOnboarding = () => useClientOnboardingStore()
-export const useClientCurrentStep = () => useClientOnboardingStore((s) => s.currentStep)
-export const useClientCompleteness = () => useClientOnboardingStore((s) => s.getCompleteness())
-export const useClientCompletedSteps = () => useClientOnboardingStore((s) => s.completedSteps)
-export const useClientProfileStatus = () => useClientOnboardingStore((s) => s.getProfileStatus())
-export const useCanEditProfile = () => useClientOnboardingStore((s) => s.canEditProfile())
-export const useIsProfileDeleted = () => useClientOnboardingStore((s) => s.isProfileDeleted())
-
-// Enterprise field hooks
-export const useEnterpriseData = () => useClientOnboardingStore((s) => s.enterpriseData)
-export const useEnterpriseFieldStatus = () => useClientOnboardingStore((s) => s.getEnterpriseFieldStatus())
-
-// Validation hooks
-export const useCanPostJobs = () => useClientOnboardingStore((s) => s.canPostJobs())
-export const useIsBasicInformationValid = () => {
-	const profile = useClientOnboardingStore((s) => s.profile)
-	const isValid = useClientOnboardingStore((s) => s.isBasicInformationValid)
-	return isValid(profile)
+/**
+ * Unified store access for backward compatibility
+ * Combines onboarding, profile, and audit log stores
+ * 
+ * NOTE: This is the ONLY place where useClientOnboarding is exported
+ * Using inline export to avoid any bundler confusion
+ */
+export function useClientOnboarding() {
+	const onboarding = useOnboardingStore()
+	const profile = useProfileStore()
+	const auditLogs = useAuditLogStore()
+	
+	return {
+		// Onboarding state
+		currentStep: onboarding.currentStep,
+		completedSteps: onboarding.completedSteps,
+		setStep: onboarding.setStep,
+		nextStep: onboarding.nextStep,
+		prevStep: onboarding.prevStep,
+		isStepCompleted: onboarding.isStepCompleted,
+		getNextAvailableStep: onboarding.getNextAvailableStep,
+		resetOnboarding: onboarding.resetOnboarding,
+		
+		// Profile state
+		profile: profile.profile,
+		profileCompleteness: profile.profileCompleteness,
+		onboarding: profile.onboarding,
+		enterpriseData: profile.enterpriseData,
+		setProfile: profile.setProfile,
+		updateProfileCompleteness: profile.updateProfileCompleteness,
+		markOnboardingComplete: profile.markOnboardingComplete,
+		hydrateFromApi: profile.hydrateFromApi,
+		setEnterpriseData: profile.setEnterpriseData,
+		resetProfile: profile.resetProfile,
+		
+		// Profile selectors
+		getCompleteness: profile.getCompleteness,
+		getCompletedSections: profile.getCompletedSections,
+		isProfileComplete: profile.isProfileComplete,
+		isOnboardingComplete: profile.isOnboardingComplete,
+		isProfileDeleted: profile.isProfileDeleted,
+		
+		// Audit log state
+		auditLogs: auditLogs,
+		setAuditHistory: auditLogs.setAuditHistory,
+		setAuditSummary: auditLogs.setAuditSummary,
+		setAuditLoading: auditLogs.setAuditLoading,
+		setAuditError: auditLogs.setAuditError,
+		resetAuditLogs: auditLogs.resetAuditLogs,
+		
+		// Validation methods (from helpers)
+		isBasicInformationValid: (profile) => {
+			const { isBasicInformationValid } = require('./clientStores/helpers')
+			return isBasicInformationValid(profile)
+		},
+		isPreferencesValid: (profile) => {
+			const { isPreferencesValid } = require('./clientStores/helpers')
+			return isPreferencesValid(profile)
+		},
+		canPostJobs: () => {
+			const { canPostJobs } = require('./clientStores/helpers')
+			return canPostJobs(profile.profile, profile.onboarding)
+		},
+		canEditProfile: () => {
+			const { canEditProfile } = require('./clientStores/helpers')
+			return canEditProfile(profile.profile)
+		},
+		getProfileStatus: () => {
+			const { getProfileStatus } = require('./clientStores/helpers')
+			return getProfileStatus(profile.profile, profile.getCompleteness())
+		},
+		getEnterpriseFieldStatus: () => {
+			const { getEnterpriseFieldStatus } = require('./clientStores/helpers')
+			return getEnterpriseFieldStatus(profile.enterpriseData)
+		},
+		
+		// Legacy methods
+		setLoading: () => {}, // Deprecated - use query loading states
+		setSaving: () => {}, // Deprecated - use mutation loading states
+		setError: () => {}, // Deprecated - use query/mutation error states
+		resetStore: () => {
+			onboarding.resetOnboarding()
+			profile.resetProfile()
+			auditLogs.resetAuditLogs()
+		},
+		checkPersistence: async () => {
+			// Legacy method - now handled by queries automatically
+		},
+	}
 }
-export const useIsPreferencesValid = () => {
-	const profile = useClientOnboardingStore((s) => s.profile)
-	const isValid = useClientOnboardingStore((s) => s.isPreferencesValid)
-	return isValid(profile)
-}
 
-// Audit log hooks
-export const useAuditLogs = () => useClientOnboardingStore((s) => s.auditLogs)
-export const useAuditHistory = () => useClientOnboardingStore((s) => s.auditLogs.history)
-export const useAuditSummary = () => useClientOnboardingStore((s) => s.auditLogs.summary)
-export const useAuditLoading = () => useClientOnboardingStore((s) => s.auditLogs.isLoading)
-export const useAuditError = () => useClientOnboardingStore((s) => s.auditLogs.error)
-
+// Default export for backward compatibility
 export default useClientOnboardingStore

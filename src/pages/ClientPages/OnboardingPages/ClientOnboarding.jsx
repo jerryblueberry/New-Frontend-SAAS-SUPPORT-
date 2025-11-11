@@ -9,7 +9,7 @@
 
 import React, { useEffect, useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Box, Card, CardContent, Typography, LinearProgress, Stepper, Step, StepLabel, StepButton, Chip, useMediaQuery, useTheme, Snackbar, Alert, Tooltip } from '@mui/material'
+import { Box, Card, CardContent, Typography, LinearProgress, Stepper, Step,Stack, StepLabel, StepButton, Chip, useMediaQuery, useTheme, Snackbar, Alert, Tooltip } from '@mui/material'
 import { CheckCircle, RadioButtonUnchecked, Lock, Info, Error } from '@mui/icons-material'
 import { Toaster, toast } from 'react-hot-toast'
 import WorkerNavbar from '../../../components/Navbar/WorkerNavbar'
@@ -25,10 +25,10 @@ import ClientProfile from '../../../components/ClientComponents/ClientOnboarding
 import ClientCarePreferences from '../../../components/ClientComponents/ClientOnboarding/ClientCarePreferences'
 import LoadingSpinner from '../../../components/common/LoadingSpinner'
 
-// Step Configuration (1-based)
+// Step Configuration (1-based) - ONE-STEP ONBOARDING
+// NOTE: Preferences are managed via profile pages, not onboarding
 const STEPS = [
-  { number: 1, label: 'Profile Setup', key: 'basicInformation' },
-  { number: 2, label: 'Care Preferences', key: 'preferences' },
+  { number: 1, label: 'Basic Information', key: 'basicInformation', required: true },
 ]
 
 // Status Configuration
@@ -46,10 +46,13 @@ const ClientOnboarding = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const navigate = useNavigate()
 
+  // Realtime refresh handled by TanStack Query refetchInterval in hook
+
   // Get state from store
   const currentStep = useClientOnboardingStore((state) => state.currentStep)
   const completedSteps = useClientOnboardingStore((state) => state.completedSteps)
   const profileCompleteness = useClientOnboardingStore((state) => state.profileCompleteness)
+  const onboarding = useClientOnboardingStore((state) => state.onboarding)
   const setStep = useClientOnboardingStore((state) => state.setStep)
   const resetStore = useClientOnboardingStore((state) => state.resetStore)
 
@@ -101,14 +104,21 @@ const ClientOnboarding = () => {
   }, [queryError, navigate])
 
   // Calculate completed steps and next available step
+  // ONE-STEP ONBOARDING: Step 1 is required, Step 2 is optional
   const { nextAvailableStep } = useMemo(() => {
-    let nextStep = 1
-
-    if (completedSteps.includes(1)) nextStep = 2
-    if (completedSteps.includes(2)) nextStep = 2 // Stay on last step if all complete
-
-    return { nextAvailableStep: nextStep }
-  }, [completedSteps])
+    // Step 1 is always available
+    if (!completedSteps.includes(1)) {
+      return { nextAvailableStep: 1 }
+    }
+    
+    // Step 2 is optional - only available for individual clients
+    if (onboarding?.canAddPreferences) {
+      return { nextAvailableStep: 2 }
+    }
+    
+    // Stay on step 1 if can't add preferences (organizations)
+    return { nextAvailableStep: 1 }
+  }, [completedSteps, onboarding?.canAddPreferences])
 
   // Check if profile is deleted
   const isProfileDeleted = useMemo(() => {
@@ -133,10 +143,15 @@ const ClientOnboarding = () => {
     return editableStatuses.includes(currentStatus)
   }, [profile, isProfileDeleted, currentStatus])
 
-  // Check if profile is complete
+  // Check if onboarding is complete (ONE-STEP: basic info = 100%)
   const isProfileComplete = useMemo(() => {
-    return profileCompleteness.percentage === 100
-  }, [profileCompleteness.percentage])
+    return onboarding?.onboardingComplete === true
+  }, [onboarding?.onboardingComplete])
+  
+  // Check if can add preferences (only individual clients)
+  const canAddPreferences = useMemo(() => {
+    return onboarding?.canAddPreferences === true
+  }, [onboarding?.canAddPreferences])
 
   // Check if step is completed
   const isStepCompleted = useCallback(
@@ -149,16 +164,29 @@ const ClientOnboarding = () => {
   // Handle step click from progress bar
   const handleStepClick = useCallback(
     (stepNumber) => {
-      // Only allow navigation to:
-      // 1. Completed steps
-      // 2. Current step
-      // 3. Next available step
-      if (
-        completedSteps.includes(stepNumber) ||
-        stepNumber === currentStep ||
-        stepNumber === nextAvailableStep
-      ) {
+      // ONE-STEP ONBOARDING: Step 1 is required, Step 2 is optional
+      if (stepNumber === 1) {
+        // Step 1 is always accessible
         setStep(stepNumber)
+      } else if (stepNumber === 2) {
+        // Step 2 is optional - only accessible if:
+        // 1. Basic info is complete (step 1 done)
+        // 2. User is individual client (can add preferences)
+        if (onboarding?.isBasicInfoComplete && onboarding?.canAddPreferences) {
+          setStep(stepNumber)
+        } else if (!onboarding?.isBasicInfoComplete) {
+          setSnackbar({
+            open: true,
+            message: 'Please complete basic information first',
+            severity: 'warning',
+          })
+        } else if (!onboarding?.canAddPreferences) {
+          setSnackbar({
+            open: true,
+            message: 'Preferences are not available for organization accounts',
+            severity: 'info',
+          })
+        }
       } else {
         setSnackbar({
           open: true,
@@ -167,14 +195,13 @@ const ClientOnboarding = () => {
         })
       }
     },
-    [completedSteps, currentStep, nextAvailableStep, setStep]
+    [completedSteps, currentStep, nextAvailableStep, setStep, onboarding]
   )
 
-  // Define step components
+  // Define step components - Only Step 1 (Basic Information)
   const stepComponents = useMemo(
     () => ({
       1: <ClientProfile />,
-      2: <ClientCarePreferences />,
     }),
     []
   )
@@ -295,141 +322,126 @@ const ClientOnboarding = () => {
                 mb: 1,
               }}
             >
-              <Typography variant="body2" fontWeight={600} color="text.primary">
-                Overall Progress
-              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography variant="body2" fontWeight={700} color="text.primary">
+                  Onboarding Progress
+                </Typography>
+                <Chip
+                  label={onboarding?.onboardingComplete ? 'Complete' : 'Step 1 of 1'}
+                  size="small"
+                  color={onboarding?.onboardingComplete ? 'success' : 'default'}
+                  sx={{ fontWeight: 600, height: 22 }}
+                />
+                {onboarding?.canAddPreferences && (
+                  <Tooltip
+                    title="Preferences are optional and can be added anytime"
+                    placement="top"
+                    arrow
+                  >
+                    <Chip
+                      label="Preferences Optional"
+                      size="small"
+                      color="default"
+                      sx={{ fontWeight: 600, height: 22, bgcolor: 'action.hover' }}
+                    />
+                  </Tooltip>
+                )}
+              </Stack>
               <Chip
-                label={`${Math.round(profileCompleteness.percentage)}%`}
+                label={`${Math.min(100, Math.round(profileCompleteness.percentage))}%`}
                 size="small"
-                color={profileCompleteness.percentage === 100 ? 'success' : 'primary'}
-                sx={{ fontWeight: 600 }}
+                color={onboarding?.onboardingComplete ? 'success' : 'primary'}
+                sx={{ fontWeight: 700 }}
               />
             </Box>
             <LinearProgress
               variant="determinate"
-              value={profileCompleteness.percentage}
+              value={onboarding?.isBasicInfoComplete ? 100 : Math.min(100, profileCompleteness.percentage)}
               sx={{
                 height: 8,
                 borderRadius: 1,
                 bgcolor: 'action.hover',
                 '& .MuiLinearProgress-bar': {
                   borderRadius: 1,
-                  bgcolor:
-                    profileCompleteness.percentage === 100 ? 'success.main' : 'primary.main',
+                  bgcolor: onboarding?.onboardingComplete ? 'success.main' : 'primary.main',
                 },
               }}
             />
+            <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="caption" color="text.secondary">
+                {onboarding?.onboardingComplete
+                  ? 'Basic information complete. You can start posting jobs.'
+                  : 'Complete basic information to finish onboarding.'}
+              </Typography>
+              {onboarding?.isBasicInfoComplete && onboarding?.canAddPreferences && (
+                <Tooltip title="Optional: Add your preferences to speed up job posting" arrow>
+                  <Chip
+                    label="Add Preferences"
+                    color="primary"
+                    size="small"
+                    onClick={() => navigate('/client/profile/preferences')}
+                    sx={{ cursor: 'pointer', height: 24, fontWeight: 600 }}
+                  />
+                </Tooltip>
+              )}
+            </Box>
           </Box>
 
-          {/* Desktop Stepper */}
+          {/* Desktop Stepper - Only show Step 1 */}
           {!isMobile && (
-            <Stepper activeStep={currentStep - 1} alternativeLabel sx={{ mt: 2 }}>
-              {STEPS.map((step) => {
-                const isCompleted = isStepCompleted(step.number)
-                const isCurrent = step.number === currentStep
-                const isLocked =
-                  !isCompleted && step.number !== currentStep && step.number !== nextAvailableStep
-
-                return (
-                  <Step key={step.number} completed={isCompleted}>
-                    <Tooltip
-                      title={
-                        isCompleted
-                          ? 'Completed ✓ - Click to review/edit'
-                          : isLocked
-                          ? 'Complete previous steps first'
-                          : 'Click to navigate'
-                      }
-                      arrow
-                      placement="top"
+            <Stepper activeStep={0} alternativeLabel sx={{ mt: 2 }}>
+              <Step key={1} completed={isStepCompleted(1)}>
+                <Tooltip title="Basic Information" arrow placement="top">
+                  <span>
+                    <StepButton
+                      onClick={() => handleStepClick(1)}
+                      sx={{
+                        cursor: 'pointer',
+                        '& .MuiStepLabel-label': {
+                          fontSize: { sm: '0.875rem', md: '0.9375rem' },
+                          fontWeight: 700,
+                        },
+                      }}
                     >
-                      <span>
-                        <StepButton
-                          onClick={() => handleStepClick(step.number)}
-                          disabled={isLocked}
-                          icon={isLocked ? <Lock fontSize="small" /> : undefined}
-                          sx={{
-                            cursor: isLocked ? 'not-allowed' : 'pointer',
-                            '& .MuiStepLabel-label': {
-                              fontSize: { sm: '0.875rem', md: '0.9375rem' },
-                              fontWeight: isCurrent ? 700 : isCompleted ? 600 : 400,
-                              color: isLocked ? 'text.disabled' : 'text.primary',
-                            },
-                          }}
-                        >
-                          {step.label}
-                        </StepButton>
-                      </span>
-                    </Tooltip>
-                  </Step>
-                )
-              })}
+                      Basic Information
+                    </StepButton>
+                  </span>
+                </Tooltip>
+              </Step>
             </Stepper>
           )}
 
-          {/* Mobile Step Indicators */}
+          {/* Mobile Step Indicators - Only Step 1 */}
           {isMobile && (
             <Box sx={{ mt: 2 }}>
-              {STEPS.map((step) => {
-                const isCompleted = isStepCompleted(step.number)
-                const isCurrent = step.number === currentStep
-                const isLocked =
-                  !isCompleted && step.number !== currentStep && step.number !== nextAvailableStep
-
-                return (
-                  <Box
-                    key={step.number}
-                    onClick={() => handleStepClick(step.number)}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      py: 1.5,
-                      px: 1,
-                      mb: 0.5,
-                      borderRadius: 1,
-                      cursor: isLocked ? 'not-allowed' : 'pointer',
-                      bgcolor: isCurrent ? 'action.selected' : 'transparent',
-                      '&:hover': isLocked ? {} : { bgcolor: 'action.hover' },
-                      transition: 'background-color 0.2s',
-                      opacity: isLocked ? 0.6 : 1,
-                    }}
-                  >
-                    {isCompleted ? (
-                      <CheckCircle sx={{ color: 'success.main', mr: 1.5, fontSize: 24 }} />
-                    ) : isLocked ? (
-                      <Lock sx={{ color: 'text.disabled', mr: 1.5, fontSize: 24 }} />
-                    ) : (
-                      <RadioButtonUnchecked
-                        sx={{ color: 'primary.main', mr: 1.5, fontSize: 24 }}
-                      />
-                    )}
-                    <Box sx={{ flex: 1 }}>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontWeight: isCurrent ? 600 : 400,
-                          color: isLocked ? 'text.disabled' : 'text.primary',
-                        }}
-                      >
-                        {step.label}
-                      </Typography>
-                      {isLocked && (
-                        <Typography variant="caption" color="text.secondary">
-                          Complete previous steps first
-                        </Typography>
-                      )}
-                    </Box>
-                    {isCurrent && (
-                      <Chip
-                        label="Current"
-                        size="small"
-                        color="primary"
-                        sx={{ ml: 1, height: 20, fontSize: '0.7rem' }}
-                      />
-                    )}
-                  </Box>
-                )
-              })}
+              <Box
+                onClick={() => handleStepClick(1)}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  py: 1.5,
+                  px: 1,
+                  mb: 0.5,
+                  borderRadius: 1,
+                  cursor: 'pointer',
+                  bgcolor: 'action.selected',
+                  '&:hover': { bgcolor: 'action.hover' },
+                  transition: 'background-color 0.2s',
+                }}
+              >
+                <CheckCircle sx={{ color: isStepCompleted(1) ? 'success.main' : 'primary.main', mr: 1.5, fontSize: 24 }} />
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    Basic Information
+                  </Typography>
+                </Box>
+                <Chip
+                  label="Current"
+                  size="small"
+                  color="primary"
+                  sx={{ ml: 1, height: 20, fontSize: '0.7rem' }}
+                />
+              </Box>
             </Box>
           )}
         </CardContent>

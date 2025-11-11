@@ -27,6 +27,7 @@
  */
 
 import React, { useMemo, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Box, Grid, TextField, MenuItem, Button, Paper, Chip, Snackbar, Alert,
   LinearProgress, Typography, Stack, Divider, CircularProgress, useTheme, useMediaQuery,
@@ -50,7 +51,7 @@ import {
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useClientOnboardingQuery, useBasicInformationMutation, useClientOnboarding } from '../../../stores/useClientOnboardingStore'
+import { useClientOnboardingQuery, useBasicInformationMutation, useClientOnboarding, useClientOnboardingStore } from '../../../stores/useClientOnboardingStore'
 import { useAuth } from '../../../context/AuthContext'
 import { toast } from 'react-hot-toast'
 import { toE164Au, isValidAuPhone, formatAuInternational } from '../../../utils/phone'
@@ -130,6 +131,7 @@ const formatAustralianPhone = (value) => {
 
 export default function ClientProfile() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const { data: onboardingData } = useClientOnboardingQuery()
   const profile = onboardingData?.data?.profile || null
   const { mutate: saveBasicInfo, isPending: isSaving } = useBasicInformationMutation()
@@ -147,7 +149,7 @@ export default function ClientProfile() {
     address: {
       street: profile?.address?.street || '',
       suburb: profile?.address?.suburb || '',
-      state: profile?.address?.state || '',
+      state: profile?.address?.state || '',   
       postcode: profile?.address?.postcode || '',
     },
     emergencyContact: {
@@ -310,17 +312,37 @@ export default function ClientProfile() {
 
     saveBasicInfo(cleanedPayload, {
       onSuccess: (data) => {
-        const successMessage = formatSuccessMessage(data, 'Profile saved successfully!')
+        // ONE-STEP ONBOARDING: Check if basic info is complete (100% onboarding)
+        const isBasicInfoComplete = data?.data?.onboardingComplete === true || 
+                                     data?.data?.isBasicInfoComplete === true ||
+                                     data?.data?.profileCompletion?.completedSections?.basicInformation === true
+        const wasAutoSubmitted = data?.data?.wasAutoSubmitted === true
+        
+        let successMessage = 'Basic information saved successfully!'
+        if (isBasicInfoComplete && wasAutoSubmitted) {
+          successMessage = 'Profile completed and submitted for admin review! 🎉'
+        } else if (isBasicInfoComplete) {
+          successMessage = 'Basic information complete! Your profile is ready to submit.'
+        }
+        
         toast.success(successMessage, {
           id: 'profile-save-success', // Use ID to prevent duplicate toasts
-          duration: 3000,
+          duration: 4000,
         })
         setSnack({ 
           open: true, 
           message: successMessage, 
           severity: 'success',
-          autoHideDuration: 3000
+          autoHideDuration: 4000
         })
+        
+        // Navigate to dashboard after successful submission
+        // Delay navigation slightly to show success message
+        if (isBasicInfoComplete) {
+          setTimeout(() => {
+            navigate('/client-dashboard', { replace: true })
+          }, 1500) // 1.5 second delay to show success message
+        }
       },
       onError: (error) => {
         // Ensure we always show a user-friendly message
@@ -351,8 +373,13 @@ export default function ClientProfile() {
     })
   }
 
-  const isStepComplete = profile?.profileCompleteness?.completedSteps?.basicInformation
-  const isProfileComplete = profile?.profileCompleteness?.percentage === 100
+  // ONE-STEP ONBOARDING: Check completion status
+  const onboarding = useClientOnboardingStore((state) => state.onboarding)
+  const isStepComplete = profile?.profileCompleteness?.completedSteps?.basicInformation ||
+                         onboarding?.isBasicInfoComplete
+  const isProfileComplete = onboarding?.onboardingComplete === true || 
+                           profile?.profileCompleteness?.percentage >= 100
+  const canAddPreferences = onboarding?.canAddPreferences === true
 
   return (
     <Box

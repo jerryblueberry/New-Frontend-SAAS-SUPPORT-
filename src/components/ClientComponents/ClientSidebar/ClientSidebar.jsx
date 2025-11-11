@@ -110,6 +110,18 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
   const accountType = profileData?.accountType || 'individual';
   const isOrganization = accountType === 'organization';
 
+  // Build Profile submenu dynamically based on account type
+  const profileChildren = [
+    { id: 'basic-info', label: 'Basic Information', icon: <AccountCircle />, path: '/client/profile' },
+    // Preferences only for Individual clients
+    ...(!isOrganization ? [
+      { id: 'preferences', label: 'Care Preferences', icon: <Favorite />, path: '/client/profile/preferences' },
+    ] : []),
+    // Care Plan removed from minimal onboarding (no longer applicable)
+    // Communication settings available for all
+    { id: 'communication', label: 'Communication', icon: <Phone />, path: '/client/profile/communication' }
+  ];
+
   const menuItems = [
     {
       id: 'dashboard',
@@ -121,12 +133,7 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
       id: 'profile',
       label: 'Profile',
       icon: <Person />,
-      children: [
-        { id: 'basic-info', label: 'Basic Information', icon: <AccountCircle />, path: '/client/profile' },
-        { id: 'preferences', label: 'Care Preferences', icon: <Favorite />, path: '/client/profile/preferences' },
-        { id: 'care-plan', label: 'Care Plan Summary', icon: <Assessment />, path: '/client/profile/care-plan' },
-        { id: 'communication', label: 'Communication', icon: <Phone />, path: '/client/profile/communication' }
-      ]
+      children: profileChildren
     },
     {
       id: 'workforce',
@@ -292,11 +299,11 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
            {user?.firstName ? `${user.firstName} ${user?.lastName || ''}`.trim() : (user?.name || 'Welcome')}
           </Typography>
           <Typography variant="caption" sx={{ opacity: 0.8 }}>
-            Organization
+            {isOrganization ? 'Organization' : 'Individual'}
           </Typography>
         </Box>
         <Chip
-          label="Client"
+          label={isOrganization ? 'Org Client' : 'Client'}
           size="small"
           sx={{
             backgroundColor: '#e2e8f0',
