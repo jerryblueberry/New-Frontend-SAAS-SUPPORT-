@@ -218,33 +218,106 @@ export const usePreferences = () => {
   
   const mutation = useMutation({
     mutationFn: async (updates) => {
-      const response = await clientProfileApi.updatePreferences(updates);
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to update preferences');
+      try {
+        const response = await clientProfileApi.updatePreferences(updates);
+        if (!response.success) {
+          // Create error with response message for better formatting
+          const error = new Error(response.message || 'Failed to update preferences');
+          error.response = {
+            data: response,
+            status: 400,
+          };
+          throw error;
+        }
+        // Return both preferences data and metadata
+        return {
+          preferences: response.data.preferences,
+          fieldsUpdated: response.fieldsUpdated || [],
+          changes: response.changes || 0,
+        };
+      } catch (error) {
+        // Preserve original error structure for formatApiError
+        if (error.response) {
+          throw error;
+        }
+        // Wrap network/unknown errors
+        const wrappedError = new Error(error.message || 'Failed to update preferences');
+        wrappedError.response = error.response || {
+          data: { message: error.message },
+          status: error.status || 500,
+        };
+        throw wrappedError;
       }
-      return response.data.preferences;
     },
     onMutate: async (updates) => {
+      // Cancel outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: ['clientProfile', 'preferences'] });
+      
+      // Snapshot previous value for rollback
       const previous = queryClient.getQueryData(['clientProfile', 'preferences']);
-      queryClient.setQueryData(['clientProfile', 'preferences'], (old) => ({
-        ...old,
-        ...updates,
-      }));
+      
+      // Optimistically update cache
+      queryClient.setQueryData(['clientProfile', 'preferences'], (old) => {
+        if (!old) return updates;
+        return {
+          ...old,
+          ...updates,
+          // Deep merge nested objects
+          workerPreferences: updates.workerPreferences 
+            ? { ...old.workerPreferences, ...updates.workerPreferences }
+            : old.workerPreferences,
+          serviceDelivery: updates.serviceDelivery
+            ? { ...old.serviceDelivery, ...updates.serviceDelivery }
+            : old.serviceDelivery,
+        };
+      });
+      
       return { previous };
     },
     onError: (error, updates, context) => {
+      // Rollback optimistic update on error
       if (context?.previous) {
         queryClient.setQueryData(['clientProfile', 'preferences'], context.previous);
       }
+      
+      // Format and show error message
       const message = formatApiError(error);
-      toast.error(message, { id: 'preferences-update-error' });
+      toast.error(message, {
+        id: 'preferences-update-error',
+        duration: 6000,
+        icon: '❌',
+        style: {
+          borderRadius: '8px',
+          background: '#d32f2f',
+          color: '#fff',
+          maxWidth: '500px',
+          whiteSpace: 'pre-line',
+        },
+      });
     },
-    onSuccess: (data) => {
-      updateSection('preferences', data);
-      toast.success('Preferences updated successfully', { id: 'preferences-update-success' });
+    onSuccess: (data, variables, context) => {
+      // Update store with server response
+      updateSection('preferences', data.preferences);
+      
+      // Show success message with field count if available
+      const fieldsCount = data.fieldsUpdated?.length || 0;
+      const successMessage = fieldsCount > 0
+        ? `Preferences updated successfully (${fieldsCount} field${fieldsCount > 1 ? 's' : ''} changed)`
+        : 'Preferences updated successfully';
+      
+      toast.success(successMessage, {
+        id: 'preferences-update-success',
+        duration: 4000,
+        icon: '✅',
+        style: {
+          borderRadius: '8px',
+          background: '#2e7d32',
+          color: '#fff',
+        },
+      });
     },
     onSettled: () => {
+      // Always refetch to ensure consistency with server
       queryClient.invalidateQueries({ queryKey: ['clientProfile', 'preferences'] });
     },
   });
@@ -280,33 +353,104 @@ export const useCarePlan = () => {
   
   const mutation = useMutation({
     mutationFn: async (updates) => {
-      const response = await clientProfileApi.updateCarePlan(updates);
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to update care plan');
+      try {
+        const response = await clientProfileApi.updateCarePlan(updates);
+        if (!response.success) {
+          // Create error with response message for better formatting
+          const error = new Error(response.message || 'Failed to update care plan');
+          error.response = {
+            data: response,
+            status: 400,
+          };
+          throw error;
+        }
+        // Return both care plan data and metadata
+        return {
+          carePlanSummary: response.data.carePlanSummary,
+          fieldsUpdated: response.fieldsUpdated || [],
+          changes: response.changes || 0,
+        };
+      } catch (error) {
+        // Preserve original error structure for formatApiError
+        if (error.response) {
+          throw error;
+        }
+        // Wrap network/unknown errors
+        const wrappedError = new Error(error.message || 'Failed to update care plan');
+        wrappedError.response = error.response || {
+          data: { message: error.message },
+          status: error.status || 500,
+        };
+        throw wrappedError;
       }
-      return response.data.carePlanSummary;
     },
     onMutate: async (updates) => {
+      // Cancel outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: ['clientProfile', 'carePlan'] });
+      
+      // Snapshot previous value for rollback
       const previous = queryClient.getQueryData(['clientProfile', 'carePlan']);
-      queryClient.setQueryData(['clientProfile', 'carePlan'], (old) => ({
-        ...old,
-        ...updates,
-      }));
+      
+      // Optimistically update cache
+      queryClient.setQueryData(['clientProfile', 'carePlan'], (old) => {
+        if (!old) return updates;
+        return {
+          ...old,
+          ...updates,
+          // Handle date strings - convert to ISO strings if needed
+          planStartDate: updates.planStartDate || old.planStartDate,
+          planEndDate: updates.planEndDate || old.planEndDate,
+          // Merge goals array properly
+          goals: updates.goals !== undefined ? updates.goals : old.goals,
+        };
+      });
+      
       return { previous };
     },
     onError: (error, updates, context) => {
+      // Rollback optimistic update on error
       if (context?.previous) {
         queryClient.setQueryData(['clientProfile', 'carePlan'], context.previous);
       }
+      
+      // Format and show error message
       const message = formatApiError(error);
-      toast.error(message, { id: 'care-plan-update-error' });
+      toast.error(message, {
+        id: 'care-plan-update-error',
+        duration: 6000,
+        icon: '❌',
+        style: {
+          borderRadius: '8px',
+          background: '#d32f2f',
+          color: '#fff',
+          maxWidth: '500px',
+          whiteSpace: 'pre-line',
+        },
+      });
     },
-    onSuccess: (data) => {
-      updateSection('carePlan', data);
-      toast.success('Care plan updated successfully', { id: 'care-plan-update-success' });
+    onSuccess: (data, variables, context) => {
+      // Update store with server response
+      updateSection('carePlan', data.carePlanSummary);
+      
+      // Show success message with field count if available
+      const fieldsCount = data.fieldsUpdated?.length || 0;
+      const successMessage = fieldsCount > 0
+        ? `Care plan updated successfully (${fieldsCount} field${fieldsCount > 1 ? 's' : ''} changed)`
+        : 'Care plan updated successfully';
+      
+      toast.success(successMessage, {
+        id: 'care-plan-update-success',
+        duration: 4000,
+        icon: '✅',
+        style: {
+          borderRadius: '8px',
+          background: '#2e7d32',
+          color: '#fff',
+        },
+      });
     },
     onSettled: () => {
+      // Always refetch to ensure consistency with server
       queryClient.invalidateQueries({ queryKey: ['clientProfile', 'carePlan'] });
     },
   });
@@ -481,29 +625,203 @@ export const useBilling = () => {
   
   const mutation = useMutation({
     mutationFn: async (updates) => {
-      const response = await clientProfileApi.updateBillingPreferences(updates);
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to update billing preferences');
+      try {
+        const response = await clientProfileApi.updateBillingPreferences(updates);
+        if (!response.success) {
+          // Create error with response message for better formatting
+          const error = new Error(response.message || 'Failed to update billing preferences');
+          error.response = {
+            data: response,
+            status: 400,
+          };
+          throw error;
+        }
+        // Return both billing data and metadata
+        return {
+          billingPreferences: response.data.billingPreferences,
+          fieldsUpdated: response.fieldsUpdated || [],
+          changes: response.changes || 0,
+        };
+      } catch (error) {
+        // Preserve original error structure for formatApiError
+        if (error.response) {
+          throw error;
+        }
+        // Wrap network/unknown errors
+        const wrappedError = new Error(error.message || 'Failed to update billing preferences');
+        wrappedError.response = error.response || {
+          data: { message: error.message },
+          status: error.status || 500,
+        };
+        throw wrappedError;
       }
-      return response.data.billingPreferences;
     },
-    onSuccess: (data) => {
-      updateSection('billing', data);
-      toast.success('Billing preferences updated successfully', { id: 'billing-update-success' });
-      queryClient.invalidateQueries({ queryKey: ['clientProfile', 'billing'] });
+    onMutate: async (updates) => {
+      // Cancel outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ['clientProfile', 'billing'] });
+      
+      // Snapshot previous value for rollback
+      const previous = queryClient.getQueryData(['clientProfile', 'billing']);
+      
+      // Optimistically update cache
+      queryClient.setQueryData(['clientProfile', 'billing'], (old) => {
+        if (!old) return updates;
+        return {
+          ...old,
+          ...updates,
+          // Deep merge nested objects
+          billingAddress: updates.billingAddress
+            ? { ...old.billingAddress, ...updates.billingAddress }
+            : old.billingAddress,
+        };
+      });
+      
+      return { previous };
     },
-    onError: (error) => {
+    onError: (error, updates, context) => {
+      // Rollback optimistic update on error
+      if (context?.previous) {
+        queryClient.setQueryData(['clientProfile', 'billing'], context.previous);
+      }
+      
+      // Format and show error message
       const message = formatApiError(error);
-      toast.error(message, { id: 'billing-update-error' });
+      toast.error(message, {
+        id: 'billing-update-error',
+        duration: 6000,
+        icon: '❌',
+        style: {
+          borderRadius: '8px',
+          background: '#d32f2f',
+          color: '#fff',
+          maxWidth: '500px',
+          whiteSpace: 'pre-line',
+        },
+      });
+    },
+    onSuccess: (data, variables, context) => {
+      // Update store with server response
+      if (data.billingPreferences) {
+        updateSection('billing', data.billingPreferences);
+      }
+      
+      // Invalidate and refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ['clientProfile', 'billing'] });
+      
+      // Show success message with change count
+      const changeCount = data.changes || 0;
+      const message = changeCount > 0
+        ? `Billing preferences updated successfully (${changeCount} ${changeCount === 1 ? 'field' : 'fields'} changed)`
+        : 'Billing preferences updated successfully';
+      
+      toast.success(message, {
+        id: 'billing-update-success',
+        duration: 4000,
+        icon: '✅',
+        style: {
+          borderRadius: '8px',
+          background: '#2e7d32',
+          color: '#fff',
+          maxWidth: '500px',
+        },
+      });
     },
   });
   
   return {
     ...query,
+    data: query.data,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
     update: mutation.mutate,
     updateAsync: mutation.mutateAsync,
     isUpdating: mutation.isPending,
   };
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INVOICE HOOKS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * List invoices with filtering and pagination
+ */
+export const useInvoices = (params = {}) => {
+  const queryClient = useQueryClient();
+  
+  const query = useQuery({
+    queryKey: ['clientProfile', 'invoices', params],
+    queryFn: async () => {
+      const response = await clientProfileApi.listInvoices(params);
+      if (response.success) {
+        return response.data;
+      }
+      throw new Error(response.message || 'Failed to fetch invoices');
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: 1,
+  });
+  
+  const downloadMutation = useMutation({
+    mutationFn: async (invoiceId) => {
+      const response = await clientProfileApi.downloadInvoice(invoiceId);
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to download invoice');
+      }
+      return response.data;
+    },
+    onSuccess: (data) => {
+      // Open PDF in new tab
+      if (data.pdfUrl) {
+        window.open(data.pdfUrl, '_blank');
+        toast.success('Invoice opened in new tab', {
+          id: 'invoice-download-success',
+          duration: 3000,
+        });
+      } else {
+        toast.error('PDF URL not available', {
+          id: 'invoice-download-error',
+        });
+      }
+    },
+    onError: (error) => {
+      const message = formatApiError(error);
+      toast.error(message, {
+        id: 'invoice-download-error',
+        duration: 6000,
+      });
+    },
+  });
+  
+  return {
+    ...query,
+    invoices: query.data?.invoices || [],
+    pagination: query.data?.pagination || null,
+    download: downloadMutation.mutate,
+    downloadAsync: downloadMutation.mutateAsync,
+    isDownloading: downloadMutation.isPending,
+  };
+};
+
+/**
+ * Get single invoice by ID
+ */
+export const useInvoice = (invoiceId) => {
+  return useQuery({
+    queryKey: ['clientProfile', 'invoices', invoiceId],
+    queryFn: async () => {
+      if (!invoiceId) return null;
+      const response = await clientProfileApi.getInvoice(invoiceId);
+      if (response.success) {
+        return response.data.invoice;
+      }
+      throw new Error(response.message || 'Failed to fetch invoice');
+    },
+    enabled: !!invoiceId,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════

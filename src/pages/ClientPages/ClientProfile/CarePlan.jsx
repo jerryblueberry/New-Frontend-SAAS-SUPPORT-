@@ -47,8 +47,6 @@ import ClientSidebar from '../../../components/ClientComponents/ClientSidebar/Cl
 import { CLIENT_SIDEBAR_WIDTH } from '../../../constants/layout'
 import { useCarePlan } from '../../../stores/useClientProfileStore'
 import { useAuth } from '../../../context/AuthContext'
-import { toast } from 'react-hot-toast'
-import { formatApiError } from '../../../utils/errorFormatter'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // VALIDATION SCHEMA
@@ -150,11 +148,10 @@ const CarePlan = () => {
       update(payload, {
         onSuccess: () => {
           setIsEditMode(false)
-          toast.success('Care plan updated successfully')
+          // Toast is handled in the store hook
         },
-        onError: (error) => {
-          const message = formatApiError(error)
-          toast.error(message)
+        onError: () => {
+          // Toast is handled in the store hook
         },
       })
     },

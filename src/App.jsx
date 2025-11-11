@@ -60,7 +60,8 @@ import BasicInformation from './pages/ClientPages/ClientProfile/BasicInformation
 import Preferences from './pages/ClientPages/ClientProfile/Preferences';
 import CarePlan from './pages/ClientPages/ClientProfile/CarePlan';
 import Communication from './pages/ClientPages/ClientProfile/Communication';
-
+import BillingPreferences from './pages/ClientPages/BillingAndPayment/BillingPreferences';
+import Invoices from './pages/ClientPages/BillingAndPayment/Invoices';
 
 // Create React Query client with optimized settings    
 const queryClient = new QueryClient({
@@ -400,6 +401,19 @@ function AppRoutes() {
         <Route path="/client/profile/communication" element={
           <ClientRoute>
             <Communication />
+          </ClientRoute>
+        }
+        />
+        {/*  For the client billing and payment preferences */}
+        <Route path="/client/billing/preferences" element={
+          <ClientRoute>
+            <BillingPreferences />
+          </ClientRoute>
+        }
+        />
+        <Route path="/client/billing/invoices" element={
+          <ClientRoute>
+            <Invoices />
           </ClientRoute>
         }
         />

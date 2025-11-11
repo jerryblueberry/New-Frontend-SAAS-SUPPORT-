@@ -211,10 +211,26 @@ export const updateBillingPreferences = async (updates) => {
 };
 
 /**
- * List invoices
+ * List invoices with filters and pagination
  */
-export const listInvoices = async () => {
-  const response = await api.get('/client/billing/invoices');
+export const listInvoices = async (params = {}) => {
+  const response = await api.get('/client/billing/invoices', { params });
+  return response.data;
+};
+
+/**
+ * Get single invoice by ID
+ */
+export const getInvoice = async (id) => {
+  const response = await api.get(`/client/billing/invoices/${id}`);
+  return response.data;
+};
+
+/**
+ * Download invoice PDF
+ */
+export const downloadInvoice = async (id) => {
+  const response = await api.get(`/client/billing/invoices/${id}/download`);
   return response.data;
 };
 

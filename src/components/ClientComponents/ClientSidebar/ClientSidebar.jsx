@@ -155,7 +155,7 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
       children: [
         { id: 'preferences', label: 'Billing Preferences', icon: <Receipt />, path: '/client/billing/preferences' },
         { id: 'invoices', label: 'Invoices', icon: <Description />, path: '/client/billing/invoices' },
-        { id: 'payment-methods', label: 'Payment Methods', icon: <Payment />, path: '/client/billing/payment-methods' }
+        // { id: 'payment-methods', label: 'Payment Methods', icon: <Payment />, path: '/client/billing/payment-methods' }
       ]
     },
     ...(isOrganization ? [{

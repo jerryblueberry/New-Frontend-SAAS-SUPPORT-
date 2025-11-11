@@ -48,11 +48,20 @@ import {
   LocationOn as LocationOnIcon,
   Person as PersonIcon,
   CheckCircle,
+  Diversity3 as Diversity3Icon,
+  Restaurant as RestaurantIcon,
+  Mosque as MosqueIcon,
+  AccessTime as AccessTimeIcon,
+  CalendarToday as CalendarTodayIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon,
+  Schedule as ScheduleIcon,
 } from '@mui/icons-material'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useNavigate } from 'react-router-dom'
+import { format } from 'date-fns'
 import WorkerNavbar from '../../../components/Navbar/WorkerNavbar'
 import ClientSidebar from '../../../components/ClientComponents/ClientSidebar/ClientSidebar'
 import { CLIENT_SIDEBAR_WIDTH } from '../../../constants/layout'
@@ -67,6 +76,10 @@ import {
   PREFERRED_WORKER_GENDER_LABELS,
   PREFERRED_AGE_GROUP,
   PREFERRED_AGE_GROUP_LABELS,
+  DAYS,
+  TIME_SLOTS,
+  DIETARY_RESTRICTIONS,
+  DIETARY_RESTRICTION_LABELS,
 } from '../../../components/ClientComponents/ClientOnboarding/constants'
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -82,9 +95,33 @@ const preferencesSchema = z.object({
     preferredExperienceAreas: z.array(z.string()).optional(),
     notes: z.string().optional(),
   }).optional(),
+  culturalPreferences: z.object({
+    dietaryRequirements: z.object({
+      restrictions: z.array(z.enum(DIETARY_RESTRICTIONS)).optional(),
+      allergyDetails: z.string().optional(),
+      notes: z.string().optional(),
+    }).optional(),
+    religiousConsiderations: z.object({
+      faith: z.string().optional(),
+      observances: z.array(z.string()).optional(),
+      genderSensitivity: z.boolean().optional(),
+      notes: z.string().optional(),
+    }).optional(),
+    lifestyleNotes: z.object({
+      habits: z.array(z.string()).optional(),
+      interests: z.array(z.string()).optional(),
+      values: z.array(z.string()).optional(),
+      notes: z.string().optional(),
+    }).optional(),
+  }).optional(),
+  availability: z.array(z.object({
+    day: z.enum(DAYS),
+    timeSlots: z.array(z.enum(TIME_SLOTS)),
+  })).optional(),
   serviceDelivery: z.object({
     inPerson: z.boolean().optional(),
     remote: z.boolean().optional(),
+    preferredStartDate: z.string().optional(),
     sessionDurationMins: z.number().int().positive().optional(),
   }).optional(),
   specialRequirements: z.string().optional(),
@@ -102,6 +139,11 @@ const Preferences = () => {
   const [topOffset, setTopOffset] = useState(64)
   const [isEditMode, setIsEditMode] = useState(false)
   const [serviceRegionInput, setServiceRegionInput] = useState('')
+  const [accessibilityInput, setAccessibilityInput] = useState('')
+  const [observanceInput, setObservanceInput] = useState('')
+  const [habitInput, setHabitInput] = useState('')
+  const [interestInput, setInterestInput] = useState('')
+  const [valueInput, setValueInput] = useState('')
 
   // TanStack Query hook
   const { data: preferences, isLoading, isError, error, update, isUpdating } = usePreferences()
@@ -130,9 +172,32 @@ const Preferences = () => {
         preferredExperienceAreas: preferences?.workerPreferences?.preferredExperienceAreas || [],
         notes: preferences?.workerPreferences?.notes || '',
       },
+      culturalPreferences: {
+        dietaryRequirements: {
+          restrictions: preferences?.culturalPreferences?.dietaryRequirements?.restrictions || [],
+          allergyDetails: preferences?.culturalPreferences?.dietaryRequirements?.allergyDetails || '',
+          notes: preferences?.culturalPreferences?.dietaryRequirements?.notes || '',
+        },
+        religiousConsiderations: {
+          faith: preferences?.culturalPreferences?.religiousConsiderations?.faith || '',
+          observances: preferences?.culturalPreferences?.religiousConsiderations?.observances || [],
+          genderSensitivity: preferences?.culturalPreferences?.religiousConsiderations?.genderSensitivity || false,
+          notes: preferences?.culturalPreferences?.religiousConsiderations?.notes || '',
+        },
+        lifestyleNotes: {
+          habits: preferences?.culturalPreferences?.lifestyleNotes?.habits || [],
+          interests: preferences?.culturalPreferences?.lifestyleNotes?.interests || [],
+          values: preferences?.culturalPreferences?.lifestyleNotes?.values || [],
+          notes: preferences?.culturalPreferences?.lifestyleNotes?.notes || '',
+        },
+      },
+      availability: preferences?.availability || [],
       serviceDelivery: {
         inPerson: preferences?.serviceDelivery?.inPerson ?? true,
         remote: preferences?.serviceDelivery?.remote ?? false,
+        preferredStartDate: preferences?.serviceDelivery?.preferredStartDate 
+          ? format(new Date(preferences.serviceDelivery.preferredStartDate), 'yyyy-MM-dd')
+          : '',
         sessionDurationMins: preferences?.serviceDelivery?.sessionDurationMins || 60,
       },
       specialRequirements: preferences?.specialRequirements || '',
@@ -156,6 +221,12 @@ const Preferences = () => {
 
   const watchedSupportCategories = watch('supportCategories')
   const watchedServiceRegions = watch('serviceRegions')
+  const watchedAvailability = watch('availability')
+  const watchedDietaryRestrictions = watch('culturalPreferences.dietaryRequirements.restrictions')
+  const watchedObservances = watch('culturalPreferences.religiousConsiderations.observances')
+  const watchedHabits = watch('culturalPreferences.lifestyleNotes.habits')
+  const watchedInterests = watch('culturalPreferences.lifestyleNotes.interests')
+  const watchedValues = watch('culturalPreferences.lifestyleNotes.values')
 
   // Reset form when data changes
   useEffect(() => {
@@ -184,17 +255,83 @@ const Preferences = () => {
     [watchedServiceRegions, setValue]
   )
 
+  // Availability helpers
+  const handleToggleAvailability = useCallback(
+    (day, timeSlot) => {
+      const current = watchedAvailability || []
+      const dayIndex = current.findIndex((a) => a.day === day)
+      
+      if (dayIndex === -1) {
+        // Add new day with time slot
+        setValue('availability', [...current, { day, timeSlots: [timeSlot] }], { shouldValidate: true })
+      } else {
+        const dayData = current[dayIndex]
+        const hasTimeSlot = dayData.timeSlots.includes(timeSlot)
+        
+        if (hasTimeSlot) {
+          // Remove time slot
+          const newTimeSlots = dayData.timeSlots.filter((ts) => ts !== timeSlot)
+          if (newTimeSlots.length === 0) {
+            // Remove day if no time slots left
+            setValue('availability', current.filter((a) => a.day !== day), { shouldValidate: true })
+          } else {
+            // Update day with remaining time slots
+            const updated = [...current]
+            updated[dayIndex] = { ...dayData, timeSlots: newTimeSlots }
+            setValue('availability', updated, { shouldValidate: true })
+          }
+        } else {
+          // Add time slot to existing day
+          const updated = [...current]
+          updated[dayIndex] = { ...dayData, timeSlots: [...dayData.timeSlots, timeSlot] }
+          setValue('availability', updated, { shouldValidate: true })
+        }
+      }
+    },
+    [watchedAvailability, setValue]
+  )
+
+  // Array input helpers
+  const handleAddArrayItem = useCallback(
+    (fieldPath, inputValue, setInput) => {
+      if (inputValue.trim()) {
+        const current = watch(fieldPath) || []
+        if (!current.includes(inputValue.trim())) {
+          setValue(fieldPath, [...current, inputValue.trim()], { shouldValidate: true })
+          setInput('')
+        }
+      }
+    },
+    [watch, setValue]
+  )
+
+  const handleRemoveArrayItem = useCallback(
+    (fieldPath, item) => {
+      const current = watch(fieldPath) || []
+      setValue(fieldPath, current.filter((i) => i !== item), { shouldValidate: true })
+    },
+    [watch, setValue]
+  )
+
   // Form submission
   const onSubmit = useCallback(
     (values) => {
-      update(values, {
+      const payload = {
+        ...values,
+        serviceDelivery: {
+          ...values.serviceDelivery,
+          preferredStartDate: values.serviceDelivery?.preferredStartDate
+            ? new Date(values.serviceDelivery.preferredStartDate).toISOString()
+            : undefined,
+        },
+      }
+      update(payload, {
         onSuccess: () => {
           setIsEditMode(false)
-          toast.success('Preferences updated successfully')
+          // Toast is handled in the store hook
         },
-        onError: (error) => {
-          const message = formatApiError(error)
-          toast.error(message)
+        onError: () => {
+          // Toast is handled in the store hook
         },
       })
     },
@@ -211,6 +348,10 @@ const Preferences = () => {
     setIsEditMode(false)
     reset(defaultValues)
     setServiceRegionInput('')
+    setObservanceInput('')
+    setHabitInput('')
+    setInterestInput('')
+    setValueInput('')
   }, [reset, defaultValues])
 
   // Loading state
@@ -643,6 +784,574 @@ const Preferences = () => {
 
                 <Divider />
 
+                {/* Cultural Preferences */}
+                <Box sx={{ p: { xs: 2.5, sm: 3.5 } }}>
+                  <Stack spacing={2.5}>
+                    <Stack direction="row" alignItems="center" spacing={1.5} justifyContent="space-between" flexWrap="wrap">
+                      <Stack direction="row" alignItems="center" spacing={1.5}>
+                        <Diversity3Icon sx={{ color: 'primary.main', fontSize: 22 }} />
+                        <Typography variant="h6" fontWeight={700} color="text.primary">
+                          Cultural Preferences
+                        </Typography>
+                      </Stack>
+                      <Chip size="small" label="Optional" color="info" sx={{ fontWeight: 600, fontSize: '0.75rem' }} />
+                    </Stack>
+
+                    {isEditMode ? (
+                      <Grid container spacing={2.5}>
+                        {/* Dietary Requirements */}
+                        <Grid item xs={12}>
+                          <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.02), border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}` }}>
+                            <Stack spacing={2}>
+                              <Stack direction="row" alignItems="center" spacing={1.5}>
+                                <RestaurantIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+                                <Typography variant="subtitle1" fontWeight={600}>
+                                  Dietary Requirements
+                                </Typography>
+                              </Stack>
+                              <Controller
+                                name="culturalPreferences.dietaryRequirements.restrictions"
+                                control={control}
+                                render={({ field }) => (
+                                  <TextField
+                                    select
+                                    fullWidth
+                                    size={isMobile ? 'small' : 'medium'}
+                                    label="Dietary Restrictions"
+                                    SelectProps={{
+                                      multiple: true,
+                                      renderValue: (selected) => (
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                                          {selected.map((value) => (
+                                            <Chip
+                                              key={value}
+                                              label={DIETARY_RESTRICTION_LABELS[value] || value}
+                                              size="small"
+                                              sx={{
+                                                height: 28,
+                                                backgroundColor: alpha(theme.palette.primary.main, 0.12),
+                                                color: theme.palette.primary.main,
+                                              }}
+                                            />
+                                          ))}
+                                        </Box>
+                                      ),
+                                    }}
+                                    {...field}
+                                    value={field.value || []}
+                                    sx={{
+                                      '& .MuiOutlinedInput-root': {
+                                        borderRadius: 2,
+                                        bgcolor: 'background.paper',
+                                      },
+                                    }}
+                                  >
+                                    {DIETARY_RESTRICTIONS.map((restriction) => (
+                                      <MenuItem key={restriction} value={restriction}>
+                                        {DIETARY_RESTRICTION_LABELS[restriction] || restriction}
+                                      </MenuItem>
+                                    ))}
+                                  </TextField>
+                                )}
+                              />
+                              <TextField
+                                fullWidth
+                                size={isMobile ? 'small' : 'medium'}
+                                label="Allergy Details"
+                                placeholder="e.g., Peanuts, Shellfish, Dairy"
+                                {...register('culturalPreferences.dietaryRequirements.allergyDetails')}
+                                sx={{
+                                  '& .MuiOutlinedInput-root': {
+                                    borderRadius: 2,
+                                    bgcolor: 'background.paper',
+                                  },
+                                }}
+                              />
+                              <TextField
+                                fullWidth
+                                multiline
+                                rows={2}
+                                size={isMobile ? 'small' : 'medium'}
+                                label="Dietary Notes (Optional)"
+                                placeholder="Additional dietary information..."
+                                {...register('culturalPreferences.dietaryRequirements.notes')}
+                                sx={{
+                                  '& .MuiOutlinedInput-root': {
+                                    borderRadius: 2,
+                                    bgcolor: 'background.paper',
+                                  },
+                                }}
+                              />
+                            </Stack>
+                          </Paper>
+                        </Grid>
+
+                        {/* Religious Considerations */}
+                        <Grid item xs={12}>
+                          <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, bgcolor: alpha(theme.palette.info.main, 0.02), border: `1px solid ${alpha(theme.palette.info.main, 0.1)}` }}>
+                            <Stack spacing={2}>
+                              <Stack direction="row" alignItems="center" spacing={1.5}>
+                                <MosqueIcon sx={{ color: 'info.main', fontSize: 20 }} />
+                                <Typography variant="subtitle1" fontWeight={600}>
+                                  Religious Considerations
+                                </Typography>
+                              </Stack>
+                              <Grid container spacing={2}>
+                                <Grid item xs={12} sm={6}>
+                                  <TextField
+                                    fullWidth
+                                    size={isMobile ? 'small' : 'medium'}
+                                    label="Faith"
+                                    placeholder="e.g., Christian, Muslim, Jewish, Hindu, Buddhist"
+                                    {...register('culturalPreferences.religiousConsiderations.faith')}
+                                    sx={{
+                                      '& .MuiOutlinedInput-root': {
+                                        borderRadius: 2,
+                                        bgcolor: 'background.paper',
+                                      },
+                                    }}
+                                  />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                  <FormControlLabel
+                                    control={
+                                      <Controller
+                                        name="culturalPreferences.religiousConsiderations.genderSensitivity"
+                                        control={control}
+                                        render={({ field }) => (
+                                          <Checkbox {...field} checked={field.value || false} />
+                                        )}
+                                      />
+                                    }
+                                    label="Gender Sensitivity Required"
+                                  />
+                                </Grid>
+                                <Grid item xs={12}>
+                                  <Stack spacing={1}>
+                                    <Stack direction="row" spacing={1}>
+                                      <TextField
+                                        fullWidth
+                                        size={isMobile ? 'small' : 'medium'}
+                                        label="Religious Observances"
+                                        placeholder="e.g., Friday prayers, Ramadan, Sabbath"
+                                        value={observanceInput}
+                                        onChange={(e) => setObservanceInput(e.target.value)}
+                                        onKeyPress={(e) => {
+                                          if (e.key === 'Enter') {
+                                            e.preventDefault()
+                                            handleAddArrayItem('culturalPreferences.religiousConsiderations.observances', observanceInput, setObservanceInput)
+                                          }
+                                        }}
+                                        sx={{
+                                          '& .MuiOutlinedInput-root': {
+                                            borderRadius: 2,
+                                            bgcolor: 'background.paper',
+                                          },
+                                        }}
+                                      />
+                                      <Button
+                                        variant="contained"
+                                        onClick={() => handleAddArrayItem('culturalPreferences.religiousConsiderations.observances', observanceInput, setObservanceInput)}
+                                        disabled={!observanceInput.trim()}
+                                        sx={{ borderRadius: 2, textTransform: 'none', minWidth: 100 }}
+                                      >
+                                        Add
+                                      </Button>
+                                    </Stack>
+                                    {watchedObservances && watchedObservances.length > 0 && (
+                                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                        {watchedObservances.map((obs, idx) => (
+                                          <Chip
+                                            key={idx}
+                                            label={obs}
+                                            onDelete={() => handleRemoveArrayItem('culturalPreferences.religiousConsiderations.observances', obs)}
+                                            size="small"
+                                            color="info"
+                                            variant="outlined"
+                                          />
+                                        ))}
+                                      </Box>
+                                    )}
+                                  </Stack>
+                                </Grid>
+                                <Grid item xs={12}>
+                                  <TextField
+                                    fullWidth
+                                    multiline
+                                    rows={2}
+                                    size={isMobile ? 'small' : 'medium'}
+                                    label="Religious Notes (Optional)"
+                                    placeholder="Additional religious considerations..."
+                                    {...register('culturalPreferences.religiousConsiderations.notes')}
+                                    sx={{
+                                      '& .MuiOutlinedInput-root': {
+                                        borderRadius: 2,
+                                        bgcolor: 'background.paper',
+                                      },
+                                    }}
+                                  />
+                                </Grid>
+                              </Grid>
+                            </Stack>
+                          </Paper>
+                        </Grid>
+
+                        {/* Lifestyle Notes */}
+                        <Grid item xs={12}>
+                          <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, bgcolor: alpha(theme.palette.success.main, 0.02), border: `1px solid ${alpha(theme.palette.success.main, 0.1)}` }}>
+                            <Stack spacing={2}>
+                              <Stack direction="row" alignItems="center" spacing={1.5}>
+                                <PersonIcon sx={{ color: 'success.main', fontSize: 20 }} />
+                                <Typography variant="subtitle1" fontWeight={600}>
+                                  Lifestyle Notes
+                                </Typography>
+                              </Stack>
+                              <Grid container spacing={2}>
+                                <Grid item xs={12} sm={4}>
+                                  <Stack spacing={1}>
+                                    <Typography variant="caption" fontWeight={600}>Habits</Typography>
+                                    <Stack direction="row" spacing={1}>
+                                      <TextField
+                                        fullWidth
+                                        size="small"
+                                        placeholder="e.g., Early riser"
+                                        value={habitInput}
+                                        onChange={(e) => setHabitInput(e.target.value)}
+                                        onKeyPress={(e) => {
+                                          if (e.key === 'Enter') {
+                                            e.preventDefault()
+                                            handleAddArrayItem('culturalPreferences.lifestyleNotes.habits', habitInput, setHabitInput)
+                                          }
+                                        }}
+                                      />
+                                      <Button
+                                        variant="outlined"
+                                        size="small"
+                                        onClick={() => handleAddArrayItem('culturalPreferences.lifestyleNotes.habits', habitInput, setHabitInput)}
+                                        disabled={!habitInput.trim()}
+                                      >
+                                        <AddIcon />
+                                      </Button>
+                                    </Stack>
+                                    {watchedHabits && watchedHabits.length > 0 && (
+                                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                                        {watchedHabits.map((habit, idx) => (
+                                          <Chip
+                                            key={idx}
+                                            label={habit}
+                                            onDelete={() => handleRemoveArrayItem('culturalPreferences.lifestyleNotes.habits', habit)}
+                                            size="small"
+                                            sx={{ height: 24 }}
+                                          />
+                                        ))}
+                                      </Box>
+                                    )}
+                                  </Stack>
+                                </Grid>
+                                <Grid item xs={12} sm={4}>
+                                  <Stack spacing={1}>
+                                    <Typography variant="caption" fontWeight={600}>Interests</Typography>
+                                    <Stack direction="row" spacing={1}>
+                                      <TextField
+                                        fullWidth
+                                        size="small"
+                                        placeholder="e.g., Reading"
+                                        value={interestInput}
+                                        onChange={(e) => setInterestInput(e.target.value)}
+                                        onKeyPress={(e) => {
+                                          if (e.key === 'Enter') {
+                                            e.preventDefault()
+                                            handleAddArrayItem('culturalPreferences.lifestyleNotes.interests', interestInput, setInterestInput)
+                                          }
+                                        }}
+                                      />
+                                      <Button
+                                        variant="outlined"
+                                        size="small"
+                                        onClick={() => handleAddArrayItem('culturalPreferences.lifestyleNotes.interests', interestInput, setInterestInput)}
+                                        disabled={!interestInput.trim()}
+                                      >
+                                        <AddIcon />
+                                      </Button>
+                                    </Stack>
+                                    {watchedInterests && watchedInterests.length > 0 && (
+                                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                                        {watchedInterests.map((interest, idx) => (
+                                          <Chip
+                                            key={idx}
+                                            label={interest}
+                                            onDelete={() => handleRemoveArrayItem('culturalPreferences.lifestyleNotes.interests', interest)}
+                                            size="small"
+                                            sx={{ height: 24 }}
+                                          />
+                                        ))}
+                                      </Box>
+                                    )}
+                                  </Stack>
+                                </Grid>
+                                <Grid item xs={12} sm={4}>
+                                  <Stack spacing={1}>
+                                    <Typography variant="caption" fontWeight={600}>Values</Typography>
+                                    <Stack direction="row" spacing={1}>
+                                      <TextField
+                                        fullWidth
+                                        size="small"
+                                        placeholder="e.g., Independence"
+                                        value={valueInput}
+                                        onChange={(e) => setValueInput(e.target.value)}
+                                        onKeyPress={(e) => {
+                                          if (e.key === 'Enter') {
+                                            e.preventDefault()
+                                            handleAddArrayItem('culturalPreferences.lifestyleNotes.values', valueInput, setValueInput)
+                                          }
+                                        }}
+                                      />
+                                      <Button
+                                        variant="outlined"
+                                        size="small"
+                                        onClick={() => handleAddArrayItem('culturalPreferences.lifestyleNotes.values', valueInput, setValueInput)}
+                                        disabled={!valueInput.trim()}
+                                      >
+                                        <AddIcon />
+                                      </Button>
+                                    </Stack>
+                                    {watchedValues && watchedValues.length > 0 && (
+                                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                                        {watchedValues.map((value, idx) => (
+                                          <Chip
+                                            key={idx}
+                                            label={value}
+                                            onDelete={() => handleRemoveArrayItem('culturalPreferences.lifestyleNotes.values', value)}
+                                            size="small"
+                                            sx={{ height: 24 }}
+                                          />
+                                        ))}
+                                      </Box>
+                                    )}
+                                  </Stack>
+                                </Grid>
+                                <Grid item xs={12}>
+                                  <TextField
+                                    fullWidth
+                                    multiline
+                                    rows={2}
+                                    size={isMobile ? 'small' : 'medium'}
+                                    label="Lifestyle Notes (Optional)"
+                                    placeholder="Additional lifestyle information..."
+                                    {...register('culturalPreferences.lifestyleNotes.notes')}
+                                    sx={{
+                                      '& .MuiOutlinedInput-root': {
+                                        borderRadius: 2,
+                                        bgcolor: 'background.paper',
+                                      },
+                                    }}
+                                  />
+                                </Grid>
+                              </Grid>
+                            </Stack>
+                          </Paper>
+                        </Grid>
+                      </Grid>
+                    ) : (
+                      <Grid container spacing={2.5}>
+                        {preferences?.culturalPreferences && (
+                          <>
+                            {preferences.culturalPreferences.dietaryRequirements && (
+                              <Grid item xs={12}>
+                                <Paper elevation={0} sx={{ p: 2, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
+                                  <Stack spacing={1.5}>
+                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                      <RestaurantIcon sx={{ color: 'primary.main', fontSize: 18 }} />
+                                      <Typography variant="subtitle2" fontWeight={600}>Dietary Requirements</Typography>
+                                    </Stack>
+                                    {preferences.culturalPreferences.dietaryRequirements.restrictions?.length > 0 && (
+                                      <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                                        {preferences.culturalPreferences.dietaryRequirements.restrictions.map((r, idx) => (
+                                          <Chip key={idx} label={DIETARY_RESTRICTION_LABELS[r] || r} size="small" />
+                                        ))}
+                                      </Stack>
+                                    )}
+                                    {preferences.culturalPreferences.dietaryRequirements.allergyDetails && (
+                                      <Typography variant="body2">
+                                        <strong>Allergies:</strong> {preferences.culturalPreferences.dietaryRequirements.allergyDetails}
+                                      </Typography>
+                                    )}
+                                  </Stack>
+                                </Paper>
+                              </Grid>
+                            )}
+                            {preferences.culturalPreferences.religiousConsiderations && (
+                              <Grid item xs={12}>
+                                <Paper elevation={0} sx={{ p: 2, borderRadius: 2, bgcolor: alpha(theme.palette.info.main, 0.02) }}>
+                                  <Stack spacing={1.5}>
+                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                      <MosqueIcon sx={{ color: 'info.main', fontSize: 18 }} />
+                                      <Typography variant="subtitle2" fontWeight={600}>Religious Considerations</Typography>
+                                    </Stack>
+                                    {preferences.culturalPreferences.religiousConsiderations.faith && (
+                                      <Typography variant="body2">
+                                        <strong>Faith:</strong> {preferences.culturalPreferences.religiousConsiderations.faith}
+                                      </Typography>
+                                    )}
+                                    {preferences.culturalPreferences.religiousConsiderations.observances?.length > 0 && (
+                                      <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                                        {preferences.culturalPreferences.religiousConsiderations.observances.map((obs, idx) => (
+                                          <Chip key={idx} label={obs} size="small" variant="outlined" />
+                                        ))}
+                                      </Stack>
+                                    )}
+                                    {preferences.culturalPreferences.religiousConsiderations.genderSensitivity && (
+                                      <Chip label="Gender Sensitivity Required" size="small" color="info" />
+                                    )}
+                                  </Stack>
+                                </Paper>
+                              </Grid>
+                            )}
+                            {preferences.culturalPreferences.lifestyleNotes && (
+                              <Grid item xs={12}>
+                                <Paper elevation={0} sx={{ p: 2, borderRadius: 2, bgcolor: alpha(theme.palette.success.main, 0.02) }}>
+                                  <Stack spacing={1.5}>
+                                    <Typography variant="subtitle2" fontWeight={600}>Lifestyle Notes</Typography>
+                                    {preferences.culturalPreferences.lifestyleNotes.habits?.length > 0 && (
+                                      <Box>
+                                        <Typography variant="caption" fontWeight={600}>Habits:</Typography>
+                                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
+                                          {preferences.culturalPreferences.lifestyleNotes.habits.map((h, idx) => (
+                                            <Chip key={idx} label={h} size="small" />
+                                          ))}
+                                        </Stack>
+                                      </Box>
+                                    )}
+                                    {preferences.culturalPreferences.lifestyleNotes.interests?.length > 0 && (
+                                      <Box>
+                                        <Typography variant="caption" fontWeight={600}>Interests:</Typography>
+                                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
+                                          {preferences.culturalPreferences.lifestyleNotes.interests.map((i, idx) => (
+                                            <Chip key={idx} label={i} size="small" />
+                                          ))}
+                                        </Stack>
+                                      </Box>
+                                    )}
+                                    {preferences.culturalPreferences.lifestyleNotes.values?.length > 0 && (
+                                      <Box>
+                                        <Typography variant="caption" fontWeight={600}>Values:</Typography>
+                                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
+                                          {preferences.culturalPreferences.lifestyleNotes.values.map((v, idx) => (
+                                            <Chip key={idx} label={v} size="small" />
+                                          ))}
+                                        </Stack>
+                                      </Box>
+                                    )}
+                                  </Stack>
+                                </Paper>
+                              </Grid>
+                            )}
+                          </>
+                        )}
+                        {(!preferences?.culturalPreferences || 
+                          (!preferences.culturalPreferences.dietaryRequirements && 
+                           !preferences.culturalPreferences.religiousConsiderations && 
+                           !preferences.culturalPreferences.lifestyleNotes)) && (
+                          <Grid item xs={12}>
+                            <Typography variant="body2" color="text.secondary">
+                              No cultural preferences set
+                            </Typography>
+                          </Grid>
+                        )}
+                      </Grid>
+                    )}
+                  </Stack>
+                </Box>
+
+                <Divider />
+
+                {/* Availability Scheduling */}
+                <Box sx={{ p: { xs: 2.5, sm: 3.5 } }}>
+                  <Stack spacing={2.5}>
+                    <Stack direction="row" alignItems="center" spacing={1.5} justifyContent="space-between" flexWrap="wrap">
+                      <Stack direction="row" alignItems="center" spacing={1.5}>
+                        <ScheduleIcon sx={{ color: 'primary.main', fontSize: 22 }} />
+                        <Typography variant="h6" fontWeight={700} color="text.primary">
+                          Availability Schedule
+                        </Typography>
+                      </Stack>
+                      <Chip size="small" label="Optional" color="info" sx={{ fontWeight: 600, fontSize: '0.75rem' }} />
+                    </Stack>
+
+                    {isEditMode ? (
+                      <Grid container spacing={2}>
+                        {DAYS.map((day) => {
+                          const dayLabel = day.charAt(0).toUpperCase() + day.slice(1)
+                          const dayAvailability = watchedAvailability?.find((a) => a.day === day)
+                          const dayTimeSlots = dayAvailability?.timeSlots || []
+
+                          return (
+                            <Grid item xs={12} sm={6} md={4} key={day}>
+                              <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+                                <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5 }}>
+                                  {dayLabel}
+                                </Typography>
+                                <Stack spacing={1}>
+                                  {TIME_SLOTS.map((timeSlot) => {
+                                    const isSelected = dayTimeSlots.includes(timeSlot)
+                                    const timeSlotLabel = timeSlot.charAt(0).toUpperCase() + timeSlot.slice(1)
+                                    return (
+                                      <FormControlLabel
+                                        key={timeSlot}
+                                        control={
+                                          <Checkbox
+                                            checked={isSelected}
+                                            onChange={() => handleToggleAvailability(day, timeSlot)}
+                                            size="small"
+                                          />
+                                        }
+                                        label={timeSlotLabel}
+                                        sx={{ m: 0 }}
+                                      />
+                                    )
+                                  })}
+                                </Stack>
+                              </Paper>
+                            </Grid>
+                          )
+                        })}
+                      </Grid>
+                    ) : (
+                      <Grid container spacing={2}>
+                        {preferences?.availability && preferences.availability.length > 0 ? (
+                          preferences.availability.map((avail, idx) => (
+                            <Grid item xs={12} sm={6} md={4} key={idx}>
+                              <Paper elevation={0} sx={{ p: 2, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.02) }}>
+                                <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                                  {avail.day.charAt(0).toUpperCase() + avail.day.slice(1)}
+                                </Typography>
+                                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                                  {avail.timeSlots.map((slot, slotIdx) => (
+                                    <Chip
+                                      key={slotIdx}
+                                      label={slot.charAt(0).toUpperCase() + slot.slice(1)}
+                                      size="small"
+                                      color="primary"
+                                    />
+                                  ))}
+                                </Stack>
+                              </Paper>
+                            </Grid>
+                          ))
+                        ) : (
+                          <Grid item xs={12}>
+                            <Typography variant="body2" color="text.secondary">
+                              No availability schedule set
+                            </Typography>
+                          </Grid>
+                        )}
+                      </Grid>
+                    )}
+                  </Stack>
+                </Box>
+
+                <Divider />
+
                 {/* Service Delivery */}
                 <Box sx={{ p: { xs: 2.5, sm: 3.5 }, bgcolor: alpha(theme.palette.grey[100], 0.4) }}>
                   <Stack spacing={2.5}>
@@ -672,6 +1381,28 @@ const Preferences = () => {
                               <FormControlLabel
                                 control={<Checkbox {...field} checked={field.value ?? false} />}
                                 label="Remote"
+                              />
+                            )}
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <Controller
+                            name="serviceDelivery.preferredStartDate"
+                            control={control}
+                            render={({ field }) => (
+                              <TextField
+                                fullWidth
+                                type="date"
+                                size={isMobile ? 'small' : 'medium'}
+                                label="Preferred Start Date"
+                                InputLabelProps={{ shrink: true }}
+                                {...field}
+                                sx={{
+                                  '& .MuiOutlinedInput-root': {
+                                    borderRadius: 2,
+                                    bgcolor: 'background.paper',
+                                  },
+                                }}
                               />
                             )}
                           />
@@ -717,14 +1448,63 @@ const Preferences = () => {
                             <Typography variant="body2">Remote</Typography>
                           </Stack>
                         </Grid>
+                        {preferences?.serviceDelivery?.preferredStartDate && (
+                          <Grid item xs={12} sm={4}>
+                            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ mb: 0.5, display: 'block' }}>
+                              Preferred Start Date
+                            </Typography>
+                            <Typography variant="body2">
+                              {format(new Date(preferences.serviceDelivery.preferredStartDate), 'dd/MM/yyyy')}
+                            </Typography>
+                          </Grid>
+                        )}
                         {preferences?.serviceDelivery?.sessionDurationMins && (
                           <Grid item xs={12} sm={4}>
+                            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ mb: 0.5, display: 'block' }}>
+                              Session Duration
+                            </Typography>
                             <Typography variant="body2">
-                              Duration: {preferences.serviceDelivery.sessionDurationMins} mins
+                              {preferences.serviceDelivery.sessionDurationMins} mins
                             </Typography>
                           </Grid>
                         )}
                       </Grid>
+                    )}
+                  </Stack>
+                </Box>
+
+                <Divider />
+
+                {/* Special Requirements */}
+                <Box sx={{ p: { xs: 2.5, sm: 3.5 } }}>
+                  <Stack spacing={2.5}>
+                    <Stack direction="row" alignItems="center" spacing={1.5} justifyContent="space-between" flexWrap="wrap">
+                      <Typography variant="h6" fontWeight={700} color="text.primary">
+                        Special Requirements
+                      </Typography>
+                      <Chip size="small" label="Optional" color="info" sx={{ fontWeight: 600, fontSize: '0.75rem' }} />
+                    </Stack>
+
+                    {isEditMode ? (
+                      <TextField
+                        fullWidth
+                        multiline
+                        rows={4}
+                        size={isMobile ? 'small' : 'medium'}
+                        label="Special Requirements"
+                        placeholder="Any special requirements or additional notes about your care needs..."
+                        {...register('specialRequirements')}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2,
+                            bgcolor: 'background.paper',
+                          },
+                        }}
+                      />
+                    ) : (
+                      <Typography variant="body2">
+                        {preferences?.specialRequirements || 'No special requirements specified'}
+                      </Typography>
                     )}
                   </Stack>
                 </Box>

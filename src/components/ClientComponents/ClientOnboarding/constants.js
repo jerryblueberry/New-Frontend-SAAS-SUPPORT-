@@ -99,3 +99,61 @@ export const COMMON_EXPERIENCE_AREAS = [
   'Trauma-Informed Care'
 ]
 
+// Billing & Payment Constants
+export const FUNDING_TYPES = [
+  'self_funded',
+  'plan_managed',
+  'agency_managed',
+  'private_insurance',
+  'government',
+  'other'
+]
+
+export const FUNDING_TYPE_LABELS = {
+  'self_funded': 'Self Funded',
+  'plan_managed': 'Plan Managed',
+  'agency_managed': 'Agency Managed',
+  'private_insurance': 'Private Insurance',
+  'government': 'Government',
+  'other': 'Other'
+}
+
+export const PAYMENT_METHODS = [
+  'invoice',
+  'credit_card',
+  'direct_debit',
+  'manual',
+  'other'
+]
+
+export const PAYMENT_METHOD_LABELS = {
+  'invoice': 'Invoice',
+  'credit_card': 'Credit Card',
+  'direct_debit': 'Direct Debit',
+  'manual': 'Manual Payment',
+  'other': 'Other'
+}
+
+// Australian States
+export const AUSTRALIAN_STATES = [
+  'NSW',
+  'VIC',
+  'QLD',
+  'WA',
+  'SA',
+  'TAS',
+  'ACT',
+  'NT'
+]
+
+export const AUSTRALIAN_STATE_LABELS = {
+  'NSW': 'New South Wales',
+  'VIC': 'Victoria',
+  'QLD': 'Queensland',
+  'WA': 'Western Australia',
+  'SA': 'South Australia',
+  'TAS': 'Tasmania',
+  'ACT': 'Australian Capital Territory',
+  'NT': 'Northern Territory'
+}
+
