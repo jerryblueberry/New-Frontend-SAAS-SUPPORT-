@@ -3,9 +3,7 @@ import { createContext, useReducer, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import { 
   getAccessToken, 
-  getRefreshToken, 
   setAccessToken, 
-  setRefreshToken, 
   removeTokens,
   isTokenExpiringSoon,
   hasValidAuth,
@@ -81,7 +79,13 @@ const AuthContext = createContext();
 export const useAuth = () => {
   const context = React.useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    // Provide more helpful error message with stack trace in development
+    const error = new Error('useAuth must be used within an AuthProvider');
+    if (process.env.NODE_ENV === 'development') {
+      console.error('useAuth error:', error);
+      console.error('Stack trace:', new Error().stack);
+    }
+    throw error;
   }
   return context;
 };
@@ -312,11 +316,12 @@ const AuthProvider = ({ children }) => {
         return userResponse.data.data.user;
       }
       
-      const response = await api.post('/auth/login', credentials);
+      // Backend handles token generation and cookie setting
+      const response = await api.post('/auth/login', credentials, { withCredentials: true });
       
       if (response.data?.data?.accessToken) {
+        // Store access token (refresh token is in HTTP-only cookie)
         setAccessToken(response.data.data.accessToken, response.data.data.expiresIn);
-        // Note: refresh token is managed by backend in cookies, no need to store in localStorage
         setAuthProvider('email');
       }
       
@@ -348,20 +353,27 @@ const AuthProvider = ({ children }) => {
     }
   };
 
-  // Enhanced sign out with cleanup
+  // Enhanced sign out with cleanup and token revocation tracking
   const signOut = async (allDevices = false) => {
     dispatch({ type: 'AUTH_START' });
     
     try {
       const isGoogleUser = getAuthProvider() === 'google';
-      // Always call server logout; backend should use httpOnly cookie when body is empty
+      
+      // Call server logout with allDevices flag - backend handles token revocation
       try {
-        await api.post('/auth/logout', { allDevices }, { withCredentials: true });
+        const response = await api.post('/auth/logout', { allDevices }, { withCredentials: true });
+        
+        // Log logout success with token revocation info
+        if (response.data?.tokensRevoked) {
+          console.log(`Logged out successfully. ${response.data.tokensRevoked} token(s) revoked.`);
+        }
       } catch (e) {
-        // proceed with local cleanup regardless
-        // console.warn('Server logout failed, proceeding with local cleanup');
+        // Log error but proceed with local cleanup
+        console.warn('Server logout failed, proceeding with local cleanup:', e.message);
       }
       
+      // Handle Google token revocation
       if (isGoogleUser) {
         const googleToken = localStorage.getItem('google_token');
         if (googleToken) {
@@ -380,6 +392,7 @@ const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
+      // Always clean up local state regardless of server response
       handleAuthExpired();
     }
   };

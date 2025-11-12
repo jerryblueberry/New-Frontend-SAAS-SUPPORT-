@@ -167,6 +167,19 @@ export const getRefreshToken = () => storage.get(TOKEN_KEYS.REFRESH);
 export const setAccessToken = (token, expiresIn = null) => {
   storage.set(TOKEN_KEYS.ACCESS, token);
   
+  // Extract expiration from JWT payload if available (more accurate)
+  try {
+    const payload = parseJwtPayload(token);
+    if (payload?.exp) {
+      // JWT exp is in seconds, convert to milliseconds
+      const expiryTime = payload.exp * 1000;
+      storage.set(TOKEN_KEYS.EXPIRY, expiryTime.toString());
+      return; // Use JWT expiration if available
+    }
+  } catch (error) {
+    // Fallback to provided expiresIn if JWT parsing fails
+  }
+  
   // Store expiry time if provided (useful for proactive token refresh)
   if (expiresIn) {
     const expiryTime = Date.now() + (expiresIn * 1000);

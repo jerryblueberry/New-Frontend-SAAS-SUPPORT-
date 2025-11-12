@@ -17,7 +17,7 @@ import VerifyEmail from './pages/auth/VerifyEmail';
 
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import EmailVerifyInstruction from './pages/auth/EmailVerifyInstruction';
 import Onboarding from './pages/Workers/Onboarding';
@@ -91,7 +91,7 @@ function AppRoutes() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Global listener for auth expiration
+  // Global listeners for auth and API events with toast notifications
   useEffect(() => {
     const handleAuthExpired = () => {
       // Check if we're on a public route that doesn't require auth
@@ -119,20 +119,51 @@ function AppRoutes() {
       localStorage.removeItem('accessToken');
       sessionStorage.clear();
       
-      // Show user-friendly message about multiple sessions
-      const message = 'Your session has expired. This can happen when you open multiple tabs. Please log in again.';
-      console.log(message);
-      
-      // You could also show a toast notification here if you have a toast system
-      // toast.info(message);
+      // Show user-friendly toast notification
+      toast.error('Session expired. Please log in again.', {
+        position: 'top-right',
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
       
       navigate('/login', { replace: true });
     };
 
+    const handleConnectionError = (event) => {
+      const { error, retryCount } = event.detail || {};
+      
+      // Only show warning if we've retried a few times
+      if (retryCount >= 2) {
+        toast.warning('Network issue detected. Retrying...', {
+          position: 'top-right',
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+        });
+      }
+    };
+
+    const handleConnectionRestored = () => {
+      toast.success('Connection restored!', {
+        position: 'top-right',
+        autoClose: 2000,
+        hideProgressBar: true,
+      });
+    };
+
+    // Register event listeners
     window.addEventListener('auth:expired', handleAuthExpired);
+    window.addEventListener('api:connection-error', handleConnectionError);
+    window.addEventListener('connection:restored', handleConnectionRestored);
 
     return () => {
       window.removeEventListener('auth:expired', handleAuthExpired);
+      window.removeEventListener('api:connection-error', handleConnectionError);
+      window.removeEventListener('connection:restored', handleConnectionRestored);
     };
   }, [navigate]);
   return (
@@ -440,8 +471,8 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <AuthErrorBoundary>
-          <AuthProvider>
+        <AuthProvider>
+          <AuthErrorBoundary>
             <GoogleOAuthProvider clientId={Google_clientId}>
               <AppRoutes />
               <ToastContainer
@@ -458,8 +489,8 @@ function App() {
                 style={{ zIndex: 9999 }}
               />
             </GoogleOAuthProvider>
-          </AuthProvider>
-        </AuthErrorBoundary>
+          </AuthErrorBoundary>
+        </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

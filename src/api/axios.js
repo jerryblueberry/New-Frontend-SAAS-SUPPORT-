@@ -22,8 +22,8 @@ window.addEventListener('offline', () => {
 
 // Create API instance with enhanced settings
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',               
-  // baseURL: import.meta.env.VITE_API_URL || 'https://backend-for-the-saas-short-job-finder.vercel.app/api/v1',
+  // baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',               
+  baseURL: import.meta.env.VITE_API_URL || 'https://backend-for-the-saas-short-job-finder.vercel.app/api/v1',
   withCredentials: true,
   timeout: 30000, // Increased timeout for better reliability
   headers: {
@@ -73,9 +73,23 @@ const addRefreshSubscriber = (callback) => {
   refreshSubscribers.push(callback);
 };
 
-// Helper to notify all pending requesters
+// Helper to notify all pending requesters on success
 const onRefreshSuccess = (token) => {
   refreshSubscribers.forEach(callback => callback(token));
+  refreshSubscribers = [];
+};
+
+// Helper to notify all pending requesters on failure
+const onRefreshFail = (error) => {
+  refreshSubscribers.forEach(callback => {
+    // Call with error to reject the promise
+    if (callback.length > 1) {
+      callback(null, error);
+    } else {
+      // Fallback for callbacks that don't accept error
+      callback(null);
+    }
+  });
   refreshSubscribers = [];
 };
 
@@ -130,14 +144,14 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     
     // Handle connection errors with retry logic
-    if (isRetryableError(error) && !originalRequest._retryCount) {
-      originalRequest._retryCount = 0;
+    if (isRetryableError(error)) {
+      originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
       try {
-        return await retryRequest(originalRequest, originalRequest._retryCount);
+        return await retryRequest(originalRequest, originalRequest._retryCount - 1);
       } catch (retryError) {
         // Emit connection error event for UI handling
         window.dispatchEvent(new CustomEvent('api:connection-error', {
-          detail: { error: retryError, isOnline }
+          detail: { error: retryError, isOnline, retryCount: originalRequest._retryCount }
         }));
         return Promise.reject(retryError);
       }
@@ -171,6 +185,8 @@ api.interceptors.response.use(
             throw new Error('Token refresh failed');
           }
         } catch (refreshError) {
+          // Notify all queued requests of failure
+          onRefreshFail(refreshError);
           resetRefreshState();
           removeTokens();
           
@@ -187,10 +203,16 @@ api.interceptors.response.use(
       }
       
       // For other requests that come in while refreshing
-      return new Promise((resolve) => {
-        addRefreshSubscriber((token) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          resolve(api(originalRequest));
+      return new Promise((resolve, reject) => {
+        addRefreshSubscriber((token, error) => {
+          if (error) {
+            reject(error);
+          } else if (token) {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            resolve(api(originalRequest));
+          } else {
+            reject(new Error('Token refresh failed'));
+          }
         });
       });
     }
