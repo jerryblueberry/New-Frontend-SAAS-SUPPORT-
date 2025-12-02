@@ -25,14 +25,18 @@ const ConnectionStatus = () => {
     connectionError,
     retryCount,
     clearError,
+    dismissAlert,
     isOffline,
-    hasConnectionError
+    hasConnectionError,
+    isInitialized
   } = useConnectionStatus();
 
   const [showDetails, setShowDetails] = React.useState(false);
 
-  // Don't show anything if everything is working fine
-  if (isOnline && !hasConnectionError) {
+  // Don't show anything if:
+  // 1. Not initialized yet (avoid false positives on page load)
+  // 2. Everything is working fine
+  if (!isInitialized || (isOnline && !hasConnectionError)) {
     return null;
   }
 
@@ -97,6 +101,14 @@ const ConnectionStatus = () => {
               sx={{ mr: 1 }}
             >
               {showDetails ? <Close /> : <WarningIcon />}
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={dismissAlert}
+              sx={{ mr: 1 }}
+              title="Dismiss"
+            >
+              <Close />
             </IconButton>
           </Box>
         }

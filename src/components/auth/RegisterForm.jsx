@@ -735,6 +735,9 @@ const RegisterForm = ({
             border: '1px solid rgba(59, 130, 246, 0.1)',
             borderRadius: 2,
             transition: 'all 0.3s ease',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
             '&:hover': {
               bgcolor: 'rgba(59, 130, 246, 0.05)',
               borderColor: 'rgba(59, 130, 246, 0.2)',
@@ -790,7 +793,15 @@ const RegisterForm = ({
                 </Link>
               </Typography>
             }
-            sx={{ alignItems: 'flex-start', pl: 0, ml: 0 }}
+            sx={{ 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              pl: 0, 
+              ml: 0,
+              m: 0,
+              display: 'flex',
+              width: '100%'
+            }}
           />
           
           {/* Terms Error Display */}

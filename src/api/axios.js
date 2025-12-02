@@ -22,8 +22,8 @@ window.addEventListener('offline', () => {
 
 // Create API instance with enhanced settings
 const api = axios.create({
-  // baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',               
-  baseURL: import.meta.env.VITE_API_URL || 'https://backend-for-the-saas-short-job-finder.vercel.app/api/v1',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',               
+  // baseURL: import.meta.env.VITE_API_URL || 'https://backend-for-the-saas-short-job-finder.vercel.app/api/v1',
   withCredentials: true,
   timeout: 30000, // Increased timeout for better reliability
   headers: {
@@ -252,3 +252,5 @@ export const fetchOtherCertificationById = (id) => api.get(`/onboarding/other-ce
 export const updateOtherCertificationById = (id, payload) => api.put(`/onboarding/other-certifications/${id}`, payload);
 export const createOtherCertification = (payload) => api.post(`/onboarding/other-certifications`, payload);
 export const deleteOtherCertificationById = (id) => api.delete(`/onboarding/other-certifications/${id}`);
+// Work history section update (PATCH)
+export const updateWorkHistorySection = (section, data) => api.patch(`/onboarding/work-history/${section}`, { data });

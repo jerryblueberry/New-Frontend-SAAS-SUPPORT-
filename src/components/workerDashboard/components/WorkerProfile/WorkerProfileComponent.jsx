@@ -309,7 +309,7 @@ const WorkerProfileComponent = memo(({ user, onboardingData, verificationStatus,
         </Box>
 
         {/* Contact & Skills Section */}
-        <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
+        <Box sx={{ p: { xs: 1.5, sm: 2.5 } }}>
           <Grid container spacing={2}>
             {/* Contact Info - Inline */}
             <Grid item xs={12} md={6}>

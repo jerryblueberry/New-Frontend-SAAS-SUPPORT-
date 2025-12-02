@@ -173,6 +173,9 @@ const AdminDashboard = () => {
           workerAnalytics={workerAnalytics}
         />
 
+        <Box>
+          
+        </Box>
         {/* Reference Analytics Section */}
         <ReferenceAnalyticsSection
           referenceAnalytics={referenceAnalytics}
