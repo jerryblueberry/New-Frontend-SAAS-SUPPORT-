@@ -133,6 +133,13 @@ const VerifyEmail = () => {
   const mutation = useMutation({
     mutationFn: (token) => verifyEmail(token),
     onSuccess: useCallback((response) => {
+      // Clear stored verification email on successful verification
+      try {
+        localStorage.removeItem('pending_verification_email');
+      } catch (error) {
+        console.warn('Failed to clear stored email:', error);
+      }
+      
       setStatus('success');
       setProgress(100);
       setTimeout(() => {

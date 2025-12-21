@@ -373,6 +373,21 @@ export const googleAuthClient = async (accessToken, extra = {}) => {
   }
 };
 
+/**
+ * Resend verification email
+ * @param {string} email - Email address to resend verification to
+ * @returns {Promise<Object>} Response data
+ */
+export const resendVerificationEmail = async (email) => {
+  try {
+    const response = await api.post('/auth/resend-verification', { email });
+    return response.data;
+  } catch (error) {
+    console.error('Resend verification email error:', error);
+    throw error;
+  }
+};
+
 export default {
   register,
   registerClient,
@@ -381,6 +396,7 @@ export default {
   logout,
   getCurrentUser,
   verifyEmail,
+  resendVerificationEmail,
   googleAuth,
   googleAuthClient
 };

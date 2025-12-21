@@ -33,6 +33,12 @@ function authReducer(state, action) {
     case 'AUTH_START':
       return { ...state, loading: true, authError: null };
     case 'AUTH_SUCCESS':
+      // Clear stored verification email on successful authentication
+      try {
+        localStorage.removeItem('pending_verification_email');
+      } catch (error) {
+        console.warn('Failed to clear stored verification email:', error);
+      }
       return { 
         ...state, 
         user: action.payload, 
@@ -293,6 +299,12 @@ const AuthProvider = ({ children }) => {
 
   // Enhanced sign in with better error handling
   const signIn = async (credentials, skipApiCall = false, isGoogleUser = false) => {
+    // Clear stored verification email on successful login
+    try {
+      localStorage.removeItem('pending_verification_email');
+    } catch (error) {
+      console.warn('Failed to clear stored verification email:', error);
+    }
     dispatch({ type: 'AUTH_START' });
     
     try {

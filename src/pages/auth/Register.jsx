@@ -47,10 +47,23 @@ const Register = () => {
 
   const { mutate: registerUser, error: registerError } = useMutation({
     mutationFn: register,
-    onSuccess: (data) => {
+    onSuccess: (response) => {
       toast.success('Account created successfully! Please verify your email.');
+      
+      // Store email in localStorage for verification page
+      const emailToStore = response.data?.user?.email || response.data?.data?.user?.email;
+      const verificationUrl = response.data?.verificationUrl || response.data?.data?.verificationUrl;
+      
+      if (emailToStore) {
+        try {
+          localStorage.setItem('pending_verification_email', emailToStore);
+        } catch (error) {
+          console.warn('Failed to store email in localStorage:', error);
+        }
+      }
+      
       navigate('/verify-email-instructions', { 
-        state: { email: data.email, verificationUrl: data.verificationUrl } 
+        state: { email: emailToStore, verificationUrl } 
       });
     },
     onError: (error) => {
@@ -87,6 +100,15 @@ const Register = () => {
   });
 
   const handleRegister = (formData) => {
+    // Store email in localStorage before registration (as fallback)
+    if (formData.email) {
+      try {
+        localStorage.setItem('pending_verification_email', formData.email.trim());
+      } catch (error) {
+        console.warn('Failed to store email in localStorage:', error);
+      }
+    }
+    
     setLoadingMessage('Creating your account...');
     setIsLoading(true);
     registerUser(formData);

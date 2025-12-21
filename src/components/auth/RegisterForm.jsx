@@ -563,25 +563,46 @@ const RegisterForm = ({
         </Collapse>
 
         {/* Terms */}
-        <FormControlLabel
-          control={
-            <Checkbox 
-              checked={termsAccepted} 
-              onChange={(e) => handleTermsChange(e.target.checked)}
-              size="small"
-              sx={{ color: alpha(colorPalette.text, 0.3), '&.Mui-checked': { color: colorPalette.primary } }}
-            />
-          }
-          label={
-            <Typography variant="body2" sx={{ fontSize: '0.8125rem', fontWeight: 400, color: alpha(colorPalette.text, 0.7), lineHeight: 1.5 }}>
-              I agree to the{' '}
-              <Link href="/terms-and-conditions" target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()} sx={{ fontWeight: 600, color: colorPalette.primary, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
-                Terms and Conditions
-              </Link>
-            </Typography>
-          }
-          sx={{ margin: 0, alignItems: 'flex-start' }}
-        />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Checkbox 
+            checked={termsAccepted} 
+            onChange={(e) => handleTermsChange(e.target.checked)}
+            size="small"
+            sx={{ 
+              color: alpha(colorPalette.text, 0.3), 
+              '&.Mui-checked': { color: colorPalette.primary },
+              padding: 0.5,
+              alignSelf: 'flex-start',
+              mt: 0.125,
+            }}
+          />
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              fontSize: '0.8125rem', 
+              fontWeight: 400, 
+              color: alpha(colorPalette.text, 0.7), 
+              lineHeight: 1.5,
+              flex: 1,
+            }}
+          >
+            I agree to the{' '}
+            <Link 
+              href="/terms-and-conditions" 
+              target="_blank" 
+              rel="noopener" 
+              onClick={(e) => e.stopPropagation()} 
+              sx={{ 
+                fontWeight: 600, 
+                color: colorPalette.primary, 
+                textDecoration: 'none', 
+                '&:hover': { textDecoration: 'underline' },
+              }}
+            >
+              Terms and Conditions
+            </Link>
+          </Typography>
+        </Box>
         {(termsError || validationErrors.termsAndConditionsAccepted) && (
           <Typography variant="caption" sx={{ color: colorPalette.error, fontSize: '0.75rem', fontWeight: 500, mt: -2 }}>
             {termsError || validationErrors.termsAndConditionsAccepted}
