@@ -144,7 +144,7 @@ const Onboarding = () => {
   // Auth redirect effect
   useEffect(() => {
     if (queryError?.response?.status === 401) {
-      navigate('/login');
+      navigate('/', { state: { requiresAuth: true, returnTo: '/onboarding' } });
     }
   }, [queryError, navigate]);
 

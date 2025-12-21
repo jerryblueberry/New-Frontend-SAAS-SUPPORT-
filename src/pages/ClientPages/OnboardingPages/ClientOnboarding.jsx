@@ -87,7 +87,7 @@ const ClientOnboarding = () => {
   useEffect(() => {
     if (queryError) {
       if (queryError?.response?.status === 401) {
-        navigate('/login')
+        navigate('/client/login')
         return
       }
       

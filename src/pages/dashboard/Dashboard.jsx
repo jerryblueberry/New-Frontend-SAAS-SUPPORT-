@@ -24,7 +24,7 @@ const Dashboard = () => {
   // Authentication guard
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate('/login', { replace: true, state: { from: location } });
+      navigate('/', { replace: true, state: { from: location, requiresAuth: true } });
     }
   }, [isAuthenticated, navigate, location]);
 

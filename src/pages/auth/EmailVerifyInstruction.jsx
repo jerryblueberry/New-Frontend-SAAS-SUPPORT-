@@ -55,9 +55,9 @@ const EmailVerifyInstruction = () => {
         
         <button 
           className="back-to-login"
-          onClick={() => navigate('/login')}
+          onClick={() => navigate('/')}
         >
-          Back to Login
+          Back to Home
         </button>
       </div>
     </div>

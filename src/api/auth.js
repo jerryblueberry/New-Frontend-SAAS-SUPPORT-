@@ -64,17 +64,22 @@ export const registerClient = async(userData) => {
 /**
  * Log in a user with email/password
  * Backend sets refresh token in HTTP-only cookie and returns access token
- * @param {Object} credentials - Login credentials { email, password }
+ * @param {Object} credentials - Login credentials { email, password, portal }
+ * @param {string} portal - Portal type: 'worker' or 'client'
  * @returns {Promise<Object>} Login response with user data
  */
-export const login = async (credentials) => {
+export const login = async (credentials, portal = 'worker') => {
   try {
     // Backend handles:
     // 1. Authentication
-    // 2. Token generation (access + refresh)
-    // 3. Setting refresh token in HTTP-only cookie
-    // 4. Telemetry logging
-    const response = await api.post('/auth/login', credentials, { withCredentials: true });
+    // 2. Role-portal validation
+    // 3. Token generation (access + refresh)
+    // 4. Setting refresh token in HTTP-only cookie
+    // 5. Telemetry logging
+    const response = await api.post('/auth/login', { 
+      ...credentials, 
+      portal // Pass portal type for role validation
+    }, { withCredentials: true });
   
     if (response.data?.data?.accessToken) {
       // Store access token in localStorage (needed for Authorization header)
@@ -94,8 +99,9 @@ export const login = async (credentials) => {
     if (error.response?.status === 401) {
       removeTokens();
     } else if (error.response?.status === 403) {
-      // Account locked or inactive
-      throw new Error(error.response.data?.message || 'Account is locked or inactive');
+      // Account locked, inactive, or role mismatch
+      const errorMessage = error.response.data?.message || 'Access denied';
+      throw new Error(errorMessage);
     }
     
     throw error;
@@ -103,8 +109,9 @@ export const login = async (credentials) => {
 };
 
 /**
- * Refresh the authentication token with retry logic
+ * Refresh the authentication token with retry logic and circuit breaker protection
  * Backend manages refresh token in HTTP-only cookies
+ * @param {number} retryCount - Current retry attempt count
  * @returns {Promise<string>} New access token
  */
 export const refreshAuthToken = async (retryCount = 0) => {
@@ -128,6 +135,20 @@ export const refreshAuthToken = async (retryCount = 0) => {
   } catch (error) {
     console.error('Token refresh error:', error);
     
+    // Handle rate limiting (429) - don't retry, let circuit breaker handle it
+    if (error.response?.status === 429) {
+      const retryAfter = error.response.headers['retry-after'];
+      const message = error.response.data?.message || 'Too many refresh attempts. Please try again later.';
+      
+      removeTokens();
+      window.dispatchEvent(new Event('auth:expired'));
+      
+      const rateLimitError = new Error(message);
+      rateLimitError.statusCode = 429;
+      rateLimitError.retryAfter = retryAfter ? parseInt(retryAfter) : null;
+      throw rateLimitError;
+    }
+    
     // Handle specific error codes from backend
     if (error.response?.data?.code === 'NO_REFRESH_TOKEN') {
       // No refresh token cookie - session expired
@@ -136,12 +157,22 @@ export const refreshAuthToken = async (retryCount = 0) => {
       throw new Error('Session expired. Please log in again.');
     }
     
-    // Retry logic for network errors
+    // Check if user doesn't exist
+    const errorMessage = error.response?.data?.message || error.message || '';
+    if (errorMessage.includes('User no longer exists') || errorMessage.includes('user not found')) {
+      removeTokens();
+      window.dispatchEvent(new Event('auth:expired'));
+      throw new Error('User no longer exists. Please log in again.');
+    }
+    
+    // Retry logic for network errors only (not for 401, 429, or user not found)
     if ((error.message === 'Network Error' || error.code === 'ERR_NETWORK') && retryCount < MAX_REFRESH_RETRIES) {
-      await new Promise(resolve => setTimeout(resolve, TOKEN_REFRESH_RETRY_DELAY * (retryCount + 1)));
+      const delay = TOKEN_REFRESH_RETRY_DELAY * Math.pow(2, retryCount); // Exponential backoff
+      await new Promise(resolve => setTimeout(resolve, delay));
       return refreshAuthToken(retryCount + 1);
     }
     
+    // For 401 errors, don't retry - user needs to log in again
     if (error.response?.status === 401) {
       removeTokens();
       window.dispatchEvent(new Event('auth:expired'));
@@ -252,11 +283,13 @@ export const verifyEmail = async(token) => {
 };
 
 /**
- * Authenticate with Google OAuth with enhanced error handling
+ * Authenticate with Google OAuth with enhanced error handling and role-portal validation
  * @param {string} accessToken - Google OAuth access token
+ * @param {Object} extra - Additional parameters
+ * @param {string} portal - Portal type ('worker', 'client', 'admin')
  * @returns {Promise<Object>} Auth response with user data
  */
-export const googleAuth = async (accessToken, extra = {}) => {
+export const googleAuth = async (accessToken, extra = {}, portal = 'worker') => {
   try {
     // Validate Google token
     const googleResponse = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`);
@@ -267,9 +300,10 @@ export const googleAuth = async (accessToken, extra = {}) => {
     
     const userData = await googleResponse.json();
     
-    // Backend authentication - sets refresh token in HTTP-only cookie
+    // Backend authentication - sets refresh token in HTTP-only cookie and validates role-portal match
     const response = await api.post('/auth/google', { 
       access_token: accessToken,
+      portal, // Pass portal for role validation
       ...extra
     }, { withCredentials: true });
     
@@ -294,6 +328,7 @@ export const googleAuth = async (accessToken, extra = {}) => {
     const enhancedError = new Error(errorMessage);
     enhancedError.originalError = error;
     enhancedError.statusCode = error.response?.status;
+    enhancedError.response = error.response; // Preserve full response
     
     throw enhancedError;
   }
@@ -308,10 +343,11 @@ export const googleAuthClient = async (accessToken, extra = {}) => {
     if (!googleResponse.ok) {
       throw new Error(`Google token validation failed: ${googleResponse.statusText}`);
     }
-    // Backend sets refresh token in HTTP-only cookie
+    // Backend sets refresh token in HTTP-only cookie and validates role-portal match
     const response = await api.post('/auth/google/client', { 
       access_token: accessToken,
       role: 'client', // Explicitly set role as client
+      portal: 'client', // Portal validation
       ...extra
     }, { withCredentials: true });
     
@@ -332,6 +368,7 @@ export const googleAuthClient = async (accessToken, extra = {}) => {
     const enhancedError = new Error(errorMessage);
     enhancedError.originalError = error;
     enhancedError.statusCode = error.response?.status;
+    enhancedError.response = error.response; // Preserve full response for better error handling
     throw enhancedError;
   }
 };

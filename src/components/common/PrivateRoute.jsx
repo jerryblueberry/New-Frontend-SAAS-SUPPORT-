@@ -40,8 +40,9 @@ const PrivateRoute = ({ children }) => {
   }
 
   // Only redirect if we're sure user is not authenticated
+  // Redirect to home page where users can choose their login type
   if (!isAuthenticated && !loading) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/" state={{ from: location, requiresAuth: true }} replace />;
   }
 
   // Wrap children in Suspense for better loading experience

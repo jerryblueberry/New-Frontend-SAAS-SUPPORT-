@@ -1,227 +1,266 @@
-import { useState, useMemo } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
-import { useGoogleLogin } from '@react-oauth/google'
-import { toast } from 'react-toastify'
+import { useState, useMemo, useEffect } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useGoogleLogin } from '@react-oauth/google';
+import { toast } from 'react-toastify';
 import {
   Box,
-  Grid,
+  Container,
   Typography,
-  Paper,
-  Avatar,
-  Fade,
-  Link,
   useTheme,
-  useMediaQuery
-} from '@mui/material'
-import { VerifiedUser as VerifiedUserIcon, Business as BusinessIcon, Security as SecurityIcon, Groups as GroupsIcon } from '@mui/icons-material'
-import { useAuth } from '../../../hooks/useAuth'
-import { registerClient, googleAuthClient } from '../../../api/auth'
-import RegisterForm from '../../../components/auth/RegisterForm'
-import Logo from '../../../assets/aecus-logo.png'
+  useMediaQuery,
+  Stack,
+  alpha,
+  Fade,
+  Zoom,
+  Divider,
+} from '@mui/material';
+import { 
+  GroupsOutlined, 
+  CalendarMonthOutlined, 
+  HealthAndSafetyOutlined, 
+  SecurityOutlined,
+  AssessmentOutlined,
+  VerifiedUserOutlined,
+  LockOutlined,
+} from '@mui/icons-material';
+import { useAuth } from '../../../hooks/useAuth';
+import { registerClient, googleAuthClient } from '../../../api/auth';
+import RegisterForm from '../../../components/auth/RegisterForm';
+import AECUSLogo from '../../../assets/aecus-logo.png';
 
 const ClientRegister = () => {
-  const navigate = useNavigate()
-  const { signIn } = useAuth()
-  const theme = useTheme()
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
-  const [isLoading, setIsLoading] = useState(false)
-  const [loadingMessage, setLoadingMessage] = useState('')
-  const [termsAccepted, setTermsAccepted] = useState(false)
-  const [termsError, setTermsError] = useState('')
+  const navigate = useNavigate();
+  const { signIn } = useAuth();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsError, setTermsError] = useState('');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const { mutate: registerAsClient, error: registerError } = useMutation({
     mutationFn: registerClient,
     onSuccess: (data) => {
-      toast.success('Client account created! Please verify your email.')
+      toast.success('Client account created! Please verify your email.');
       navigate('/verify-email-instructions', {
         state: { email: data.email, verificationUrl: data.verificationUrl }
-      })
+      });
     },
     onError: (error) => {
-      const message = error.response?.data?.message || 'Registration failed'
+      const message = error.response?.data?.message || 'Registration failed';
       if (error.response?.status === 409 && message === 'Email already in use') {
-        toast.error('This email is already registered. Please use a different email.')
+        toast.error('This email is already registered. Please use a different email.');
       } else {
-        toast.error(message)
+        toast.error(message);
       }
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  })
+  });
 
   const googleLogin = useGoogleLogin({
     flow: 'implicit',
     onSuccess: async (response) => {
-      setLoadingMessage('Connecting with Google...')
-      setIsLoading(true)
+      setLoadingMessage('Connecting with Google...');
+      setIsLoading(true);
       try {
-        const authResult = await googleAuthClient(response.access_token, { termsAndConditionsAccepted: true })
-        await signIn(authResult.data, true, true)
-        navigate('/onboarding', { replace: true })
+        const authResult = await googleAuthClient(response.access_token, { termsAndConditionsAccepted: true });
+        await signIn(authResult.data, true, true);
+        navigate('/client-onboarding', { replace: true });
       } catch (error) {
-        console.error('Google auth failed:', error)
-        toast.error(error.message || 'Google authentication failed')
-        setIsLoading(false)
+        console.error('Google auth failed:', error);
+        toast.error(error.message || 'Google authentication failed');
+        setIsLoading(false);
       }
     },
     onError: (error) => {
-      console.error('Google login error:', error)
-      toast.error(error.message || 'Google login failed')
-      setIsLoading(false)
+      console.error('Google login error:', error);
+      toast.error(error.message || 'Google login failed');
+      setIsLoading(false);
     },
-  })
+  });
 
   const handleRegister = (formData) => {
-    setLoadingMessage('Creating your client account...')
-    setIsLoading(true)
-    // Explicitly pass role as client to the API
+    setLoadingMessage('Creating your client account...');
+    setIsLoading(true);
     registerAsClient({ 
       ...formData, 
-      role: 'client' // Explicitly set role as client
-    })
-  }
+      role: 'client'
+    });
+  };
 
   const handleGoogleRegister = () => {
-    googleLogin()
-  }
+    googleLogin();
+  };
 
   const errorMessage = useMemo(() => {
     if (registerError) {
-      const message = registerError.response?.data?.message || 'Registration failed'
+      const message = registerError.response?.data?.message || 'Registration failed';
       if (registerError.response?.status === 409 && message === 'Email already in use') {
-        return 'This email is already registered. Please use a different email.'
+        return 'This email is already registered. Please use a different email.';
       }
-      return message
+      return message;
     }
-    return null
-  }, [registerError])
+    return null;
+  }, [registerError]);
 
-  const benefits = [
-    {
-      icon: <GroupsIcon color="primary" />,
-      title: 'Find Vetted Support Workers',
-      description: 'Discover and onboard verified workers matched to your care needs.'
-    },
-    {
-      icon: <VerifiedUserIcon color="primary" />,
-      title: 'Trust & Compliance',
-      description: 'Profiles include checks, certifications, references, and history.'
-    },
-    {
-      icon: <BusinessIcon color="primary" />,
-      title: 'Simple Management',
-      description: 'Manage bookings, timesheets, and communication in one place.'
-    },
-    {
-      icon: <SecurityIcon color="primary" />,
-      title: 'Secure by Design',
-      description: 'Privacy-first platform with secure authentication and data handling.'
-    }
-  ]
+  const benefits = useMemo(() => [
+    { icon: <GroupsOutlined />, text: 'Access verified support workers' },
+    { icon: <CalendarMonthOutlined />, text: 'Flexible scheduling & booking' },
+    { icon: <HealthAndSafetyOutlined />, text: 'Quality care assurance' },
+    { icon: <AssessmentOutlined />, text: 'Easy management & reporting' },
+    { icon: <VerifiedUserOutlined />, text: 'Background-checked professionals' },
+    { icon: <SecurityOutlined />, text: 'Secure data & privacy protection' },
+  ], []);
+
+  const trustSignals = [
+    'NDIS-ready platform',
+    'Background-verified workers',
+    'Healthcare-grade security',
+  ];
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-        bgcolor: '#f6f7f9',
-        position: 'relative',
-        overflow: 'hidden'
-      }}
-    >
-      {/* Left - Value props for clients */}
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          p: { xs: 3, sm: 4, md: 5 },
-          background: 'linear-gradient(180deg, #ffffff 0%, #fafafa 100%)',
-          color: '#0f172a',
-          order: isMobile ? 2 : 1
-        }}
-      >
-        <Box sx={{ mb: 5 }}>
-          <Typography variant={isMobile ? 'h4' : 'h2'} component="h1" sx={{ fontWeight: 800, mb: 1.5 }}>
-            Create a Client Account
-          </Typography>
-          <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ color: '#475569', fontWeight: 500 }}>
-            Hire trusted support workers and manage care seamlessly
-          </Typography>
-        </Box>
-        <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
-          {benefits.map((benefit, index) => (
-            <Grid item xs={12} sm={6} key={index}>
-              <Paper elevation={0} sx={{ p: { xs: 2, sm: 2.5, md: 3 }, bgcolor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 2 }}>
-                <Box display="flex" alignItems="flex-start" gap={{ xs: 2, sm: 2.5 }}>
-                  <Avatar sx={{ bgcolor: '#eef2ff' }}>{benefit.icon}</Avatar>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>
-                      {benefit.title}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#64748b' }}>
-                      {benefit.description}
-                    </Typography>
-                  </Box>
+    <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', bgcolor: '#fafafa', opacity: mounted ? 1 : 0, transition: 'opacity 0.8s' }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 } }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 5, md: 6, lg: 10 }, alignItems: 'flex-start' }}>
+          
+          {/* Left: Trust & Value */}
+          <Fade in={mounted} timeout={1000}>
+            <Box sx={{ flex: { md: '0 0 45%' }, width: { xs: '100%', md: 'auto' } }}>
+              <Stack spacing={4}>
+                {/* Logo & Tagline */}
+                <Box>
+                  <Zoom in={mounted} timeout={1200}>
+                    <Box component="img" src={AECUSLogo} alt="AECUS" sx={{ width: { xs: '140px', md: '160px' }, height: 'auto', mb: 3 }} />
+                  </Zoom>
+                  
+                  <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', md: '1.75rem' }, fontWeight: 700, color: '#1a1a1a', mb: 1.5, lineHeight: 1.3 }}>
+                    Access verified support workers with confidence
+                  </Typography>
+                  
+                  <Typography variant="body1" sx={{ fontSize: { xs: '0.9375rem', md: '1rem' }, color: alpha('#000', 0.65), lineHeight: 1.6, fontWeight: 400 }}>
+                    Connect with trusted, background-verified support workers. Manage care services with ease and confidence.
+                  </Typography>
                 </Box>
-              </Paper>
-            </Grid>
-          ))}
-        </Grid>
-      </Box>
 
-      {/* Right - Form */}
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          p: { xs: 3, sm: 4, md: 5 },
-          order: isMobile ? 1 : 2
-        }}
-      >
-        <Box sx={{ mb: 5, textAlign: 'center' }}>
-          <Avatar src={Logo} alt="AECUS Logo" sx={{ width: { xs: 140, sm: 180, md: 200 }, height: 'auto', mx: 'auto', mb: 1 }} variant="square" />
-        </Box>
+                {/* Key Benefits */}
+                <Stack spacing={2}>
+                  {benefits.map((benefit, index) => (
+                    <Fade in={mounted} timeout={1200 + index * 100} key={index}>
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                        <Box sx={{ 
+                          color: theme.palette.secondary.main, 
+                          flexShrink: 0, 
+                          mt: 0.25,
+                          '& svg': { fontSize: '1.25rem' }
+                        }}>
+                          {benefit.icon}
+                        </Box>
+                        <Typography sx={{ fontSize: '0.9375rem', fontWeight: 500, color: '#333', lineHeight: 1.5 }}>
+                          {benefit.text}
+                        </Typography>
+                      </Box>
+                    </Fade>
+                  ))}
+                </Stack>
 
-        {errorMessage && (
-          <Fade in={!!errorMessage}>
-            <Paper elevation={0} sx={{ bgcolor: '#fff1f2', color: '#b91c1c', p: { xs: 2, sm: 2.5 }, mb: 4, borderRadius: 2, border: '1px solid #fecdd3' }}>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                {errorMessage}
-              </Typography>
-            </Paper>
+                {/* Trust Signals */}
+                <Box sx={{ pt: 2, borderTop: `1px solid ${alpha('#000', 0.08)}` }}>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+                    <LockOutlined sx={{ fontSize: '1.125rem', color: alpha('#000', 0.5) }} />
+                    <Box>
+                      <Typography variant="caption" sx={{ fontSize: '0.75rem', color: alpha('#000', 0.6), fontWeight: 600, display: 'block', mb: 0.5 }}>
+                        Trusted Healthcare Platform
+                      </Typography>
+                      {trustSignals.map((signal, index) => (
+                        <Typography key={index} variant="caption" sx={{ fontSize: '0.75rem', color: alpha('#000', 0.5), display: 'block', lineHeight: 1.6 }}>
+                          • {signal}
+                        </Typography>
+                      ))}
+                    </Box>
+                  </Stack>
+                </Box>
+              </Stack>
+            </Box>
           </Fade>
-        )}
 
-        <RegisterForm
-          onSubmit={handleRegister}
-          onGoogleRegister={handleGoogleRegister}
-          loading={isLoading}
-          loadingMessage={loadingMessage}
-          error={errorMessage}
-          termsAccepted={termsAccepted}
-          onTermsChange={setTermsAccepted}
-          termsError={termsError}
-          setTermsError={setTermsError}
-          // Hint to the form for labeling or defaults if it supports it
-          roleHint="client"
-        />
+          {/* Right: Registration Form */}
+          <Zoom in={mounted} timeout={isMobile ? 800 : 1100}>
+            <Box sx={{ flex: 1, width: '100%', maxWidth: { xs: '100%', sm: '480px', md: '100%' }, mx: { xs: 'auto', md: 0 } }}>
+              <Box sx={{ 
+                bgcolor: '#ffffff', 
+                borderRadius: 2, 
+                p: { xs: 3, sm: 4 }, 
+                boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)',
+                border: `1px solid ${alpha('#000', 0.06)}`
+              }}>
+                {/* Form Header */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="h5" sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' }, fontWeight: 700, color: '#1a1a1a', mb: 0.5 }}>
+                    Create your client account
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontSize: '0.875rem', color: alpha('#000', 0.6) }}>
+                    Start accessing quality care services
+                  </Typography>
+                </Box>
 
-        <Box sx={{ mt: 5, textAlign: 'center' }}>
-          <Paper elevation={0} sx={{ p: { xs: 2, sm: 2.5 }, bgcolor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 2 }}>
-            <Typography variant="body1" sx={{ color: '#475569', fontWeight: 500 }}>
-              Already have an account?{' '}
-              <Link href="/login" sx={{ color: '#2563eb', fontWeight: 700, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
-                Sign in
-              </Link>
-            </Typography>
-          </Paper>
+                {/* Error Message */}
+                {errorMessage && (
+                  <Fade in={!!errorMessage}>
+                    <Box sx={{ mb: 3, p: 1.5, borderRadius: 1.5, bgcolor: alpha('#dc2626', 0.08), border: `1px solid ${alpha('#dc2626', 0.2)}` }}>
+                      <Typography variant="body2" sx={{ fontSize: '0.8125rem', fontWeight: 500, color: '#b91c1c', lineHeight: 1.5 }}>
+                        {errorMessage}
+                      </Typography>
+                    </Box>
+                  </Fade>
+                )}
+
+                {/* Form */}
+                <RegisterForm
+                  onSubmit={handleRegister}
+                  onGoogleRegister={handleGoogleRegister}
+                  loading={isLoading}
+                  loadingMessage={loadingMessage}
+                  error={errorMessage}
+                  termsAccepted={termsAccepted}
+                  onTermsChange={setTermsAccepted}
+                  termsError={termsError}
+                  setTermsError={setTermsError}
+                  roleHint="client"
+                />
+
+                {/* Footer Links */}
+                <Box sx={{ mt: 3, pt: 3, borderTop: `1px solid ${alpha('#000', 0.06)}` }}>
+                  <Stack spacing={1.5} alignItems="center">
+                    <Typography variant="body2" sx={{ fontSize: '0.875rem', color: alpha('#000', 0.6), textAlign: 'center' }}>
+                      Already have an account?{' '}
+                      <RouterLink to="/client/login" style={{ color: theme.palette.secondary.main, fontWeight: 600, textDecoration: 'none' }}>
+                        Sign in
+                      </RouterLink>
+                    </Typography>
+                    
+                    <Divider sx={{ width: '100%', maxWidth: '60px', borderColor: alpha('#000', 0.12) }} />
+                    
+                    <Typography variant="body2" sx={{ fontSize: '0.8125rem', color: alpha('#000', 0.5), textAlign: 'center' }}>
+                      Are you a support worker?{' '}
+                      <RouterLink to="/login" style={{ color: theme.palette.primary.main, fontWeight: 600, textDecoration: 'none' }}>
+                        Worker login
+                      </RouterLink>
+                    </Typography>
+                  </Stack>
+                </Box>
+              </Box>
+            </Box>
+          </Zoom>
         </Box>
-      </Box>
+      </Container>
     </Box>
-  )
-}
+  );
+};
 
-export default ClientRegister
+export default ClientRegister;

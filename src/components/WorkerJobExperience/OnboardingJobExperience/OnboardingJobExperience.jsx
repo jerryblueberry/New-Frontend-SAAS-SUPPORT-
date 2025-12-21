@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -22,8 +22,10 @@ import {
   Chip,
   Tooltip,
   Alert,
+  AlertTitle,
   InputAdornment,
   LinearProgress,
+  alpha,
 } from '@mui/material';
 import { useMediaQuery } from '@mui/material';
 import {
@@ -46,82 +48,84 @@ import { enGB } from 'date-fns/locale';
 
 // Styled components
 const SectionContainer = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(4, 0),
-  [theme.breakpoints.down('sm')]: {
-    padding: theme.spacing(2, 0),
-  },
+  padding: 0,
+  height: '100%',
+  display: 'flex',
+  flexDirection: 'column',
 }));
 
-const SectionHeader = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'flex-start',
-  gap: theme.spacing(2),
-  marginBottom: theme.spacing(3),
-  '& .MuiTypography-h4': {
-    background: `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    fontWeight: 700,
-  },
-  [theme.breakpoints.down('sm')]: {
-    flexDirection: 'column',
-    textAlign: 'center',
-    gap: theme.spacing(1),
-  },
-}));
-
-const HeaderIcon = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: 56,
-  height: 56,
-  borderRadius: theme.shape.borderRadius * 2,
-  backgroundColor: theme.palette.primary.light + '20',
-  color: theme.palette.primary.main,
-  flexShrink: 0,
-}));
 
 const ExperienceCard = styled(Card, {
   shouldForwardProp: (prop) => prop !== 'isExpanded' && prop !== 'hasErrors',
 })(({ theme, isExpanded, hasErrors }) => ({
   width: '100%',
   margin: '0 auto',
-  borderRadius: theme.shape.borderRadius * 2,
-  boxShadow: isExpanded ? theme.shadows[4] : theme.shadows[1],
-  transition: 'all 0.3s ease',
-  border: `1px solid ${hasErrors ? theme.palette.error.light : theme.palette.divider}`,
+  borderRadius: 2,
+  boxShadow: hasErrors 
+    ? `0 1px 3px rgba(0,0,0,0.04), 0 2px 8px ${alpha(theme.palette.error.main, 0.1)}`
+    : '0 1px 3px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.04)',
+  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  border: 'none',
   overflow: 'hidden',
-  background: `linear-gradient(90deg, ${theme.palette.background.paper} 80%, ${theme.palette.primary.light}10 100%)`,
-  borderLeft: `6px solid ${theme.palette.primary.main}`,
-  padding: theme.spacing(2, 3),
+  backgroundColor: theme.palette.background.paper,
+  position: 'relative',
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '3px',
+    background: hasErrors
+      ? `linear-gradient(90deg, ${theme.palette.error.main}, ${theme.palette.error.light})`
+      : `linear-gradient(90deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.primary.main, 0.05)})`,
+    opacity: hasErrors ? 1 : 0,
+    transition: 'opacity 0.3s ease',
+  },
   '&:hover': {
-    boxShadow: isExpanded ? theme.shadows[6] : theme.shadows[3],
+    boxShadow: hasErrors 
+      ? `0 4px 12px ${alpha(theme.palette.error.main, 0.15)}, 0 2px 4px rgba(0,0,0,0.04)`
+      : '0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04)',
     transform: 'translateY(-2px)',
+    '&::before': {
+      opacity: 1,
+    },
+  },
+  [theme.breakpoints.down('sm')]: {
+    borderRadius: 1.5,
   },
 }));
 
 const CardHeaderStyled = styled(CardHeader)(({ theme }) => ({
-  // backgroundColor: theme.palette.background.paper,
-  padding: theme.spacing(2),
+  padding: theme.spacing(1.5, 2),
   cursor: 'pointer',
+  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+  '&:hover': {
+    bgcolor: alpha(theme.palette.primary.main, 0.02),
+  },
   '& .MuiCardHeader-content': {
     overflow: 'hidden',
   },
   '& .MuiCardHeader-title': {
     fontWeight: 600,
-    fontSize: '1rem',
+    fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     color: theme.palette.text.primary,
+    lineHeight: 1.2,
   },
   '& .MuiCardHeader-subheader': {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     color: theme.palette.text.secondary,
-    fontSize: '0.875rem',
+    fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+    lineHeight: 1.3,
+    mt: 0.25,
+  },
+  '& .MuiCardHeader-avatar': {
+    marginRight: theme.spacing(1.5),
   },
 }));
 
@@ -183,6 +187,20 @@ const ValidationSummary = styled(Paper)(({ theme }) => ({
   marginTop: theme.spacing(3),
 }));
 
+/**
+ * OnboardingJobExperience Component - SaaS-Level Production Ready
+ * 
+ * Best Practices Implemented:
+ * 1. Initial State: Shows ONLY ONE mandatory job card (accordion open)
+ * 2. Progressive Disclosure: Additional cards appear only when user clicks "Add Another Experience"
+ * 3. Mandatory First: First job (index 0) is required, cannot be removed
+ * 4. Clean UI: No empty states, no multiple cards initially
+ * 5. User Control: Users explicitly add more experiences via button
+ * 
+ * Flow:
+ * - Initial load: jobs = [] → Component creates ONE job → Shows ONE card (open)
+ * - User adds more: Clicks button → New card appears → Normal accordion behavior
+ */
 const OnboardingJobExperience = ({
   jobs,
   formErrors,
@@ -195,28 +213,80 @@ const OnboardingJobExperience = ({
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+  const hasInitialized = useRef(false); // Prevents duplicate job creation
 
-  const formatDateRange = (startDate, endDate, currentlyWorking) => {
+  // SaaS-Level Best Practice: Auto-create ONLY ONE mandatory job initially
+  // This ensures clean UI with single focus on required work experience
+  // Production-ready: No work experience = show only ONE card, accordion open
+  // FIXED: Prevents duplicate job creation from store/localStorage/API
+  useEffect(() => {
+    // Only initialize once - prevents duplicate job creation
+    if (!hasInitialized.current) {
+      // Check if jobs array is empty or undefined (initial state)
+      const hasNoJobs = !jobs || !Array.isArray(jobs) || jobs.length === 0;
+      
+      if (hasNoJobs) {
+        // Initial state: No jobs exist - create ONLY the first mandatory one
+        // This is the required work experience - user can add more via button
+        hasInitialized.current = true;
+        onAddJob(); // Creates exactly ONE job
+      } else {
+        // Jobs already exist (from store/localStorage/API)
+        // IMPORTANT: Even if store has multiple jobs, component should only show first one initially
+        // This is handled by WorkHistoryForm normalization
+        // Mark as initialized to prevent re-creating
+        hasInitialized.current = true;
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs?.length]); // Only depend on jobs.length, safely handle undefined
+
+  // Best Practice: Ensure first mandatory job accordion is always open initially
+  // Production-ready UX: User sees form fields immediately, no extra clicks needed
+  useEffect(() => {
+    // Only expand if we have jobs and the first one isn't already expanded
+    if (jobs && jobs.length > 0 && expandedJob !== 0) {
+      // Immediate expansion - accordion opens instantly showing all required fields
+      // This focuses user attention on the mandatory work experience
+      onToggleExpandJob(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs?.length]); // Trigger when first job is created
+
+  // Memoize error calculations for performance - SaaS-level optimization
+  const getJobErrors = useCallback((index) => {
+    if (!formErrors || typeof formErrors !== 'object') return {};
+    return Object.keys(formErrors)
+      .filter((key) => key.startsWith(`job${index}_`))
+      .reduce((acc, key) => {
+        acc[key.replace(`job${index}_`, '')] = formErrors[key];
+        return acc;
+      }, {});
+  }, [formErrors]);
+
+  // Memoized date formatting function
+  const formatDateRange = useCallback((startDate, endDate, currentlyWorking) => {
     if (!startDate) return '';
-    const start = new Date(startDate).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-    if (currentlyWorking) return `${start} - Present`;
-    if (!endDate) return start;
-    const end = new Date(endDate).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-    return `${start} - ${end}`;
-  };
-
-  // Calculate validation states
-  const hasAnyErrors = Object.keys(formErrors).some((key) => key.startsWith('job'));
-  const isValid = jobs.length > 0 && !hasAnyErrors;
-  const errorCount = Object.keys(formErrors).filter(key => key.startsWith('job')).length;
+    try {
+      const start = new Date(startDate).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+      if (currentlyWorking) return `${start} - Present`;
+      if (!endDate) return start;
+      const end = new Date(endDate).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+      return `${start} - ${end}`;
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return '';
+    }
+  }, []);
 
   const handleRemoveWithConfirmation = (index) => {
     onRemoveJob(index);
@@ -225,419 +295,1039 @@ const OnboardingJobExperience = ({
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
       <SectionContainer sx={{}}>
-        {/* Section Header */}
-        <SectionHeader
-  sx={{
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center", // ✅ centers icon and text vertically
-    gap: { xs: 1.5, md: 2.5 }, // ✅ better spacing between icon & text
-  }}
->
-  <HeaderIcon
-    sx={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      width: { xs: "42px", md: "30px" },
-      height: { xs: "42px", md: "30px" },
-        borderRadius: "50%", // ✅ gives a modern rounded look
-        bgcolor: "primary.main", // optional: adds background color for appeal
-        color: "white",
-      // flexShrink: 0,
-      
-    }}
-  >
-    <WorkIcon
-      sx={{
-        width: { xs: "20px", md: "23px" },
-        height: { xs: "20px", md: "23px" },
-      }}
-    />
-  </HeaderIcon>
-
-  <Box>
-    <Typography
-      variant="h4"
-      component="h2"
-      sx={{
-        fontSize: { xs: "1.125rem", md: "1.2rem" },
-        fontWeight: 600,
-      }}
-    >
-      Work Experience
-    </Typography>
-    <Typography
-      variant="body2"
-      color="text.secondary"
-      sx={{ fontSize: { xs: "0.8rem", md: "1rem" } }}
-    >
-      Showcase your professional journey and skills
-    </Typography>
-  </Box>
-</SectionHeader>
+        {/* Header Section - Compact SaaS-Level Design */}
+        <Box sx={{ mb: { xs: 1, sm: 1.25 } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, sm: 0.875 }, mb: 0.5 }}>
+            <WorkIcon sx={{ color: 'primary.main', fontSize: { xs: '1.1rem', sm: '1.2rem' } }} />
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                fontWeight: 600,
+                color: 'text.primary',
+                fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                lineHeight: 1.2,
+              }}
+            >
+              Work Experience
+            </Typography>
+            <Chip 
+              label="REQUIRED" 
+              size="small" 
+              color="error" 
+              variant="outlined"
+              sx={{ 
+                fontWeight: 600,
+                fontSize: { xs: '0.65rem', sm: '0.7rem' },
+                height: { xs: 18, sm: 20 },
+                ml: { xs: 0.5, sm: 0.75 },
+              }}
+            />
+          </Box>
+          <Typography 
+            variant="body2" 
+            color="text.secondary" 
+            sx={{ 
+              fontSize: { xs: '0.7rem', sm: '0.75rem' }, 
+              lineHeight: 1.3,
+              ml: { xs: 2.5, sm: 2.75 },
+            }}
+          >
+            Showcase your professional journey and skills
+          </Typography>
+        </Box>
 
 
-        {/* Form-wide Errors */}
+        {/* Form-wide Errors - Compact SaaS-Level Design */}
         {formErrors.jobs && (
           <Fade in>
-            <Alert severity="error" sx={{ mb: 1 }}>
-              <Typography fontWeight={600} sx={{
-                color:'red',
-                fontSize:{xs:'0.9rem',md:'1rem'}
-              }}>{formErrors.jobs}</Typography>
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mb: { xs: 1, sm: 1.25 }, 
+                borderRadius: 1.5,
+                border: 'none',
+                py: { xs: 0.75, sm: 1 },
+                bgcolor: alpha(theme.palette.error.main, 0.08),
+                '& .MuiAlert-icon': {
+                  fontSize: { xs: '1rem', sm: '1.1rem' },
+                  color: theme.palette.error.main,
+                },
+              }}
+            >
+              <AlertTitle sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.8rem' }, mb: 0.25 }}>
+                Work Experience Required
+              </AlertTitle>
+              <Typography 
+                variant="body2"
+                sx={{
+                  fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                  lineHeight: 1.4
+                }}
+              >
+                {formErrors.jobs}
+              </Typography>
             </Alert>
           </Fade>
         )}
 
-        {/* Empty State */}
-        {jobs.length === 0 ? (
-          <Fade in >
-          <EmptyState
-            elevation={0}
-            sx={{
-              textAlign: "center",
-              p: { xs: 2, md: 4 },
-              borderRadius: 3,
-              bgcolor: "background.paper",
-              maxWidth: 400,
-              mx: "auto", 
-            }}
-          >
-            <WorkIcon
-              sx={{
-                fontSize: { xs: 40, md: 56 },
-                color: "primary.main",
-                mb: 1.5,
-              }}
-            />
-        
-            <Typography
-              variant="h6"
-              sx={{
-                fontSize: { xs: "1rem", md: "1.25rem" },
-                fontWeight: 600,
-                mb: 0.5,
-              }}
-            >
-              No Work Experience Added
-            </Typography>
-        
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                fontSize: { xs: "0.85rem", md: "0.95rem" },
-                mb: 2,
-              }}
-            >
-              Add your professional experiences to showcase your career journey.
-            </Typography>
-        
-            <PrimaryButton
-              variant="contained"
-              
-              onClick={onAddJob}
-              sx={{
-                fontSize: { xs: "0.75rem", md: "0.9rem" },
-                py: { xs: 0.75, md: 1 },
-                px: { xs: 2, md: 3 },
-                borderRadius: 2,
-                textTransform: "none", // ✅ more modern
-              }}
-            >
-              Add First Experience
-            </PrimaryButton>
-            
-          </EmptyState>
-        </Fade>
-        
-        ) : (
-          <Stack spacing={3} sx={{ width: '100%', flexGrow: 1, alignItems: 'center' }}>
-            {/* Add Another Button (moved to top) */}
-            <SecondaryButton
-              variant="outlined"
-              color="primary"
-              startIcon={<AddIcon />}
-              onClick={onAddJob}
-              sx={{ width: '100%', borderStyle: 'dashed', mb: { xs: 2, md: 0 },  border:'1.2px dashed'}}
-            >
-              Add Experience
-            </SecondaryButton>
-            {/* Experience List */}
-            {jobs.map((job, index) => {
-              const jobErrors = Object.keys(formErrors)
-                .filter((key) => key.startsWith(`job${index}_`))
-                .reduce((acc, key) => {
-                  acc[key.replace(`job${index}_`, '')] = formErrors[key];
-                  return acc;
-                }, {});
-
+        {/* Experience List - SaaS-Level Best Practice */}
+        {/* 
+          INITIAL STATE HANDLING:
+          - WorkHistoryForm normalizes store jobs to ONLY ONE on initial load
+          - Component creates ONE job if jobs array is empty
+          - Result: Only ONE card shows initially, accordion open
+          - Additional cards appear only when user clicks "Add Another Experience"
+        */}
+        <Stack spacing={{ xs: 1.5, sm: 2 }} sx={{ width: '100%', flexGrow: 1 }}>
+          {jobs && Array.isArray(jobs) && jobs.length > 0 ? jobs.map((job, index) => {
+              const jobErrors = getJobErrors(index);
               const hasJobErrors = Object.keys(jobErrors).length > 0;
+              
+              // Best Practice: First job (index 0) is mandatory - only one required
+              const isFirstJob = index === 0;
+              const isOnlyJob = jobs.length === 1;
+              
+              // Best Practice: Accordion behavior
+              // - First job always expanded when it's the only job (mandatory, focus on it)
+              // - When multiple jobs exist, use normal accordion state management
+              const isExpanded = isOnlyJob ? isFirstJob : expandedJob === index;
+              
+              // Best Practice: Prevent collapsing first mandatory job when it's the only one
+              // This ensures user always sees the required form fields
+              const canCollapse = !(isFirstJob && isOnlyJob);
 
               return (
                 <Fade in key={index} timeout={300 + index * 100}>
                   <ExperienceCard 
                     id={`wh-job-card-${index}`}
-                    isExpanded={expandedJob === index}
+                    isExpanded={isExpanded}
                     hasErrors={hasJobErrors}
-                    sx={{ width: '100%', maxWidth: '100%', mb: { xs: 2, md: 0 }, p: { xs: '0px 10px', sm: '0px 10px', md: '0px 10px' } }} // Wider, more padding
+                    sx={{ 
+                      width: '100%', 
+                      maxWidth: '100%',
+                      border: `1px solid ${hasJobErrors ? theme.palette.error.main + '40' : theme.palette.divider}`,
+                      bgcolor: 'background.paper',
+                    }}
                   >
-                    <CardHeaderStyled
-                      title={job.company || 'New Experience'}
-                      subheader={job.title}
-                      avatar={
-                        <Avatar sx={{ bgcolor: theme.palette.primary.light }}>
-                          <BusinessIcon sx={{ color: theme.palette.primary.main }} />
-                        </Avatar>
-                      }
-                      action={
-                        <Box display="flex" alignItems="center">
-                          {job.startDate && (
-                            <DateRangeChip
-                              label={formatDateRange(
-                                job.startDate,
-                                job.endDate,
-                                job.currentlyWorking
-                              )}
-                              size="small"
-                              sx={{ mr: 1 }}
-                            />
-                          )}
-                          <ExpandButton
-                            aria-label="show more"
-                            isExpanded={expandedJob === index}
-                            onClick={() => onToggleExpandJob(index)}
-                          >
-                            <ExpandMoreIcon />
-                          </ExpandButton>
-                        </Box>
-                      }
-                      onClick={() => onToggleExpandJob(index)}
-                    />
-                    
                     {/* Error indicator bar */}
                     {hasJobErrors && (
                       <LinearProgress 
                         color="error" 
                         variant="determinate" 
                         value={100} 
-                        sx={{ height: 2 }}
+                        sx={{ 
+                          height: 2, 
+                          position: 'absolute', 
+                          top: 0, 
+                          left: 0, 
+                          right: 0,
+                          borderRadius: '2px 2px 0 0',
+                        }}
                       />
                     )}
 
-                    <Collapse in={expandedJob === index} timeout="auto" unmountOnExit>
-                      <Divider />
-                      <CardContent sx={{ pt: 2 }}>
-                        <Grid container spacing={2}>
-                          {/* Company Name */}
-                          <Grid item xs={12} md={6}>
-                            <TextField
-                              fullWidth
-                              label="Company Name"
-                              value={job.company}
-                              onChange={(e) =>
-                                onUpdateJob(index, 'company', e.target.value)
-                              }
-                              error={!!jobErrors.company}
-                              helperText={jobErrors.company}
-                              required
-                              name={`job${index}_company`}
-                              id={`job${index}_company`}
-                              size={isMobile ? 'small' : 'medium'}
-                              inputProps={{ 'aria-label': `Job ${index + 1} Company Name` }}
-                              InputProps={{
-                                startAdornment: (
-                                  <InputAdornment position="start">
-                                    <BusinessIcon color="action" />
-                                  </InputAdornment>
-                                ),
-                              }}
-                             />
-                          </Grid>
-
-                          {/* Job Title */}
-                          <Grid item xs={12} md={6}>
-                            <TextField
-                              fullWidth
-                              label="Job Title"
-                              value={job.title}
-                              onChange={(e) =>
-                                onUpdateJob(index, 'title', e.target.value)
-                              }
-                              error={!!jobErrors.title}
-                              helperText={jobErrors.title}
-                              required
-                              name={`job${index}_title`}
-                              id={`job${index}_title`}
-                              size={isMobile ? 'small' : 'medium'}
-                              inputProps={{ 'aria-label': `Job ${index + 1} Title` }}
-                              InputProps={{
-                                startAdornment: (
-                                  <InputAdornment position="start">
-                                    <TitleIcon color="action" />
-                                  </InputAdornment>
-                                ),
-                              }}
-                            />
-                          </Grid>
-
-                          {/* Date Range */}
-                          <Grid item xs={12}>
-                            <Box display="flex" gap={2} flexWrap="wrap" alignItems="center">
-                              <DatePicker
-                                label="Start Date"
-                                value={job.startDate || null}
-                                onChange={(date) =>
-                                  onUpdateJob(index, 'startDate', date)
-                                }
-                                format="dd MMM yyyy"
-                                disableFuture
-                                reduceAnimations
-                                slotProps={{
-                                  textField: {
-                                    fullWidth: true,
-                                    error: !!jobErrors.startDate,
-                                    helperText: jobErrors.startDate,
-                                    required: true,
-                                    name: `job${index}_startDate`,
-                                    id: `job${index}_startDate`,
-                                    size: isMobile ? 'small' : 'medium',
-                                    inputProps: { 'aria-label': `Job ${index + 1} Start Date` },
-                                    InputProps: {
-                                      startAdornment: (
-                                        <InputAdornment position="start">
-                                          <DateRangeIcon color="action" />
-                                        </InputAdornment>
-                                      ),
-                                    },
-                                  },
+                    {/* Card Header */}
+                    {canCollapse ? (
+                      // Collapsible header for additional jobs or when multiple jobs exist
+                      <CardHeaderStyled
+                        title={job.company || `Experience ${index + 1}`}
+                        subheader={job.title || 'Enter job details'}
+                        avatar={
+                          <Avatar sx={{ 
+                            bgcolor: hasJobErrors ? theme.palette.error.light : theme.palette.primary.light,
+                            width: { xs: 40, sm: 44, md: 48 },
+                            height: { xs: 40, sm: 44, md: 48 }
+                          }}>
+                            <BusinessIcon sx={{ 
+                              color: hasJobErrors ? theme.palette.error.main : theme.palette.primary.main,
+                              fontSize: { xs: 20, sm: 22, md: 24 }
+                            }} />
+                          </Avatar>
+                        }
+                        action={
+                          <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
+                            {job.startDate && !isExpanded && (
+                              <DateRangeChip
+                                label={formatDateRange(
+                                  job.startDate,
+                                  job.endDate,
+                                  job.currentlyWorking
+                                )}
+                                size="small"
+                                sx={{ 
+                                  display: { xs: 'none', sm: 'flex' },
+                                  fontSize: '0.7rem',
+                                  height: 24
                                 }}
-                                sx={{ flex: 1, minWidth: 180 }}
                               />
-                              <DatePicker
-                                label="End Date"
-                                value={job.currentlyWorking ? null : job.endDate || null}
-                                onChange={(date) =>
-                                  onUpdateJob(index, 'endDate', date)
-                                }
-                                disabled={job.currentlyWorking}
-                                format="dd MMM yyyy"
-                                disableFuture
-                                minDate={job.startDate || undefined}
-                                reduceAnimations
-                                slotProps={{
-                                  textField: {
-                                    fullWidth: true,
-                                    error: !!jobErrors.endDate,
-                                    helperText: jobErrors.endDate,
-                                    required: !job.currentlyWorking,
-                                    name: `job${index}_endDate`,
-                                    id: `job${index}_endDate`,
-                                    size: isMobile ? 'small' : 'medium',
-                                    inputProps: { 'aria-label': `Job ${index + 1} End Date` },
-                                    InputProps: {
-                                      startAdornment: (
-                                        <InputAdornment position="start">
-                                          <DateRangeIcon color="action" />
-                                        </InputAdornment>
-                                      ),
-                                    },
-                                  },
+                            )}
+                            {isFirstJob && (
+                              <Chip
+                                label="Required"
+                                size="small"
+                                color="error"
+                                variant="outlined"
+                                sx={{ 
+                                  fontSize: '0.7rem',
+                                  height: 24,
+                                  fontWeight: 600
                                 }}
-                                sx={{ flex: 1, minWidth: 180 }}
                               />
-                              <FormControlLabel
-                                control={
-                                  <Checkbox
-                                    checked={job.currentlyWorking}
-                                    onChange={(e) =>
-                                      onUpdateJob(
-                                        index,
-                                        'currentlyWorking',
-                                        e.target.checked
-                                      )
-                                    }
-                                    color="primary"
-                                  />
-                                }
-                                label="Currently working here"
-                                sx={{ ml: 1 }}
+                            )}
+                            {hasJobErrors && (
+                              <Chip
+                                icon={<WarningIcon sx={{ fontSize: 14 }} />}
+                                label={`${Object.keys(jobErrors).length} error${Object.keys(jobErrors).length > 1 ? 's' : ''}`}
+                                size="small"
+                                color="error"
+                                sx={{ 
+                                  fontSize: '0.7rem',
+                                  height: 24,
+                                  fontWeight: 600
+                                }}
                               />
-                            </Box>
-                          </Grid>
+                            )}
+                            <ExpandButton
+                              aria-label={isExpanded ? "collapse" : "expand"}
+                              isExpanded={isExpanded}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleExpandJob(index);
+                              }}
+                              sx={{
+                                color: hasJobErrors ? theme.palette.error.main : theme.palette.primary.main
+                              }}
+                            >
+                              <ExpandMoreIcon />
+                            </ExpandButton>
+                          </Box>
+                        }
+                        onClick={() => onToggleExpandJob(index)}
+                        sx={{
+                          p: { xs: 2, sm: 2.5, md: 3 },
+                          pb: isExpanded ? { xs: 1.5, sm: 2, md: 2.5 } : { xs: 2, sm: 2.5, md: 3 },
+                          cursor: 'pointer',
+                          '&:hover': {
+                            bgcolor: 'action.hover',
+                          }
+                        }}
+                      />
+                    ) : (
+                      // Non-collapsible header for first mandatory job (when it's the only job)
+                      <Box
+                        sx={{
+                          p: { xs: 2, sm: 2.5, md: 3 },
+                          pb: { xs: 1.5, sm: 2, md: 2.5 },
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2,
+                          borderBottom: `1px solid ${hasJobErrors ? theme.palette.error.light : theme.palette.divider}`,
+                        }}
+                      >
+                        <Avatar sx={{ 
+                          bgcolor: hasJobErrors ? theme.palette.error.light : theme.palette.primary.light,
+                          width: { xs: 40, sm: 44, md: 48 },
+                          height: { xs: 40, sm: 44, md: 48 }
+                        }}>
+                          <BusinessIcon sx={{ 
+                            color: hasJobErrors ? theme.palette.error.main : theme.palette.primary.main,
+                            fontSize: { xs: 20, sm: 22, md: 24 }
+                          }} />
+                        </Avatar>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography
+                            variant="h6"
+                            sx={{
+                              fontWeight: 600,
+                              fontSize: { xs: '0.95rem', sm: '1rem', md: '1.1rem' },
+                              color: 'text.primary',
+                              mb: 0.5,
+                            }}
+                          >
+                            {job.company || 'Work Experience'}
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                              color: 'text.secondary',
+                            }}
+                          >
+                            {job.title || 'Please fill in your work experience details'}
+                          </Typography>
+                        </Box>
+                        {hasJobErrors && (
+                          <Chip
+                            icon={<WarningIcon sx={{ fontSize: 14 }} />}
+                            label={`${Object.keys(jobErrors).length} error${Object.keys(jobErrors).length > 1 ? 's' : ''}`}
+                            size="small"
+                            color="error"
+                            sx={{ 
+                              fontSize: '0.7rem',
+                              height: 24,
+                              fontWeight: 600
+                            }}
+                          />
+                        )}
+                        <Chip
+                          label="Required"
+                          size="small"
+                          color="error"
+                          variant="outlined"
+                          sx={{ 
+                            fontSize: '0.7rem',
+                            height: 24,
+                            fontWeight: 600
+                          }}
+                        />
+                      </Box>
+                    )}
 
-                          {/* Description */}
-                  <Grid item xs={12} md={12} width={'100%'}>
-                            <Box sx={{
-                              background: (theme) => theme.palette.background.default,
-                              border: (theme) => `1px solid ${theme.palette.divider}`,
-                              borderRadius: 2,
-                              p: 2,
-                              mb: 2,
-                              boxShadow: 1,
-                              display: 'flex',
-                              flexDirection: 'column',
-                              
-                              m: 0, // Remove margin
-                            }}>
-                              <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <DescriptionIcon color="primary" fontSize="small" /> Job Description
-                              </Typography>
+                    {/* Collapsible Content - Always visible and open for first mandatory job */}
+                    <Collapse 
+                      in={isExpanded} 
+                      timeout={isOnlyJob && isFirstJob ? 0 : 300} 
+                      unmountOnExit={canCollapse}
+                      appear={false}
+                    >
+                      {canCollapse && <Divider />}
+                      {/* CardContent - Optimized for Mobile Responsiveness */}
+                      <CardContent sx={{ 
+                        p: { xs: 1.5, sm: 2, md: 2.5 },
+                        pt: { xs: 1.5, sm: 2, md: 2.5 },
+                        px: { xs: 1.5, sm: 2, md: 2.5 },
+                        width: '100%',
+                        maxWidth: '100%',
+                        boxSizing: 'border-box',
+                      }}>
+                        {/* SaaS-Level Responsive Grid Layout - Optimized for Mobile */}
+                        <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
+                          {/* Company Name - Full Width on Mobile, Responsive Design */}
+                          <Grid item xs={12} sm={6}>
                               <TextField
                                 fullWidth
-                                label="Describe your responsibilities, achievements, and skills..."
-                                value={job.description || ''}
-                                onChange={(e) =>
-                                  onUpdateJob(index, 'description', e.target.value)
-                                }
-                                multiline
-                                minRows={3}
-                                maxRows={6}
-                                inputProps={{ maxLength: 500, 'aria-label': `Job ${index + 1} Description` }}
-                                helperText={
-                                  jobErrors.description ? 
-                                  `${jobErrors.description}\n${(job.description || '').length}/500 characters` : 
-                                  `${(job.description || '').length}/500 characters`
-                                }
-                                FormHelperTextProps={{
-                                  sx: { whiteSpace: 'pre-line' }
-                                }}
+                                label="Company Name"
+                                value={job.company || ''}
+                                onChange={(e) => onUpdateJob(index, 'company', e.target.value)}
+                                error={!!jobErrors.company}
+                                helperText={jobErrors.company || 'Required'}
+                                required
+                                name={`job${index}_company`}
+                                id={`job${index}_company`}
+                                aria-label={`Job ${index + 1} Company Name`}
+                                aria-required="true"
+                                aria-invalid={!!jobErrors.company}
+                                aria-describedby={jobErrors.company ? `job${index}_company-helper-text` : undefined}
+                                size="small"
+                                placeholder="Enter company name"
                                 InputProps={{
-                                  sx: { background: 'transparent', width: '100%' },
+                                  startAdornment: (
+                                    <InputAdornment position="start">
+                                      <BusinessIcon 
+                                        sx={{ 
+                                          fontSize: { xs: '1rem', sm: '1.1rem' },
+                                          color: jobErrors.company ? 'error.main' : 'action.active' 
+                                        }} 
+                                      />
+                                    </InputAdornment>
+                                  ),
                                 }}
-                                error={!!jobErrors.description}
-                                name={`job${index}_description`}
-                                id={`job${index}_description`}
-                                size={isMobile ? 'small' : 'medium'}
-                                sx={{ width: '100%' }}
+                                FormHelperTextProps={{
+                                  id: `job${index}_company-helper-text`,
+                                  sx: {
+                                    m: { xs: 0.75, sm: 0.75 },
+                                    mt: { xs: 0.5, sm: 0.75 },
+                                    fontSize: { xs: '0.7rem', sm: '0.8125rem' },
+                                    fontWeight: jobErrors.company ? 600 : 500,
+                                    lineHeight: { xs: 1.4, sm: 1.5 },
+                                  }
+                                }}
+                                sx={{
+                                  width: '100%',
+                                  '& .MuiOutlinedInput-root': {
+                                    borderRadius: 1.5,
+                                    bgcolor: 'background.paper',
+                                    minHeight: { xs: '48px', sm: '40px' },
+                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    '&:hover': {
+                                      '& .MuiOutlinedInput-notchedOutline': {
+                                        borderColor: jobErrors.company
+                                          ? theme.palette.error.main
+                                          : theme.palette.primary.main + '60',
+                                        borderWidth: '1.5px',
+                                      },
+                                    },
+                                    '&.Mui-focused': {
+                                      boxShadow: jobErrors.company
+                                        ? `0 0 0 3px ${alpha(theme.palette.error.main, 0.15)}`
+                                        : `0 0 0 3px ${alpha(theme.palette.primary.main, 0.15)}`,
+                                      '& .MuiOutlinedInput-notchedOutline': {
+                                        borderColor: jobErrors.company
+                                          ? theme.palette.error.main
+                                          : theme.palette.primary.main,
+                                        borderWidth: '1.5px',
+                                      },
+                                    },
+                                    '&.Mui-error': {
+                                      '& .MuiOutlinedInput-notchedOutline': {
+                                        borderColor: theme.palette.error.main,
+                                        borderWidth: '1.5px',
+                                      },
+                                    },
+                                  },
+                                  '& .MuiInputLabel-root': {
+                                    fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                                    fontWeight: 600,
+                                  },
+                                  '& .MuiInputBase-input': {
+                                    fontSize: { xs: '0.9375rem', sm: '0.9375rem' },
+                                    py: { xs: 1.25, sm: 1 },
+                                    px: { xs: 1, sm: 1 },
+                                  }
+                                }}
                               />
-                              {/* Actions - moved directly below description */}
-                              <Box display="flex" justifyContent="space-between" alignItems="center" mt={2}>
-                                <SecondaryButton
-                                  color="error"
-                                  startIcon={<DeleteIcon />}
-                                  onClick={() => handleRemoveWithConfirmation(index)}
-                                >
-                                  Remove Experience
-                                </SecondaryButton>
-                                {expandedJob === index && (
-                                  <PrimaryButton
-                                    variant="contained"
-                                    onClick={() => {
-                                      onToggleExpandJob(index);
-                                    }}
-                                  >
-                                    Save
-                                  </PrimaryButton>
-                                )}
+                          </Grid>
+
+                          {/* Job Title - Full Width on Mobile, Responsive Design */}
+                          <Grid item xs={12} sm={6}>
+                              <TextField
+                                fullWidth
+                                label="Job Title"
+                                value={job.title || ''}
+                                onChange={(e) => onUpdateJob(index, 'title', e.target.value)}
+                                error={!!jobErrors.title}
+                                helperText={jobErrors.title || 'Required'}
+                                required
+                                name={`job${index}_title`}
+                                id={`job${index}_title`}
+                                aria-label={`Job ${index + 1} Job Title`}
+                                aria-required="true"
+                                aria-invalid={!!jobErrors.title}
+                                aria-describedby={jobErrors.title ? `job${index}_title-helper-text` : undefined}
+                                size="small"
+                                placeholder="e.g. Senior Developer"
+                                InputProps={{
+                                  startAdornment: (
+                                    <InputAdornment position="start">
+                                      <TitleIcon 
+                                        sx={{ 
+                                          fontSize: { xs: '1rem', sm: '1.1rem' },
+                                          color: jobErrors.title ? 'error.main' : 'action.active' 
+                                        }} 
+                                      />
+                                    </InputAdornment>
+                                  ),
+                                }}
+                                FormHelperTextProps={{
+                                  id: `job${index}_title-helper-text`,
+                                  sx: {
+                                    m: { xs: 0.75, sm: 0.75 },
+                                    mt: { xs: 0.5, sm: 0.75 },
+                                    fontSize: { xs: '0.7rem', sm: '0.8125rem' },
+                                    fontWeight: jobErrors.title ? 600 : 500,
+                                    lineHeight: { xs: 1.4, sm: 1.5 },
+                                  }
+                                }}
+                                sx={{
+                                  width: '100%',
+                                  '& .MuiOutlinedInput-root': {
+                                    borderRadius: 1.5,
+                                    bgcolor: 'background.paper',
+                                    minHeight: { xs: '48px', sm: '40px' },
+                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    '&:hover': {
+                                      '& .MuiOutlinedInput-notchedOutline': {
+                                        borderColor: jobErrors.title
+                                          ? theme.palette.error.main
+                                          : theme.palette.primary.main + '60',
+                                        borderWidth: '1.5px',
+                                      },
+                                    },
+                                    '&.Mui-focused': {
+                                      boxShadow: jobErrors.title
+                                        ? `0 0 0 3px ${alpha(theme.palette.error.main, 0.15)}`
+                                        : `0 0 0 3px ${alpha(theme.palette.primary.main, 0.15)}`,
+                                      '& .MuiOutlinedInput-notchedOutline': {
+                                        borderColor: jobErrors.title
+                                          ? theme.palette.error.main
+                                          : theme.palette.primary.main,
+                                        borderWidth: '1.5px',
+                                      },
+                                    },
+                                    '&.Mui-error': {
+                                      '& .MuiOutlinedInput-notchedOutline': {
+                                        borderColor: theme.palette.error.main,
+                                        borderWidth: '1.5px',
+                                      },
+                                    },
+                                  },
+                                  '& .MuiInputLabel-root': {
+                                    fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                                    fontWeight: 600,
+                                  },
+                                  '& .MuiInputBase-input': {
+                                    fontSize: { xs: '0.9375rem', sm: '0.9375rem' },
+                                    py: { xs: 1.25, sm: 1 },
+                                    px: { xs: 1, sm: 1 },
+                                  }
+                                }}
+                              />
+                          </Grid>
+
+                          {/* Date Range - SaaS-Level Responsive Flex Layout - Optimized for Mobile */}
+                          <Grid item xs={12}>
+                            <Box 
+                              sx={{
+                                display: 'flex',
+                                flexDirection: { xs: 'column', sm: 'row' },
+                                gap: { xs: 2, sm: 2, md: 2.5 },
+                                alignItems: { xs: 'stretch', sm: 'flex-start' },
+                                flexWrap: { xs: 'nowrap', sm: 'wrap' },
+                                width: '100%',
+                                boxSizing: 'border-box',
+                              }}
+                            >
+                              {/* Start Date - Full Width on Mobile, Responsive */}
+                              <Box sx={{ 
+                                flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)', md: '1 1 auto' }, 
+                                minWidth: { xs: '100%', sm: 200, md: 220 },
+                                width: { xs: '100%', sm: 'auto' },
+                                maxWidth: { xs: '100%', sm: 'none' },
+                              }}>
+                                <DatePicker
+                                  label="Start Date"
+                                  value={job.startDate || null}
+                                  onChange={(date) => onUpdateJob(index, 'startDate', date)}
+                                  format="dd MMM yyyy"
+                                  disableFuture
+                                  reduceAnimations
+                                  slotProps={{
+                                    textField: {
+                                      fullWidth: true,
+                                      error: !!jobErrors.startDate,
+                                      helperText: jobErrors.startDate || 'Required',
+                                      required: true,
+                                      name: `job${index}_startDate`,
+                                      id: `job${index}_startDate`,
+                                      'aria-label': `Job ${index + 1} Start Date`,
+                                      'aria-required': 'true',
+                                      'aria-invalid': !!jobErrors.startDate,
+                                      'aria-describedby': jobErrors.startDate ? `job${index}_startDate-helper-text` : undefined,
+                                      size: 'small',
+                                      InputProps: {
+                                        startAdornment: (
+                                          <InputAdornment position="start">
+                                            <DateRangeIcon 
+                                              sx={{ 
+                                                fontSize: { xs: '1rem', sm: '1.1rem' },
+                                                color: jobErrors.startDate ? 'error.main' : 'action.active' 
+                                              }} 
+                                            />
+                                          </InputAdornment>
+                                        ),
+                                      },
+                                      sx: {
+                                        width: '100%',
+                                        '& .MuiOutlinedInput-root': {
+                                          borderRadius: 1.5,
+                                          bgcolor: 'background.paper',
+                                          minHeight: { xs: '48px', sm: '40px' }, // Better touch target
+                                          transition: 'all 0.2s ease',
+                                          '&:hover': {
+                                            '& .MuiOutlinedInput-notchedOutline': {
+                                              borderColor: jobErrors.startDate
+                                                ? theme.palette.error.main
+                                                : theme.palette.primary.main + '60',
+                                              borderWidth: '1.5px',
+                                            },
+                                          },
+                                          '&.Mui-focused': {
+                                            boxShadow: jobErrors.startDate
+                                              ? `0 0 0 3px ${alpha(theme.palette.error.main, 0.15)}`
+                                              : `0 0 0 3px ${alpha(theme.palette.primary.main, 0.15)}`,
+                                          },
+                                        },
+                                        '& .MuiFormHelperText-root': {
+                                          id: `job${index}_startDate-helper-text`,
+                                          m: { xs: 0.75, sm: 0.75 },
+                                          mt: { xs: 0.5, sm: 0.75 },
+                                          fontSize: { xs: '0.7rem', sm: '0.8125rem' },
+                                          fontWeight: jobErrors.startDate ? 600 : 500,
+                                          lineHeight: { xs: 1.4, sm: 1.5 },
+                                        },
+                                        '& .MuiInputLabel-root': {
+                                          fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                                          fontWeight: 600,
+                                        },
+                                        '& .MuiInputBase-input': {
+                                          fontSize: { xs: '0.9375rem', sm: '0.9375rem' },
+                                          py: { xs: 1.25, sm: 1 },
+                                          px: { xs: 1, sm: 1 },
+                                        }
+                                      },
+                                    },
+                                  }}
+                                />
+                              </Box>
+
+                              {/* End Date - Full Width on Mobile, Responsive */}
+                              <Box sx={{ 
+                                flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)', md: '1 1 auto' }, 
+                                minWidth: { xs: '100%', sm: 200, md: 220 },
+                                width: { xs: '100%', sm: 'auto' },
+                                maxWidth: { xs: '100%', sm: 'none' },
+                              }}>
+                                <DatePicker
+                                  label="End Date"
+                                  value={job.currentlyWorking ? null : job.endDate || null}
+                                  onChange={(date) => onUpdateJob(index, 'endDate', date)}
+                                  disabled={job.currentlyWorking}
+                                  format="dd MMM yyyy"
+                                  disableFuture
+                                  minDate={job.startDate || undefined}
+                                  reduceAnimations
+                                  slotProps={{
+                                    textField: {
+                                      fullWidth: true,
+                                      error: !job.currentlyWorking && !!jobErrors.endDate,
+                                      helperText: (!job.currentlyWorking && jobErrors.endDate) || (!job.currentlyWorking ? 'Required' : ''),
+                                      required: !job.currentlyWorking,
+                                      name: `job${index}_endDate`,
+                                      id: `job${index}_endDate`,
+                                      'aria-label': `Job ${index + 1} End Date`,
+                                      'aria-required': !job.currentlyWorking ? 'true' : 'false',
+                                      'aria-invalid': !job.currentlyWorking && !!jobErrors.endDate,
+                                      'aria-disabled': job.currentlyWorking,
+                                      'aria-describedby': (!job.currentlyWorking && jobErrors.endDate) ? `job${index}_endDate-helper-text` : undefined,
+                                      size: 'small',
+                                      InputProps: {
+                                        startAdornment: (
+                                          <InputAdornment position="start">
+                                            <DateRangeIcon 
+                                              sx={{ 
+                                                fontSize: { xs: '1rem', sm: '1.1rem' },
+                                                color: (!job.currentlyWorking && jobErrors.endDate) ? 'error.main' : 'action.active' 
+                                              }} 
+                                            />
+                                          </InputAdornment>
+                                        ),
+                                      },
+                                      sx: {
+                                        width: '100%',
+                                        '& .MuiOutlinedInput-root': {
+                                          borderRadius: 1.5,
+                                          bgcolor: 'background.paper',
+                                          minHeight: { xs: '48px', sm: '40px' }, // Better touch target
+                                          transition: 'all 0.2s ease',
+                                          '&:hover': {
+                                            '& .MuiOutlinedInput-notchedOutline': {
+                                              borderColor: (!job.currentlyWorking && jobErrors.endDate)
+                                                ? theme.palette.error.main
+                                                : theme.palette.primary.main + '60',
+                                              borderWidth: '1.5px',
+                                            },
+                                          },
+                                          '&.Mui-focused': {
+                                            boxShadow: (!job.currentlyWorking && jobErrors.endDate)
+                                              ? `0 0 0 3px ${alpha(theme.palette.error.main, 0.15)}`
+                                              : `0 0 0 3px ${alpha(theme.palette.primary.main, 0.15)}`,
+                                          },
+                                        },
+                                        '& .MuiFormHelperText-root': {
+                                          id: `job${index}_endDate-helper-text`,
+                                          m: { xs: 0.75, sm: 0.75 },
+                                          mt: { xs: 0.5, sm: 0.75 },
+                                          fontSize: { xs: '0.7rem', sm: '0.8125rem' },
+                                          fontWeight: (!job.currentlyWorking && jobErrors.endDate) ? 600 : 500,
+                                          lineHeight: { xs: 1.4, sm: 1.5 },
+                                        },
+                                        '& .MuiInputLabel-root': {
+                                          fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                                          fontWeight: 600,
+                                        },
+                                        '& .MuiInputBase-input': {
+                                          fontSize: { xs: '0.9375rem', sm: '0.9375rem' },
+                                          py: { xs: 1.25, sm: 1 },
+                                          px: { xs: 1, sm: 1 },
+                                        }
+                                      },
+                                    },
+                                  }}
+                                />
+                              </Box>
+
+                              {/* Currently Working Checkbox - Full Width on Mobile, Optimized */}
+                              <Box 
+                                sx={{ 
+                                  flex: { xs: '1 1 100%', sm: '0 0 auto' },
+                                  display: 'flex',
+                                  alignItems: { xs: 'flex-start', sm: 'center' },
+                                  pt: { xs: 0.5, sm: 0 },
+                                  width: { xs: '100%', sm: 'auto' },
+                                  minHeight: { xs: '48px', sm: 'auto' },
+                                  boxSizing: 'border-box',
+                                }}
+                              >
+                                <FormControlLabel
+                                  control={
+                                    <Checkbox
+                                      checked={job.currentlyWorking}
+                                      onChange={(e) =>
+                                        onUpdateJob(index, 'currentlyWorking', e.target.checked)
+                                      }
+                                      color="primary"
+                                      sx={{
+                                        '& .MuiSvgIcon-root': {
+                                          fontSize: { xs: '1.5rem', sm: '1.5rem' }
+                                        },
+                                        '& .MuiTouchRipple-root': {
+                                          color: theme.palette.primary.main,
+                                        }
+                                      }}
+                                    />
+                                  }
+                                  label={
+                                    <Typography
+                                      sx={{
+                                        fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                                        fontWeight: 500,
+                                        color: 'text.primary',
+                                        lineHeight: { xs: 1.5, sm: 1.6 }
+                                      }}
+                                    >
+                                      Currently working here
+                                    </Typography>
+                                  }
+                                  sx={{ 
+                                    m: 0,
+                                    userSelect: 'none',
+                                    width: { xs: '100%', sm: 'auto' },
+                                    py: { xs: 0.5, sm: 0 },
+                                    cursor: 'pointer',
+                                  }}
+                                />
                               </Box>
                             </Box>
                           </Grid>
 
-                          {/* Actions - moved below description, full width */}
+                          {/* Description - Adaptive and Responsive, SaaS-Level Design */}
+                          <Grid item xs={12} sx={{ width: '100%', boxSizing: 'border-box' }}>
+                            <Box
+                              sx={{
+                                width: '100%',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: { xs: 0.75, sm: 1 },
+                                maxWidth: '100%',
+                                mx: 0,
+                                px: 0,
+                                boxSizing: 'border-box',
+                              }}
+                            >
+                              {/* Character Counter with Visual Progress */}
+                              <Box
+                                sx={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: { xs: 0.5, sm: 0.75 },
+                                  px: { xs: 0.5, sm: 0.75 },
+                                }}
+                              >
+                                <Box
+                                  sx={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                  }}
+                                >
+                                  <Typography
+                                    variant="caption"
+                                    sx={{
+                                      fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                      color: 'text.secondary',
+                                      fontWeight: 500,
+                                    }}
+                                  >
+                                    Describe your responsibilities, achievements, and skills
+                                  </Typography>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    <Typography
+                                      variant="caption"
+                                      sx={{
+                                        fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                        fontWeight: 600,
+                                        color: (() => {
+                                          const length = (job.description || '').length;
+                                          if (length >= 500) return theme.palette.error.main;
+                                          if (length >= 450) return theme.palette.warning.main;
+                                          return 'text.secondary';
+                                        })(),
+                                        transition: 'color 0.2s ease-in-out',
+                                      }}
+                                    >
+                                      {(job.description || '').length}/500
+                                    </Typography>
+                                    {(job.description || '').length >= 450 && (
+                                      <Tooltip 
+                                        title={(() => {
+                                          const length = (job.description || '').length;
+                                          if (length >= 500) return 'Character limit reached';
+                                          return `${500 - length} characters remaining`;
+                                        })()}
+                                        arrow
+                                      >
+                                        <WarningIcon 
+                                          sx={{ 
+                                            fontSize: { xs: '0.875rem', sm: '1rem' },
+                                            color: (job.description || '').length >= 500 
+                                              ? theme.palette.error.main 
+                                              : theme.palette.warning.main,
+                                          }} 
+                                        />
+                                      </Tooltip>
+                                    )}
+                                  </Box>
+                                </Box>
+                                
+                                {/* Progress Bar */}
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={Math.min(((job.description || '').length / 500) * 100, 100)}
+                                  sx={{
+                                    height: { xs: 2, sm: 3 },
+                                    borderRadius: 1,
+                                    backgroundColor: 'action.hover',
+                                    '& .MuiLinearProgress-bar': {
+                                      backgroundColor: (() => {
+                                        const length = (job.description || '').length;
+                                        if (length >= 500) return theme.palette.error.main;
+                                        if (length >= 450) return theme.palette.warning.main;
+                                        return theme.palette.primary.main;
+                                      })(),
+                                      transition: 'background-color 0.2s ease-in-out',
+                                    },
+                                  }}
+                                />
+                              </Box>
+
+                              <TextField
+                                fullWidth
+                                label="Job Description"
+                                placeholder="E.g., worked as a support worker in a nursing home, provided personal care and assistance to residents ..."
+                                value={job.description || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value.slice(0, 500);
+                                  onUpdateJob(index, 'description', value);
+                                }}
+                                multiline
+                                minRows={isMobile ? 3 : isTablet ? 2 : 2}
+                                maxRows={isMobile ? 3 : isTablet ? 2 :2}
+                                inputProps={{ 
+                                  maxLength: 500,
+                                  'aria-label': `Job ${index + 1} Description`,
+                                  'aria-describedby': `job${index}_description-helper-text`,
+                                }}
+                                error={!!jobErrors.description}
+                                helperText={jobErrors.description || ''}
+                                FormHelperTextProps={{
+                                  id: `job${index}_description-helper-text`,
+                                  sx: { 
+                                    m: { xs: 0.75, sm: 0.75 },
+                                    mt: { xs: 0.5, sm: 0.75 },
+                                    fontSize: { xs: '0.7rem', sm: '0.8125rem' },
+                                    fontWeight: jobErrors.description ? 600 : 500,
+                                    minHeight: jobErrors.description ? 'auto' : '0',
+                                    lineHeight: { xs: 1.4, sm: 1.5 },
+                                  }
+                                }}
+                                name={`job${index}_description`}
+                                id={`job${index}_description`}
+                                aria-invalid={!!jobErrors.description}
+                                size="small"
+                                InputProps={{
+                                  startAdornment: (
+                                    <InputAdornment 
+                                      position="start" 
+                                      sx={{ 
+                                        alignSelf: 'flex-start', 
+                                        mt: { xs: 1.75, sm: 1.75 },
+                                        ml: { xs: 0.5, sm: 0.75 },
+                                        color: jobErrors.description ? theme.palette.error.main : 'action.active',
+                                        transition: 'color 0.2s ease-in-out',
+                                      }}
+                                    >
+                                      <DescriptionIcon sx={{ fontSize: { xs: '1rem', sm: '1.1rem' } }} />
+                                    </InputAdornment>
+                                  ),
+                                }}
+                                sx={{
+                                  width: '100%',
+                                  maxWidth: '100%',
+                                  boxSizing: 'border-box',
+                                  '& .MuiOutlinedInput-root': {
+                                    borderRadius: 1.5,
+                                    width: '100%',
+                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    backgroundColor: 'background.paper',
+                                    minHeight: { xs: '140px', sm: '160px' },
+                                    '& textarea': {
+                                      resize: 'vertical',
+                                      width: '100% !important',
+                                      maxWidth: '100% !important',
+                                      boxSizing: 'border-box',
+                                      padding: { 
+                                        xs: '10px 6px', 
+                                        sm: '12px 8px'
+                                      },
+                                      fontSize: { xs: '0.9375rem', sm: '0.9375rem' },
+                                      lineHeight: { xs: 1.6, sm: 1.65 },
+                                      fontFamily: 'inherit',
+                                      minHeight: { xs: '120px', sm: '140px' },
+                                      '&::placeholder': {
+                                        opacity: 0.6,
+                                        fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                                      },
+                                    },
+                                    '&:hover': {
+                                      '& .MuiOutlinedInput-notchedOutline': {
+                                        borderColor: jobErrors.description 
+                                          ? theme.palette.error.main 
+                                          : theme.palette.primary.main + '60',
+                                        borderWidth: '1.5px',
+                                      },
+                                    },
+                                    '&.Mui-focused': {
+                                      boxShadow: jobErrors.description
+                                        ? `0 0 0 3px ${alpha(theme.palette.error.main, 0.15)}`
+                                        : `0 0 0 3px ${alpha(theme.palette.primary.main, 0.15)}`,
+                                      '& .MuiOutlinedInput-notchedOutline': {
+                                        borderColor: jobErrors.description 
+                                          ? theme.palette.error.main 
+                                          : theme.palette.primary.main,
+                                        borderWidth: '1.5px',
+                                      },
+                                    },
+                                    '&.Mui-error': {
+                                      '& .MuiOutlinedInput-notchedOutline': {
+                                        borderColor: theme.palette.error.main,
+                                        borderWidth: '1.5px',
+                                      },
+                                    },
+                                  },
+                                  '& .MuiInputBase-root': {
+                                    alignItems: 'flex-start',
+                                    width: '100%',
+                                    padding: 0,
+                                  },
+                                  '& .MuiInputLabel-root': {
+                                    fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                                    fontWeight: 600,
+                                    transform: 'translate(14px, 18px) scale(1)',
+                                    '&.MuiInputLabel-shrink': {
+                                      transform: 'translate(14px, -9px) scale(0.75)',
+                                    },
+                                    [theme.breakpoints.down('sm')]: {
+                                      transform: 'translate(12px, 16px) scale(1)',
+                                      '&.MuiInputLabel-shrink': {
+                                        transform: 'translate(12px, -9px) scale(0.75)',
+                                      },
+                                    },
+                                  },
+                                  '& .MuiInputLabel-root.Mui-focused': {
+                                    color: jobErrors.description 
+                                      ? theme.palette.error.main 
+                                      : theme.palette.primary.main,
+                                  },
+                                  '& .MuiFormHelperText-root': {
+                                    display: jobErrors.description ? 'block' : 'none',
+                                  },
+                                }}
+                              />
+                            </Box>
+                          </Grid>
+
+                          {/* Actions - Responsive Layout */}
                           <Grid item xs={12}>
-                            {/* (Removed old button location) */}
+                            <Box 
+                              display="flex" 
+                              justifyContent="space-between" 
+                              alignItems={{ xs: 'flex-start', sm: 'center' }}
+                              gap={{ xs: 1.5, sm: 2 }}
+                              flexWrap="wrap"
+                              flexDirection={{ xs: 'column', sm: 'row' }}
+                              sx={{ width: '100%' }}
+                            >
+                              {/* Only show remove button for additional jobs (not the first mandatory one) */}
+                              {!isFirstJob && (
+                                <SecondaryButton
+                                  color="error"
+                                  startIcon={<DeleteIcon />}
+                                  onClick={() => handleRemoveWithConfirmation(index)}
+                                  size="small"
+                                  fullWidth={isMobile}
+                                  sx={{ 
+                                    borderRadius: 1.5,
+                                    textTransform: 'none',
+                                    fontWeight: 600,
+                                    px: { xs: 2, sm: 2 },
+                                    py: { xs: 0.875, sm: 0.75 },
+                                    minHeight: { xs: '44px', sm: 'auto' },
+                                    width: { xs: '100%', sm: 'auto' },
+                                  }}
+                                >
+                                  Remove Experience
+                                </SecondaryButton>
+                              )}
+                              {/* Show mandatory indicator for first job */}
+                              {isFirstJob && (
+                                <Chip
+                                  label="Required"
+                                  size="small"
+                                  color="error"
+                                  variant="outlined"
+                                  sx={{ 
+                                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                    fontWeight: 600,
+                                    height: { xs: 24, sm: 28 }
+                                  }}
+                                />
+                              )}
+                              {hasJobErrors && (
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  gap: { xs: 0.75, sm: 1 },
+                                  flexWrap: 'wrap',
+                                  width: { xs: '100%', sm: 'auto' },
+                                }}>
+                                  <Chip
+                                    icon={<WarningIcon sx={{ fontSize: { xs: 14, sm: 16 } }} />}
+                                    label={`${Object.keys(jobErrors).length} error${Object.keys(jobErrors).length > 1 ? 's' : ''} to fix`}
+                                    color="error"
+                                    size="small"
+                                    sx={{ 
+                                      fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                      fontWeight: 600,
+                                      height: { xs: 24, sm: 28 },
+                                    }}
+                                  />
+                                  {isFirstJob && (
+                                    <Typography
+                                      variant="caption"
+                                      sx={{
+                                        color: 'error.main',
+                                        fontSize: { xs: '0.65rem', sm: '0.7rem' },
+                                        fontWeight: 600,
+                                        display: { xs: 'block', sm: 'block' },
+                                        width: { xs: '100%', sm: 'auto' },
+                                      }}
+                                    >
+                                      Please fix errors to continue
+                                    </Typography>
+                                  )}
+                                </Box>
+                              )}
+                            </Box>
                           </Grid>
                         </Grid>
                       </CardContent>
@@ -645,12 +1335,59 @@ const OnboardingJobExperience = ({
                   </ExperienceCard>
                 </Fade>
               );
-            })}
+            }) : (
+              // SaaS-Level Best Practice: Show nothing if no jobs exist
+              // Component will auto-create first mandatory job via useEffect
+              // This ensures clean UI - no empty states, no multiple cards initially
+              null
+            )}
 
-            {/* Validation Summary */}
-
-          </Stack>
-        )}
+          {/* Add Experience Button - Compact SaaS-Level Design */}
+          <Box sx={{
+            pt: { xs: 1.5, sm: 2 },
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: '100%',
+          }}>
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<AddIcon sx={{ fontSize: { xs: 16, sm: 18 } }} />}
+              onClick={() => {
+                onAddJob();
+              }}
+              sx={{ 
+                width: { xs: '100%', sm: 'auto' },
+                minWidth: { xs: '100%', sm: 180 },
+                borderStyle: 'dashed',
+                borderWidth: '1.5px',
+                borderColor: alpha(theme.palette.primary.main, 0.5),
+                borderRadius: 1.5,
+                py: { xs: 0.875, sm: 1 },
+                px: { xs: 2, sm: 2.5 },
+                fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                fontWeight: 600,
+                textTransform: 'none',
+                color: 'primary.main',
+                bgcolor: alpha(theme.palette.primary.main, 0.04),
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': {
+                  borderStyle: 'solid',
+                  borderColor: 'primary.main',
+                  bgcolor: alpha(theme.palette.primary.main, 0.08),
+                  transform: 'translateY(-1px)',
+                  boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.2)}`,
+                },
+                '&:active': {
+                  transform: 'translateY(0)',
+                },
+              }}
+            >
+              Add Another Experience
+            </Button>
+          </Box>
+        </Stack>
       </SectionContainer>
     </LocalizationProvider>
   );

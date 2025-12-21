@@ -63,10 +63,92 @@ const isRetryableError = (error) => {
   );
 };
 
-// Optimized token refresh logic
+// Optimized token refresh logic with circuit breaker pattern
 let isRefreshing = false;
 let refreshSubscribers = [];
 let refreshPromise = null;
+
+// Circuit breaker state to prevent infinite refresh loops
+const circuitBreaker = {
+  failures: 0,
+  lastFailureTime: null,
+  isOpen: false,
+  maxFailures: 3, // Open circuit after 3 consecutive failures
+  resetTimeout: 60000, // Reset after 60 seconds
+  cooldownPeriod: 30000, // Wait 30 seconds before retrying after circuit opens
+};
+
+// Rate limit tracking
+const rateLimitState = {
+  last429Time: null,
+  consecutive429s: 0,
+  max429Retries: 2, // Max 2 retries for 429 errors
+  backoffDelay: 5000, // Start with 5 second delay
+};
+
+// Helper to check if circuit breaker should allow refresh attempt
+const canAttemptRefresh = () => {
+  // If circuit is closed, allow attempt
+  if (!circuitBreaker.isOpen) {
+    return true;
+  }
+  
+  // If circuit is open, check if cooldown period has passed
+  const timeSinceLastFailure = Date.now() - circuitBreaker.lastFailureTime;
+  if (timeSinceLastFailure > circuitBreaker.cooldownPeriod) {
+    // Reset circuit breaker
+    circuitBreaker.isOpen = false;
+    circuitBreaker.failures = 0;
+    return true;
+  }
+  
+  return false;
+};
+
+// Helper to record refresh failure
+const recordRefreshFailure = (error) => {
+  circuitBreaker.failures++;
+  circuitBreaker.lastFailureTime = Date.now();
+  
+  // Open circuit if max failures reached
+  if (circuitBreaker.failures >= circuitBreaker.maxFailures) {
+    circuitBreaker.isOpen = true;
+    console.warn('Token refresh circuit breaker opened due to consecutive failures');
+  }
+  
+  // Handle rate limiting (429 errors)
+  if (error.response?.status === 429) {
+    rateLimitState.last429Time = Date.now();
+    rateLimitState.consecutive429s++;
+    
+    // If too many 429s, open circuit breaker
+    if (rateLimitState.consecutive429s >= rateLimitState.max429Retries) {
+      circuitBreaker.isOpen = true;
+      console.warn('Token refresh circuit breaker opened due to rate limiting');
+    }
+  } else {
+    // Reset 429 counter on non-429 errors
+    rateLimitState.consecutive429s = 0;
+  }
+};
+
+// Helper to record refresh success
+const recordRefreshSuccess = () => {
+  // Reset circuit breaker on successful refresh
+  circuitBreaker.failures = 0;
+  circuitBreaker.isOpen = false;
+  circuitBreaker.lastFailureTime = null;
+  rateLimitState.consecutive429s = 0;
+  rateLimitState.last429Time = null;
+};
+
+// Helper to check if error indicates user doesn't exist
+const isUserNotFoundError = (error) => {
+  const message = error.response?.data?.message || error.message || '';
+  return message.includes('User no longer exists') || 
+         message.includes('user not found') ||
+         (error.response?.status === 401 && message.includes('log in again'));
+};
 
 // Helper to add new requesters to queue
 const addRefreshSubscriber = (callback) => {
@@ -164,6 +246,34 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
       
+      // Check if error indicates user doesn't exist - immediate logout
+      if (isUserNotFoundError(error)) {
+        console.warn('User not found - clearing authentication');
+        removeTokens();
+        window.dispatchEvent(new Event('auth:expired'));
+        return Promise.reject(new Error('User no longer exists. Please log in again.'));
+      }
+      
+      // Check circuit breaker before attempting refresh
+      if (!canAttemptRefresh()) {
+        console.warn('Token refresh circuit breaker is open - skipping refresh attempt');
+        removeTokens();
+        window.dispatchEvent(new Event('auth:expired'));
+        return Promise.reject(new Error('Too many refresh attempts. Please log in again.'));
+      }
+      
+      // Check if we're rate limited and need to wait
+      // Note: We can't await here in the interceptor, so we'll handle it in the refresh function
+      if (rateLimitState.last429Time) {
+        const timeSinceLast429 = Date.now() - rateLimitState.last429Time;
+        if (timeSinceLast429 < rateLimitState.backoffDelay) {
+          console.warn('Rate limited - circuit breaker will prevent refresh attempt');
+          removeTokens();
+          window.dispatchEvent(new Event('auth:expired'));
+          return Promise.reject(new Error('Too many refresh attempts. Please log in again.'));
+        }
+      }
+      
       // Mark as retried to avoid infinite loops
       originalRequest._retry = true;
       
@@ -178,6 +288,7 @@ api.interceptors.response.use(
           
           if (newAccessToken) {
             originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+            recordRefreshSuccess();
             onRefreshSuccess(newAccessToken);
             resetRefreshState();
             return api(originalRequest);
@@ -185,6 +296,33 @@ api.interceptors.response.use(
             throw new Error('Token refresh failed');
           }
         } catch (refreshError) {
+          // Record failure for circuit breaker
+          recordRefreshFailure(refreshError);
+          
+          // Check if user doesn't exist in refresh error
+          if (isUserNotFoundError(refreshError)) {
+            console.warn('User not found during token refresh - clearing authentication');
+            removeTokens();
+            window.dispatchEvent(new Event('auth:expired'));
+            onRefreshFail(refreshError);
+            resetRefreshState();
+            return Promise.reject(new Error('User no longer exists. Please log in again.'));
+          }
+          
+          // Handle rate limiting (429) errors
+          if (refreshError.response?.status === 429) {
+            const retryAfter = refreshError.response.headers['retry-after'];
+            const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : rateLimitState.backoffDelay;
+            rateLimitState.backoffDelay = Math.min(waitTime * 2, 60000); // Max 60 seconds
+            
+            console.warn(`Rate limited on token refresh - circuit breaker will prevent further attempts`);
+            removeTokens();
+            window.dispatchEvent(new Event('auth:expired'));
+            onRefreshFail(refreshError);
+            resetRefreshState();
+            return Promise.reject(new Error('Too many refresh attempts. Please log in again.'));
+          }
+          
           // Notify all queued requests of failure
           onRefreshFail(refreshError);
           resetRefreshState();
@@ -215,6 +353,31 @@ api.interceptors.response.use(
           }
         });
       });
+    }
+    
+    // Handle 429 rate limit errors
+    if (error.response?.status === 429) {
+      const retryAfter = error.response.headers['retry-after'];
+      const message = error.response.data?.message || 'Too many requests. Please try again later.';
+      
+      // Emit rate limit event for UI handling
+      window.dispatchEvent(new CustomEvent('api:rate-limited', {
+        detail: { 
+          error, 
+          retryAfter: retryAfter ? parseInt(retryAfter) : null,
+          message 
+        }
+      }));
+      
+      // Don't retry refresh token endpoint on 429
+      if (originalRequest.url?.includes('refresh-token')) {
+        console.warn('Rate limited on refresh token endpoint - clearing authentication');
+        removeTokens();
+        window.dispatchEvent(new Event('auth:expired'));
+        return Promise.reject(new Error('Too many refresh attempts. Please log in again.'));
+      }
+      
+      return Promise.reject(error);
     }
     
     // Handle other HTTP errors

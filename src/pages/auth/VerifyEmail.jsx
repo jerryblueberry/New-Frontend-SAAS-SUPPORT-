@@ -125,7 +125,7 @@ const VerifyEmail = () => {
       navigate(path);
     } catch (navError) {
       console.error('Navigation failed:', navError);
-      navigate('/login');
+      navigate('/');
     }
   }, [navigate]);
 

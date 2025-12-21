@@ -1,279 +1,442 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import {
   Box,
-  Paper,
   Typography,
-  LinearProgress,
-  Button,
-  Stack,
   Card,
   CardContent,
-  Chip,
+  Button,
+  Avatar,
   useTheme,
-  alpha,
   useMediaQuery,
+  alpha,
+  Stack,
 } from '@mui/material';
 import {
-  AccountCircle as AccountIcon,
-  Schedule as ScheduleIcon,
-  School as CertificationIcon,
-  HealthAndSafety as HealthIcon,
-  Work as WorkIcon,
-  ArrowForward as ArrowForwardIcon,
-  CheckCircle as CheckCircleIcon,
-} from '@mui/icons-material';
+  User,
+  Briefcase,
+  Calendar,
+  GraduationCap,
+  Heart,
+  CheckCircle2,
+  ArrowRight,
+  ChevronRight,
+} from 'lucide-react';
+
+// Design tokens
+const COLORS = {
+  primary: '#1A1A2E',
+  primaryLight: '#2D2D44',
+  blue: '#3B82F6',
+  blueDark: '#2563EB',
+  success: '#10B981',
+  successDark: '#059669',
+  orange: '#F59E0B',
+  neutral: {
+    50: '#FAFAFA',
+    100: '#F5F5F5',
+    200: '#E5E5E5',
+    300: '#D4D4D4',
+    400: '#A3A3A3',
+    500: '#737373',
+    600: '#525252',
+    700: '#404040',
+    800: '#262626',
+    900: '#171717',
+  },
+};
+
+const STEPS_CONFIG = [
+  { id: 1, key: 'basicInfo', title: 'Basic Info', desc: 'Name, bio & hourly rate', icon: User },
+  { id: 2, key: 'workHistory', title: 'Experience', desc: 'Work history & references', icon: Briefcase },
+  { id: 3, key: 'availability', title: 'Schedule', desc: 'Set your availability', icon: Calendar },
+  { id: 4, key: 'certifications', title: 'Certifications', desc: 'Upload certifications', icon: GraduationCap },
+  { id: 5, key: 'healthInformation', title: 'Health Info', desc: 'Compliance documents', icon: Heart },
+];
 
 const OnboardingPrompt = ({
   percentage = 0,
   nextStep = 1,
   onContinue = () => {},
   completedSteps,
+  completedSections = {},
 }) => {
+  const [mounted, setMounted] = useState(false);
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const [hovered, setHovered] = useState(null);
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const steps = [
-    { id: 1, title: "Personal Profile", description: "Share your identity", icon: <AccountIcon /> },
-    { id: 2, title: "Experience", description: "Add work history", icon: <WorkIcon /> },
-    { id: 3, title: "Availability", description: "Set your schedule", icon: <ScheduleIcon /> },
-    { id: 4, title: "Skills & Certs", description: "Showcase expertise", icon: <CertificationIcon /> },
-    { id: 5, title: "Health Check", description: "Compliance form", icon: <HealthIcon /> },
-  ];
+  useEffect(() => {
+    const timer = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(timer);
+  }, []);
 
-  // Derive completed steps if not explicitly provided.
-  // Each step represents an equal portion of the 100% progress bar.
-  const safePercentage = Number.isFinite(percentage) ? percentage : 0;
-  const derivedCompleted =
-    typeof completedSteps === "number" && !Number.isNaN(completedSteps)
-      ? Math.min(Math.max(completedSteps, 0), steps.length)
-      : Math.min(
-          Math.max(Math.floor((safePercentage || 0) / (100 / steps.length)), 0),
-          steps.length
-        );
+  const safePercentage = useMemo(
+    () => (Number.isFinite(percentage) ? Math.min(Math.max(percentage, 0), 100) : 0),
+    [percentage]
+  );
+
+  const derivedCompleted = useMemo(() => {
+    if (completedSections && typeof completedSections === 'object') {
+      return STEPS_CONFIG.filter((step) => completedSections[step.key] === true).length;
+    }
+    if (typeof completedSteps === 'number' && !Number.isNaN(completedSteps)) {
+      return Math.min(Math.max(completedSteps, 0), STEPS_CONFIG.length);
+    }
+    return Math.min(Math.floor(safePercentage / 20), STEPS_CONFIG.length);
+  }, [completedSections, completedSteps, safePercentage]);
+
+  const isStepCompleted = useCallback(
+    (step) => {
+      if (completedSections && typeof completedSections === 'object') {
+        return completedSections[step.key] === true;
+      }
+      return safePercentage >= step.id * 20;
+    },
+    [completedSections, safePercentage]
+  );
+
+  const handleContinue = useCallback(() => onContinue(), [onContinue]);
+  const isComplete = derivedCompleted === STEPS_CONFIG.length;
+  const remainingSteps = STEPS_CONFIG.length - derivedCompleted;
 
   return (
     <Box
       sx={{
-        width: "100%",
-        minHeight: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "flex-start",
-        py: { xs: 2, sm: 4 },
-        bgcolor: "#f8f9fb",
+        width: '100%',
+        opacity: mounted ? 1 : 0,
+        transform: mounted ? 'none' : 'translateY(8px)',
+        transition: 'opacity 0.4s ease, transform 0.4s ease',
       }}
     >
-      <Box
-        sx={{
-          width: "100%",
-          maxWidth: 1200,
-          px: { xs: 1, sm: 2, md: 3 },
-        }}
+      {/* Header */}
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        alignItems={{ xs: 'flex-start', sm: 'center' }}
+        justifyContent="space-between"
+        spacing={2}
+        sx={{ mb: { xs: 2, sm: 2.5 } }}
       >
-        <Paper
-          elevation={0}
-          sx={{
-            p: { xs: 2, sm: 3, md: 4 },
-            borderRadius: 3,
-            bgcolor: "white",
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.08)}`,
-            boxShadow:
-              "0px 20px 40px rgba(0,0,0,0.04), 0px 4px 10px rgba(0,0,0,0.03)",
-            backdropFilter: "blur(10px)",
-          }}
-        >
-          {/* Header */}
-          <Box sx={{ textAlign: "center", mb: 4 }}>
-            <Typography
-              variant={isMobile ? "h5" : "h4"}
+        <Stack direction="row" alignItems="center" spacing={2}>
+          {/* Progress Ring */}
+          <Box
+            sx={{
+              position: 'relative',
+              width: { xs: 52, sm: 56 },
+              height: { xs: 52, sm: 56 },
+              flexShrink: 0,
+            }}
+          >
+            <Box
               sx={{
-                fontWeight: 700,
-                color: "grey.900",
-                letterSpacing: "-0.02em",
-                mb: 1,
-                fontFamily:
-                  'SF Pro Display, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-              }}
-            >
-              Complete Your Profile
-            </Typography>
-
-            <Typography
-              variant="body2"
-              color="grey.600"
-              sx={{
-                maxWidth: 450,
-                mx: "auto",
-                mb: 2,
-                lineHeight: 1.6,
-              }}
-            >
-              Finish these quick steps to unlock personalized opportunities.
-            </Typography>
-
-            <Chip
-              label={`${derivedCompleted}/${steps.length}`}
-              size="small"
-              sx={{
-                bgcolor: alpha(theme.palette.primary.main, 0.1),
-                color: "primary.main",
-                fontWeight: 600,
-                fontSize: "0.75rem",
-                mb: 1,
+                position: 'absolute',
+                inset: 0,
+                borderRadius: '50%',
+                background: `conic-gradient(
+                  ${isComplete ? COLORS.success : COLORS.primary} ${safePercentage * 3.6}deg,
+                  ${COLORS.neutral[200]} ${safePercentage * 3.6}deg
+                )`,
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  inset: 4,
+                  borderRadius: '50%',
+                  background: 'white',
+                },
               }}
             />
-
-            <Box sx={{ width: "100%", mt: 1 }}>
-              <LinearProgress
-                variant="determinate"
-                value={safePercentage}
+            <Box
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Typography
                 sx={{
-                  height: 8,
-                  borderRadius: 4,
-                  bgcolor: "grey.200",
-                  "& .MuiLinearProgress-bar": {
-                    borderRadius: 4,
-                    bgcolor: "primary.main",
-                  },
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                  fontWeight: 700,
+                  color: isComplete ? COLORS.success : COLORS.primary,
                 }}
-              />
+              >
+                {Math.round(safePercentage)}%
+              </Typography>
             </Box>
-
-            <Typography variant="caption" color="grey.600" sx={{ mt: 0.5 }}>
-              {safePercentage}% complete
-            </Typography>
           </Box>
 
-          {/* Steps */}
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            spacing={2}
-            sx={{ mb: 4 }}
-          >
-            {steps.map((step) => {
-              const isCompleted = (safePercentage || 0) >= step.id * 20;
-              const isNext = nextStep === step.id;
-
-              return (
-                <Card
-                  key={step.id}
-                  onMouseEnter={() => setHovered(step.id)}
-                  onMouseLeave={() => setHovered(null)}
-                  onClick={isNext ? onContinue : () => {}}
-                  elevation={0}
-                  sx={{
-                    flex: 1,
-                    borderRadius: 2,
-                    cursor: "pointer",
-                    transition: "0.25s all ease",
-                    border: `1px solid ${
-                      isNext
-                        ? theme.palette.primary.main
-                        : isCompleted
-                        ? alpha(theme.palette.primary.main, 0.3)
-                        : alpha("#000", 0.08)
-                    }`,
-                    bgcolor:
-                      hovered === step.id
-                        ? alpha(theme.palette.primary.main, 0.04)
-                        : "white",
-                    transform:
-                      hovered === step.id ? "translateY(-3px)" : "none",
-                    boxShadow:
-                      hovered === step.id
-                        ? "0px 12px 28px rgba(0,0,0,0.06)"
-                        : "none",
-                  }}
-                >
-                  <CardContent sx={{ p: 2 }}>
-                    <Stack direction="row" spacing={2} alignItems="center">
-                      {/* Icon */}
-                      <Box
-                        sx={{
-                          width: 42,
-                          height: 42,
-                          borderRadius: "50%",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          bgcolor: isCompleted
-                            ? "primary.main"
-                            : alpha(theme.palette.primary.main, 0.1),
-                          color: isCompleted ? "white" : "primary.main",
-                          transition: "0.25s ease",
-                        }}
-                      >
-                        {isCompleted ? (
-                          <CheckCircleIcon sx={{ fontSize: 22 }} />
-                        ) : (
-                          React.cloneElement(step.icon, { sx: { fontSize: 20 } })
-                        )}
-                      </Box>
-
-                      {/* Text */}
-                      <Box flex={1}>
-                        <Typography
-                          variant="subtitle1"
-                          sx={{
-                            fontWeight: 600,
-                            fontSize: { xs: "0.85rem", md: "0.95rem" },
-                            color: isNext ? "primary.main" : "grey.900",
-                            mb: 0.5,
-                          }}
-                        >
-                          {step.title}
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          color="grey.600"
-                          sx={{ display: "block", lineHeight: 1.4 }}
-                        >
-                          {step.description}
-                        </Typography>
-                      </Box>
-
-                      {isNext && (
-                        <ArrowForwardIcon
-                          sx={{ color: "primary.main", fontSize: 20 }}
-                        />
-                      )}
-                    </Stack>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </Stack>
-
-          {/* Footer */}
-          <Box sx={{ textAlign: "center" }}>
-            <Button
-              variant="contained"
-              endIcon={<ArrowForwardIcon />}
-              onClick={onContinue}
+          {/* Title */}
+          <Box>
+            <Typography
+              component="h2"
               sx={{
-                px: 4,
-                py: 1.3,
+                fontSize: { xs: '1rem', sm: '1.125rem' },
+                fontWeight: 700,
+                color: COLORS.neutral[900],
+                lineHeight: 1.3,
+              }}
+            >
+              {isComplete ? 'Profile Complete' : 'Complete Your Profile'}
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: { xs: '0.813rem', sm: '0.875rem' },
+                color: COLORS.neutral[500],
+              }}
+            >
+              {isComplete ? (
+                'Ready to receive job matches'
+              ) : (
+                <>
+                  <Box component="span" sx={{ fontWeight: 600, color: COLORS.primary }}>
+                    {derivedCompleted}/{STEPS_CONFIG.length}
+                  </Box>
+                  {' completed'}
+                </>
+              )}
+            </Typography>
+          </Box>
+        </Stack>
+
+        {/* Desktop CTA */}
+        {!isComplete && (
+          <Button
+            onClick={handleContinue}
+            endIcon={<ArrowRight size={16} />}
+            sx={{
+              display: { xs: 'none', sm: 'inline-flex' },
+              height: 38,
+              px: 2.5,
+              fontSize: '0.813rem',
+              fontWeight: 600,
+              textTransform: 'none',
+              color: 'white',
+              backgroundColor: COLORS.primary,
+              borderRadius: 2,
+              '&:hover': {
+                backgroundColor: COLORS.primaryLight,
+              },
+              '& .MuiButton-endIcon': { ml: 0.5 },
+            }}
+          >
+            Continue
+          </Button>
+        )}
+      </Stack>
+
+      {/* Steps */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: 'repeat(2, 1fr)',
+            lg: 'repeat(5, 1fr)',
+          },
+          gap: { xs: 1.25, sm: 1.5 },
+          mb: { xs: 2, sm: 2.5 },
+        }}
+      >
+        {STEPS_CONFIG.map((step, index) => {
+          const completed = isStepCompleted(step);
+          const current = nextStep === step.id && !completed;
+          const IconComponent = step.icon;
+
+          return (
+            <Card
+              key={step.id}
+              onClick={current ? handleContinue : undefined}
+              sx={{
                 borderRadius: 2,
+                border: `1px solid ${
+                  current ? COLORS.primary : completed ? COLORS.success : COLORS.neutral[200]
+                }`,
+                backgroundColor: completed
+                  ? alpha(COLORS.success, 0.04)
+                  : current
+                  ? 'white'
+                  : COLORS.neutral[50],
+                boxShadow: current ? `0 2px 8px ${alpha(COLORS.primary, 0.12)}` : 'none',
+                cursor: current ? 'pointer' : 'default',
+                opacity: mounted ? (!current && !completed ? 0.6 : 1) : 0,
+                transform: mounted ? 'none' : 'translateY(6px)',
+                transition: 'all 0.25s ease',
+                transitionDelay: `${index * 40}ms`,
+                '&:hover': current
+                  ? {
+                      boxShadow: `0 4px 12px ${alpha(COLORS.primary, 0.16)}`,
+                      transform: 'translateY(-1px)',
+                    }
+                  : {},
+              }}
+            >
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Stack direction="row" alignItems="center" spacing={1.25}>
+                  <Avatar
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '8px',
+                      backgroundColor: completed
+                        ? COLORS.success
+                        : current
+                        ? COLORS.primary
+                        : COLORS.neutral[200],
+                    }}
+                  >
+                    {completed ? (
+                      <CheckCircle2 size={16} color="white" strokeWidth={2.5} />
+                    ) : (
+                      <IconComponent
+                        size={16}
+                        color={current ? 'white' : COLORS.neutral[500]}
+                        strokeWidth={2}
+                      />
+                    )}
+                  </Avatar>
+
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography
+                      sx={{
+                        fontSize: '0.813rem',
+                        fontWeight: 600,
+                        color: completed
+                          ? COLORS.successDark
+                          : current
+                          ? COLORS.neutral[900]
+                          : COLORS.neutral[600],
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {step.title}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontSize: '0.688rem',
+                        color: COLORS.neutral[500],
+                        lineHeight: 1.3,
+                        mt: 0.25,
+                      }}
+                    >
+                      {completed ? 'Done' : current ? 'In progress' : step.desc}
+                    </Typography>
+                  </Box>
+
+                  {current && (
+                    <ChevronRight size={16} color={COLORS.primary} strokeWidth={2.5} />
+                  )}
+                </Stack>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </Box>
+
+      {/* CTA Section */}
+      {!isComplete && (
+        <Box
+          sx={{
+            p: { xs: 2, sm: 2.5 },
+            borderRadius: 2.5,
+            backgroundColor: COLORS.neutral[50],
+            border: `1px solid ${COLORS.neutral[200]}`,
+          }}
+        >
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            alignItems={{ xs: 'stretch', sm: 'center' }}
+            justifyContent="space-between"
+            spacing={{ xs: 2, sm: 3 }}
+          >
+            {/* Left content */}
+            <Box sx={{ flex: 1 }}>
+              <Typography
+                sx={{
+                  fontSize: { xs: '0.938rem', sm: '1rem' },
+                  fontWeight: 700,
+                  color: COLORS.neutral[800],
+                  mb: 0.5,
+                }}
+              >
+                {remainingSteps === 1 ? 'Almost there! One more step' : `Just ${remainingSteps} steps away`}
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: { xs: '0.813rem', sm: '0.875rem' },
+                  color: COLORS.neutral[500],
+                  lineHeight: 1.5,
+                }}
+              >
+                Finish your profile to unlock job opportunities and get matched with clients looking for your skills.
+              </Typography>
+            </Box>
+
+            {/* CTA Button */}
+            <Button
+              onClick={handleContinue}
+              endIcon={<ArrowRight size={18} strokeWidth={2.5} />}
+              sx={{
+                minWidth: { xs: '100%', sm: 'auto' },
+                height: { xs: 44, sm: 42 },
+                px: { xs: 2, sm: 3 },
+                fontSize: '0.875rem',
                 fontWeight: 600,
-                textTransform: "none",
-                fontSize: "0.9rem",
+                textTransform: 'none',
+                backgroundColor: COLORS.primary,
+                color: 'white',
+                borderRadius: 2,
+                '&:hover': {
+                  backgroundColor: COLORS.primaryLight,
+                },
+                '& .MuiButton-endIcon': { ml: 0.75 },
               }}
             >
               Continue Setup
             </Button>
+          </Stack>
+        </Box>
+      )}
 
-            <Typography
-              variant="caption"
-              color="grey.500"
-              sx={{ display: "block", mt: 1 }}
-            >
-              Secure & confidential • Shared only with your consent
-            </Typography>
+      {/* Success State */}
+      {isComplete && (
+        <Box
+          sx={{
+            textAlign: 'center',
+            p: { xs: 2.5, sm: 3 },
+            borderRadius: 2.5,
+            backgroundColor: alpha(COLORS.success, 0.06),
+            border: `1px solid ${alpha(COLORS.success, 0.15)}`,
+          }}
+        >
+          <Box
+            sx={{
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              backgroundColor: COLORS.success,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mb: 1.5,
+            }}
+          >
+            <CheckCircle2 size={24} color="white" strokeWidth={2.5} />
           </Box>
-        </Paper>
-      </Box>
+          <Typography
+            sx={{
+              fontSize: '1rem',
+              fontWeight: 700,
+              color: COLORS.successDark,
+              mb: 0.5,
+            }}
+          >
+            All Set!
+          </Typography>
+          <Typography sx={{ fontSize: '0.813rem', color: COLORS.neutral[500] }}>
+            Your profile is complete and ready for opportunities
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 };
@@ -283,6 +446,13 @@ OnboardingPrompt.propTypes = {
   nextStep: PropTypes.number,
   onContinue: PropTypes.func,
   completedSteps: PropTypes.number,
+  completedSections: PropTypes.shape({
+    basicInfo: PropTypes.bool,
+    workHistory: PropTypes.bool,
+    availability: PropTypes.bool,
+    certifications: PropTypes.bool,
+    healthInformation: PropTypes.bool,
+  }),
 };
 
 export default OnboardingPrompt;

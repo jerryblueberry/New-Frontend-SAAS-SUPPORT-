@@ -10,7 +10,7 @@ import DocumentPreview from './Modals/DocumentPreview';
 import OnboardingCV from '../WorkerCv/OnboardingCV/onboardingCV';
 import OnboardingJobExperience from '../WorkerJobExperience/OnboardingJobExperience/OnboardingJobExperience';
 import WorkerOnboardingReferences from '../WorkerReferences/workerOnboardingReferences/workerOnboardingReferences';
-import { Container,Grid, useMediaQuery, useTheme, Paper, Typography, Box, Chip,Stack, CircularProgress,Button } from '@mui/material';
+import { Container, Grid, useMediaQuery, useTheme, Paper, Typography, Box, Chip, Stack, CircularProgress, Button, Divider, alpha } from '@mui/material';
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 const WorkHistoryForm = ({ onNextStep }) => {
@@ -46,11 +46,38 @@ const WorkHistoryForm = ({ onNextStep }) => {
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  // Initialize local state from store
+  // SaaS-Level Best Practice: Initialize with ONLY ONE job for initial state
+  // This ensures clean UI - only one card shows initially, regardless of store/API/localStorage state
+  const [hasInitializedFromStore, setHasInitializedFromStore] = useState(false);
+  
   useEffect(() => {
-    if (workHistory) {
+    if (workHistory && !hasInitializedFromStore) {
+      const storeJobs = workHistory.jobs || [];
+      
+      // Best Practice: Normalize to ONLY ONE job on initial load
+      // If store has multiple jobs (from API/localStorage), normalize to first one only
+      // This ensures consistent UI - only one card shows initially
+      // User can add more via "Add Another Experience" button
+      let normalizedJobs = [];
+      
+      if (storeJobs.length > 0) {
+        // Keep only the first job for initial display
+        normalizedJobs = [storeJobs[0]];
+        
+        // Best Practice: Also normalize store if it has multiple jobs
+        // This ensures consistency between store and local state
+        if (storeJobs.length > 1) {
+          // Update store to match normalized state (only first job)
+          updateWorkHistory({
+            ...workHistory,
+            jobs: normalizedJobs,
+          });
+        }
+      }
+      // If storeJobs.length === 0, normalizedJobs stays empty, component will create one
+      
       setLocalWorkHistory({
-        jobs: (workHistory.jobs || []).map(job => ({
+        jobs: normalizedJobs.map(job => ({
           ...job,
           startDate: job.startDate ? new Date(job.startDate) : null,
           endDate: job.endDate ? new Date(job.endDate) : null,
@@ -60,10 +87,48 @@ const WorkHistoryForm = ({ onNextStep }) => {
         references: workHistory.references || [],
         CV: CV || workHistory.CV || null,
       });
+      
+      setHasInitializedFromStore(true);
+    } else if (!workHistory && !hasInitializedFromStore) {
+      // Best Practice: Initialize with empty jobs array - component will create first mandatory job
+      setLocalWorkHistory({
+        jobs: [],
+        noWorkHistory: false,
+        references: [],
+        CV: null,
+      });
+      setHasInitializedFromStore(true);
     }
-  }, [workHistory, CV]);
+  }, [workHistory, CV, hasInitializedFromStore, updateWorkHistory]);
 
-  // Job management functions
+  // Best Practice: Sync localWorkHistory.CV with store CV and clear error immediately
+  // This ensures both states stay in sync and error disappears as soon as CV is added
+  useEffect(() => {
+    const storeCV = typeof CV === 'string' ? CV : CV?.url || CV;
+    const localCV = typeof localWorkHistory.CV === 'string' 
+      ? localWorkHistory.CV 
+      : localWorkHistory.CV?.url || localWorkHistory.CV;
+    
+    // Sync CV from store to local state if different
+    if (CV && storeCV !== localCV) {
+      setLocalWorkHistory((prev) => ({
+        ...prev,
+        CV: storeCV,
+      }));
+    }
+    
+    // Clear CV error immediately when CV exists
+    const hasCV = storeCV || localCV;
+    if (hasCV && formErrors?.CV) {
+      setFormErrors((prev) => {
+        const next = { ...prev };
+        delete next.CV;
+        return next;
+      });
+    }
+  }, [CV, localWorkHistory.CV, formErrors?.CV]);
+
+  // Job management functions - SaaS-Level Best Practice
   const addNewJob = useCallback(() => {
     const newJob = {
       company: '',
@@ -74,23 +139,19 @@ const WorkHistoryForm = ({ onNextStep }) => {
       description: '',
     };
 
+    // Add to store
     addJob(newJob);
+    
+    // Add to local state
     setLocalWorkHistory((prev) => ({
       ...prev,
       jobs: [...prev.jobs, newJob],
     }));
 
-    // Auto-expand the new job
-    setTimeout(() => {
-      setExpandedJob(localWorkHistory.jobs.length);
-      document
-        .getElementById(`wh-job-card-${localWorkHistory.jobs.length}`)
-        ?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-        });
-    }, 100);
-  }, [addJob, localWorkHistory.jobs.length]);
+    // Best Practice: Don't auto-expand additional jobs
+    // Only the first mandatory job should be expanded initially
+    // User can manually expand additional jobs if needed
+  }, [addJob]);
 
   const handleRemoveJob = useCallback(
     (index) => {
@@ -122,10 +183,20 @@ const WorkHistoryForm = ({ onNextStep }) => {
 
       // Clear any error for this field
       if (formErrors[`job${index}_${field}`]) {
-        setFormErrors((prev) => ({
-          ...prev,
-          [`job${index}_${field}`]: null,
-        }));
+        setFormErrors((prev) => {
+          const next = { ...prev };
+          delete next[`job${index}_${field}`];
+          return next;
+        });
+      }
+
+      // Special handling: When "currentlyWorking" is checked, clear endDate error
+      if (field === 'currentlyWorking' && value === true) {
+        setFormErrors((prev) => {
+          const next = { ...prev };
+          delete next[`job${index}_endDate`];
+          return next;
+        });
       }
     },
     [updateWorkHistory, localWorkHistory, formErrors]
@@ -400,6 +471,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
 
         const isCurrentJob = job.currentlyWorking || job.current || false;
 
+        // Only validate end date if NOT currently working
         if (!isCurrentJob && !job.endDate) {
           errors[`job${index}_endDate`] =
             'End date is required for past jobs';
@@ -407,7 +479,8 @@ const WorkHistoryForm = ({ onNextStep }) => {
           if (firstJobErrorIndex === null) firstJobErrorIndex = index;
         }
 
-        if (job.startDate && job.endDate) {
+        // Only validate date range if NOT currently working and both dates exist
+        if (!isCurrentJob && job.startDate && job.endDate) {
           const startDate = new Date(job.startDate);
           const endDate = new Date(job.endDate);
 
@@ -703,106 +776,235 @@ const WorkHistoryForm = ({ onNextStep }) => {
 
   
 
+  // SaaS-Level Paper styles - Modern, borderless design
+  const paperStyles = {
+    elevation: 0,
+    borderRadius: 2,
+    border: 'none',
+    bgcolor: 'background.paper',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.04)',
+    position: 'relative',
+    overflow: 'hidden',
+    '&::before': {
+      content: '""',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: '3px',
+      background: `linear-gradient(90deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+      opacity: 0,
+      transition: 'opacity 0.3s ease',
+    },
+    '&:hover': {
+      boxShadow: '0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04)',
+      transform: 'translateY(-2px)',
+      '&::before': {
+        opacity: 1,
+      },
+    },
+  };
+
   return (
-    <Box component="form" onSubmit={handleSubmit} noValidate>
+    <Box 
+      component="form" 
+      onSubmit={handleSubmit} 
+      noValidate
+      sx={{
+        bgcolor: alpha(theme.palette.background.default, 0.5),
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
     <Toaster position="top-right" />
     
-    {/* CV Onboarding Section - No padding, starts first */}
-    <Box sx={{
-      // backgroundColor:'red',
-      margin:{xs:'1rem',md:"0rem  6rem"},
-      maxHeight:'500px'
-    }}>
-    <OnboardingCV cvError={formErrors.CV} />
-    </Box>
-
-
     {/* Main Content Container */}
     <Container 
       maxWidth="xl" 
       sx={{ 
-        py: { xs: 2, md: 1},
-        px: { xs: 1, sm: 2, md: 2 }
+        py: { xs: 2, md: 3 },
+        px: { xs: 2, sm: 2.5, md: 3 },
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
-      <Grid container spacing={{ xs: 2, md: 4 }}>
-        {/* Work Experience and References Section */}
-        <Grid item xs={12} md={8} lg={9}>
-          <Stack sx={{
-            display:'flex',
-            flexDirection:{xs:'column',sm:'column', md:'row'},
-            gap:'20px'
-            
-          }} >
-            {/* Work Experience Paper */}
-            <Paper
-              elevation={2}
-              sx={{
-                p: { xs: 2, sm: 3, md: '0px 2rem' },
-                minWidth:'50%',
-                borderRadius: 2,
-                minHeight: { md: 600 },
-                display: 'flex',
-                flexDirection: 'column',
-                transition: theme.transitions.create(['box-shadow', 'transform'], {
-                  duration: theme.transitions.duration.short,
-                }),
-                '&:hover': {
-                  elevation: 4,
-                  transform: 'translateY(-2px)',
-                },
-              }}
-            >
-              <OnboardingJobExperience
-                jobs={sortedJobs}
-                formErrors={formErrors}
-                expandedJob={expandedJob}
-                onAddJob={addNewJob}
-                onRemoveJob={handleRemoveJob}
-                onUpdateJob={handleUpdateJob}
-                onToggleExpandJob={toggleExpandJob}
-                formatDateForInput={formatDateForInput}
-              />
-            </Paper>
+      {/* Desktop/Laptop Layout: Flex Row */}
+      <Box sx={{
+        display: { xs: 'none', md: 'flex' },
+        flexDirection: 'row',
+        gap: { md: 2.5, lg: 3 },
+        alignItems: 'stretch',
+        flex: 1,
+        minHeight: 0,
+      }}>
+        {/* Left: Work Experience */}
+        <Box sx={{
+          flex: { md: '1 1 58%', lg: '1 1 62%' },
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+        }}>
+          <Paper
+            {...paperStyles}
+            sx={{
+              p: { xs: 1.5, sm: 2, md: 2.5 },
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <OnboardingJobExperience
+              jobs={sortedJobs}
+              formErrors={formErrors}
+              expandedJob={expandedJob}
+              onAddJob={addNewJob}
+              onRemoveJob={handleRemoveJob}
+              onUpdateJob={handleUpdateJob}
+              onToggleExpandJob={toggleExpandJob}
+              formatDateForInput={formatDateForInput}
+            />
+          </Paper>
+        </Box>
 
-            {/* References Section */}
-            <Paper
-              elevation={2}
-              sx={{
-                p: { xs: 2, sm: 3, md: 4 },
-                borderRadius: 2,
-                transition: theme.transitions.create(['box-shadow', 'transform'], {
-                  duration: theme.transitions.duration.short,
-                }),
-                '&:hover': {
-                  elevation: 4,
-                  transform: 'translateY(-2px)',
-                },
-              }}
-            >
-              <WorkerOnboardingReferences
-                references={localWorkHistory.references}
-                formErrors={formErrors}
-                expandedReference={expandedReference}
-                onAddReference={addReference}
-                onRemoveReference={removeReference}
-                onUpdateReference={handleUpdateReference}
-                onToggleExpandReference={toggleExpandReference}
-                formatAustralianPhone={formatAustralianPhone}
-                maxReferences={2}
-              />
-            </Paper>
-          </Stack>
-        </Grid>
+        {/* Vertical Divider - Subtle separation */}
+        <Divider 
+          orientation="vertical" 
+          flexItem
+          sx={{
+            borderColor: alpha(theme.palette.divider, 0.3),
+            borderWidth: '1px',
+            mx: 0.5,
+          }}
+        />
 
-        {/* Sidebar for additional content (if needed) */}
-        <Grid item xs={12} md={4} lg={3}>
-          {/* This space can be used for additional components or left empty */}
-          <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-            {/* Placeholder for sidebar content */}
-          </Box>
-        </Grid>
-      </Grid>
+        {/* Right: CV and References Stacked */}
+        <Box sx={{
+          flex: { md: '1 1 42%', lg: '1 1 38%' },
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: { md: 2, lg: 2.5 }
+        }}>
+          {/* CV Section - Compact */}
+          <Paper
+            {...paperStyles}
+            sx={{
+              p: { xs: 1.5, sm: 2, md: 2.25 },
+              flexShrink: 0,
+            }}
+          >
+            <OnboardingCV cvError={formErrors.CV} />
+          </Paper>
+
+          {/* Horizontal Divider - Subtle separation */}
+          <Divider 
+            sx={{
+              borderColor: alpha(theme.palette.divider, 0.3),
+              borderWidth: '1px',
+              my: 0.5,
+            }}
+          />
+
+          {/* References Section */}
+          <Paper
+            {...paperStyles}
+            sx={{
+              p: { xs: 1.5, sm: 2, md: 2.25 },
+              flex: 1,
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <WorkerOnboardingReferences
+              references={localWorkHistory.references}
+              formErrors={formErrors}
+              expandedReference={expandedReference}
+              onAddReference={addReference}
+              onRemoveReference={removeReference}
+              onUpdateReference={handleUpdateReference}
+              onToggleExpandReference={toggleExpandReference}
+              formatAustralianPhone={formatAustralianPhone}
+              maxReferences={2}
+            />
+          </Paper>
+        </Box>
+      </Box>
+
+      {/* Mobile Layout: Column Stack - CV First */}
+      <Box sx={{
+        display: { xs: 'flex', md: 'none' },
+        flexDirection: 'column',
+        gap: { xs: 2, sm: 2.5 },
+        width: '100%',
+        flex: 1,
+      }}>
+        {/* CV Section - First on Mobile */}
+        <Paper
+          {...paperStyles}
+          sx={{ p: { xs: 1.5, sm: 2, md: 2.25 } }}
+        >
+          <OnboardingCV cvError={formErrors.CV} />
+        </Paper>
+
+        {/* Horizontal Divider - Subtle separation */}
+        <Divider 
+          sx={{
+            borderColor: alpha(theme.palette.divider, 0.3),
+            borderWidth: '1px',
+          }}
+        />
+
+        {/* Work Experience */}
+        <Paper
+          {...paperStyles}
+          sx={{ p: { xs: 1.5, sm: 2, md: 2.25 } }}
+        >
+          <OnboardingJobExperience
+            jobs={sortedJobs}
+            formErrors={formErrors}
+            expandedJob={expandedJob}
+            onAddJob={addNewJob}
+            onRemoveJob={handleRemoveJob}
+            onUpdateJob={handleUpdateJob}
+            onToggleExpandJob={toggleExpandJob}
+            formatDateForInput={formatDateForInput}
+          />
+        </Paper>
+
+        {/* Horizontal Divider - Subtle separation */}
+        <Divider 
+          sx={{
+            borderColor: alpha(theme.palette.divider, 0.3),
+            borderWidth: '1px',
+          }}
+        />
+
+        {/* References Section */}
+        <Paper
+          {...paperStyles}
+          sx={{
+            p: { xs: 1.5, sm: 2, md: 2.25 },
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <WorkerOnboardingReferences
+            references={localWorkHistory.references}
+            formErrors={formErrors}
+            expandedReference={expandedReference}
+            onAddReference={addReference}
+            onRemoveReference={removeReference}
+            onUpdateReference={handleUpdateReference}
+            onToggleExpandReference={toggleExpandReference}
+            formatAustralianPhone={formatAustralianPhone}
+            maxReferences={2}
+          />
+        </Paper>
+      </Box>
     </Container>
 
     {/* Document Preview Modal */}
@@ -813,18 +1015,20 @@ const WorkHistoryForm = ({ onNextStep }) => {
       />
     )}
 
-    {/* Form Navigation Actions */}
+    {/* Form Navigation Actions - SaaS-Level Design */}
     <Box
       component="section"
       sx={{
-        // position: 'sticky',
+        position: 'sticky',
         bottom: 0,
-        bgcolor: 'background.paper',
-        borderTop: `1px solid ${theme.palette.divider}`,
-        py: { xs: 2, md: 3 },
-        px: { xs: 2, md: 4 },
+        bgcolor: alpha(theme.palette.background.paper, 0.95),
+        backdropFilter: 'blur(10px)',
+        borderTop: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+        py: { xs: 2, md: 2.5 },
+        px: { xs: 2, md: 3 },
         mt: 'auto',
-        boxShadow: theme.shadows[4],
+        boxShadow: '0 -4px 20px rgba(0,0,0,0.08)',
+        zIndex: 10,
       }}
     >
       <Container maxWidth="xl">
@@ -832,7 +1036,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
           direction={{ xs: 'column', sm: 'row' }}
           justifyContent="space-between"
           alignItems="center"
-          spacing={2}
+          spacing={{ xs: 1.5, sm: 2 }}
         >
           {/* Back Button */}
           <Button
@@ -841,13 +1045,20 @@ const WorkHistoryForm = ({ onNextStep }) => {
             startIcon={<ArrowBackIcon />}
             onClick={prevStep}
             disabled={isPending}
-            size={isMobile ? 'medium' : 'large'}
+            size={isMobile ? 'small' : 'medium'}
             sx={{
-              minWidth: { xs: '100%', sm: 140 },
-              height: 48,
+              minWidth: { xs: '100%', sm: 130 },
+              height: { xs: 44, sm: 42 },
               borderRadius: 2,
               textTransform: 'none',
               fontWeight: 600,
+              fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+              borderColor: alpha(theme.palette.primary.main, 0.3),
+              '&:hover': {
+                borderColor: theme.palette.primary.main,
+                bgcolor: alpha(theme.palette.primary.main, 0.05),
+                transform: 'translateY(-1px)',
+              },
             }}
           >
             Back
@@ -859,29 +1070,33 @@ const WorkHistoryForm = ({ onNextStep }) => {
             variant="contained"
             color="primary"
             disabled={isPending}
-            size={isMobile ? 'medium' : 'large'}
+            size={isMobile ? 'small' : 'medium'}
             endIcon={!isPending && <ArrowForwardIcon />}
             sx={{
-              minWidth: { xs: '100%', sm: 180 },
-              height: 48,
+              minWidth: { xs: '100%', sm: 170 },
+              height: { xs: 44, sm: 42 },
               borderRadius: 2,
               textTransform: 'none',
               fontWeight: 600,
-              boxShadow: theme.shadows[2],
+              fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+              boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}`,
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
               '&:hover': {
-                boxShadow: theme.shadows[4],
-                transform: 'translateY(-1px)',
+                boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.4)}`,
+                transform: 'translateY(-2px)',
+                background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
               },
               '&:disabled': {
                 boxShadow: 'none',
                 transform: 'none',
+                background: theme.palette.action.disabledBackground,
               },
             }}
           >
             {isPending ? (
               <Stack direction="row" spacing={1} alignItems="center">
                 <CircularProgress 
-                  size={20} 
+                  size={18} 
                   color="inherit"
                   thickness={4}
                 />

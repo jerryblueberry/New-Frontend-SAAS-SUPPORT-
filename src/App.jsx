@@ -7,6 +7,7 @@ import ClientRoute from './components/common/ClientRoute';
 import PublicRoute from './components/common/PublicRoute';
 import Home from './pages/Home';
 import Login from './pages/auth/Login';
+import ClientLogin from './pages/auth/ClientLogin';
 import Register from './pages/auth/Register';
 import ClientRegister from './pages/ClientPages/OnboardingPages/ClientRegister';
 import ClientDashboard from './pages/ClientPages/ClientDashboard/ClientDashboard';
@@ -97,19 +98,21 @@ function AppRoutes() {
       // Check if we're on a public route that doesn't require auth
       const publicRoutes = [
         '/login',
+        '/client/login',
         '/register',
+        '/client/register',
         '/reference-check',
         '/forgot-password',
         '/reset-password',
         '/verify-email',
         '/terms-and-conditions',
-        // '/certificate'
+        '/',
       ];
       
       const currentPath = window.location.pathname;
-      const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route));
+      const isPublicRoute = publicRoutes.some(route => currentPath === route || currentPath.startsWith(route + '/'));
       
-      // Don't redirect to login if we're on a public route
+      // Don't redirect if we're already on a public route
       if (isPublicRoute) {
         console.log('Auth expired on public route, not redirecting');
         return;
@@ -120,7 +123,7 @@ function AppRoutes() {
       sessionStorage.clear();
       
       // Show user-friendly toast notification
-      toast.error('Session expired. Please log in again.', {
+      toast.info('Your session has expired. Please sign in to continue.', {
         position: 'top-right',
         autoClose: 5000,
         hideProgressBar: false,
@@ -129,7 +132,8 @@ function AppRoutes() {
         draggable: true,
       });
       
-      navigate('/login', { replace: true });
+      // Redirect to home page where users can choose their login type
+      navigate('/', { replace: true, state: { sessionExpired: true } });
     };
 
     const handleConnectionError = (event) => {
@@ -184,6 +188,11 @@ function AppRoutes() {
         <Route path="/register" element={
           <PublicRoute>
             <Register />
+          </PublicRoute>
+        } />
+        <Route path="/client/login" element={
+          <PublicRoute>
+            <ClientLogin />
           </PublicRoute>
         } />
         <Route path="/client/register" element={

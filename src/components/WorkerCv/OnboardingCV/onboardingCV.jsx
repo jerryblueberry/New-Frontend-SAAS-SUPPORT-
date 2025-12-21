@@ -7,16 +7,20 @@ import {
   Avatar,
   Paper,
   Alert,
+  AlertTitle,
   Dialog,
   DialogContent,
   CircularProgress,
   Stack,
   Badge,
+  Chip,
   useTheme,
   useMediaQuery,
   Card,
   CardContent,
-  Fade
+  Fade,
+  alpha,
+  LinearProgress
 } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
@@ -42,7 +46,7 @@ const extractCloudinaryPublicId = (url) => {
   return publicId;
 };
 
-const OnboardingCV = ({ cvError }) => {
+const OnboardingCV = ({ cvError, noBorder = false }) => {
   const updateCV = useOnboardingStore((state) => state.updateCV);
   const CV = useOnboardingStore((state) => state.workHistory?.CV);
   const [localCV, setLocalCV] = useState(CV || null);
@@ -51,6 +55,7 @@ const OnboardingCV = ({ cvError }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   const handleCVUpload = async (file) => {
     // Validate file type
@@ -83,6 +88,7 @@ const OnboardingCV = ({ cvError }) => {
       const data = await response.json();
       if (data.secure_url && data.public_id) {
         const cvData = { url: data.secure_url, public_id: data.public_id };
+        // Update store first (this will trigger parent component to clear error)
         updateCV(cvData);
         setLocalCV(cvData);
         toast.success('CV uploaded successfully!');
@@ -151,395 +157,554 @@ const OnboardingCV = ({ cvError }) => {
 
   const renderCVAdded = () => {
     const doc = getCVDocument();
+    const fileSize = doc.url ? 'Ready' : '';
+    const fileTypeDisplay = doc.fileType.replace('application/', '').replace('image/', '').toUpperCase();
+    
+    const cvContent = (
+      <Stack 
+        direction="row" 
+        alignItems="center" 
+        spacing={{ xs: 1, sm: 1.25 }}
+        sx={{ width: '100%' }}
+      >
+        {/* Icon - Compact */}
+        <Box position="relative" sx={{ flexShrink: 0 }}>
+          <Avatar 
+            sx={{ 
+              width: { xs: 32, sm: 36 }, 
+              height: { xs: 32, sm: 36 }, 
+              bgcolor: alpha(theme.palette.success.main, 0.1),
+              border: `1.5px solid ${alpha(theme.palette.success.main, 0.2)}`,
+            }}
+          >
+            {renderDocumentIcon(doc.url, 'small')}
+          </Avatar>
+          <Box
+            sx={{
+              position: 'absolute',
+              bottom: -2,
+              right: -2,
+              width: { xs: 12, sm: 14 },
+              height: { xs: 12, sm: 14 },
+              borderRadius: '50%',
+              bgcolor: theme.palette.success.main,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: `2px solid ${theme.palette.background.paper}`,
+              boxShadow: `0 2px 4px ${alpha(theme.palette.success.main, 0.3)}`,
+            }}
+          >
+            <CheckCircleIcon sx={{ fontSize: { xs: 7, sm: 8 }, color: 'white' }} />
+          </Box>
+        </Box>
+        
+        {/* File Info - Compact */}
+        <Box flex={1} minWidth={0} sx={{ display: 'flex', flexDirection: 'column', gap: 0.125 }}>
+          <Stack direction="row" alignItems="center" spacing={0.5} flexWrap="wrap">
+            <Typography 
+              variant="subtitle2" 
+              fontWeight={600} 
+              color="text.primary"
+              sx={{ 
+                fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                lineHeight: 1.2,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                flex: 1,
+                minWidth: 0
+              }}
+            >
+              {doc.fileName}
+            </Typography>
+            <Chip
+              label={fileTypeDisplay}
+              size="small"
+              sx={{
+                height: { xs: 16, sm: 18 },
+                fontSize: { xs: '0.575rem', sm: '0.625rem' },
+                fontWeight: 700,
+                bgcolor: alpha(theme.palette.success.main, 0.12),
+                color: theme.palette.success.main,
+                border: `1px solid ${alpha(theme.palette.success.main, 0.25)}`,
+                '& .MuiChip-label': {
+                  px: { xs: 0.5, sm: 0.75 }
+                }
+              }}
+            />
+          </Stack>
+          <Typography 
+            variant="caption" 
+            color="text.secondary"
+            sx={{ 
+              fontSize: { xs: '0.625rem', sm: '0.6875rem' },
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.375
+            }}
+          >
+            <CheckCircleIcon sx={{ fontSize: { xs: 9, sm: 10 }, color: theme.palette.success.main }} />
+            Uploaded • Ready
+          </Typography>
+        </Box>
+        
+        {/* Actions - Compact */}
+        <Stack 
+          direction="row" 
+          spacing={0.5}
+          sx={{ flexShrink: 0 }}
+        >
+          <IconButton
+            onClick={() => setShowCVPreview(true)}
+            sx={{
+              width: { xs: 26, sm: 28 },
+              height: { xs: 26, sm: 28 },
+              bgcolor: alpha(theme.palette.primary.main, 0.08),
+              color: theme.palette.primary.main,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+              borderRadius: 1,
+              '&:hover': {
+                bgcolor: alpha(theme.palette.primary.main, 0.15),
+                borderColor: alpha(theme.palette.primary.main, 0.3),
+                transform: 'scale(1.05)',
+              },
+              transition: 'all 0.2s ease'
+            }}
+            size="small"
+            title="Preview CV"
+          >
+            <VisibilityIcon sx={{ fontSize: { xs: 13, sm: 14 } }} />
+          </IconButton>
+          <IconButton
+            onClick={async () => {
+              const cvObj = typeof (localCV || CV) === 'string'
+                ? { url: localCV || CV }
+                : (localCV || CV);
+              let publicId = cvObj && cvObj.public_id;
+              if (!publicId && cvObj && cvObj.url) {
+                publicId = extractCloudinaryPublicId(cvObj.url);
+              }
+              if (publicId) {
+                setIsUploading(true);
+                try {
+                  await toast.promise(
+                    deleteCloudinaryImage(publicId),
+                    {
+                      loading: 'Deleting CV...',
+                      success: 'CV removed successfully!',
+                      error: 'Failed to remove CV from Cloudinary.',
+                    }
+                  );
+                  updateCV(null);
+                  setLocalCV(null);
+                } finally {
+                  setIsUploading(false);
+                }
+              }
+            }}
+            disabled={isUploading}
+            sx={{
+              width: { xs: 26, sm: 28 },
+              height: { xs: 26, sm: 28 },
+              bgcolor: alpha(theme.palette.error.main, 0.08),
+              color: theme.palette.error.main,
+              border: `1px solid ${alpha(theme.palette.error.main, 0.15)}`,
+              borderRadius: 1,
+              '&:hover': {
+                bgcolor: alpha(theme.palette.error.main, 0.15),
+                borderColor: alpha(theme.palette.error.main, 0.3),
+                transform: 'scale(1.05)',
+              },
+              transition: 'all 0.2s ease'
+            }}
+            size="small"
+            title="Delete CV"
+          >
+            <DeleteIcon sx={{ fontSize: { xs: 13, sm: 14 } }} />
+          </IconButton>
+        </Stack>
+      </Stack>
+    );
+
+    if (noBorder) {
+      return (
+        <Fade in={!!doc}>
+          <Box
+            sx={{
+              p: { xs: 1.5, sm: 2 },
+              borderRadius: { xs: 2, sm: 2.5 },
+              bgcolor: 'transparent',
+              position: 'relative',
+            }}
+          >
+            {cvContent}
+          </Box>
+        </Fade>
+      );
+    }
+
     return (
       <Fade in={!!doc}>
         <Card
           elevation={0}
           sx={{
-            borderRadius: 3,
-            border: `2px solid ${theme.palette.success.main}`,
-            bgcolor: theme.palette.success.light + '08',
+            borderRadius: 2,
+            border: 'none',
+            bgcolor: 'background.paper',
             position: 'relative',
             overflow: 'hidden',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            boxShadow: `0 1px 3px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.04)`,
+            '&:hover': {
+              boxShadow: `0 4px 12px ${alpha(theme.palette.success.main, 0.15)}, 0 2px 4px rgba(0,0,0,0.04)`,
+              transform: 'translateY(-2px)',
+            },
             '&::before': {
               content: '""',
               position: 'absolute',
               top: 0,
               left: 0,
               right: 0,
-              height: '4px',
+              height: '3px',
               background: `linear-gradient(90deg, ${theme.palette.success.main}, ${theme.palette.success.light})`,
+              opacity: 0.8,
             }
           }}
         >
-          <CardContent sx={{ p: 3 }}>
-            <Stack direction="row" alignItems="center" spacing={3}>
-              <Box position="relative">
-                <Avatar 
-                  sx={{ 
-                    width: 56, 
-                    height: 56, 
-                    bgcolor: theme.palette.success.main + '15',
-                    border: `3px solid ${theme.palette.success.main}20`,
-                  }}
-                >
-                  {renderDocumentIcon(doc.url, 'large')}
-                </Avatar>
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    bottom: -2,
-                    right: -2,
-                    width: 24,
-                    height: 24,
-                    borderRadius: '50%',
-                    bgcolor: theme.palette.success.main,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: `3px solid ${theme.palette.background.paper}`,
-                  }}
-                >
-                  <CheckCircleIcon sx={{ fontSize: 14, color: 'white' }} />
-                </Box>
-              </Box>
-              
-              <Box flex={1} minWidth={0}>
-                <Typography 
-                  variant="h6" 
-                  fontWeight={700} 
-                  color={theme.palette.success.dark}
-                  sx={{ fontSize: '1.1rem', mb: 0.5 }}
-                >
-                  CV Successfully Uploaded
-                </Typography>
-                <Typography 
-                  variant="body2" 
-                  color="text.secondary"
-                  sx={{ 
-                    fontSize: '0.9rem',
-                    opacity: 0.8,
-                    fontWeight: 500
-                  }}
-                >
-                  {doc.fileName}
-                </Typography>
-                <Typography 
-                  variant="caption" 
-                  color={theme.palette.success.main}
-                  sx={{ 
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}
-                >
-                  {doc.fileType.replace('application/', '').replace('image/', '')}
-                </Typography>
-              </Box>
-              
-              <Stack direction="row" spacing={1}>
-                <IconButton
-                  onClick={() => setShowCVPreview(true)}
-                  sx={{
-                    bgcolor: theme.palette.primary.main + '15',
-                    color: theme.palette.primary.main,
-                    border: `1px solid ${theme.palette.primary.main}30`,
-                    '&:hover': {
-                      bgcolor: theme.palette.primary.main + '25',
-                      transform: 'scale(1.05)',
-                    },
-                    transition: 'all 0.2s ease'
-                  }}
-                  size="small"
-                >
-                  <VisibilityIcon fontSize="small" />
-                </IconButton>
-                <IconButton
-                  onClick={async () => {
-                    const cvObj = typeof (localCV || CV) === 'string'
-                      ? { url: localCV || CV }
-                      : (localCV || CV);
-                    let publicId = cvObj && cvObj.public_id;
-                    if (!publicId && cvObj && cvObj.url) {
-                      publicId = extractCloudinaryPublicId(cvObj.url);
-                    }
-                    if (publicId) {
-                      setIsUploading(true);
-                      try {
-                        await toast.promise(
-                          deleteCloudinaryImage(publicId),
-                          {
-                            loading: 'Deleting CV...',
-                            success: 'CV removed successfully!',
-                            error: 'Failed to remove CV from Cloudinary.',
-                          }
-                        );
-                        updateCV(null);
-                        setLocalCV(null);
-                      } finally {
-                        setIsUploading(false);
-                      }
-                    }
-                  }}
-                  disabled={isUploading}
-                  sx={{
-                    bgcolor: theme.palette.error.main + '15',
-                    color: theme.palette.error.main,
-                    border: `1px solid ${theme.palette.error.main}30`,
-                    '&:hover': {
-                      bgcolor: theme.palette.error.main + '25',
-                      transform: 'scale(1.05)',
-                    },
-                    transition: 'all 0.2s ease'
-                  }}
-                  size="small"
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Stack>
-            </Stack>
+          <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.25, sm: 1.5, md: 2 } } }}>
+            {cvContent}
           </CardContent>
         </Card>
       </Fade>
     );
   };
 
-  const renderUploadZone = () => (
-    <Fade in={!localCV && !CV}>
-      <Card
-        elevation={0}
+  const renderUploadZone = () => {
+    const uploadZoneContent = (
+      <Box
+        component="label"
+        htmlFor="cv-upload"
         sx={{
-          borderRadius: 3,
-          border: isDragOver 
-            ? `2px solid ${theme.palette.primary.main}` 
-            : `2px dashed ${theme.palette.primary.main}40`,
-          bgcolor: isDragOver 
-            ? theme.palette.primary.main + '15' 
-            : theme.palette.primary.main + '03',
-          position: 'relative',
-          overflow: 'hidden',
+          width: '100%',
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: { xs: 'center', sm: 'center' },
           cursor: isUploading ? 'not-allowed' : 'pointer',
-          transition: 'all 0.3s ease',
-          transform: isDragOver ? 'scale(1.02)' : 'scale(1)',
-          '&:hover': {
-            borderColor: theme.palette.primary.main,
-            bgcolor: theme.palette.primary.main + '08',
-            transform: isDragOver ? 'scale(1.02)' : 'translateY(-2px)',
-            boxShadow: `0 8px 32px ${theme.palette.primary.main}20`,
-          },
+          gap: { xs: 1.25, sm: 1.5 },
+          position: 'relative',
         }}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
       >
-        <CardContent sx={{ p: { xs: 3, sm: 5 }, textAlign: 'center' }}>
-          <input
-            type="file"
-            id="cv-upload"
-            accept=".pdf,.jpg,.jpeg,.png"
-            onChange={(e) => {
-              if (e.target.files && e.target.files[0]) {
-                handleCVUpload(e.target.files[0]);
-              }
-            }}
-            disabled={isUploading}
-            style={{ display: 'none' }}
-          />
-          <label 
-            htmlFor="cv-upload" 
-            style={{ 
-              width: '100%', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center',
-              cursor: isUploading ? 'not-allowed' : 'pointer'
+        <input
+          type="file"
+          id="cv-upload"
+          accept=".pdf,.jpg,.jpeg,.png"
+          onChange={(e) => {
+            if (e.target.files && e.target.files[0]) {
+              handleCVUpload(e.target.files[0]);
+            }
+          }}
+          disabled={isUploading}
+          style={{ display: 'none' }}
+        />
+        
+        {/* Compact Icon Section */}
+        <Box
+          sx={{
+            width: { xs: 44, sm: 48 },
+            height: { xs: 44, sm: 48 },
+            borderRadius: 1.5,
+            background: isDragOver 
+              ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.15)}, ${alpha(theme.palette.primary.dark, 0.08)})`
+              : `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)}, ${alpha(theme.palette.primary.light, 0.04)})`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: isDragOver 
+              ? `2px solid ${theme.palette.primary.main}` 
+              : `1.5px solid ${alpha(theme.palette.primary.main, 0.25)}`,
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            transform: isDragOver ? 'scale(1.05)' : 'scale(1)',
+            flexShrink: 0,
+            boxShadow: isDragOver 
+              ? `0 4px 12px ${alpha(theme.palette.primary.main, 0.2)}`
+              : `0 1px 4px ${alpha(theme.palette.primary.main, 0.08)}`,
+            '&:hover': {
+              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.15)}, ${alpha(theme.palette.primary.dark, 0.10)})`,
+              borderColor: alpha(theme.palette.primary.main, 0.5),
+              transform: 'scale(1.03)',
+            }
+          }}
+        >
+          {isUploading ? (
+            <CircularProgress 
+              size={isMobile ? 18 : 20} 
+              color="primary"
+              thickness={4}
+            />
+          ) : (
+            <CloudUploadIcon 
+              sx={{ 
+                fontSize: { xs: 20, sm: 22 }, 
+                color: theme.palette.primary.main,
+              }} 
+            />
+          )}
+        </Box>
+        
+        {/* Compact Content Section */}
+        <Box 
+          flex={1} 
+          minWidth={0} 
+          sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: 0.25,
+            alignItems: { xs: 'center', sm: 'flex-start' },
+            width: { xs: '100%', sm: 'auto' }
+          }}
+        >
+          <Typography 
+            variant="subtitle2"
+            fontWeight={600}
+            color="text.primary"
+            sx={{ 
+              fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+              lineHeight: 1.2,
             }}
           >
-            <Box
-              sx={{
-                width: 80,
-                height: 80,
-                borderRadius: '50%',
-                bgcolor: isDragOver 
-                  ? theme.palette.primary.main + '25' 
-                  : theme.palette.primary.main + '15',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                mb: 3,
-                border: isDragOver 
-                  ? `3px solid ${theme.palette.primary.main}` 
-                  : `3px solid ${theme.palette.primary.main}30`,
-                transition: 'all 0.3s ease',
-                transform: isDragOver ? 'scale(1.1)' : 'scale(1)',
-                '&:hover': {
-                  bgcolor: theme.palette.primary.main + '25',
-                  borderColor: theme.palette.primary.main,
-                  transform: isDragOver ? 'scale(1.1)' : 'scale(1.1)',
-                }
-              }}
-            >
-              {isUploading ? (
-                <CircularProgress size={32} color="primary" />
-              ) : (
-                <CloudUploadIcon 
-                  sx={{ 
-                    fontSize: 36, 
-                    color: theme.palette.primary.main,
-                    transform: isDragOver ? 'scale(1.2)' : 'scale(1)',
-                    transition: 'transform 0.2s ease'
-                  }} 
-                />
-              )}
-            </Box>
-            
-            <Typography 
-              variant="h5" 
-              fontWeight={700} 
-              color={theme.palette.primary.main}
-              sx={{ 
-                mb: 1, 
-                fontSize: { xs: '1.25rem', sm: '1.5rem' },
-                transform: isDragOver ? 'scale(1.05)' : 'scale(1)',
-                transition: 'transform 0.2s ease'
-              }}
-            >
-              {isUploading ? 'Uploading...' : isDragOver ? 'Drop your CV here!' : 'Upload Your CV'}
-            </Typography>
-            
-            <Typography 
-              variant="body1" 
-              color="text.secondary"
-              sx={{ 
-                mb: 3, 
-                fontSize: '1rem',
-                fontWeight: 500,
-                maxWidth: 280,
-                lineHeight: 1.5,
-                opacity: isDragOver ? 1 : 0.8,
-                transition: 'opacity 0.2s ease'
-              }}
-            >
-              {isDragOver 
-                ? 'Release to upload your file' 
-                : 'Drag and drop your CV here, or click to browse files'
-              }
-            </Typography>
-            
-            {!isDragOver && (
-              <Button
-                component="span"
-                variant="contained"
-                disabled={isUploading}
-                sx={{
-                  borderRadius: 2.5,
-                  px: 4,
-                  py: 1.5,
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  boxShadow: `0 4px 16px ${theme.palette.primary.main}30`,
-                  background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
-                  '&:hover': {
-                    boxShadow: `0 6px 24px ${theme.palette.primary.main}40`,
-                    transform: 'translateY(-1px)',
-                  },
-                  transition: 'all 0.2s ease',
-                  mb: 2
-                }}
-              >
-                {isUploading ? 'Uploading...' : 'Choose File'}
-              </Button>
-            )}
-            
-            {isDragOver && (
-              <Box
-                sx={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: '50%',
-                  bgcolor: theme.palette.primary.main,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  mb: 2,
-                  animation: 'pulse 1.5s infinite',
-                  '@keyframes pulse': {
-                    '0%': {
-                      transform: 'scale(1)',
-                      opacity: 1,
-                    },
-                    '50%': {
-                      transform: 'scale(1.1)',
-                      opacity: 0.8,
-                    },
-                    '100%': {
-                      transform: 'scale(1)',
-                      opacity: 1,
-                    },
-                  },
-                }}
-              >
-                <CloudUploadIcon sx={{ fontSize: 28, color: 'white' }} />
-              </Box>
-            )}
-            
-            <Box
-              sx={{
-                bgcolor: isDragOver 
-                  ? theme.palette.primary.main + '20' 
-                  : theme.palette.grey[100],
-                borderRadius: 2,
-                px: 2,
-                py: 1,
-                display: 'inline-block',
-                transition: 'background-color 0.2s ease'
-              }}
-            >
-              <Typography 
-                variant="caption" 
-                color={isDragOver ? theme.palette.primary.main : "text.secondary"}
-                sx={{ 
-                  fontSize: '0.85rem',
-                  fontWeight: isDragOver ? 600 : 500,
-                  letterSpacing: '0.3px',
-                  transition: 'color 0.2s ease'
-                }}
-              >
-                Supported formats: PDF, JPG, PNG (Max 5MB)
-              </Typography>
-            </Box>
-          </label>
-        </CardContent>
-      </Card>
-    </Fade>
-  );
+            {isUploading ? 'Uploading...' : isDragOver ? 'Drop here' : 'Upload Resume'}
+          </Typography>
+          <Typography 
+            variant="caption"
+            color="text.secondary"
+            sx={{ 
+              fontSize: { xs: '0.6875rem', sm: '0.75rem' },
+              lineHeight: 1.3,
+            }}
+          >
+            {isDragOver ? 'Release to upload' : 'PDF, JPG, PNG • Max 5MB'}
+          </Typography>
+        </Box>
+        
+        {/* Compact Action Button */}
+        {!isDragOver && (
+          <Button
+            component="span"
+            variant="contained"
+            disabled={isUploading}
+            startIcon={!isUploading && <UploadFileIcon sx={{ fontSize: { xs: 13, sm: 14 } }} />}
+            sx={{
+              borderRadius: 1.5,
+              px: { xs: 2, sm: 2.25 },
+              py: { xs: 0.625, sm: 0.75 },
+              fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+              fontWeight: 600,
+              textTransform: 'none',
+              boxShadow: `0 2px 6px ${alpha(theme.palette.primary.main, 0.3)}`,
+              background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+              width: { xs: '100%', sm: 'auto' },
+              minWidth: { xs: '100%', sm: 100 },
+              flexShrink: 0,
+              minHeight: { xs: '36px', sm: '38px' },
+              '&:hover': {
+                boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.4)}`,
+                transform: 'translateY(-1px)',
+                background: `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
+              },
+              '&:disabled': {
+                boxShadow: 'none',
+                transform: 'none',
+              },
+              transition: 'all 0.2s ease',
+            }}
+          >
+            {isUploading ? 'Uploading...' : 'Browse'}
+          </Button>
+        )}
+      </Box>
+    );
+
+    if (noBorder) {
+      return (
+        <Fade in={!localCV && !CV}>
+          <Box
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            sx={{
+              p: { xs: 2, sm: 2.5 },
+              borderRadius: { xs: 2, sm: 2.5 },
+              border: isDragOver 
+                ? `2px solid ${theme.palette.primary.main}` 
+                : 'none',
+              bgcolor: isDragOver 
+                ? theme.palette.primary.main + '06' 
+                : 'transparent',
+              position: 'relative',
+              overflow: 'hidden',
+              cursor: isUploading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s ease',
+              transform: isDragOver ? 'scale(1.002)' : 'scale(1)',
+              '&:hover': {
+                bgcolor: isDragOver ? theme.palette.primary.main + '06' : theme.palette.primary.main + '02',
+              },
+            }}
+          >
+            {uploadZoneContent}
+          </Box>
+        </Fade>
+      );
+    }
+
+    return (
+      <Fade in={!localCV && !CV}>
+        <Card
+          elevation={0}
+          sx={{
+            borderRadius: 2,
+            border: isDragOver 
+              ? `2px solid ${theme.palette.primary.main}` 
+              : `1.5px dashed ${alpha(theme.palette.divider, 0.5)}`,
+            bgcolor: isDragOver 
+              ? alpha(theme.palette.primary.main, 0.06) 
+              : 'background.paper',
+            position: 'relative',
+            overflow: 'hidden',
+            cursor: isUploading ? 'not-allowed' : 'pointer',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            transform: isDragOver ? 'scale(1.002)' : 'scale(1)',
+            boxShadow: isDragOver 
+              ? `0 8px 24px ${alpha(theme.palette.primary.main, 0.2)}`
+              : '0 1px 3px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.04)',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '3px',
+              background: isDragOver 
+                ? `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`
+                : 'transparent',
+              transition: 'opacity 0.3s ease',
+            },
+            '&:hover': {
+              borderColor: isDragOver 
+                ? theme.palette.primary.main 
+                : alpha(theme.palette.primary.main, 0.5),
+              bgcolor: isDragOver 
+                ? alpha(theme.palette.primary.main, 0.06) 
+                : alpha(theme.palette.primary.main, 0.02),
+              transform: isDragOver ? 'scale(1.002)' : 'translateY(-2px)',
+              boxShadow: isDragOver 
+                ? `0 8px 24px ${alpha(theme.palette.primary.main, 0.2)}`
+                : `0 4px 12px ${alpha(theme.palette.primary.main, 0.1)}, 0 2px 4px rgba(0,0,0,0.04)`,
+            },
+          }}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        >
+          <CardContent sx={{ p: { xs: 1.5, sm: 2, md: 2.25 }, '&:last-child': { pb: { xs: 1.5, sm: 2, md: 2.25 } } }}>
+            {uploadZoneContent}
+          </CardContent>
+        </Card>
+      </Fade>
+    );
+  };
 
   return (
     <Box
       sx={{
         width: '100%',
-        p: { xs: 2, sm: 3 }
+        maxWidth: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column'
       }}
     >
+      {/* Header Section - Compact SaaS-Level Design */}
+      <Box sx={{ mb: { xs: 1, sm: 1.25 } }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, sm: 0.875 }, mb: 0.5 }}>
+          <UploadFileIcon sx={{ color: 'primary.main', fontSize: { xs: '1.1rem', sm: '1.2rem' } }} />
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              fontWeight: 600,
+              color: 'text.primary',
+              fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+              lineHeight: 1.2,
+            }}
+          >
+            Resume / CV
+          </Typography>
+          <Chip 
+            label="REQUIRED" 
+            size="small" 
+            color="error" 
+            variant="outlined"
+            sx={{ 
+              fontWeight: 600,
+              fontSize: { xs: '0.65rem', sm: '0.7rem' },
+              height: { xs: 18, sm: 20 },
+              ml: { xs: 0.5, sm: 0.75 },
+            }}
+          />
+        </Box>
+        <Typography 
+          variant="body2" 
+          color="text.secondary" 
+          sx={{ 
+            fontSize: { xs: '0.7rem', sm: '0.75rem' }, 
+            lineHeight: 1.3,
+            ml: { xs: 2.5, sm: 2.75 },
+          }}
+        >
+          PDF, JPG, PNG • Max 5MB
+        </Typography>
+      </Box>
+
+      {/* Error State - Compact SaaS-Level Design */}
       {cvError && (
         <Fade in={!!cvError}>
           <Alert
             severity="error"
             sx={{ 
-              mb: 3, 
-              borderRadius: 2,
-              fontWeight: 600,
-              fontSize: '0.95rem',
-              border: `1px solid ${theme.palette.error.main}30`,
+              mb: { xs: 1, sm: 1.25 }, 
+              borderRadius: 1.5,
+              border: 'none',
+              py: { xs: 0.75, sm: 1 },
+              bgcolor: alpha(theme.palette.error.main, 0.08),
               '& .MuiAlert-icon': {
-                fontSize: '1.5rem'
-              }
+                fontSize: { xs: '1rem', sm: '1.1rem' },
+                color: theme.palette.error.main,
+              },
             }}
           >
-            {cvError}
+            <AlertTitle sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.8rem' }, mb: 0.25 }}>
+              Resume Required
+            </AlertTitle>
+            <Typography variant="body2" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, lineHeight: 1.4 }}>
+              {cvError}
+            </Typography>
+            {cvError.includes('required') && (
+              <Box sx={{ mt: 0.75 }}>
+                <LinearProgress 
+                  color="error" 
+                  variant="determinate" 
+                  value={100} 
+                  sx={{ 
+                    height: 2, 
+                    borderRadius: 1.5,
+                    bgcolor: alpha(theme.palette.error.main, 0.1),
+                  }} 
+                />
+              </Box>
+            )}
           </Alert>
         </Fade>
       )}

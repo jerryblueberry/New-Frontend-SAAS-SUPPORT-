@@ -167,7 +167,7 @@ const ForgotPassword = () => {
         });
         // Add a small delay before navigation
         setTimeout(() => {
-          navigate("/login");
+          navigate("/");
         }, 2000);
       } else {
         toast.error(response.data.message || "Failed to reset password", toastConfig);
@@ -329,10 +329,10 @@ const ForgotPassword = () => {
 
         <div className="forgot-password-footer">
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/")}
             className="back-to-login"
           >
-            Back to Login
+            Back to Home
           </button>
         </div>
       </div>

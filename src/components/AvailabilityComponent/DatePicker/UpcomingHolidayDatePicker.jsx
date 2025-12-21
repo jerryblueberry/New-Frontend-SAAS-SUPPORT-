@@ -1,4 +1,4 @@
-import React, { forwardRef, useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -8,180 +8,29 @@ import {
   useTheme,
   useMediaQuery,
   IconButton,
-  Tooltip,
   Fade,
-  Chip,
   Paper,
-  Grid,
-  Stack,
   Button,
-  styled
 } from '@mui/material';
-import {
-  CalendarMonth as CalendarIcon,
-  Clear as ClearIcon,
-  Info as InfoIcon,
-  CheckCircle as CheckIcon,
-  Event as EventIcon,
-  Today as TodayIcon,
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon
-} from '@mui/icons-material';
+import { alpha } from '@mui/material/styles';
+import { Calendar, ChevronLeft, ChevronRight, X, Check, Type } from 'lucide-react';
 
-// Styled components (modern UI)
-const StyledTextField = styled(TextField)(({ theme, error, isValid }) => ({
-  '& .MuiOutlinedInput-root': {
-    borderRadius: 12,
-    backgroundColor: theme.palette.background.paper,
-    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-    '&:hover': {
-      backgroundColor: theme.palette.action.hover,
-      '& .MuiOutlinedInput-notchedOutline': {
-        borderColor: error ? theme.palette.error.main :
-                   isValid ? theme.palette.success.main : theme.palette.primary.main,
-        borderWidth: '2px',
-      },
-    },
-    '&.Mui-focused': {
-      backgroundColor: theme.palette.background.paper,
-      boxShadow: error
-        ? `0 0 0 3px ${theme.palette.error.main}15`
-        : isValid
-          ? `0 0 0 3px ${theme.palette.success.main}15`
-          : `0 0 0 3px ${theme.palette.primary.main}15`,
-      '& .MuiOutlinedInput-notchedOutline': {
-        borderWidth: '2px',
-        borderColor: error ? theme.palette.error.main :
-                   isValid ? theme.palette.success.main : theme.palette.primary.main,
-      },
-    },
-  },
-  '& .MuiInputLabel-root': {
-    color: error ? theme.palette.error.main :
-           isValid ? theme.palette.success.main : theme.palette.text.primary,
-    '&.Mui-focused': {
-      color: error ? theme.palette.error.main :
-             isValid ? theme.palette.success.main : theme.palette.primary.main,
-    },
-  },
-}));
-
-const CalendarPaper = styled(Paper)(({ theme }) => ({
-  borderRadius: 16,
-  overflow: 'hidden',
-  boxShadow: '0 20px 40px -12px rgba(0, 0, 0, 0.25)',
-  border: `1px solid ${theme.palette.divider}`,
-  width: '100%'
-}));
-
-const CalendarHeader = styled(Box)(({ theme }) => ({
-  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-  color: 'white',
-  padding: theme.spacing(2),
-  position: 'relative',
-  overflow: 'hidden',
-  '&::before': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%)',
-    animation: 'shimmer 3s ease-in-out infinite',
-  },
-  '@keyframes shimmer': {
-    '0%': { transform: 'translateX(-100%)' },
-    '100%': { transform: 'translateX(100%)' },
-  },
-}));
-
-const DayButton = styled('button')(({ theme, isToday, isSelected, isDisabled }) => ({
-  border: 'none',
-  borderRadius: 12,
-  width: 'clamp(36px, 8vw, 44px)',
-  height: 'clamp(36px, 8vw, 44px)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  cursor: isDisabled ? 'not-allowed' : 'pointer',
-  fontSize: 'clamp(0.8rem, 2.5vw, 0.95rem)',
-  fontWeight: 600,
-  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-  position: 'relative',
-  overflow: 'hidden',
-  ...(isDisabled ? {
-    color: theme.palette.text.disabled,
-    backgroundColor: 'transparent',
-    opacity: 0.3,
-  } : isSelected ? {
-    backgroundColor: theme.palette.primary.main,
-    color: 'white',
-    transform: 'scale(1.1)',
-    boxShadow: `0 4px 12px ${theme.palette.primary.main}40`,
-    zIndex: 2,
-  } : isToday ? {
-    backgroundColor: theme.palette.secondary.light,
-    color: theme.palette.secondary.contrastText,
-    border: `2px solid ${theme.palette.secondary.main}`,
-    '&::after': {
-      content: '""',
-      position: 'absolute',
-      bottom: 2,
-      left: '50%',
-      width: 4,
-      height: 4,
-      backgroundColor: theme.palette.secondary.main,
-      borderRadius: '50%',
-      transform: 'translateX(-50%)',
-    },
-  } : {
-    backgroundColor: 'transparent',
-    color: theme.palette.text.primary,
-    '&:hover': {
-      backgroundColor: theme.palette.primary.light,
-      color: 'white',
-      transform: 'scale(1.05) translateY(-1px)',
-      boxShadow: `0 4px 12px ${theme.palette.primary.main}30`,
-    },
-  }),
-  '&::before': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: '-100%',
-    width: '100%',
-    height: '100%',
-    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
-    transition: 'left 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-  },
-  '&:hover::before': { left: '100%' },
-}));
-
-// Date utility functions with DD/MM/YYYY format
+// Date utilities
 const getDateBounds = () => {
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth();
-  
-  // Allow next year if we're in December
-  const maxYear = currentMonth === 11 ? currentYear + 1 : currentYear;
-  
-  return {
-    minDate: today,
-    maxDate: new Date(maxYear, 11, 31),
-    currentYear,
-    nextYear: currentYear + 1,
-    showNextYear: currentMonth === 11
-  };
+  const maxYear = currentMonth >= 10 ? currentYear + 1 : currentYear;
+  return { minDate: today, maxDate: new Date(maxYear, 11, 31), currentYear, maxYear };
 };
 
 const formatDateToISO = (date) => {
   if (!date) return '';
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 };
 
 const parseISODate = (isoString) => {
@@ -190,472 +39,288 @@ const parseISODate = (isoString) => {
   return isNaN(date.getTime()) ? null : date;
 };
 
-const formatDateForDisplay = (date) => {
+const formatDisplayDate = (date) => {
   if (!date) return '';
-  const day = date.getDate();
-  const month = date.getMonth() + 1;
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-// Enhanced auto-formatting functions
-const formatDateInput = (value, prevValue = '') => {
-  // Allow deletion without reformatting
-  if (value.length < prevValue.length) {
-    return { formatted: value, cursorPos: null };
-  }
-
-  // Remove all non-numeric characters
-  const cleaned = value.replace(/\D/g, '');
-
-  if (cleaned.length === 0) return { formatted: '', cursorPos: null };
-
-  let formatted = '';
-  let cursorPos = value.length;
-
-  // Handle different lengths for DD/MM/YYYY format
-  if (cleaned.length <= 2) {
-    // DD
-    formatted = cleaned;
-  } else if (cleaned.length <= 4) {
-    // DD/MM
-    formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
-    if (cleaned.length === 3 && prevValue.length === 2) {
-      cursorPos += 1; // Adjust cursor position when auto-adding slash
-    }
-  } else {
-    // DD/MM/YYYY
-    formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4, 8)}`;
-    if (cleaned.length === 5 && prevValue.length === 4) {
-      cursorPos += 1; // Adjust cursor position when auto-adding slash
-    }
-  }
-
-  return { formatted, cursorPos };
+const formatShortDate = (date) => {
+  if (!date) return '';
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-const parseFormattedDateInput = (input) => {
+// Parse DD/MM/YYYY input
+const parseDateInput = (input) => {
   if (!input) return null;
+  const cleaned = input.replace(/\D/g, '');
+  if (cleaned.length < 8) return null;
   
-  const parts = input.split('/');
-  if (parts.length === 0) return null;
+  const day = parseInt(cleaned.slice(0, 2));
+  const month = parseInt(cleaned.slice(2, 4));
+  const year = parseInt(cleaned.slice(4, 8));
   
-  const day = parts[0] ? parseInt(parts[0]) : 1;
-  const month = parts[1] ? parseInt(parts[1]) : 1;
-  let year = parts[2] ? parseInt(parts[2]) : new Date().getFullYear();
+  if (day < 1 || day > 31 || month < 1 || month > 12) return null;
   
-  // Smart year handling
-  if (year < 100) {
-    const currentYear = new Date().getFullYear();
-    const century = Math.floor(currentYear / 100) * 100;
-    year += century;
-    // Adjust for recent years (e.g., "25" becomes 2025, not 1925)
-    if (year < currentYear - 50) year += 100;
-  }
-  
-  // Validate ranges
-  if (day < 1 || day > 31) return null;
-  if (month < 1 || month > 12) return null;
-  
-  // Create date and check if valid (handles cases like 31/02)
   const date = new Date(year, month - 1, day);
-  if (
-    date.getDate() !== day ||
-    date.getMonth() !== month - 1 ||
-    date.getFullYear() !== year
-  ) {
-    return null;
-  }
+  if (date.getDate() !== day || date.getMonth() !== month - 1) return null;
   
   return date;
 };
 
-const validateFormattedDateInput = (input) => {
-  if (!input) return { isValid: true, error: '', isPartial: false };
-  
-  const parts = input.split('/');
-  const hasSlashes = parts.length > 1;
-  
-  // Basic format validation
-  if (hasSlashes && (parts.length !== 3 || parts.some(part => !part))) {
-    return { isValid: false, error: 'Please complete the date format' };
-  }
-  
-  // Validate day
-  if (parts[0] && (parseInt(parts[0]) < 1 || parseInt(parts[0]) > 31)) {
-    return { isValid: false, error: 'Day must be between 01-31' };
-  }
-  
-  // Validate month
-  if (parts[1] && (parseInt(parts[1]) < 1 || parseInt(parts[1]) > 12)) {
-    return { isValid: false, error: 'Month must be between 01-12' };
-  }
-  
-  // Validate year if complete
-  if (parts[2] && parts[2].length === 4) {
-    const currentYear = new Date().getFullYear();
-    const year = parseInt(parts[2]);
-    
-    if (year < currentYear || year > currentYear + 1) {
-      return { 
-        isValid: false, 
-        error: `Year must be ${currentYear} or ${currentYear + 1}` 
-      };
-    }
-  }
-  
-  // Check if complete date is valid
-  if (hasSlashes && parts[0] && parts[1] && parts[2]) {
-    const date = parseFormattedDateInput(input);
-    if (!date) {
-      return { 
-        isValid: false, 
-        error: 'Invalid date. Please check day/month combination.' 
-      };
-    }
-    
-    const { minDate, maxDate } = getDateBounds();
-    if (date < minDate) {
-      return { 
-        isValid: false, 
-        error: 'Date cannot be in the past' 
-      };
-    }
-    
-    if (date > maxDate) {
-      return { 
-        isValid: false, 
-        error: 'Date is too far in the future' 
-      };
-    }
-    
-    return { isValid: true, error: '', isPartial: false };
-  }
-  
-  // Partial date is still valid
-  return { isValid: true, error: '', isPartial: true };
+// Auto-format input as DD/MM/YYYY
+const formatInputValue = (value) => {
+  const cleaned = value.replace(/\D/g, '');
+  if (cleaned.length <= 2) return cleaned;
+  if (cleaned.length <= 4) return `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
+  return `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4, 8)}`;
 };
 
-// Modern Enhanced Date Input Component
-const ModernDateInput = forwardRef(({ 
-  value, 
-  onClick, 
-  placeholder, 
-  error, 
-  helperText, 
-  onInputChange, 
-  onInputBlur,
-  onClear,
-  showClear,
-  inputValue,
-  isTyping,
-  disabled,
-  label,
-  isValid,
-  ...props 
-}, ref) => {
+// Inline Calendar Component
+const InlineCalendar = ({ selectedDate, onSelect, minDate, maxDate }) => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [viewDate, setViewDate] = useState(() => selectedDate || minDate || new Date());
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const month = viewDate.getMonth();
+  const year = viewDate.getFullYear();
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const weekdays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const days = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1))];
+
+  const canPrev = new Date(year, month - 1, 1) >= new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+  const canNext = new Date(year, month + 1, 1) <= new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+
+  const isDisabled = (d) => !d || d < minDate || d > maxDate;
+  const isToday = (d) => d && d.toDateString() === today.toDateString();
+  const isSelected = (d) => d && selectedDate && d.toDateString() === selectedDate.toDateString();
+
+  return (
+    <Box>
+      {/* Header */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        <IconButton
+          size="small"
+          onClick={() => setViewDate(new Date(year, month - 1, 1))}
+          disabled={!canPrev}
+          sx={{ 
+            width: 32, 
+            height: 32, 
+            bgcolor: canPrev ? alpha(theme.palette.grey[100], 0.8) : 'transparent',
+            '&:hover': { bgcolor: alpha(theme.palette.grey[200], 0.8) },
+          }}
+        >
+          <ChevronLeft size={18} />
+        </IconButton>
+        <Typography sx={{ fontSize: '0.938rem', fontWeight: 700, color: 'text.primary' }}>
+          {monthNames[month]} {year}
+        </Typography>
+        <IconButton
+          size="small"
+          onClick={() => setViewDate(new Date(year, month + 1, 1))}
+          disabled={!canNext}
+          sx={{ 
+            width: 32, 
+            height: 32, 
+            bgcolor: canNext ? alpha(theme.palette.grey[100], 0.8) : 'transparent',
+            '&:hover': { bgcolor: alpha(theme.palette.grey[200], 0.8) },
+          }}
+        >
+          <ChevronRight size={18} />
+        </IconButton>
+      </Box>
+
+      {/* Weekdays */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', mb: 1 }}>
+        {weekdays.map((d) => (
+          <Typography key={d} sx={{ fontSize: '0.688rem', fontWeight: 600, color: 'text.disabled', textAlign: 'center', py: 0.75, textTransform: 'uppercase' }}>
+            {d}
+          </Typography>
+        ))}
+      </Box>
+
+      {/* Days Grid */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: { xs: 0.5, sm: 0.75 } }}>
+        {days.map((d, i) => {
+          const disabled = isDisabled(d);
+          const selected = isSelected(d);
+          const todayDate = isToday(d);
+          return (
+            <Box
+              key={i}
+              onClick={() => !disabled && d && onSelect(d)}
+              sx={{
+                width: { xs: 32, sm: 40 },
+                height: { xs: 32, sm: 40 },
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: { xs: '8px', sm: '10px' },
+                cursor: disabled ? 'default' : 'pointer',
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                fontWeight: selected ? 700 : 500,
+                color: !d ? 'transparent' : disabled ? alpha(theme.palette.text.disabled, 0.5) : selected ? 'white' : todayDate ? 'primary.main' : 'text.primary',
+                bgcolor: selected ? 'primary.main' : todayDate ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
+                border: todayDate && !selected ? `1.5px solid ${theme.palette.primary.main}` : '1.5px solid transparent',
+                transition: 'all 0.15s ease',
+                '&:hover': !disabled && d ? {
+                  bgcolor: selected ? 'primary.dark' : alpha(theme.palette.primary.main, 0.1),
+                } : {},
+              }}
+            >
+              {d ? d.getDate() : ''}
+            </Box>
+          );
+        })}
+      </Box>
+
+      {/* Today button */}
+      <Box sx={{ mt: { xs: 1.5, sm: 2 }, display: 'flex', justifyContent: 'center' }}>
+        <Button
+          size="small"
+          onClick={() => { setViewDate(today); onSelect(today); }}
+          disabled={today < minDate}
+          sx={{ 
+            fontSize: { xs: '0.688rem', sm: '0.75rem' }, 
+            fontWeight: 600, 
+            textTransform: 'none', 
+            color: 'primary.main',
+            px: { xs: 1.5, sm: 2 },
+            py: 0.5,
+            borderRadius: '8px',
+            bgcolor: alpha(theme.palette.primary.main, 0.08),
+            '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.12) },
+          }}
+        >
+          Today
+        </Button>
+      </Box>
+    </Box>
+  );
+};
+
+// Date Input with typing support
+const DateInputField = ({ label, value, placeholder, onDateSelect, onClear, error, disabled, minDate, maxDate }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const inputRef = useRef(null);
-  
-  // Handle cursor position after formatting
-  const handleChange = (e) => {
-    const { value } = e.target;
-    const prevValue = inputValue || '';
-    
-    const { formatted, cursorPos } = formatDateInput(value, prevValue);
-    
-    onInputChange({
-      ...e,
-      target: {
-        ...e.target,
-        value: formatted
+  const [inputValue, setInputValue] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [inputError, setInputError] = useState('');
+
+  // Sync display value
+  useEffect(() => {
+    if (!isTyping && value) {
+      const date = parseISODate(value);
+      if (date) {
+        setInputValue(`${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`);
       }
-    });
-    
-    // Restore cursor position after state update
-    if (cursorPos !== null && inputRef.current) {
-      setTimeout(() => {
-        inputRef.current.setSelectionRange(cursorPos, cursorPos);
-      }, 0);
+    } else if (!isTyping && !value) {
+      setInputValue('');
     }
-  };
-  
-  // Handle keyboard navigation between date segments
-  const handleKeyDown = (e) => {
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-      const { value, selectionStart } = e.target;
-      const isAtSlash = value[selectionStart] === '/';
-      if (isAtSlash) {
-        e.preventDefault();
-        const newPos = e.key === 'ArrowLeft' ? selectionStart - 1 : selectionStart + 1;
-        inputRef.current.setSelectionRange(newPos, newPos);
+  }, [value, isTyping]);
+
+  const handleInputChange = (e) => {
+    const formatted = formatInputValue(e.target.value);
+    setInputValue(formatted);
+    setIsTyping(true);
+    setInputError('');
+
+    // Auto-validate when complete
+    if (formatted.length === 10) {
+      const parsed = parseDateInput(formatted);
+      if (parsed) {
+        if (parsed < minDate) {
+          setInputError('Date cannot be in the past');
+        } else if (parsed > maxDate) {
+          setInputError('Date is too far in the future');
+        } else {
+          onDateSelect(parsed);
+          setIsTyping(false);
+        }
+      } else {
+        setInputError('Invalid date');
       }
     }
   };
 
+  const handleBlur = () => {
+    if (inputValue && inputValue.length === 10) {
+      const parsed = parseDateInput(inputValue);
+      if (parsed && parsed >= minDate && parsed <= maxDate) {
+        onDateSelect(parsed);
+      }
+    }
+    setIsTyping(false);
+  };
+
+  const handleClear = () => {
+    setInputValue('');
+    setInputError('');
+    setIsTyping(false);
+    onClear();
+  };
+
+  const hasValue = !!value;
+
   return (
-    <Box sx={{ position: 'relative' }}>
-      <StyledTextField
-        {...props}
-        size="small"
-        ref={(node) => {
-          inputRef.current = node;
-          if (typeof ref === 'function') {
-            ref(node);
-          } else if (ref) {
-            ref.current = node;
-          }
-        }}
+    <Box>
+      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: disabled ? 'text.disabled' : 'text.secondary', mb: 1, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+        {label}
+      </Typography>
+      <TextField
         fullWidth
-        label={label}
-        value={isTyping ? inputValue : (value || '')}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        onBlur={onInputBlur}
-        placeholder={placeholder}
-        error={error}
-        helperText={helperText}
+        size="small"
+        value={inputValue}
+        onChange={handleInputChange}
+        onBlur={handleBlur}
+        onFocus={() => setIsTyping(true)}
+        placeholder={disabled ? 'Select start first' : 'DD/MM/YYYY'}
         disabled={disabled}
-        isValid={isValid}
-        variant="outlined"
-        inputProps={{
-          maxLength: 10, // DD/MM/YYYY
-          pattern: '[0-9/]*',
-          inputMode: 'numeric',
-          style: { 
-            fontFamily: 'SF Mono, Monaco, monospace',
-            fontSize: '0.9rem',
-            letterSpacing: '0.5px'
-          }
-        }}
+        error={!!inputError}
+        helperText={inputError || (disabled ? '' : 'Type or select from calendar')}
+        inputRef={inputRef}
         InputProps={{
           startAdornment: (
             <InputAdornment position="start">
-              <Tooltip title="Click to open calendar picker" arrow>
-                <IconButton 
-                  onClick={onClick} 
-                  size="small"
-                  disabled={disabled}
-                  sx={{ 
-                    color: error ? 'error.main' : (isValid ? 'success.main' : 'primary.main'),
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      backgroundColor: error ? 'error.light' : (isValid ? 'success.light' : 'primary.light'),
-                      color: 'white',
-                      transform: 'scale(1.1)',
-                    }
-                  }}
-                >
-                  {isValid && !error ? <CheckIcon fontSize="small" /> : <CalendarIcon fontSize="small" />}
-                </IconButton>
-              </Tooltip>
+              {hasValue && !isTyping ? (
+                <Check size={18} color={theme.palette.primary.main} strokeWidth={2.5} />
+              ) : (
+                <Type size={18} color={disabled ? theme.palette.text.disabled : theme.palette.text.secondary} />
+              )}
             </InputAdornment>
           ),
-          endAdornment: showClear && (
+          endAdornment: inputValue && !disabled && (
             <InputAdornment position="end">
-              <Fade in={showClear}>
-                <Tooltip title="Clear date" arrow>
-                  <IconButton 
-                    onClick={onClear} 
-                    size="small"
-                    sx={{ 
-                      color: 'text.secondary',
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        backgroundColor: 'error.light',
-                        color: 'error.main',
-                        transform: 'scale(1.1)',
-                      }
-                    }}
-                  >
-                    <ClearIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </Fade>
+              <IconButton size="small" onClick={handleClear} sx={{ p: 0.5 }}>
+                <X size={16} />
+              </IconButton>
             </InputAdornment>
           ),
         }}
+        sx={{
+          '& .MuiOutlinedInput-root': {
+            borderRadius: '10px',
+            bgcolor: disabled ? alpha(theme.palette.grey[100], 0.3) : alpha(theme.palette.grey[50], 0.5),
+            fontSize: '0.938rem',
+            fontFamily: 'SF Mono, Monaco, Consolas, monospace',
+            letterSpacing: '0.5px',
+            '& fieldset': { borderColor: hasValue ? alpha(theme.palette.primary.main, 0.2) : 'transparent' },
+            '&:hover fieldset': { borderColor: alpha(theme.palette.primary.main, 0.3) },
+            '&.Mui-focused fieldset': { borderColor: theme.palette.primary.main },
+          },
+          '& .MuiInputBase-input': { py: 1.5 },
+        }}
       />
-      
-      {isTyping && inputValue && (
-        <Fade in={true}>
-          <Box
-            sx={{
-              position: 'absolute',
-              top: -8,
-              right: 12,
-              zIndex: 1,
-            }}
-          >
-            <Chip
-              size="small"
-              label="Typing..."
-              color="primary"
-              variant="filled"
-              sx={{
-                height: 16,
-                fontSize: '0.65rem',
-                '& .MuiChip-label': {
-                  px: 1,
-                },
-              }}
-            />
-          </Box>
-        </Fade>
-      )}
     </Box>
-  );
-});
-
-ModernDateInput.displayName = 'ModernDateInput';
-
-// Custom Calendar (modern)
-const CustomCalendar = ({ selectedDate, onDateSelect, minDate, maxDate, onClose }) => {
-  const theme = useTheme();
-  const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
-  const [currentDate, setCurrentDate] = useState(selectedDate || new Date());
-  const today = new Date();
-
-  const monthNames = [
-    'January','February','March','April','May','June',
-    'July','August','September','October','November','December'
-  ];
-  const weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-
-  const currentMonth = currentDate.getMonth();
-  const currentYear = currentDate.getFullYear();
-
-  const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
-  const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
-  const startingDayOfWeek = firstDayOfMonth.getDay();
-  const daysInMonth = lastDayOfMonth.getDate();
-
-  const days = [];
-  for (let i = 0; i < startingDayOfWeek; i++) days.push(null);
-  for (let day = 1; day <= daysInMonth; day++) days.push(new Date(currentYear, currentMonth, day));
-
-  const navigateMonth = (direction) => {
-    setCurrentDate(prev => {
-      const newDate = new Date(prev);
-      newDate.setMonth(prev.getMonth() + direction);
-      return newDate;
-    });
-  };
-
-  const isDateDisabled = (date) => {
-    if (!date) return true;
-    return date < minDate || date > maxDate;
-  };
-
-  const isToday = (date) => date && date.toDateString() === today.toDateString();
-  const isSelected = (date) => selectedDate && date && date.toDateString() === selectedDate.toDateString();
-
-  const handleDateClick = (date) => {
-    if (!isDateDisabled(date)) {
-      onDateSelect(date);
-      onClose();
-    }
-  };
-
-  const { showNextYear, currentYear: boundsCurrentYear } = getDateBounds();
-  const canNavigatePrev = currentYear > boundsCurrentYear || (currentYear === boundsCurrentYear && currentMonth > today.getMonth());
-  const canNavigateNext = showNextYear ?
-    (currentYear < boundsCurrentYear + 1 || (currentYear === boundsCurrentYear + 1 && currentMonth < 11)) :
-    (currentYear === boundsCurrentYear && currentMonth < 11);
-
-  // Close on Esc key
-  React.useEffect(() => {
-    const onKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
-
-  return (
-    <Fade in>
-      <CalendarPaper sx={{ width: { xs: 'min(96vw, 360px)', sm: 'min(95vw, 420px)' }, maxWidth: 420 }}>
-      <CalendarHeader>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <IconButton
-            onClick={() => navigateMonth(-1)}
-            disabled={!canNavigatePrev}
-            sx={{ color: 'white', backgroundColor: 'rgba(255,255,255,0.1)', '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' }, '&.Mui-disabled': { color: 'rgba(255,255,255,0.3)' } }}
-          >
-            <ChevronLeftIcon />
-          </IconButton>
-          <Typography variant={isSmall ? 'subtitle1' : 'h6'} sx={{ fontWeight: 700, textAlign: 'center', minWidth: { xs: 160, sm: 200 } }}>
-            {monthNames[currentMonth]} {currentYear}
-          </Typography>
-          <IconButton
-            onClick={() => navigateMonth(1)}
-            disabled={!canNavigateNext}
-            sx={{ color: 'white', backgroundColor: 'rgba(255,255,255,0.1)', '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' }, '&.Mui-disabled': { color: 'rgba(255,255,255,0.3)' } }}
-          >
-            <ChevronRightIcon />
-          </IconButton>
-        </Stack>
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, mt: 2, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 1, p: 1 }}>
-          {weekdays.map((day) => (
-            <Typography key={day} variant="caption" sx={{ textAlign: 'center', fontWeight: 600, color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-              {day}
-            </Typography>
-          ))}
-        </Box>
-      </CalendarHeader>
-      <Box sx={{ p: 2, backgroundColor: 'background.paper' }}>
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1 }}>
-          {days.map((date, index) => (
-            <DayButton
-              key={index}
-              onClick={() => date && handleDateClick(date)}
-              isToday={isToday(date)}
-              isSelected={isSelected(date)}
-              isDisabled={isDateDisabled(date)}
-            >
-              {date ? date.getDate() : ''}
-            </DayButton>
-          ))}
-        </Box>
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'flex-end', 
-            alignItems: 'center', 
-            mt: 2,
-            pt: 1,
-            borderTop: '1px solid',
-            borderColor: 'divider'
-          }}>
-            <Button 
-              variant="outlined"
-              size="small"
-              onClick={() => onClose()}
-              sx={{
-                borderRadius: 2,
-                textTransform: 'none',
-                fontWeight: 600,
-                px: 3,
-                py: 0.8,
-                minWidth: 80,
-                borderColor: 'text.secondary',
-                color: 'text.secondary',
-                '&:hover': {
-                  borderColor: 'primary.main',
-                  color: 'primary.main',
-                  backgroundColor: 'primary.50'
-                },
-                transition: 'all 0.2s ease-in-out'
-              }}
-            >
-              Close
-            </Button>
-          </Box>
-      </Box>
-      </CalendarPaper>
-    </Fade>
   );
 };
 
+// Main Component
 const UpcomingHolidayDatePicker = ({
   newHoliday,
   setNewHoliday,
@@ -667,379 +332,210 @@ const UpcomingHolidayDatePicker = ({
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const { minDate, maxDate, currentYear, nextYear, showNextYear } = getDateBounds();
+  const { minDate, maxDate } = getDateBounds();
 
-  // Enhanced state management
-  const [startInputValue, setStartInputValue] = useState('');
-  const [endInputValue, setEndInputValue] = useState('');
-  const [isTypingStart, setIsTypingStart] = useState(false);
-  const [isTypingEnd, setIsTypingEnd] = useState(false);
-  const [inputErrors, setInputErrors] = useState({
-    start: '',
-    end: ''
-  });
-  const [validationState, setValidationState] = useState({
-    startValid: false,
-    endValid: false
-  });
-  const [showStartCalendar, setShowStartCalendar] = useState(false);
-  const [showEndCalendar, setShowEndCalendar] = useState(false);
+  const startDate = parseISODate(newHoliday.startDate);
+  const endDate = parseISODate(newHoliday.endDate);
 
-  // Update display values when holiday changes
-  useEffect(() => {
-    if (!isTypingStart) {
-      const startDate = parseISODate(newHoliday.startDate);
-      setStartInputValue(startDate ? formatDateForDisplay(startDate) : '');
-      setValidationState(prev => ({ ...prev, startValid: !!startDate }));
+  const handleStartSelect = useCallback((date) => {
+    const iso = formatDateToISO(date);
+    const updated = { ...newHoliday, startDate: iso };
+    if (endDate && date > endDate) {
+      updated.endDate = '';
     }
-  }, [newHoliday.startDate, isTypingStart]);
-
-  useEffect(() => {
-    if (!isTypingEnd) {
-      const endDate = parseISODate(newHoliday.endDate);
-      setEndInputValue(endDate ? formatDateForDisplay(endDate) : '');
-      setValidationState(prev => ({ ...prev, endValid: !!endDate }));
+    setNewHoliday(updated);
+    if (updated.endDate) {
+      const hasOverlap = checkDateOverlap(iso, updated.endDate, editingHoliday?._id);
+      setDateOverlapWarning(hasOverlap ? 'This date range overlaps with an existing holiday' : '');
     }
-  }, [newHoliday.endDate, isTypingEnd]);
+  }, [newHoliday, endDate, setNewHoliday, checkDateOverlap, editingHoliday, setDateOverlapWarning]);
 
-  // Memoized date change handlers
-  const handleStartDateChange = useCallback((date) => {
-    const isoDate = formatDateToISO(date);
-    const updatedHoliday = { ...newHoliday, startDate: isoDate };
-    
-    // Clear end date if it's before the new start date
-    if (newHoliday.endDate && date && parseISODate(newHoliday.endDate) < date) {
-      updatedHoliday.endDate = '';
-      setEndInputValue('');
-      setValidationState(prev => ({ ...prev, endValid: false }));
+  const handleEndSelect = useCallback((date) => {
+    const iso = formatDateToISO(date);
+    setNewHoliday({ ...newHoliday, endDate: iso });
+    if (newHoliday.startDate) {
+      const hasOverlap = checkDateOverlap(newHoliday.startDate, iso, editingHoliday?._id);
+      setDateOverlapWarning(hasOverlap ? 'This date range overlaps with an existing holiday' : '');
     }
-    
-    setNewHoliday(updatedHoliday);
-    setIsTypingStart(false);
-    setInputErrors(prev => ({ ...prev, start: '' }));
-    setValidationState(prev => ({ ...prev, startValid: true }));
-    
-    checkOverlap(isoDate, updatedHoliday.endDate);
-  }, [newHoliday, setNewHoliday, checkDateOverlap]);
+  }, [newHoliday, setNewHoliday, checkDateOverlap, editingHoliday, setDateOverlapWarning]);
 
-  const handleEndDateChange = useCallback((date) => {
-    const isoDate = formatDateToISO(date);
-    setNewHoliday({ ...newHoliday, endDate: isoDate });
-    setIsTypingEnd(false);
-    setInputErrors(prev => ({ ...prev, end: '' }));
-    setValidationState(prev => ({ ...prev, endValid: true }));
-    
-    checkOverlap(newHoliday.startDate, isoDate);
-  }, [newHoliday, setNewHoliday, checkDateOverlap]);
-
-  // Enhanced input change handlers with real-time validation
-  const handleStartInputChange = useCallback((e) => {
-    const rawValue = e.target.value;
-    
-    setStartInputValue(rawValue);
-    setIsTypingStart(true);
-    
-    // Real-time validation feedback
-    const validation = validateFormattedDateInput(rawValue);
-    if (!validation.isValid && !validation.isPartial) {
-      setInputErrors(prev => ({ ...prev, start: validation.error }));
-      setValidationState(prev => ({ ...prev, startValid: false }));
-    } else {
-      setInputErrors(prev => ({ ...prev, start: '' }));
-      setValidationState(prev => ({ ...prev, startValid: validation.isValid }));
-    }
-  }, []);
-
-  const handleEndInputChange = useCallback((e) => {
-    const rawValue = e.target.value;
-    
-    setEndInputValue(rawValue);
-    setIsTypingEnd(true);
-    
-    // Real-time validation feedback
-    const validation = validateFormattedDateInput(rawValue);
-    if (!validation.isValid && !validation.isPartial) {
-      setInputErrors(prev => ({ ...prev, end: validation.error }));
-      setValidationState(prev => ({ ...prev, endValid: false }));
-    } else {
-      setInputErrors(prev => ({ ...prev, end: '' }));
-      setValidationState(prev => ({ ...prev, endValid: validation.isValid }));
-    }
-  }, []);
-
-  // Enhanced blur handlers with comprehensive validation
-  const handleStartInputBlur = useCallback(() => {
-    if (!startInputValue.trim()) {
-      setIsTypingStart(false);
-      setValidationState(prev => ({ ...prev, startValid: false }));
-      return;
-    }
-
-    const validation = validateFormattedDateInput(startInputValue);
-    if (!validation.isValid && !validation.isPartial) {
-      setInputErrors(prev => ({ ...prev, start: validation.error }));
-      setValidationState(prev => ({ ...prev, startValid: false }));
-      return;
-    }
-
-    // Process complete dates only
-    if (startInputValue.includes('/') && startInputValue.split('/').length === 3) {
-      const parsedDate = parseFormattedDateInput(startInputValue);
-      if (parsedDate) {
-        handleStartDateChange(parsedDate);
-      } else {
-        setInputErrors(prev => ({ ...prev, start: 'Invalid date format' }));
-        setValidationState(prev => ({ ...prev, startValid: false }));
-      }
-    } else {
-      // If partial date but valid format, keep it as is
-      setIsTypingStart(false);
-    }
-  }, [startInputValue, handleStartDateChange]);
-
-  const handleEndInputBlur = useCallback(() => {
-    if (!endInputValue.trim()) {
-      setIsTypingEnd(false);
-      setValidationState(prev => ({ ...prev, endValid: false }));
-      return;
-    }
-
-    const validation = validateFormattedDateInput(endInputValue);
-    if (!validation.isValid && !validation.isPartial) {
-      setInputErrors(prev => ({ ...prev, end: validation.error }));
-      setValidationState(prev => ({ ...prev, endValid: false }));
-      return;
-    }
-
-    if (endInputValue.includes('/') && endInputValue.split('/').length === 3) {
-      const parsedDate = parseFormattedDateInput(endInputValue);
-      if (parsedDate) {
-        // Additional validation for end date
-        const startDate = parseISODate(newHoliday.startDate);
-        if (startDate && parsedDate < startDate) {
-          setInputErrors(prev => ({ 
-            ...prev, 
-            end: 'End date cannot be before start date' 
-          }));
-          setValidationState(prev => ({ ...prev, endValid: false }));
-          return;
-        }
-        handleEndDateChange(parsedDate);
-      } else {
-        setInputErrors(prev => ({ ...prev, end: 'Invalid date format' }));
-        setValidationState(prev => ({ ...prev, endValid: false }));
-      }
-    } else {
-      setIsTypingEnd(false);
-    }
-  }, [endInputValue, newHoliday.startDate, handleEndDateChange]);
-
-  // Overlap checking function
-  const checkOverlap = useCallback((startDate, endDate) => {
-    if (startDate && endDate) {
-      const hasOverlap = checkDateOverlap(startDate, endDate, editingHoliday?._id);
-      setDateOverlapWarning(
-        hasOverlap ? 'This date range overlaps with an existing holiday' : ''
-      );
-    } else {
-      setDateOverlapWarning('');
-    }
-  }, [checkDateOverlap, editingHoliday?._id, setDateOverlapWarning]);
-
-  // Clear handlers
   const handleClearStart = useCallback(() => {
     setNewHoliday({ ...newHoliday, startDate: '', endDate: '' });
-    setStartInputValue('');
-    setEndInputValue('');
-    setIsTypingStart(false);
-    setIsTypingEnd(false);
-    setInputErrors({ start: '', end: '' });
-    setValidationState({ startValid: false, endValid: false });
     setDateOverlapWarning('');
   }, [newHoliday, setNewHoliday, setDateOverlapWarning]);
 
   const handleClearEnd = useCallback(() => {
     setNewHoliday({ ...newHoliday, endDate: '' });
-    setEndInputValue('');
-    setIsTypingEnd(false);
-    setInputErrors(prev => ({ ...prev, end: '' }));
-    setValidationState(prev => ({ ...prev, endValid: false }));
     setDateOverlapWarning('');
   }, [newHoliday, setNewHoliday, setDateOverlapWarning]);
 
-  const getEndDateMinDate = useCallback(() => {
-    if (newHoliday.startDate) {
-      const startDate = parseISODate(newHoliday.startDate);
-      return startDate || minDate;
-    }
-    return minDate;
-  }, [newHoliday.startDate, minDate]);
+  const endMinDate = startDate || minDate;
 
-  const yearDisplayText = showNextYear 
-    ? `${currentYear} - ${nextYear}` 
-    : currentYear.toString();
+  // Duration display
+  const duration = startDate && endDate
+    ? Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
+    : null;
 
   return (
-    <Box sx={{ width: '100%' }}>
-      {/* Enhanced Instructions */}
- 
-
-      {/* Date Input Fields - modern UI with custom calendar popover */}
-      <Box 
-        sx={{ 
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-          gap: 3,
-          mb: 2
-        }}
-      >
-        {/* Start Date */}
+    <Box>
+      {/* Two Column Layout - Stacked on mobile for better scrolling */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: { xs: 2.5, md: 4 } }}>
+        {/* Start Date Column */}
         <Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                fontWeight: 600,
-                color: 'text.primary',
-                fontSize: '1.1rem'
-              }}
-            >
-              Start Date
-            </Typography>
-            <Chip
-              label={yearDisplayText}
-              size="small"
-              variant="outlined"
-              color="primary"
-              sx={{ height: 24, fontSize: '0.75rem', fontWeight: 500 }}
-            />
-          </Box>
-
-          <Box sx={{ position: 'relative' }}>
-            <ModernDateInput
-              label="Start Date"
-              placeholder="Type: 251224 → 25/12/2024"
-              error={!!inputErrors.start}
-              helperText={inputErrors.start || 'DD/MM/YYYY format'}
-              onInputChange={handleStartInputChange}
-              onInputBlur={handleStartInputBlur}
-              onClear={handleClearStart}
-              showClear={!!newHoliday.startDate}
-              inputValue={startInputValue}
-              isTyping={isTypingStart}
-              isValid={validationState.startValid}
-              value={startInputValue}
-              onClick={() => setShowStartCalendar(prev => !prev)}
-            />
-
-            {showStartCalendar && (
-              <Box sx={{
-                position: 'absolute',
-                top: '100%',
-                left: { xs: '50%', sm: 0 },
-                transform: { xs: 'translateX(-50%)', sm: 'none' },
-                zIndex: 1300,
-                mt: 1,
-                width: { xs: 'min(96vw, 360px)', sm: 'min(95vw, 420px)' }
-              }}>
-                <CustomCalendar
-                  selectedDate={parseISODate(newHoliday.startDate)}
-                  onDateSelect={handleStartDateChange}
-                  minDate={minDate}
-                  maxDate={maxDate}
-                  onClose={() => setShowStartCalendar(false)}
-                />
+          <DateInputField
+            label="Start Date"
+            value={newHoliday.startDate}
+            placeholder="DD/MM/YYYY"
+            onDateSelect={handleStartSelect}
+            onClear={handleClearStart}
+            minDate={minDate}
+            maxDate={maxDate}
+          />
+          {/* Calendar Section */}
+          <Box
+            sx={{
+              mt: 2,
+              p: { xs: 1.5, sm: 2 },
+              borderRadius: '14px',
+              bgcolor: alpha(theme.palette.grey[50], 0.8),
+              border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+            }}
+          >
+            {/* Calendar Header */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: { xs: 1.5, sm: 2 }, pb: { xs: 1, sm: 1.5 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}` }}>
+              <Box
+                sx={{
+                  width: { xs: 28, sm: 32 },
+                  height: { xs: 28, sm: 32 },
+                  borderRadius: '8px',
+                  bgcolor: alpha(theme.palette.primary.main, 0.1),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Calendar size={isMobile ? 14 : 16} color={theme.palette.primary.main} />
               </Box>
-            )}
+              <Box>
+                <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.813rem' }, fontWeight: 600, color: 'text.primary' }}>
+                  Start Date
+                </Typography>
+                {!isMobile && (
+                  <Typography sx={{ fontSize: '0.688rem', color: 'text.secondary' }}>
+                    Select when your time off begins
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+            <InlineCalendar
+              selectedDate={startDate}
+              onSelect={handleStartSelect}
+              minDate={minDate}
+              maxDate={maxDate}
+            />
           </Box>
         </Box>
 
-        {/* End Date */}
+        {/* End Date Column */}
         <Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                fontWeight: 600,
-                color: newHoliday.startDate ? 'text.primary' : 'text.disabled',
-                fontSize: '1.1rem'
-              }}
-            >
-              End Date
-            </Typography>
-            <Chip
-              label={yearDisplayText}
-              size="small"
-              variant="outlined"
-              color={newHoliday.startDate ? 'primary' : 'default'}
-              sx={{ height: 24, fontSize: '0.75rem', fontWeight: 500, opacity: newHoliday.startDate ? 1 : 0.5 }}
-            />
-          </Box>
-
-          <Box sx={{ position: 'relative' }}>
-            <ModernDateInput
-              label="End Date"
-              placeholder={newHoliday.startDate ? 'Type: 261224 → 26/12/2024' : 'Select start date first'}
-              error={!!inputErrors.end}
-              helperText={inputErrors.end || (!newHoliday.startDate ? 'Please select a start date first' : 'DD/MM/YYYY format')}
-              onInputChange={handleEndInputChange}
-              onInputBlur={handleEndInputBlur}
-              onClear={handleClearEnd}
-              showClear={!!newHoliday.endDate}
-              inputValue={endInputValue}
-              isTyping={isTypingEnd}
-              disabled={!newHoliday.startDate}
-              isValid={validationState.endValid}
-              value={endInputValue}
-              onClick={() => newHoliday.startDate && setShowEndCalendar(prev => !prev)}
-            />
-
-            {showEndCalendar && newHoliday.startDate && (
-              <Box sx={{
-                position: 'absolute',
-                top: '100%',
-                right: { xs: 'auto', sm: 0 },
-                left: { xs: '50%', sm: 'auto' },
-                transform: { xs: 'translateX(-50%)', sm: 'none' },
-                zIndex: 1300,
-                mt: 1,
-                width: { xs: 'min(96vw, 360px)', sm: 'min(95vw, 420px)' }
-              }}>
-                <CustomCalendar
-                  selectedDate={parseISODate(newHoliday.endDate)}
-                  onDateSelect={handleEndDateChange}
-                  minDate={getEndDateMinDate()}
-                  maxDate={maxDate}
-                  onClose={() => setShowEndCalendar(false)}
-                />
+          <DateInputField
+            label="End Date"
+            value={newHoliday.endDate}
+            placeholder="DD/MM/YYYY"
+            onDateSelect={handleEndSelect}
+            onClear={handleClearEnd}
+            disabled={!startDate}
+            minDate={endMinDate}
+            maxDate={maxDate}
+          />
+          {/* Calendar Section */}
+          <Box
+            sx={{
+              mt: 2,
+              p: { xs: 1.5, sm: 2 },
+              borderRadius: '14px',
+              bgcolor: startDate ? alpha(theme.palette.grey[50], 0.8) : alpha(theme.palette.grey[100], 0.4),
+              border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+              opacity: startDate ? 1 : 0.5,
+              pointerEvents: startDate ? 'auto' : 'none',
+              transition: 'opacity 0.2s ease',
+            }}
+          >
+            {/* Calendar Header */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: { xs: 1.5, sm: 2 }, pb: { xs: 1, sm: 1.5 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}` }}>
+              <Box
+                sx={{
+                  width: { xs: 28, sm: 32 },
+                  height: { xs: 28, sm: 32 },
+                  borderRadius: '8px',
+                  bgcolor: startDate ? alpha('#10b981', 0.1) : alpha(theme.palette.grey[300], 0.5),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Calendar size={isMobile ? 14 : 16} color={startDate ? '#10b981' : theme.palette.text.disabled} />
               </Box>
-            )}
+              <Box>
+                <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.813rem' }, fontWeight: 600, color: startDate ? 'text.primary' : 'text.disabled' }}>
+                  End Date
+                </Typography>
+                {!isMobile && (
+                  <Typography sx={{ fontSize: '0.688rem', color: startDate ? 'text.secondary' : 'text.disabled' }}>
+                    {startDate ? 'Select when your time off ends' : 'Select a start date first'}
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+            <InlineCalendar
+              selectedDate={endDate}
+              onSelect={handleEndSelect}
+              minDate={endMinDate}
+              maxDate={maxDate}
+            />
           </Box>
         </Box>
       </Box>
 
-      {/* Warnings */}
+      {/* Duration Display */}
+      {duration && (
+        <Fade in>
+          <Box
+            sx={{
+              mt: 3,
+              p: 2,
+              borderRadius: '12px',
+              bgcolor: alpha(theme.palette.primary.main, 0.06),
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 1.5,
+            }}
+          >
+            <Calendar size={18} color={theme.palette.primary.main} />
+            <Typography sx={{ fontSize: '0.938rem', fontWeight: 600, color: 'primary.main' }}>
+              {duration} day{duration > 1 ? 's' : ''} off
+            </Typography>
+            <Typography sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>
+              {formatShortDate(startDate)} – {formatShortDate(endDate)}
+            </Typography>
+          </Box>
+        </Fade>
+      )}
+
+      {/* Overlap Warning */}
       {dateOverlapWarning && (
-        <Fade in={true}>
-          <Alert 
-            severity="warning" 
-            sx={{ mt: 2, borderRadius: 2 }}
+        <Fade in>
+          <Alert
+            severity="warning"
             onClose={() => setDateOverlapWarning('')}
+            sx={{ mt: 2, borderRadius: '10px' }}
           >
             {dateOverlapWarning}
           </Alert>
         </Fade>
       )}
-
-      {/* Click-away overlay to close calendars */}
-      {(showStartCalendar || showEndCalendar) && (
-        <Box
-          sx={{ position: 'fixed', inset: 0, zIndex: 1200 }}
-          onClick={() => { setShowStartCalendar(false); setShowEndCalendar(false); }}
-        />
-      )}
-
-      {/* Custom calendar popover uses MUI; removed react-datepicker global CSS */}
     </Box>
   );
 };

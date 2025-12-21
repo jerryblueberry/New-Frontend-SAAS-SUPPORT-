@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import LoginForm from '../../components/auth/LoginForm';
 import { useGoogleLogin } from '@react-oauth/google';
-import { googleAuth } from '../../api/auth';
+import { googleAuthClient } from '../../api/auth';
 import Toast from '../../components/common/Toast';
 import {
   Box,
@@ -21,16 +21,16 @@ import {
 } from '@mui/material';
 import {
   Google as GoogleIcon,
-  TrendingUp,
-  Schedule,
-  Star,
+  Groups,
+  CalendarMonth,
+  HealthAndSafety,
   Shield,
   Verified,
 } from '@mui/icons-material';
 import { LoadingButton } from '@mui/lab';
 import AECUSLogo from '../../assets/aecus-logo.png';
 
-const Login = () => {
+const ClientLogin = () => {
   const emailInputRef = useRef(null);
   const googleButtonRef = useRef(null);
   
@@ -52,7 +52,7 @@ const Login = () => {
   const from = useMemo(() =>
     location.state?.from?.pathname ||
     searchParams.get('returnTo') ||
-    '/dashboard',
+    '/client-dashboard',
     [location.state?.from?.pathname, searchParams]
   );
 
@@ -128,7 +128,7 @@ const Login = () => {
     onSuccess: async (response) => {
       setIsGoogleLoading(true);
       try {
-        const authResult = await googleAuth(response.access_token, { termsAndConditionsAccepted: true }, 'worker');
+        const authResult = await googleAuthClient(response.access_token, { termsAndConditionsAccepted: true });
         await signIn(authResult.data, true, true);
         clearAuthError();
         navigate(from, { replace: true });
@@ -144,7 +144,7 @@ const Login = () => {
       }
     },
     onError: (error) => {
-      console.error('Google login error:', error);
+       console.error('Google login error:', error);
       showErrorToast('Google sign-in was cancelled or failed. Please try again.');
       setIsGoogleLoading(false);
     },
@@ -179,9 +179,9 @@ const Login = () => {
   }, [googleLogin]);
 
   const features = useMemo(() => [
-    { icon: <TrendingUp sx={{ fontSize: 20 }} />, text: 'Advance your career' },
-    { icon: <Schedule sx={{ fontSize: 20 }} />, text: 'Flexible schedule' },
-    { icon: <Star sx={{ fontSize: 20 }} />, text: 'Competitive rates' },
+    { icon: <Groups sx={{ fontSize: 20 }} />, text: 'Verified support workers' },
+    { icon: <CalendarMonth sx={{ fontSize: 20 }} />, text: 'Flexible scheduling' },
+    { icon: <HealthAndSafety sx={{ fontSize: 20 }} />, text: 'Quality care assurance' },
   ], []);
 
   return (
@@ -202,7 +202,7 @@ const Login = () => {
         }}
       >
         {/* Subtle Gradient Background */}
-        <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: `radial-gradient(ellipse at top, ${alpha(theme.palette.primary.main, 0.03)} 0%, transparent 50%)`, pointerEvents: 'none' }} />
+        <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: `radial-gradient(ellipse at top, ${alpha(theme.palette.secondary.main, 0.03)} 0%, transparent 50%)`, pointerEvents: 'none' }} />
 
         <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1, py: { xs: 4, md: 8 } }}>
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 6, md: 8, lg: 12 }, alignItems: 'center', justifyContent: 'center', maxWidth: '1200px', mx: 'auto' }}>
@@ -219,11 +219,11 @@ const Login = () => {
                       </Zoom>
                       
                       <Typography variant="h1" sx={{ fontSize: { md: '2.5rem', lg: '3rem' }, fontWeight: 700, color: theme.palette.text.primary, mb: 2, lineHeight: 1.2, letterSpacing: '-0.04em' }}>
-                        Support Worker Portal
+                        Client Care Portal
                       </Typography>
                       
                       <Typography variant="body1" sx={{ fontSize: '1.125rem', color: alpha(theme.palette.text.primary, 0.65), lineHeight: 1.7, fontWeight: 400 }}>
-                        Build your career while making a meaningful impact.
+                        Access quality care services tailored to your needs.
                       </Typography>
                     </Box>
 
@@ -232,7 +232,7 @@ const Login = () => {
                       {features.map((feature, index) => (
                         <Zoom in={mounted} timeout={1600 + index * 100} key={index}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Box sx={{ width: 36, height: 36, borderRadius: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', background: alpha(theme.palette.primary.main, 0.08), color: theme.palette.primary.main, flexShrink: 0 }}>
+                            <Box sx={{ width: 36, height: 36, borderRadius: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', background: alpha(theme.palette.secondary.main, 0.08), color: theme.palette.secondary.main, flexShrink: 0 }}>
                               {feature.icon}
                             </Box>
                             <Typography sx={{ fontSize: '1rem', fontWeight: 500, color: theme.palette.text.primary }}>
@@ -247,7 +247,7 @@ const Login = () => {
                     <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', pt: 2 }}>
                       {[
                         { icon: <Shield sx={{ fontSize: 16 }} />, label: 'Secure' },
-                        { icon: <Verified sx={{ fontSize: 16 }} />, label: 'Trusted' },
+                        { icon: <Verified sx={{ fontSize: 16 }} />, label: 'Verified' },
                       ].map((badge, index) => (
                         <Zoom in={mounted} timeout={2000 + index * 100} key={index}>
                           <Chip icon={badge.icon} label={badge.label} size="small" sx={{ backgroundColor: alpha(theme.palette.text.primary, 0.04), color: alpha(theme.palette.text.primary, 0.7), fontWeight: 500, fontSize: '0.8125rem', border: 'none', height: 28 }} />
@@ -267,7 +267,7 @@ const Login = () => {
                   <Box sx={{ textAlign: 'center', mb: 5 }}>
                     <Box component="img" src={AECUSLogo} alt="AECUS" sx={{ width: '160px', height: 'auto', mb: 3, opacity: 0.92 }} />
                     <Typography variant="h4" sx={{ fontSize: '1.75rem', fontWeight: 700, color: theme.palette.text.primary, mb: 1, letterSpacing: '-0.02em' }}>
-                      Support Worker Portal
+                      Client Care Portal
                     </Typography>
                     <Typography variant="body2" sx={{ fontSize: '0.9375rem', color: alpha(theme.palette.text.primary, 0.6) }}>
                       Sign in to continue
@@ -287,7 +287,7 @@ const Login = () => {
                 )}
 
                 <Box sx={{ background: '#ffffff', borderRadius: 0, border: 'none' }}>
-                  <LoginForm onSubmit={handleLoginSubmit} setEmailInputRef={(el) => (emailInputRef.current = el)} loading={isLoading || isSubmitting} error={mutationError} portal="worker" />
+                  <LoginForm onSubmit={handleLoginSubmit} setEmailInputRef={(el) => (emailInputRef.current = el)} loading={isLoading || isSubmitting} error={mutationError} portal="client" />
 
                   <Box sx={{ my: 3.5 }}>
                     <Divider sx={{ '&::before, &::after': { borderColor: alpha(theme.palette.divider, 0.12) } }}>
@@ -305,14 +305,14 @@ const Login = () => {
                     <Stack spacing={1} alignItems="center">
                       <Typography variant="body2" sx={{ fontSize: '0.875rem', color: alpha(theme.palette.text.primary, 0.55), textAlign: 'center' }}>
                         New to our platform?{' '}
-                        <Typography component={Link} to="/register" sx={{ fontSize: 'inherit', fontWeight: 600, color: theme.palette.primary.main, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
-                          Sign up as worker
+                        <Typography component={Link} to="/client/register" sx={{ fontSize: 'inherit', fontWeight: 600, color: theme.palette.secondary.main, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+                          Sign up as client
                         </Typography>
                       </Typography>
                       <Typography variant="body2" sx={{ fontSize: '0.875rem', color: alpha(theme.palette.text.primary, 0.55), textAlign: 'center' }}>
-                        Looking for care services?{' '}
-                        <Typography component={Link} to="/client/login" sx={{ fontSize: 'inherit', fontWeight: 600, color: theme.palette.secondary.main, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
-                          Client login
+                        Are you a support worker?{' '}
+                        <Typography component={Link} to="/login" sx={{ fontSize: 'inherit', fontWeight: 600, color: theme.palette.primary.main, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+                          Worker login
                         </Typography>
                       </Typography>
                     </Stack>
@@ -327,4 +327,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default ClientLogin;
