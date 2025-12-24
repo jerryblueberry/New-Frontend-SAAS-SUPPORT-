@@ -6,8 +6,6 @@ import { shallow } from 'zustand/shallow';
 import './css/WorkHistoryForm.css';
 import { Toaster, toast } from 'react-hot-toast';
 import { deleteCloudinaryImage } from '../../api/cloudinary';
-import DocumentPreview from './Modals/DocumentPreview';
-import OnboardingCV from '../WorkerCv/OnboardingCV/onboardingCV';
 import OnboardingJobExperience from '../WorkerJobExperience/OnboardingJobExperience/OnboardingJobExperience';
 import WorkerOnboardingReferences from '../WorkerReferences/workerOnboardingReferences/workerOnboardingReferences';
 import { Container, Grid, useMediaQuery, useTheme, Paper, Typography, Box, Chip, Stack, CircularProgress, Button, Divider, alpha } from '@mui/material';
@@ -17,8 +15,6 @@ const WorkHistoryForm = ({ onNextStep }) => {
   // Access store state with selectors for targeted re-renders
   const workHistory = useOnboardingStore((state) => state.workHistory, shallow);
   const prevStep = useOnboardingStore((state) => state.prevStep);
-  const updateCV = useOnboardingStore((state) => state.updateCV);
-  const CV = useOnboardingStore((state) => state.workHistory?.CV, shallow);
 
   const updateWorkHistory = useOnboardingStore(
     (state) => state.updateWorkHistory
@@ -35,13 +31,10 @@ const WorkHistoryForm = ({ onNextStep }) => {
     jobs: [],
     noWorkHistory: false,
     references: [],
-    CV: '',
   });
   const [expandedJob, setExpandedJob] = useState(null);
   const [expandedReference, setExpandedReference] = useState(null);
   const [formErrors, setFormErrors] = useState({});
-  const [isUploading, setIsUploading] = useState(false);
-  const [showCVPreview, setShowCVPreview] = useState(false);
 
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
@@ -85,7 +78,6 @@ const WorkHistoryForm = ({ onNextStep }) => {
         })),
         noWorkHistory: workHistory.noWorkHistory || false,
         references: workHistory.references || [],
-        CV: CV || workHistory.CV || null,
       });
       
       setHasInitializedFromStore(true);
@@ -95,38 +87,11 @@ const WorkHistoryForm = ({ onNextStep }) => {
         jobs: [],
         noWorkHistory: false,
         references: [],
-        CV: null,
       });
       setHasInitializedFromStore(true);
     }
-  }, [workHistory, CV, hasInitializedFromStore, updateWorkHistory]);
+  }, [workHistory, hasInitializedFromStore, updateWorkHistory]);
 
-  // Best Practice: Sync localWorkHistory.CV with store CV and clear error immediately
-  // This ensures both states stay in sync and error disappears as soon as CV is added
-  useEffect(() => {
-    const storeCV = typeof CV === 'string' ? CV : CV?.url || CV;
-    const localCV = typeof localWorkHistory.CV === 'string' 
-      ? localWorkHistory.CV 
-      : localWorkHistory.CV?.url || localWorkHistory.CV;
-    
-    // Sync CV from store to local state if different
-    if (CV && storeCV !== localCV) {
-      setLocalWorkHistory((prev) => ({
-        ...prev,
-        CV: storeCV,
-      }));
-    }
-    
-    // Clear CV error immediately when CV exists
-    const hasCV = storeCV || localCV;
-    if (hasCV && formErrors?.CV) {
-      setFormErrors((prev) => {
-        const next = { ...prev };
-        delete next.CV;
-        return next;
-      });
-    }
-  }, [CV, localWorkHistory.CV, formErrors?.CV]);
 
   // Job management functions - SaaS-Level Best Practice
   const addNewJob = useCallback(() => {
@@ -494,12 +459,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
       });
     }
 
-    // Validate CV field - check both local and global state
-    const hasCV = localWorkHistory.CV || CV;
-    if (!hasCV) {
-      errors.CV = 'CV is required';
-      isValid = false;
-    }
+    // CV validation removed - CV is now in Step 1 (Profile)
 
     // Enhanced references validation - now mandatory with detailed feedback
     if (!localWorkHistory.references || localWorkHistory.references.length !== 2) {
@@ -590,42 +550,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
     // Store first error key for submit handler to focus and toast
     const firstErrorKey = Object.keys(errors)[0] || null;
     return { isValid, firstErrorKey, errors };
-  }, [localWorkHistory, CV]);
-  //  for the CV upload
-  const handleCVUpload = async (file) => {
-    try {
-      setIsUploading(true);
-
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', 'Certificate(Saas)');
-      formData.append('folder', 'SAAS(Support Worker)');
-
-      const cloudName = 'dgsphdhns';
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/upload`,
-        {
-          method: 'POST',
-          body: formData,
-        }
-      );
-
-      const data = await response.json();
-      if (data.secure_url && data.public_id) {
-        // Only store the URL string, not the object
-        updateCV(data.secure_url);
-        setLocalWorkHistory((prev) => ({ ...prev, CV: data.secure_url }));
-        toast.success('CV uploaded successfully!');
-      } else {
-        throw new Error('Upload failed');
-      }
-    } catch (error) {
-      console.error('CV upload error:', error);
-      toast.error('Failed to upload CV. Please try again.');
-    } finally {
-      setIsUploading(false);
-    }
-  };
+  }, [localWorkHistory]);
 
   const handleSubmit = useCallback(
     (e) => {
@@ -689,8 +614,6 @@ const WorkHistoryForm = ({ onNextStep }) => {
           phone: toE164Australian(ref.phone || ''),
           email: ref.email ? ref.email.trim().toLowerCase() : '',
         })),
-        // Only send the CV url string
-        CV: typeof (localWorkHistory.CV || CV) === 'string' ? (localWorkHistory.CV || CV) : (localWorkHistory.CV || CV)?.url,
       };
 
       console.log('Submitting work history data:', formattedData);
@@ -724,7 +647,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
         },
       });
     },
-    [localWorkHistory, validateForm, saveWorkHistory, updateWorkHistory, onNextStep, CV]
+    [localWorkHistory, validateForm, saveWorkHistory, updateWorkHistory, onNextStep]
   );
 
   const formatDateForInput = (dateValue) => {
@@ -744,19 +667,6 @@ const WorkHistoryForm = ({ onNextStep }) => {
   const toE164Australian = useCallback((input) => toE164Au(input), []);
   const isValidAustralianPhone = useCallback((input) => isValidAuMobile(input), []);
 
-  // Helper to get CV document object for preview
-  const getCVDocument = () => {
-    const cvObj = localWorkHistory.CV || CV;
-    if (!cvObj) return null;
-    // Support both string and object (for backward compatibility)
-    const url = typeof cvObj === 'string' ? cvObj : cvObj.url;
-    const fileName = url?.split('/').pop()?.split('?')[0] || 'CV Document';
-    let fileType = '';
-    if (url?.endsWith('.pdf')) fileType = 'application/pdf';
-    else if (url?.match(/\.(jpg|jpeg|png)$/i)) fileType = `image/${url.split('.').pop().toLowerCase()}`;
-    else fileType = '';
-    return { url, fileName, fileType };
-  };
 
   // Sort jobs: current jobs first, then by endDate/startDate descending
   const sortedJobs = React.useMemo(() => {
@@ -880,7 +790,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
           }}
         />
 
-        {/* Right: CV and References Stacked */}
+        {/* Right: References */}
         <Box sx={{
           flex: { md: '1 1 42%', lg: '1 1 38%' },
           minWidth: 0,
@@ -888,26 +798,6 @@ const WorkHistoryForm = ({ onNextStep }) => {
           flexDirection: 'column',
           gap: { md: 2, lg: 2.5 }
         }}>
-          {/* CV Section - Compact */}
-          <Paper
-            {...paperStyles}
-            sx={{
-              p: { xs: 1.5, sm: 2, md: 2.25 },
-              flexShrink: 0,
-            }}
-          >
-            <OnboardingCV cvError={formErrors.CV} />
-          </Paper>
-
-          {/* Horizontal Divider - Subtle separation */}
-          <Divider 
-            sx={{
-              borderColor: alpha(theme.palette.divider, 0.3),
-              borderWidth: '1px',
-              my: 0.5,
-            }}
-          />
-
           {/* References Section */}
           <Paper
             {...paperStyles}
@@ -934,7 +824,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
         </Box>
       </Box>
 
-      {/* Mobile Layout: Column Stack - CV First */}
+      {/* Mobile Layout: Column Stack */}
       <Box sx={{
         display: { xs: 'flex', md: 'none' },
         flexDirection: 'column',
@@ -942,22 +832,6 @@ const WorkHistoryForm = ({ onNextStep }) => {
         width: '100%',
         flex: 1,
       }}>
-        {/* CV Section - First on Mobile */}
-        <Paper
-          {...paperStyles}
-          sx={{ p: { xs: 1.5, sm: 2, md: 2.25 } }}
-        >
-          <OnboardingCV cvError={formErrors.CV} />
-        </Paper>
-
-        {/* Horizontal Divider - Subtle separation */}
-        <Divider 
-          sx={{
-            borderColor: alpha(theme.palette.divider, 0.3),
-            borderWidth: '1px',
-          }}
-        />
-
         {/* Work Experience */}
         <Paper
           {...paperStyles}
@@ -1008,13 +882,6 @@ const WorkHistoryForm = ({ onNextStep }) => {
     </Container>
 
     {/* Document Preview Modal */}
-    {showCVPreview && (
-      <DocumentPreview
-        document={getCVDocument()}
-        onClose={() => setShowCVPreview(false)}
-      />
-    )}
-
     {/* Form Navigation Actions - SaaS-Level Design */}
     <Box
       component="section"

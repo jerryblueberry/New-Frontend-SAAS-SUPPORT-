@@ -118,6 +118,7 @@ const initialState = {
     skillTags: [],
     expectedHourlyRate: 0,
     languages: [],
+    CV: null, // CV is now part of step 1 (profile/basicInfo)
   },
 
   availability: {
@@ -164,7 +165,7 @@ const initialState = {
   workHistory: {
     jobs: [],
     references: [],
-    CV: '',
+    // CV moved to profile section (step 1)
   },
 
   // Profile completeness
@@ -757,13 +758,20 @@ const useOnboardingStore = create(
         });
       },
 
-      // Add this new method
-      updateCV: (cvUrl) => {
-        console.log('Updating CV in store:', cvUrl);
+      // Add this new method - CV is now in profile (step 1)
+      // Best Practice: Supports both new uploads and overwrite updates
+      // When overwriting, the same public_id is reused with CDN invalidation enabled
+      updateCV: (cvData) => {
+        console.log('Updating CV in store:', cvData);
+        // Handle both object format (new) and string format (legacy)
+        const cvValue = typeof cvData === 'object' && cvData !== null 
+          ? (cvData.url ? cvData : { url: cvData, publicId: cvData.publicId || cvData.public_id })
+          : cvData; // String format
+        
         set((state) => ({
-          workHistory: {
-            ...state.workHistory,
-            CV: cvUrl,
+          profile: {
+            ...state.profile,
+            CV: cvValue,
           },
         }));
       },
@@ -808,6 +816,7 @@ const useOnboardingStore = create(
                 language: { language: lang.language },
                 proficiency: lang.proficiency,
               })) || [],
+            CV: profile?.CV || null, // CV is now in profile (step 1)
           },
           availability: {
             customTimeSlots: profile?.availability?.customTimeSlots || get().availability.customTimeSlots,
@@ -829,7 +838,7 @@ const useOnboardingStore = create(
           workHistory: {
             jobs: profile?.workHistory || [],
             references: profile?.references || [],
-            CV: profile?.CV || null,
+            // CV moved to profile section (step 1)
           },
           profileCompleteness: profileCompletion || get().profileCompleteness,
         });
@@ -867,13 +876,14 @@ const useOnboardingStore = create(
       saveProfileStep: async () => {
         try {
           set({ isLoading: true, error: null });
-          const { biography, skillTags, expectedHourlyRate } = get().profile;
+          const { biography, skillTags, expectedHourlyRate, languages, CV } = get().profile;
 
           const data = await onboardingApi.saveProfileStep({
             biography,
             skillTags,
             expectedHourlyRate,
             languages,
+            CV: CV || null, // Include CV in step 1
           });
 
           if (data.success) {
@@ -1034,22 +1044,15 @@ const useOnboardingStore = create(
       saveWorkHistoryStep: async () => {
         try {
           set({ isLoading: true, error: null });
-          const { jobs, references, CV } = get().workHistory;
+          const { jobs, references } = get().workHistory;
 
+          // CV is now in step 1 (profile), not step 2 (workHistory)
           const data = await onboardingApi.saveWorkHistoryStep({
             workHistory: jobs,
             references: references || [],
-            CV: CV || null,
           });
 
           if (data.success) {
-            // Update the store with the returned data including CV
-            set((state) => ({
-              workHistory: {
-                ...state.workHistory,
-                CV: data.data.CV || CV, // Use returned CV or keep existing
-              },
-            }));
             get().updateProfileCompleteness(data.data);
             queryClient.invalidateQueries({ queryKey: ['onboarding'] });
             return data;
@@ -1191,6 +1194,7 @@ export const useProfileMutation = () => {
           language: lang.language.language, // Send just the string
           proficiency: lang.proficiency,
         })),
+        CV: dataToSend.CV || null, // Include CV in step 1
       });
     },
     onSuccess: (data) => {
@@ -1462,10 +1466,10 @@ export const useWorkHistoryMutation = () => {
         const dataToUse = workHistoryData || workHistory;
 
         // Enhanced validation and formatting
+        // CV is now in step 1 (profile), not step 2 (workHistory)
         const formattedPayload = {
           workHistory: dataToUse.jobs || [],
           references: dataToUse.references || [],
-          CV: dataToUse.CV || null,
         };
 
         console.log('Sending payload:', formattedPayload); // Debug log

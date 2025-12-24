@@ -5,14 +5,10 @@ import {
   Button,
   IconButton,
   Avatar,
-  Paper,
   Alert,
   AlertTitle,
-  Dialog,
-  DialogContent,
   CircularProgress,
   Stack,
-  Badge,
   Chip,
   useTheme,
   useMediaQuery,
@@ -25,14 +21,13 @@ import {
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
-import DeleteIcon from '@mui/icons-material/Delete';
 import ImageIcon from '@mui/icons-material/Image';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { toast } from 'react-hot-toast';
-import { deleteCloudinaryImage } from '../../../api/cloudinary';
 import useOnboardingStore from '../../../stores/useOnboardingStore';
+import DocumentPreview from '../../workerForm/Modals/DocumentPreview';
 
 // Helper to extract Cloudinary public_id from a URL
 const extractCloudinaryPublicId = (url) => {
@@ -48,7 +43,7 @@ const extractCloudinaryPublicId = (url) => {
 
 const OnboardingCV = ({ cvError, noBorder = false }) => {
   const updateCV = useOnboardingStore((state) => state.updateCV);
-  const CV = useOnboardingStore((state) => state.workHistory?.CV);
+  const CV = useOnboardingStore((state) => state.profile?.CV);
   const [localCV, setLocalCV] = useState(CV || null);
   const [isUploading, setIsUploading] = useState(false);
   const [showCVPreview, setShowCVPreview] = useState(false);
@@ -73,31 +68,92 @@ const OnboardingCV = ({ cvError, noBorder = false }) => {
 
     try {
       setIsUploading(true);
+      
+      // Check if there's an existing CV to overwrite
+      const existingCV = localCV || CV;
+      const existingPublicId = existingCV && typeof existingCV === 'object' 
+        ? existingCV.publicId || existingCV.public_id
+        : existingCV 
+          ? extractCloudinaryPublicId(typeof existingCV === 'string' ? existingCV : existingCV.url)
+          : null;
+
       const formData = new FormData();
       formData.append('file', file);
       formData.append('upload_preset', 'Certificate(Saas)');
       formData.append('folder', 'SAAS(Support Worker)');
-      const cloudName = 'dgsphdhns';
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/upload`,
-        {
-          method: 'POST',
-          body: formData,
+      
+      // Best Practice: Overwrite existing asset using same public_id
+      // Note: With unsigned uploads, we can't use 'overwrite' parameter
+      // Instead, we use 'public_id' with the exact same ID - Cloudinary will overwrite automatically
+      if (existingPublicId) {
+        // Extract public_id - handle both with and without folder prefix
+        let publicIdForOverwrite = existingPublicId;
+        
+        // If publicId includes folder, use as-is; otherwise prepend folder
+        if (!existingPublicId.includes('SAAS(Support Worker)')) {
+          // Remove file extension if present
+          const publicIdWithoutExt = existingPublicId.replace(/\.[^/.]+$/, '');
+          // Extract just the filename part if it includes path separators
+          const filenamePart = publicIdWithoutExt.includes('/') 
+            ? publicIdWithoutExt.split('/').slice(-1)[0]
+            : publicIdWithoutExt;
+          publicIdForOverwrite = `SAAS(Support Worker)/${filenamePart}`;
+        } else {
+          // Remove extension from existing publicId to allow Cloudinary to handle format changes
+          publicIdForOverwrite = existingPublicId.replace(/\.[^/.]+$/, '');
         }
-      );
+        
+        // Use public_id to overwrite - Cloudinary automatically overwrites when public_id matches
+        // This is the only way to overwrite with unsigned uploads
+        formData.append('public_id', publicIdForOverwrite);
+        // Note: 'overwrite' and 'invalidate' parameters are not allowed in unsigned uploads
+        // Cloudinary will automatically overwrite when public_id matches an existing asset
+      }
+      
+      const cloudName = 'dgsphdhns';
+      // Use correct endpoint based on file type (unsigned uploads don't support resource_type parameter)
+      const uploadEndpoint = file.type === 'application/pdf' 
+        ? `https://api.cloudinary.com/v1_1/${cloudName}/raw/upload`
+        : `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+      
+      const response = await fetch(uploadEndpoint, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+      
       const data = await response.json();
       if (data.secure_url && data.public_id) {
-        const cvData = { url: data.secure_url, public_id: data.public_id };
+        // Create full CV object structure expected by backend
+        const fileName = file.name || data.original_filename || 'CV.pdf';
+        const fileType = file.type || (fileName.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+        
+        // Use existing publicId if overwriting (to maintain consistency), otherwise use new one from Cloudinary
+        // Cloudinary returns the public_id used (which will be the same if overwriting)
+        const finalPublicId = data.public_id;
+        
+        const cvData = {
+          url: data.secure_url,
+          publicId: finalPublicId, // camelCase for backend
+          fileName: fileName,
+          fileType: fileType,
+          fileSize: file.size,
+          uploadedAt: new Date().toISOString(),
+        };
+        
         // Update store first (this will trigger parent component to clear error)
         updateCV(cvData);
         setLocalCV(cvData);
-        toast.success('CV uploaded successfully!');
+        toast.success(existingPublicId ? 'CV updated successfully!' : 'CV uploaded successfully!');
       } else {
-        throw new Error('Upload failed');
+        throw new Error('Upload failed: Invalid response from Cloudinary');
       }
     } catch (error) {
       console.error('CV upload error:', error);
-      toast.error('Failed to upload CV. Please try again.');
+      toast.error(error.message || 'Failed to upload CV. Please try again.');
     } finally {
       setIsUploading(false);
       setIsDragOver(false);
@@ -140,14 +196,27 @@ const OnboardingCV = ({ cvError, noBorder = false }) => {
   const getCVDocument = () => {
     const cvObj = localCV || CV;
     if (!cvObj) return null;
+    // Handle both string (legacy) and object (new) formats
     const url = typeof cvObj === 'string' ? cvObj : cvObj.url;
-    const fileName = url?.split('/').pop()?.split('?')[0] || 'CV Document';
-    let fileType = '';
-    if (url?.endsWith('.pdf')) fileType = 'application/pdf';
-    else if (url?.match(/\.(jpg|jpeg|png)$/i)) fileType = `image/${url.split('.').pop().toLowerCase()}`;
-    else fileType = '';
+    const fileName = typeof cvObj === 'object' && cvObj.fileName 
+      ? cvObj.fileName 
+      : url?.split('/').pop()?.split('?')[0] || 'CV Document';
+    const fileType = typeof cvObj === 'object' && cvObj.fileType 
+      ? cvObj.fileType 
+      : url?.endsWith('.pdf') 
+        ? 'application/pdf' 
+        : url?.match(/\.(jpg|jpeg|png)$/i) 
+          ? `image/${url.split('.').pop().toLowerCase()}` 
+          : '';
     return { url, fileName, fileType };
   };
+
+  // Sync CV from store when it changes
+  React.useEffect(() => {
+    if (CV && CV !== localCV) {
+      setLocalCV(CV);
+    }
+  }, [CV]);
 
   const renderDocumentIcon = (url, size = 'large') => {
     if (url?.endsWith('.pdf')) return <PictureAsPdfIcon color="error" fontSize={size} />;
@@ -278,51 +347,32 @@ const OnboardingCV = ({ cvError, noBorder = false }) => {
             <VisibilityIcon sx={{ fontSize: { xs: 13, sm: 14 } }} />
           </IconButton>
           <IconButton
-            onClick={async () => {
-              const cvObj = typeof (localCV || CV) === 'string'
-                ? { url: localCV || CV }
-                : (localCV || CV);
-              let publicId = cvObj && cvObj.public_id;
-              if (!publicId && cvObj && cvObj.url) {
-                publicId = extractCloudinaryPublicId(cvObj.url);
-              }
-              if (publicId) {
-                setIsUploading(true);
-                try {
-                  await toast.promise(
-                    deleteCloudinaryImage(publicId),
-                    {
-                      loading: 'Deleting CV...',
-                      success: 'CV removed successfully!',
-                      error: 'Failed to remove CV from Cloudinary.',
-                    }
-                  );
-                  updateCV(null);
-                  setLocalCV(null);
-                } finally {
-                  setIsUploading(false);
-                }
+            onClick={() => {
+              // Trigger file input for update/overwrite
+              const fileInput = document.getElementById('cv-upload');
+              if (fileInput) {
+                fileInput.click();
               }
             }}
             disabled={isUploading}
             sx={{
               width: { xs: 26, sm: 28 },
               height: { xs: 26, sm: 28 },
-              bgcolor: alpha(theme.palette.error.main, 0.08),
-              color: theme.palette.error.main,
-              border: `1px solid ${alpha(theme.palette.error.main, 0.15)}`,
+              bgcolor: alpha(theme.palette.primary.main, 0.08),
+              color: theme.palette.primary.main,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
               borderRadius: 1,
               '&:hover': {
-                bgcolor: alpha(theme.palette.error.main, 0.15),
-                borderColor: alpha(theme.palette.error.main, 0.3),
+                bgcolor: alpha(theme.palette.primary.main, 0.15),
+                borderColor: alpha(theme.palette.primary.main, 0.3),
                 transform: 'scale(1.05)',
               },
               transition: 'all 0.2s ease'
             }}
             size="small"
-            title="Delete CV"
+            title="Update CV"
           >
-            <DeleteIcon sx={{ fontSize: { xs: 13, sm: 14 } }} />
+            <CloudUploadIcon sx={{ fontSize: { xs: 13, sm: 14 } }} />
           </IconButton>
         </Stack>
       </Stack>
@@ -386,6 +436,14 @@ const OnboardingCV = ({ cvError, noBorder = false }) => {
       <Box
         component="label"
         htmlFor="cv-upload"
+        onClick={(e) => {
+          // Prevent default label behavior and manually trigger input
+          e.preventDefault();
+          const fileInput = document.getElementById('cv-upload');
+          if (fileInput && !isUploading) {
+            fileInput.click();
+          }
+        }}
         sx={{
           width: '100%',
           display: 'flex',
@@ -396,18 +454,6 @@ const OnboardingCV = ({ cvError, noBorder = false }) => {
           position: 'relative',
         }}
       >
-        <input
-          type="file"
-          id="cv-upload"
-          accept=".pdf,.jpg,.jpeg,.png"
-          onChange={(e) => {
-            if (e.target.files && e.target.files[0]) {
-              handleCVUpload(e.target.files[0]);
-            }
-          }}
-          disabled={isUploading}
-          style={{ display: 'none' }}
-        />
         
         {/* Compact Icon Section */}
         <Box
@@ -709,52 +755,32 @@ const OnboardingCV = ({ cvError, noBorder = false }) => {
         </Fade>
       )}
       
-      {localCV || CV ? renderCVAdded() : renderUploadZone()}
-      
-      <Dialog
-        open={showCVPreview}
-        onClose={() => setShowCVPreview(false)}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            overflow: 'hidden'
+      {/* Hidden file input - always available for both upload and update */}
+      <input
+        type="file"
+        id="cv-upload"
+        accept=".pdf,.jpg,.jpeg,.png"
+        onChange={(e) => {
+          if (e.target.files && e.target.files[0]) {
+            handleCVUpload(e.target.files[0]);
+            // Reset input to allow selecting the same file again
+            e.target.value = '';
           }
         }}
-      >
-        <DialogContent sx={{ p: 0 }}>
-          {getCVDocument()?.fileType === 'application/pdf' ? (
-            <iframe
-              src={getCVDocument()?.url}
-              title="CV PDF Preview"
-              width="100%"
-              height="600px"
-              style={{ border: 'none' }}
-            />
-          ) : (
-            <Box 
-              display="flex" 
-              justifyContent="center" 
-              alignItems="center" 
-              width="100%" 
-              height="600px" 
-              bgcolor={theme.palette.grey[50]}
-            >
-              <img
-                src={getCVDocument()?.url}
-                alt="CV Preview"
-                style={{ 
-                  maxWidth: '100%', 
-                  maxHeight: '100%',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 24px rgba(0,0,0,0.1)'
-                }}
-              />
-            </Box>
-          )}
-        </DialogContent>
-      </Dialog>
+        disabled={isUploading}
+        style={{ display: 'none' }}
+      />
+
+      {localCV || CV ? renderCVAdded() : renderUploadZone()}
+      
+      {/* CV Preview using DocumentPreview Component - Best Practice */}
+      {showCVPreview && getCVDocument() && (
+        <DocumentPreview
+          document={getCVDocument()}
+          onClose={() => setShowCVPreview(false)}
+          certificateData={null} // CV doesn't have certificate data, only show fileName
+        />
+      )}
     </Box>
   );
 };
