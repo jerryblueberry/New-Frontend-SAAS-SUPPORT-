@@ -11,9 +11,14 @@ import {
   Fade,
   Paper,
   Button,
+  Dialog,
+  DialogContent,
+  Chip,
+  Stack,
+  Divider,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { Calendar, ChevronLeft, ChevronRight, X, Check, Type } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, X, Check, Type, CalendarDays, Sparkles, Info } from 'lucide-react';
 
 // Date utilities
 const getDateBounds = () => {
@@ -75,8 +80,8 @@ const formatInputValue = (value) => {
   return `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4, 8)}`;
 };
 
-// Inline Calendar Component
-const InlineCalendar = ({ selectedDate, onSelect, minDate, maxDate }) => {
+// Enhanced Calendar Component with better UX
+const EnhancedCalendar = ({ selectedDate, onSelect, minDate, maxDate, label, color = '#6366f1' }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [viewDate, setViewDate] = useState(() => selectedDate || minDate || new Date());
@@ -86,7 +91,7 @@ const InlineCalendar = ({ selectedDate, onSelect, minDate, maxDate }) => {
   const month = viewDate.getMonth();
   const year = viewDate.getFullYear();
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  const weekdays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -101,50 +106,72 @@ const InlineCalendar = ({ selectedDate, onSelect, minDate, maxDate }) => {
 
   return (
     <Box>
-      {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+      {/* Enhanced Header */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
         <IconButton
-          size="small"
           onClick={() => setViewDate(new Date(year, month - 1, 1))}
           disabled={!canPrev}
           sx={{ 
-            width: 32, 
-            height: 32, 
-            bgcolor: canPrev ? alpha(theme.palette.grey[100], 0.8) : 'transparent',
-            '&:hover': { bgcolor: alpha(theme.palette.grey[200], 0.8) },
+            width: 40, 
+            height: 40, 
+            borderRadius: '10px',
+            bgcolor: canPrev ? alpha(color, 0.08) : 'transparent',
+            color: canPrev ? color : theme.palette.text.disabled,
+            '&:hover': canPrev ? { bgcolor: alpha(color, 0.12) } : {},
+            transition: 'all 0.2s ease',
           }}
         >
-          <ChevronLeft size={18} />
+          <ChevronLeft size={20} />
         </IconButton>
-        <Typography sx={{ fontSize: '0.938rem', fontWeight: 700, color: 'text.primary' }}>
-          {monthNames[month]} {year}
-        </Typography>
+        <Box sx={{ textAlign: 'center' }}>
+          <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: 'text.primary', letterSpacing: '-0.01em' }}>
+            {monthNames[month]} {year}
+          </Typography>
+          {label && (
+            <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary', mt: 0.25 }}>
+              {label}
+            </Typography>
+          )}
+        </Box>
         <IconButton
-          size="small"
           onClick={() => setViewDate(new Date(year, month + 1, 1))}
           disabled={!canNext}
           sx={{ 
-            width: 32, 
-            height: 32, 
-            bgcolor: canNext ? alpha(theme.palette.grey[100], 0.8) : 'transparent',
-            '&:hover': { bgcolor: alpha(theme.palette.grey[200], 0.8) },
+            width: 40, 
+            height: 40, 
+            borderRadius: '10px',
+            bgcolor: canNext ? alpha(color, 0.08) : 'transparent',
+            color: canNext ? color : theme.palette.text.disabled,
+            '&:hover': canNext ? { bgcolor: alpha(color, 0.12) } : {},
+            transition: 'all 0.2s ease',
           }}
         >
-          <ChevronRight size={18} />
+          <ChevronRight size={20} />
         </IconButton>
       </Box>
 
-      {/* Weekdays */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', mb: 1 }}>
+      {/* Weekdays Header */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', mb: 2, gap: 0.5 }}>
         {weekdays.map((d) => (
-          <Typography key={d} sx={{ fontSize: '0.688rem', fontWeight: 600, color: 'text.disabled', textAlign: 'center', py: 0.75, textTransform: 'uppercase' }}>
+          <Typography 
+            key={d} 
+            sx={{ 
+              fontSize: '0.75rem', 
+              fontWeight: 700, 
+              color: 'text.secondary', 
+              textAlign: 'center', 
+              py: 1,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
             {d}
           </Typography>
         ))}
       </Box>
 
-      {/* Days Grid */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: { xs: 0.5, sm: 0.75 } }}>
+      {/* Days Grid - Larger and cleaner */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1 }}>
         {days.map((d, i) => {
           const disabled = isDisabled(d);
           const selected = isSelected(d);
@@ -154,65 +181,120 @@ const InlineCalendar = ({ selectedDate, onSelect, minDate, maxDate }) => {
               key={i}
               onClick={() => !disabled && d && onSelect(d)}
               sx={{
-                width: { xs: 32, sm: 40 },
-                height: { xs: 32, sm: 40 },
+                aspectRatio: '1',
+                minHeight: { xs: 44, sm: 48 },
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                borderRadius: { xs: '8px', sm: '10px' },
+                borderRadius: '12px',
                 cursor: disabled ? 'default' : 'pointer',
-                fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                fontWeight: selected ? 700 : 500,
-                color: !d ? 'transparent' : disabled ? alpha(theme.palette.text.disabled, 0.5) : selected ? 'white' : todayDate ? 'primary.main' : 'text.primary',
-                bgcolor: selected ? 'primary.main' : todayDate ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
-                border: todayDate && !selected ? `1.5px solid ${theme.palette.primary.main}` : '1.5px solid transparent',
-                transition: 'all 0.15s ease',
+                fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                fontWeight: selected ? 700 : todayDate ? 600 : 500,
+                color: !d ? 'transparent' : disabled 
+                  ? alpha(theme.palette.text.disabled, 0.3) 
+                  : selected 
+                    ? '#fff' 
+                    : todayDate 
+                      ? color 
+                      : 'text.primary',
+                bgcolor: selected 
+                  ? color 
+                  : todayDate && !selected 
+                    ? alpha(color, 0.1) 
+                    : 'transparent',
+                border: selected 
+                  ? `2px solid ${color}` 
+                  : todayDate && !selected 
+                    ? `2px solid ${alpha(color, 0.3)}` 
+                    : '2px solid transparent',
+                transition: 'all 0.2s ease',
+                position: 'relative',
                 '&:hover': !disabled && d ? {
-                  bgcolor: selected ? 'primary.dark' : alpha(theme.palette.primary.main, 0.1),
+                  bgcolor: selected ? color : alpha(color, 0.08),
+                  transform: 'scale(1.05)',
+                  borderColor: selected ? color : alpha(color, 0.3),
+                } : {},
+                '&:active': !disabled && d ? {
+                  transform: 'scale(0.98)',
                 } : {},
               }}
             >
               {d ? d.getDate() : ''}
+              {todayDate && !selected && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    bottom: 4,
+                    width: 4,
+                    height: 4,
+                    borderRadius: '50%',
+                    bgcolor: color,
+                  }}
+                />
+              )}
             </Box>
           );
         })}
       </Box>
 
-      {/* Today button */}
-      <Box sx={{ mt: { xs: 1.5, sm: 2 }, display: 'flex', justifyContent: 'center' }}>
+      {/* Quick Actions */}
+      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center', gap: 1, flexWrap: 'wrap' }}>
         <Button
           size="small"
           onClick={() => { setViewDate(today); onSelect(today); }}
-          disabled={today < minDate}
+          disabled={today < minDate || today > maxDate}
           sx={{ 
-            fontSize: { xs: '0.688rem', sm: '0.75rem' }, 
+            fontSize: '0.75rem', 
             fontWeight: 600, 
             textTransform: 'none', 
-            color: 'primary.main',
-            px: { xs: 1.5, sm: 2 },
-            py: 0.5,
+            color: today >= minDate && today <= maxDate ? color : theme.palette.text.disabled,
+            px: 2,
+            py: 0.75,
             borderRadius: '8px',
-            bgcolor: alpha(theme.palette.primary.main, 0.08),
-            '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.12) },
+            bgcolor: today >= minDate && today <= maxDate ? alpha(color, 0.08) : 'transparent',
+            '&:hover': today >= minDate && today <= maxDate ? { bgcolor: alpha(color, 0.12) } : {},
           }}
         >
           Today
         </Button>
+        {(() => {
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const canSelectTomorrow = tomorrow >= minDate && tomorrow <= maxDate;
+          return (
+            <Button
+              size="small"
+              onClick={() => { setViewDate(tomorrow); onSelect(tomorrow); }}
+              disabled={!canSelectTomorrow}
+              sx={{ 
+                fontSize: '0.75rem', 
+                fontWeight: 600, 
+                textTransform: 'none', 
+                color: canSelectTomorrow ? color : theme.palette.text.disabled,
+                px: 2,
+                py: 0.75,
+                borderRadius: '8px',
+                bgcolor: canSelectTomorrow ? alpha(color, 0.08) : 'transparent',
+                '&:hover': canSelectTomorrow ? { bgcolor: alpha(color, 0.12) } : {},
+              }}
+            >
+              Tomorrow
+            </Button>
+          );
+        })()}
       </Box>
     </Box>
   );
 };
 
-// Date Input with typing support
-const DateInputField = ({ label, value, placeholder, onDateSelect, onClear, error, disabled, minDate, maxDate }) => {
+// Enhanced Date Input Field
+const EnhancedDateInput = ({ label, value, onDateSelect, onClear, error, disabled, minDate, maxDate, color = '#6366f1' }) => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const inputRef = useRef(null);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [inputError, setInputError] = useState('');
 
-  // Sync display value
   useEffect(() => {
     if (!isTyping && value) {
       const date = parseISODate(value);
@@ -230,7 +312,6 @@ const DateInputField = ({ label, value, placeholder, onDateSelect, onClear, erro
     setIsTyping(true);
     setInputError('');
 
-    // Auto-validate when complete
     if (formatted.length === 10) {
       const parsed = parseDateInput(formatted);
       if (parsed) {
@@ -266,56 +347,87 @@ const DateInputField = ({ label, value, placeholder, onDateSelect, onClear, erro
   };
 
   const hasValue = !!value;
+  const displayValue = hasValue && !isTyping ? formatDisplayDate(parseISODate(value)) : '';
 
   return (
     <Box>
-      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: disabled ? 'text.disabled' : 'text.secondary', mb: 1, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-        {label}
-      </Typography>
-      <TextField
-        fullWidth
-        size="small"
-        value={inputValue}
-        onChange={handleInputChange}
-        onBlur={handleBlur}
-        onFocus={() => setIsTyping(true)}
-        placeholder={disabled ? 'Select start first' : 'DD/MM/YYYY'}
-        disabled={disabled}
-        error={!!inputError}
-        helperText={inputError || (disabled ? '' : 'Type or select from calendar')}
-        inputRef={inputRef}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              {hasValue && !isTyping ? (
-                <Check size={18} color={theme.palette.primary.main} strokeWidth={2.5} />
-              ) : (
-                <Type size={18} color={disabled ? theme.palette.text.disabled : theme.palette.text.secondary} />
-              )}
-            </InputAdornment>
-          ),
-          endAdornment: inputValue && !disabled && (
-            <InputAdornment position="end">
-              <IconButton size="small" onClick={handleClear} sx={{ p: 0.5 }}>
-                <X size={16} />
-              </IconButton>
-            </InputAdornment>
-          ),
-        }}
-        sx={{
-          '& .MuiOutlinedInput-root': {
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+        <Box
+          sx={{
+            width: 40,
+            height: 40,
             borderRadius: '10px',
-            bgcolor: disabled ? alpha(theme.palette.grey[100], 0.3) : alpha(theme.palette.grey[50], 0.5),
-            fontSize: '0.938rem',
-            fontFamily: 'SF Mono, Monaco, Consolas, monospace',
-            letterSpacing: '0.5px',
-            '& fieldset': { borderColor: hasValue ? alpha(theme.palette.primary.main, 0.2) : 'transparent' },
-            '&:hover fieldset': { borderColor: alpha(theme.palette.primary.main, 0.3) },
-            '&.Mui-focused fieldset': { borderColor: theme.palette.primary.main },
-          },
-          '& .MuiInputBase-input': { py: 1.5 },
-        }}
-      />
+            bgcolor: disabled ? alpha(theme.palette.grey[200], 0.3) : alpha(color, 0.1),
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <Calendar size={18} color={disabled ? theme.palette.text.disabled : color} />
+        </Box>
+        <Box sx={{ flex: 1 }}>
+          <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: disabled ? 'text.disabled' : 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>
+            {label}
+          </Typography>
+          {hasValue && !isTyping ? (
+            <Typography sx={{ fontSize: '0.9375rem', fontWeight: 600, color: 'text.primary' }}>
+              {displayValue}
+            </Typography>
+          ) : (
+            <TextField
+              fullWidth
+              size="small"
+              value={inputValue}
+              onChange={handleInputChange}
+              onBlur={handleBlur}
+              onFocus={() => setIsTyping(true)}
+              placeholder={disabled ? 'Select start date first' : 'DD/MM/YYYY'}
+              disabled={disabled}
+              error={!!inputError}
+              helperText={inputError || (disabled ? '' : 'Type or click calendar')}
+              inputRef={inputRef}
+              InputProps={{
+                endAdornment: inputValue && !disabled && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={handleClear} sx={{ p: 0.5 }}>
+                      <X size={16} />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '10px',
+                  bgcolor: disabled ? alpha(theme.palette.grey[100], 0.3) : '#fafafa',
+                  fontSize: '0.875rem',
+                  fontFamily: 'SF Mono, Monaco, Consolas, monospace',
+                  '& fieldset': { borderColor: hasValue ? alpha(color, 0.2) : alpha(theme.palette.divider, 0.1) },
+                  '&:hover fieldset': { borderColor: alpha(color, 0.3) },
+                  '&.Mui-focused fieldset': { borderColor: color },
+                },
+                '& .MuiInputBase-input': { py: 1.25 },
+              }}
+            />
+          )}
+        </Box>
+        {hasValue && !isTyping && (
+          <IconButton
+            size="small"
+            onClick={handleClear}
+            sx={{
+              width: 32,
+              height: 32,
+              borderRadius: '8px',
+              bgcolor: alpha(theme.palette.error.main, 0.08),
+              color: theme.palette.error.main,
+              '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.12) },
+            }}
+          >
+            <X size={16} />
+          </IconButton>
+        )}
+      </Box>
     </Box>
   );
 };
@@ -378,163 +490,201 @@ const UpcomingHolidayDatePicker = ({
 
   return (
     <Box>
-      {/* Two Column Layout - Stacked on mobile for better scrolling */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: { xs: 2.5, md: 4 } }}>
-        {/* Start Date Column */}
+      {/* Enhanced Two Column Layout */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: { xs: 3, lg: 4 } }}>
+        {/* Start Date Section */}
         <Box>
-          <DateInputField
+          <EnhancedDateInput
             label="Start Date"
             value={newHoliday.startDate}
-            placeholder="DD/MM/YYYY"
             onDateSelect={handleStartSelect}
             onClear={handleClearStart}
             minDate={minDate}
             maxDate={maxDate}
+            color="#6366f1"
           />
-          {/* Calendar Section */}
+          
           <Box
             sx={{
-              mt: 2,
-              p: { xs: 1.5, sm: 2 },
-              borderRadius: '14px',
-              bgcolor: alpha(theme.palette.grey[50], 0.8),
-              border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+              mt: 3,
+              p: { xs: 2, sm: 3 },
+              borderRadius: '16px',
+              bgcolor: '#fafafa',
+              border: `1px solid ${alpha('#6366f1', 0.1)}`,
+              boxShadow: `0 2px 8px ${alpha('#6366f1', 0.05)}`,
             }}
           >
-            {/* Calendar Header */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: { xs: 1.5, sm: 2 }, pb: { xs: 1, sm: 1.5 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}` }}>
-              <Box
-                sx={{
-                  width: { xs: 28, sm: 32 },
-                  height: { xs: 28, sm: 32 },
-                  borderRadius: '8px',
-                  bgcolor: alpha(theme.palette.primary.main, 0.1),
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Calendar size={isMobile ? 14 : 16} color={theme.palette.primary.main} />
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.813rem' }, fontWeight: 600, color: 'text.primary' }}>
-                  Start Date
-                </Typography>
-                {!isMobile && (
-                  <Typography sx={{ fontSize: '0.688rem', color: 'text.secondary' }}>
-                    Select when your time off begins
-                  </Typography>
-                )}
-              </Box>
-            </Box>
-            <InlineCalendar
+            <EnhancedCalendar
               selectedDate={startDate}
               onSelect={handleStartSelect}
               minDate={minDate}
               maxDate={maxDate}
+              label="When does your time off begin?"
+              color="#6366f1"
             />
           </Box>
         </Box>
 
-        {/* End Date Column */}
+        {/* End Date Section */}
         <Box>
-          <DateInputField
+          <EnhancedDateInput
             label="End Date"
             value={newHoliday.endDate}
-            placeholder="DD/MM/YYYY"
             onDateSelect={handleEndSelect}
             onClear={handleClearEnd}
             disabled={!startDate}
             minDate={endMinDate}
             maxDate={maxDate}
+            color="#10b981"
           />
-          {/* Calendar Section */}
+          
           <Box
             sx={{
-              mt: 2,
-              p: { xs: 1.5, sm: 2 },
-              borderRadius: '14px',
-              bgcolor: startDate ? alpha(theme.palette.grey[50], 0.8) : alpha(theme.palette.grey[100], 0.4),
-              border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-              opacity: startDate ? 1 : 0.5,
+              mt: 3,
+              p: { xs: 2, sm: 3 },
+              borderRadius: '16px',
+              bgcolor: startDate ? '#fafafa' : alpha(theme.palette.grey[100], 0.5),
+              border: `1px solid ${startDate ? alpha('#10b981', 0.1) : alpha(theme.palette.divider, 0.08)}`,
+              boxShadow: startDate ? `0 2px 8px ${alpha('#10b981', 0.05)}` : 'none',
+              opacity: startDate ? 1 : 0.6,
               pointerEvents: startDate ? 'auto' : 'none',
-              transition: 'opacity 0.2s ease',
+              transition: 'all 0.3s ease',
+              position: 'relative',
             }}
           >
-            {/* Calendar Header */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: { xs: 1.5, sm: 2 }, pb: { xs: 1, sm: 1.5 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}` }}>
+            {!startDate && (
               <Box
                 sx={{
-                  width: { xs: 28, sm: 32 },
-                  height: { xs: 28, sm: 32 },
-                  borderRadius: '8px',
-                  bgcolor: startDate ? alpha('#10b981', 0.1) : alpha(theme.palette.grey[300], 0.5),
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  textAlign: 'center',
+                  zIndex: 1,
                 }}
               >
-                <Calendar size={isMobile ? 14 : 16} color={startDate ? '#10b981' : theme.palette.text.disabled} />
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.813rem' }, fontWeight: 600, color: startDate ? 'text.primary' : 'text.disabled' }}>
-                  End Date
+                <Info size={24} color={theme.palette.text.disabled} />
+                <Typography sx={{ fontSize: '0.875rem', color: 'text.disabled', mt: 1, fontWeight: 600 }}>
+                  Select start date first
                 </Typography>
-                {!isMobile && (
-                  <Typography sx={{ fontSize: '0.688rem', color: startDate ? 'text.secondary' : 'text.disabled' }}>
-                    {startDate ? 'Select when your time off ends' : 'Select a start date first'}
-                  </Typography>
-                )}
               </Box>
-            </Box>
-            <InlineCalendar
+            )}
+            <EnhancedCalendar
               selectedDate={endDate}
               onSelect={handleEndSelect}
               minDate={endMinDate}
               maxDate={maxDate}
+              label={startDate ? "When does your time off end?" : "Select start date first"}
+              color="#10b981"
             />
           </Box>
         </Box>
       </Box>
 
-      {/* Duration Display */}
+      {/* Enhanced Duration & Summary Display */}
       {duration && (
         <Fade in>
           <Box
             sx={{
-              mt: 3,
-              p: 2,
-              borderRadius: '12px',
-              bgcolor: alpha(theme.palette.primary.main, 0.06),
-              border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+              mt: 4,
+              p: 3,
+              borderRadius: '16px',
+              background: `linear-gradient(135deg, ${alpha('#6366f1', 0.08)} 0%, ${alpha('#10b981', 0.08)} 100%)`,
+              border: `1px solid ${alpha('#6366f1', 0.15)}`,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              gap: 1.5,
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 2,
             }}
           >
-            <Calendar size={18} color={theme.palette.primary.main} />
-            <Typography sx={{ fontSize: '0.938rem', fontWeight: 600, color: 'primary.main' }}>
-              {duration} day{duration > 1 ? 's' : ''} off
-            </Typography>
-            <Typography sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>
-              {formatShortDate(startDate)} – {formatShortDate(endDate)}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box
+                sx={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: '14px',
+                  bgcolor: '#6366f1',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: `0 4px 12px ${alpha('#6366f1', 0.3)}`,
+                }}
+              >
+                <CalendarDays size={24} color="#fff" />
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: '1.5rem', fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
+                  {duration} day{duration > 1 ? 's' : ''}
+                </Typography>
+                <Typography sx={{ fontSize: '0.875rem', color: 'text.secondary', mt: 0.25 }}>
+                  {formatDisplayDate(startDate)} – {formatDisplayDate(endDate)}
+                </Typography>
+              </Box>
+            </Box>
+            <Chip
+              icon={<Sparkles size={14} />}
+              label="Time Off Period"
+              sx={{
+                bgcolor: alpha('#6366f1', 0.1),
+                color: '#6366f1',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                height: 36,
+                borderRadius: '10px',
+              }}
+            />
           </Box>
         </Fade>
       )}
 
-      {/* Overlap Warning */}
+      {/* Enhanced Overlap Warning */}
       {dateOverlapWarning && (
         <Fade in>
           <Alert
             severity="warning"
+            icon={<Info size={20} />}
             onClose={() => setDateOverlapWarning('')}
-            sx={{ mt: 2, borderRadius: '10px' }}
+            sx={{ 
+              mt: 3, 
+              borderRadius: '12px',
+              bgcolor: alpha('#f59e0b', 0.08),
+              border: `1px solid ${alpha('#f59e0b', 0.2)}`,
+              '& .MuiAlert-icon': {
+                color: '#f59e0b',
+              },
+            }}
           >
-            {dateOverlapWarning}
+            <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Date Overlap Detected</Typography>
+            <Typography sx={{ fontSize: '0.875rem' }}>{dateOverlapWarning}</Typography>
           </Alert>
         </Fade>
+      )}
+
+      {/* Helpful Tip */}
+      {!startDate && (
+        <Box
+          sx={{
+            mt: 3,
+            p: 2,
+            borderRadius: '12px',
+            bgcolor: alpha('#6366f1', 0.06),
+            border: `1px solid ${alpha('#6366f1', 0.1)}`,
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 1.5,
+          }}
+        >
+          <Info size={18} color="#6366f1" style={{ marginTop: 2, flexShrink: 0 }} />
+          <Box>
+            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: 'text.primary', mb: 0.5 }}>
+              Quick Tip
+            </Typography>
+            <Typography sx={{ fontSize: '0.8125rem', color: 'text.secondary', lineHeight: 1.6 }}>
+              Select your start date first, then choose when your time off ends. You can type dates in DD/MM/YYYY format or click directly on the calendar.
+            </Typography>
+          </Box>
+        </Box>
       )}
     </Box>
   );

@@ -69,7 +69,14 @@ const SuburbSelector = ({
   // Sync mobile search with main input when dialog opens
   useEffect(() => {
     if (dropdownOpen && isMobile) {
+      // Sync mobile search with current input value
       setMobileSearch(normalizedSuburbInput);
+      // Focus mobile search input after dialog opens
+      setTimeout(() => {
+        if (mobileSearchRef.current) {
+          mobileSearchRef.current.focus();
+        }
+      }, 300);
     }
   }, [dropdownOpen, isMobile, normalizedSuburbInput]);
 
@@ -118,15 +125,27 @@ const SuburbSelector = ({
     setShowCustomInput(false);
     setFocusedIndex(-1);
     if (errors?.suburb) setErrors((prev) => ({ ...prev, suburb: null }));
-    if (value.length > 0) {
-      setDropdownOpen(true);
-      setAnchorEl(e.currentTarget);
+    
+    if (isMobile) {
+      // On mobile, update mobile search and ensure dialog stays open
+      setMobileSearch(value);
+      if (!dropdownOpen) {
+        setDropdownOpen(true);
+        setAnchorEl(e.currentTarget);
+      }
+      // Don't clear selected suburb on mobile when typing
     } else {
-      setDropdownOpen(false);
-      setSelectedSuburb(null);
-      updateAvailability({ suburb: '' });
+      // Desktop behavior
+      if (value.length > 0) {
+        setDropdownOpen(true);
+        setAnchorEl(e.currentTarget);
+      } else {
+        setDropdownOpen(false);
+        setSelectedSuburb(null);
+        updateAvailability({ suburb: '' });
+      }
     }
-  }, [errors?.suburb, setSuburbInput, setErrors, updateAvailability]);
+  }, [errors?.suburb, setSuburbInput, setErrors, updateAvailability, isMobile, dropdownOpen]);
 
   const handleMobileSearchChange = useCallback((e) => {
     setMobileSearch(e.target.value || '');
@@ -136,29 +155,60 @@ const SuburbSelector = ({
 
   const handleSelect = useCallback((suburbItem) => {
     const fullSuburb = `${suburbItem.place_name}, ${suburbItem.postcode}`;
+    
+    // Update state immediately
     setSuburbInput(fullSuburb);
     setSelectedSuburb(suburbItem);
-    setDropdownOpen(false);
     setFocusedIndex(-1);
     setMobileSearch('');
+    setShowCustomInput(false);
+    setCustomSuburb('');
+    
+    // Update availability
     updateAvailability({ suburb: fullSuburb });
     setErrors?.((prev) => ({ ...prev, suburb: null }));
-    inputRef.current?.blur();
-  }, [setSuburbInput, updateAvailability, setErrors]);
+    
+    // Close dropdown/dialog with smooth transition
+    if (isMobile) {
+      // On mobile, close dialog with slight delay for better UX
+      setTimeout(() => {
+        setDropdownOpen(false);
+        inputRef.current?.blur();
+      }, 150);
+    } else {
+      setDropdownOpen(false);
+      inputRef.current?.blur();
+    }
+  }, [setSuburbInput, updateAvailability, setErrors, isMobile]);
 
   const handleCustomAdd = useCallback(() => {
     if (customSuburb.trim()) {
       const trimmed = customSuburb.trim();
+      
+      // Update state immediately
       setSuburbInput(trimmed);
       setSelectedSuburb({ place_name: trimmed, custom: true });
-      setDropdownOpen(false);
       setShowCustomInput(false);
       setCustomSuburb('');
       setMobileSearch('');
+      setFocusedIndex(-1);
+      
+      // Update availability
       updateAvailability({ suburb: trimmed });
       setErrors?.((prev) => ({ ...prev, suburb: null }));
+      
+      // Close dropdown/dialog with smooth transition
+      if (isMobile) {
+        setTimeout(() => {
+          setDropdownOpen(false);
+          inputRef.current?.blur();
+        }, 150);
+      } else {
+        setDropdownOpen(false);
+        inputRef.current?.blur();
+      }
     }
-  }, [customSuburb, setSuburbInput, updateAvailability, setErrors]);
+  }, [customSuburb, setSuburbInput, updateAvailability, setErrors, isMobile]);
 
   const handleClear = useCallback(() => {
     setSuburbInput('');
@@ -207,25 +257,62 @@ const SuburbSelector = ({
   const hasResults = filteredSuburbs.length > 0;
   const showNoResults = !hasResults && searchTerm.length > 0 && !isLoading;
 
-  // Location item component - responsive sizes
+  // Location item component - responsive sizes with improved mobile handling
   const LocationItem = ({ item, idx }) => {
     const isFocused = idx === focusedIndex;
+    const [isPressed, setIsPressed] = useState(false);
+    
+    const handleItemClick = useCallback((e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      handleSelect(item);
+    }, [item, handleSelect]);
+    
+    const handleTouchStart = useCallback((e) => {
+      e.stopPropagation();
+      setIsPressed(true);
+    }, []);
+    
+    const handleTouchEnd = useCallback((e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      setIsPressed(false);
+      // Small delay for visual feedback before selection
+      setTimeout(() => {
+        handleSelect(item);
+      }, 100);
+    }, [item, handleSelect]);
+    
     return (
       <Box
         data-suburb-item
-        onClick={() => handleSelect(item)}
+        onClick={handleItemClick}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={() => setIsPressed(false)}
         sx={{
           display: 'flex',
           alignItems: 'center',
           gap: { xs: 1.25, sm: 1.5 },
           px: { xs: 1.5, sm: 2 },
-          py: { xs: 1.25, sm: 1.5 },
+          py: { xs: 1.75, sm: 2 },
           cursor: 'pointer',
-          bgcolor: isFocused ? alpha(theme.palette.primary.main, 0.06) : 'transparent',
+          bgcolor: isFocused || isPressed 
+            ? alpha(theme.palette.primary.main, 0.1) 
+            : 'transparent',
           borderBottom: `1px solid ${alpha(theme.palette.divider, 0.04)}`,
-          transition: 'background-color 0.1s ease',
-          '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.04) },
-          '&:active': { bgcolor: alpha(theme.palette.primary.main, 0.08) },
+          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+          WebkitTapHighlightColor: 'transparent',
+          touchAction: 'manipulation',
+          userSelect: 'none',
+          minHeight: { xs: 64, sm: 72 },
+          '&:hover': { 
+            bgcolor: isMobile ? 'transparent' : alpha(theme.palette.primary.main, 0.06) 
+          },
+          '&:active': { 
+            bgcolor: alpha(theme.palette.primary.main, 0.15),
+            transform: 'scale(0.98)',
+          },
           '&:last-child': { borderBottom: 'none' },
         }}
       >
@@ -476,11 +563,38 @@ const SuburbSelector = ({
         onChange={handleInputChange}
         onFocus={(e) => {
           if (isMobile) {
-            // On mobile, always open the dialog
-            setDropdownOpen(true);
-          } else if (normalizedSuburbInput.length > 0) {
-            setDropdownOpen(true);
+            // On mobile, always open the dialog when input is focused
             setAnchorEl(e.currentTarget);
+            setMobileSearch(normalizedSuburbInput);
+            // Open dialog immediately - no delay needed
+            setDropdownOpen(true);
+          } else {
+            // Desktop: open if there's input or when typing
+            if (normalizedSuburbInput.length > 0) {
+              setDropdownOpen(true);
+              setAnchorEl(e.currentTarget);
+            }
+          }
+        }}
+        onClick={(e) => {
+          // Handle click for mobile to ensure modal opens
+          if (isMobile) {
+            e.stopPropagation();
+            setAnchorEl(e.currentTarget);
+            setMobileSearch(normalizedSuburbInput);
+            // Open dialog immediately on click
+            if (!dropdownOpen) {
+              setDropdownOpen(true);
+            }
+          }
+        }}
+        onTouchStart={(e) => {
+          // Handle touch for mobile to ensure modal opens
+          if (isMobile && !dropdownOpen) {
+            e.stopPropagation();
+            setAnchorEl(e.currentTarget);
+            setMobileSearch(normalizedSuburbInput);
+            setDropdownOpen(true);
           }
         }}
         onKeyDown={handleKeyDown}
@@ -575,9 +689,19 @@ const SuburbSelector = ({
       {isMobile && (
         <Dialog
           open={dropdownOpen}
-          onClose={() => {
-            setDropdownOpen(false);
-            setMobileSearch('');
+          onClose={(event, reason) => {
+            // Handle all close reasons properly
+            if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+              setDropdownOpen(false);
+              setMobileSearch('');
+              setFocusedIndex(-1);
+              setShowCustomInput(false);
+              setCustomSuburb('');
+              // Don't clear selected suburb if one is selected
+              if (!selectedSuburb) {
+                inputRef.current?.blur();
+              }
+            }
           }}
           fullScreen
           TransitionComponent={SlideTransition}
@@ -587,8 +711,13 @@ const SuburbSelector = ({
               bgcolor: '#f8f9fa',
               display: 'flex',
               flexDirection: 'column',
+              maxHeight: '100vh',
+              maxWidth: '100vw',
+              m: 0,
             },
           }}
+          disableEscapeKeyDown={false}
+          keepMounted={false}
         >
           {/* Header - Fixed */}
           <Box
@@ -652,36 +781,44 @@ const SuburbSelector = ({
               </Box>
               
               {/* Close Button - Large touch target */}
-              <Box
-                component="button"
-                onClick={() => {
+              <IconButton
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  // Close with smooth transition
                   setDropdownOpen(false);
                   setMobileSearch('');
+                  setFocusedIndex(-1);
+                  setShowCustomInput(false);
+                  setCustomSuburb('');
+                  // Preserve selected suburb if one exists
+                  // Blur after transition
+                  setTimeout(() => {
+                    inputRef.current?.blur();
+                  }, 200);
                 }}
                 sx={{
                   width: 44,
                   height: 44,
                   borderRadius: '12px',
                   bgcolor: alpha(theme.palette.grey[100], 0.8),
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
                   flexShrink: 0,
                   ml: 1,
-                  transition: 'all 0.15s ease',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  WebkitTapHighlightColor: 'transparent',
+                  touchAction: 'manipulation',
+                  '-webkit-tap-highlight-color': 'transparent',
                   '&:hover': { 
                     bgcolor: alpha(theme.palette.grey[200], 0.8),
                   },
                   '&:active': {
                     bgcolor: alpha(theme.palette.grey[300], 0.8),
-                    transform: 'scale(0.96)',
+                    transform: 'scale(0.95)',
                   },
                 }}
               >
-                <X size={22} color={theme.palette.text.secondary} strokeWidth={2} />
-              </Box>
+                <X size={22} color={theme.palette.text.secondary} strokeWidth={2.5} />
+              </IconButton>
             </Box>
 
             {/* Search Input */}
@@ -689,7 +826,26 @@ const SuburbSelector = ({
               fullWidth
               value={mobileSearch}
               onChange={handleMobileSearchChange}
-              placeholder="Search..."
+              onKeyDown={(e) => {
+                // Handle keyboard navigation in mobile
+                if (e.key === 'Escape') {
+                  setDropdownOpen(false);
+                  setMobileSearch('');
+                  setFocusedIndex(-1);
+                  inputRef.current?.blur();
+                } else if (e.key === 'Enter' && focusedIndex >= 0 && focusedIndex < filteredSuburbs.length) {
+                  e.preventDefault();
+                  handleSelect(filteredSuburbs[focusedIndex]);
+                } else if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  const maxIndex = filteredSuburbs.length - 1;
+                  setFocusedIndex((prev) => Math.min(prev + 1, maxIndex));
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  setFocusedIndex((prev) => Math.max(prev - 1, -1));
+                }
+              }}
+              placeholder="Search suburb or postcode..."
               autoFocus
               inputRef={mobileSearchRef}
               InputProps={{
@@ -704,25 +860,25 @@ const SuburbSelector = ({
                 ),
                 endAdornment: mobileSearch && (
                   <InputAdornment position="end">
-                    <Box
-                      component="button"
-                      onClick={() => setMobileSearch('')}
+                    <IconButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMobileSearch('');
+                        setFocusedIndex(-1);
+                        mobileSearchRef.current?.focus();
+                      }}
+                      size="small"
                       sx={{
                         width: 32,
                         height: 32,
                         borderRadius: '8px',
                         bgcolor: alpha(theme.palette.grey[200], 0.8),
-                        border: 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
                         transition: 'all 0.15s ease',
                         '&:active': { transform: 'scale(0.92)' },
                       }}
                     >
                       <X size={16} color={theme.palette.text.secondary} strokeWidth={2.5} />
-                    </Box>
+                    </IconButton>
                   </InputAdornment>
                 ),
               }}
@@ -758,6 +914,11 @@ const SuburbSelector = ({
               WebkitOverflowScrolling: 'touch',
               p: 2,
               pb: 'max(env(safe-area-inset-bottom), 24px)',
+              position: 'relative',
+            }}
+            onClick={(e) => {
+              // Prevent closing when clicking in content area
+              e.stopPropagation();
             }}
           >
             {/* Results container */}
