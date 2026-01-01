@@ -5,26 +5,21 @@ import {
   Button,
   IconButton,
   Avatar,
-  Alert,
-  AlertTitle,
   CircularProgress,
   Stack,
   Chip,
   useTheme,
   useMediaQuery,
-  Card,
-  CardContent,
   Fade,
   alpha,
-  LinearProgress
 } from '@mui/material';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import ImageIcon from '@mui/icons-material/Image';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import { X, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import useOnboardingStore from '../../../stores/useOnboardingStore';
 import DocumentPreview from '../../workerForm/Modals/DocumentPreview';
@@ -48,9 +43,19 @@ const OnboardingCV = ({ cvError, noBorder = false }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [showCVPreview, setShowCVPreview] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [showError, setShowError] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+
+  // Show error when cvError changes (only if cvError exists)
+  React.useEffect(() => {
+    if (cvError) {
+      setShowError(true);
+    } else {
+      setShowError(false);
+    }
+  }, [cvError]);
 
   const handleCVUpload = async (file) => {
     // Validate file type
@@ -378,55 +383,24 @@ const OnboardingCV = ({ cvError, noBorder = false }) => {
       </Stack>
     );
 
-    if (noBorder) {
-      return (
-        <Fade in={!!doc}>
-          <Box
-            sx={{
-              p: { xs: 1.5, sm: 2 },
-              borderRadius: { xs: 2, sm: 2.5 },
-              bgcolor: 'transparent',
-              position: 'relative',
-            }}
-          >
-            {cvContent}
-          </Box>
-        </Fade>
-      );
-    }
-
     return (
       <Fade in={!!doc}>
-        <Card
-          elevation={0}
+        <Box
           sx={{
-            borderRadius: 2,
-            border: 'none',
-            bgcolor: 'background.paper',
-            position: 'relative',
-            overflow: 'hidden',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            boxShadow: `0 1px 3px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.04)`,
+            p: { xs: 1.5, sm: 2 },
+            borderRadius: '14px',
+            bgcolor: alpha(theme.palette.success.main, 0.04),
+            border: `1px solid ${alpha(theme.palette.success.main, 0.15)}`,
+            transition: 'all 0.2s ease',
             '&:hover': {
-              boxShadow: `0 4px 12px ${alpha(theme.palette.success.main, 0.15)}, 0 2px 4px rgba(0,0,0,0.04)`,
-              transform: 'translateY(-2px)',
+              bgcolor: alpha(theme.palette.success.main, 0.06),
+              borderColor: alpha(theme.palette.success.main, 0.25),
+              boxShadow: `0 2px 8px ${alpha(theme.palette.success.main, 0.1)}`,
             },
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: '3px',
-              background: `linear-gradient(90deg, ${theme.palette.success.main}, ${theme.palette.success.light})`,
-              opacity: 0.8,
-            }
           }}
         >
-          <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.25, sm: 1.5, md: 2 } } }}>
-            {cvContent}
-          </CardContent>
-        </Card>
+          {cvContent}
+        </Box>
       </Fade>
     );
   };
@@ -540,28 +514,24 @@ const OnboardingCV = ({ cvError, noBorder = false }) => {
             component="span"
             variant="contained"
             disabled={isUploading}
-            startIcon={!isUploading && <UploadFileIcon sx={{ fontSize: { xs: 13, sm: 14 } }} />}
             sx={{
-              borderRadius: 1.5,
-              px: { xs: 2, sm: 2.25 },
-              py: { xs: 0.625, sm: 0.75 },
-              fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-              fontWeight: 600,
+              minWidth: { xs: 60, sm: 80 },
+              height: { xs: '52px', sm: '56px' },
+              borderRadius: '14px',
               textTransform: 'none',
-              boxShadow: `0 2px 6px ${alpha(theme.palette.primary.main, 0.3)}`,
-              background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+              fontWeight: 600,
+              fontSize: { xs: '0.9rem', sm: '1rem' },
+              boxShadow: 'none',
+              background: theme.palette.primary.main,
               width: { xs: '100%', sm: 'auto' },
-              minWidth: { xs: '100%', sm: 100 },
               flexShrink: 0,
-              minHeight: { xs: '36px', sm: '38px' },
               '&:hover': {
-                boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.4)}`,
-                transform: 'translateY(-1px)',
-                background: `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
+                background: theme.palette.primary.dark,
+                boxShadow: 'none',
               },
               '&:disabled': {
-                boxShadow: 'none',
-                transform: 'none',
+                background: alpha(theme.palette.action.disabledBackground, 0.12),
+                color: alpha(theme.palette.action.disabled, 0.5),
               },
               transition: 'all 0.2s ease',
             }}
@@ -572,93 +542,36 @@ const OnboardingCV = ({ cvError, noBorder = false }) => {
       </Box>
     );
 
-    if (noBorder) {
-      return (
-        <Fade in={!localCV && !CV}>
-          <Box
-            onDragEnter={handleDragEnter}
-            onDragLeave={handleDragLeave}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-            sx={{
-              p: { xs: 2, sm: 2.5 },
-              borderRadius: { xs: 2, sm: 2.5 },
-              border: isDragOver 
-                ? `2px solid ${theme.palette.primary.main}` 
-                : 'none',
-              bgcolor: isDragOver 
-                ? theme.palette.primary.main + '06' 
-                : 'transparent',
-              position: 'relative',
-              overflow: 'hidden',
-              cursor: isUploading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s ease',
-              transform: isDragOver ? 'scale(1.002)' : 'scale(1)',
-              '&:hover': {
-                bgcolor: isDragOver ? theme.palette.primary.main + '06' : theme.palette.primary.main + '02',
-              },
-            }}
-          >
-            {uploadZoneContent}
-          </Box>
-        </Fade>
-      );
-    }
-
     return (
       <Fade in={!localCV && !CV}>
-        <Card
-          elevation={0}
-          sx={{
-            borderRadius: 2,
-            border: isDragOver 
-              ? `2px solid ${theme.palette.primary.main}` 
-              : `1.5px dashed ${alpha(theme.palette.divider, 0.5)}`,
-            bgcolor: isDragOver 
-              ? alpha(theme.palette.primary.main, 0.06) 
-              : 'background.paper',
-            position: 'relative',
-            overflow: 'hidden',
-            cursor: isUploading ? 'not-allowed' : 'pointer',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: isDragOver ? 'scale(1.002)' : 'scale(1)',
-            boxShadow: isDragOver 
-              ? `0 8px 24px ${alpha(theme.palette.primary.main, 0.2)}`
-              : '0 1px 3px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.04)',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: '3px',
-              background: isDragOver 
-                ? `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`
-                : 'transparent',
-              transition: 'opacity 0.3s ease',
-            },
-            '&:hover': {
-              borderColor: isDragOver 
-                ? theme.palette.primary.main 
-                : alpha(theme.palette.primary.main, 0.5),
-              bgcolor: isDragOver 
-                ? alpha(theme.palette.primary.main, 0.06) 
-                : alpha(theme.palette.primary.main, 0.02),
-              transform: isDragOver ? 'scale(1.002)' : 'translateY(-2px)',
-              boxShadow: isDragOver 
-                ? `0 8px 24px ${alpha(theme.palette.primary.main, 0.2)}`
-                : `0 4px 12px ${alpha(theme.palette.primary.main, 0.1)}, 0 2px 4px rgba(0,0,0,0.04)`,
-            },
-          }}
+        <Box
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
           onDragOver={handleDragOver}
           onDrop={handleDrop}
+          sx={{
+            p: { xs: 2, sm: 2.5 },
+            borderRadius: '14px',
+            border: isDragOver 
+              ? `2px solid ${theme.palette.primary.main}` 
+              : `1.5px dashed ${alpha(theme.palette.divider, 0.3)}`,
+            bgcolor: isDragOver 
+              ? alpha(theme.palette.primary.main, 0.06) 
+              : alpha(theme.palette.grey[50], 0.4),
+            cursor: isUploading ? 'not-allowed' : 'pointer',
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              borderColor: isDragOver 
+                ? theme.palette.primary.main 
+                : alpha(theme.palette.primary.main, 0.4),
+              bgcolor: isDragOver 
+                ? alpha(theme.palette.primary.main, 0.08) 
+                : alpha(theme.palette.primary.main, 0.02),
+            },
+          }}
         >
-          <CardContent sx={{ p: { xs: 1.5, sm: 2, md: 2.25 }, '&:last-child': { pb: { xs: 1.5, sm: 2, md: 2.25 } } }}>
-            {uploadZoneContent}
-          </CardContent>
-        </Card>
+          {uploadZoneContent}
+        </Box>
       </Fade>
     );
   };
@@ -673,86 +586,147 @@ const OnboardingCV = ({ cvError, noBorder = false }) => {
         flexDirection: 'column'
       }}
     >
-      {/* Header Section - Compact SaaS-Level Design */}
-      <Box sx={{ mb: { xs: 1, sm: 1.25 } }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, sm: 0.875 }, mb: 0.5 }}>
-          <UploadFileIcon sx={{ color: 'primary.main', fontSize: { xs: '1.1rem', sm: '1.2rem' } }} />
-          <Typography 
-            variant="h6" 
-            sx={{ 
-              fontWeight: 600,
-              color: 'text.primary',
-              fontSize: { xs: '0.875rem', sm: '0.9375rem' },
-              lineHeight: 1.2,
+      {/* Header Section - Clean SaaS-Level Design */}
+      <Box sx={{ mb: { xs: 2, sm: 2.5 } }}>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: { xs: 0.75, sm: 1 }, 
+          mb: 0.5,
+          flexWrap: 'wrap',
+        }}>
+          <Typography
+            variant="h6"
+            fontWeight={700}
+            color="text.primary"
+            sx={{
+              fontSize: { xs: '1.125rem', sm: '1.25rem' },
+              letterSpacing: '-0.02em',
+              lineHeight: 1.3,
             }}
           >
             Resume / CV
           </Typography>
-          <Chip 
-            label="REQUIRED" 
-            size="small" 
-            color="error" 
-            variant="outlined"
-            sx={{ 
-              fontWeight: 600,
-              fontSize: { xs: '0.65rem', sm: '0.7rem' },
-              height: { xs: 18, sm: 20 },
-              ml: { xs: 0.5, sm: 0.75 },
+          <Chip
+            label="Required"
+            size="small"
+            sx={{
+              height: { xs: 22, sm: 24 },
+              fontSize: { xs: '0.6875rem', sm: '0.75rem' },
+              fontWeight: 700,
+              borderRadius: '8px',
+              bgcolor: alpha(theme.palette.error.main, 0.1),
+              color: theme.palette.error.main,
+              border: `1px solid ${alpha(theme.palette.error.main, 0.25)}`,
+              lineHeight: 1,
+              '& .MuiChip-label': {
+                px: { xs: 0.875, sm: 1 },
+                py: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              },
             }}
           />
         </Box>
-        <Typography 
-          variant="body2" 
-          color="text.secondary" 
-          sx={{ 
-            fontSize: { xs: '0.7rem', sm: '0.75rem' }, 
-            lineHeight: 1.3,
-            ml: { xs: 2.5, sm: 2.75 },
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{
+            fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+            lineHeight: 1.5,
+            fontWeight: 400,
           }}
         >
-          PDF, JPG, PNG • Max 5MB
+          Upload your resume or CV (PDF, JPG, PNG • Max 5MB)
         </Typography>
       </Box>
 
-      {/* Error State - Compact SaaS-Level Design */}
-      {cvError && (
-        <Fade in={!!cvError}>
-          <Alert
-            severity="error"
-            sx={{ 
-              mb: { xs: 1, sm: 1.25 }, 
-              borderRadius: 1.5,
-              border: 'none',
-              py: { xs: 0.75, sm: 1 },
-              bgcolor: alpha(theme.palette.error.main, 0.08),
-              '& .MuiAlert-icon': {
-                fontSize: { xs: '1rem', sm: '1.1rem' },
+      {/* Error State - Dismissible Compact Design */}
+      {showError && cvError && (
+        <Box
+          sx={{
+            mb: { xs: 2, sm: 2.5 },
+            borderRadius: '10px',
+            bgcolor: alpha(theme.palette.error.main, 0.06),
+            border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+            overflow: 'hidden',
+            position: 'relative',
+            transition: 'all 0.2s ease',
+          }}
+          role="alert"
+          aria-live="polite"
+        >
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'flex-start', 
+            gap: 0.875,
+            p: { xs: 1, sm: 1.25 },
+          }}>
+            <Box
+              sx={{
+                width: 20,
+                height: 20,
+                borderRadius: '50%',
+                bgcolor: theme.palette.error.main,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                mt: 0.125,
+              }}
+            >
+              <AlertCircle size={12} color="#ffffff" strokeWidth={2.5} />
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography
+                variant="caption"
+                color="error"
+                sx={{
+                  fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                  lineHeight: 1.5,
+                  fontWeight: 600,
+                  display: 'block',
+                  mb: 0.25,
+                }}
+              >
+                {cvError}
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{
+                  fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                  lineHeight: 1.4,
+                  color: theme.palette.error.dark,
+                }}
+              >
+                Please upload your resume to continue.
+              </Typography>
+            </Box>
+            <IconButton
+              size="small"
+              onClick={() => setShowError(false)}
+              sx={{
+                width: { xs: 28, sm: 32 },
+                height: { xs: 28, sm: 32 },
+                borderRadius: '8px',
                 color: theme.palette.error.main,
-              },
-            }}
-          >
-            <AlertTitle sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.8rem' }, mb: 0.25 }}>
-              Resume Required
-            </AlertTitle>
-            <Typography variant="body2" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, lineHeight: 1.4 }}>
-              {cvError}
-            </Typography>
-            {cvError.includes('required') && (
-              <Box sx={{ mt: 0.75 }}>
-                <LinearProgress 
-                  color="error" 
-                  variant="determinate" 
-                  value={100} 
-                  sx={{ 
-                    height: 2, 
-                    borderRadius: 1.5,
-                    bgcolor: alpha(theme.palette.error.main, 0.1),
-                  }} 
-                />
-              </Box>
-            )}
-          </Alert>
-        </Fade>
+                bgcolor: alpha(theme.palette.error.main, 0.08),
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                flexShrink: 0,
+                '&:hover': { 
+                  bgcolor: alpha(theme.palette.error.main, 0.15),
+                  transform: 'scale(1.08)',
+                },
+                '&:active': {
+                  transform: 'scale(0.95)',
+                },
+              }}
+            >
+              <X size={isMobile ? 16 : 18} strokeWidth={2.5} />
+            </IconButton>
+          </Box>
+        </Box>
       )}
       
       {/* Hidden file input - always available for both upload and update */}

@@ -9,9 +9,12 @@ import {
   Select,
   FormControl,
   InputLabel, CircularProgress, IconButton, Grid, useTheme, useMediaQuery,
+  Divider,
+  alpha,
 } from '@mui/material';
 
 import CloseIcon from "@mui/icons-material/Close";
+import { AlertCircle, X, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 import { toast, ToastContainer, Slide } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -20,6 +23,7 @@ import LanguageSection from '../WorkerProfileOnboarding/LanguageSection';
 import SkillsSection from '../WorkerProfileOnboarding/SkillsSection';
 import ExpectedHourlyRate from '../WorkerProfileOnboarding/ExpectedHourlyRate';
 import OnboardingCV from '../WorkerCv/OnboardingCV/onboardingCV';
+import RequiredFieldsTracker from './RequiredFieldsTracker';
 
 // Default skills for suggestions
 const DEFAULT_SKILLS = [
@@ -70,6 +74,7 @@ const WorkerProfileForm = React.memo(() => {
   const [skillsValidation, setSkillsValidation] = useState({ isValid: true, error: null });
   const [hourlyRateValidation, setHourlyRateValidation] = useState({ isValid: false, error: null });
   const [cvValidation, setCvValidation] = useState({ isValid: false, error: null });
+  const [showErrorSummary, setShowErrorSummary] = useState(false);
 
   // Get state and actions from store individually to avoid infinite loop
   const profile = useOnboardingStore((state) => state.profile, shallow);
@@ -246,7 +251,7 @@ const WorkerProfileForm = React.memo(() => {
     }));
   }, [profile.CV]);
 
-  //  Enhanced form submit with consolidated error handling
+  // Enhanced form submit with better error handling
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
     setHasAttemptedSubmit(true);
@@ -255,75 +260,137 @@ const WorkerProfileForm = React.memo(() => {
     const errorMessages = Object.values(errors).filter(Boolean);
 
     if (errorMessages.length > 0) {
-      // Show single consolidated toast instead of multiple toasts
-      toast.dismiss();
+      // Show error summary instead of toast
+      setShowErrorSummary(true);
       
-      // Create a consolidated error message
-      const consolidatedMessage = errorMessages.length === 1
-        ? errorMessages[0]
-        : `Please fix ${errorMessages.length} error${errorMessages.length > 1 ? 's' : ''} before continuing`;
-
-      toast.error(consolidatedMessage, {
-        position: "top-center",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        icon: '⚠️',
-      });
-
-      // If multiple errors, show details in console for debugging
-      if (errorMessages.length > 1) {
-        console.warn('Form validation errors:', errorMessages);
-      }
-
-      // Scroll to first error
-      const firstErrorField = document.querySelector(
-        '.profile_wrkr_basic_input_error, .profile_wrkr_basic_error_text, .MuiAlert-root'
-      );
-      if (firstErrorField) {
-        firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+      // Scroll to error summary
+      setTimeout(() => {
+        const errorSummary = document.getElementById('error-summary');
+        if (errorSummary) {
+          errorSummary.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
 
       return; // ⛔ stop submission
     }
 
     // ✅ No errors → submit
-    console.log('Submitting profile:', {
-      biography: profile.biography?.trim(),
-      skillTags: profile.skillTags,
-      expectedHourlyRate: profile.expectedHourlyRate,
-      languages: profile.languages,
-    });
-
+    setShowErrorSummary(false);
+    
     saveProfile({
       ...profile,
       biography: profile.biography?.trim(),
     });
   }, [profile, saveProfile, validateForm]);
 
-  // Check if form is valid for enabling/disabling submit button
-  const isFormValid = useMemo(() => {
-    // biography is now optional, so no check for it
-    // Use hourly rate validation from ExpectedHourlyRate
-    if (!hourlyRateValidation.isValid) {
-      return false;
+  // Get all validation errors for display
+  const validationErrors = useMemo(() => {
+    const errors = [];
+    if (!hourlyRateValidation.isValid && hourlyRateValidation.error) {
+      errors.push({ field: 'Expected Hourly Rate', message: hourlyRateValidation.error });
     }
-    // Use skills validation from SkillsSection
-    if (!skillsValidation.isValid) {
-      return false;
+    if (!skillsValidation.isValid && skillsValidation.error) {
+      errors.push({ field: 'Skills', message: skillsValidation.error });
     }
-    // Use language validation from LanguageSection
-    if (!languageValidation.isValid) {
-      return false;
+    if (!languageValidation.isValid && languageValidation.error) {
+      errors.push({ field: 'Languages', message: languageValidation.error });
     }
-    // Use CV validation
-    if (!cvValidation.isValid) {
-      return false;
+    if (!cvValidation.isValid && cvValidation.error) {
+      errors.push({ field: 'CV', message: cvValidation.error });
     }
-    return true;
-  }, [profile, hourlyRateValidation, skillsValidation, languageValidation, cvValidation]);
+    if (formErrors.biography) {
+      errors.push({ field: 'Professional Summary', message: formErrors.biography });
+    }
+    return errors;
+  }, [hourlyRateValidation, skillsValidation, languageValidation, cvValidation, formErrors.biography]);
+
+  // Prepare fields data for RequiredFieldsTracker
+  const requiredFields = useMemo(() => {
+    const fields = [
+      {
+        key: 'biography',
+        label: 'Professional Summary',
+        description: 'Tell potential clients about your experience, skills, and what makes you unique. This helps you stand out.',
+        required: false,
+        isCompleted: profile.biography && getPlainTextLength(profile.biography) >= VALIDATION_RULES.biography.minLength,
+      },
+      {
+        key: 'expectedHourlyRate',
+        label: 'Expected Hourly Rate',
+        description: 'Set your preferred hourly rate between $20-$100. This helps clients understand your pricing expectations.',
+        required: true,
+        isCompleted: hourlyRateValidation.isValid,
+      },
+      {
+        key: 'skillTags',
+        label: 'Skills & Expertise',
+        description: 'Add your relevant skills and areas of expertise. This helps clients find you for the right opportunities.',
+        required: false,
+        isCompleted: (profile.skillTags || []).length > 0 && skillsValidation.isValid,
+      },
+      {
+        key: 'languages',
+        label: 'Languages',
+        description: 'Select the languages you can communicate in. At least one language is required.',
+        required: true,
+        isCompleted: (profile.languages || []).length >= VALIDATION_RULES.languages.minCount && languageValidation.isValid,
+      },
+      {
+        key: 'CV',
+        label: 'Resume / CV',
+        description: 'Upload your resume or CV (PDF, JPG, PNG). This is required to verify your qualifications.',
+        required: true,
+        isCompleted: cvValidation.isValid,
+      },
+    ];
+    return fields;
+  }, [profile, hourlyRateValidation, skillsValidation, languageValidation, cvValidation, getPlainTextLength]);
+
+  // Create validation errors object for tracker
+  const trackerValidationErrors = useMemo(() => {
+    const errors = {};
+    if (!hourlyRateValidation.isValid && hourlyRateValidation.error) {
+      errors.expectedHourlyRate = hourlyRateValidation.error;
+    }
+    if (!skillsValidation.isValid && skillsValidation.error) {
+      errors.skillTags = skillsValidation.error;
+    }
+    if (!languageValidation.isValid && languageValidation.error) {
+      errors.languages = languageValidation.error;
+    }
+    if (!cvValidation.isValid && cvValidation.error) {
+      errors.CV = cvValidation.error;
+    }
+    if (formErrors.biography) {
+      errors.biography = formErrors.biography;
+    }
+    return errors;
+  }, [hourlyRateValidation, skillsValidation, languageValidation, cvValidation, formErrors.biography]);
+
+  // Handle field click to scroll to field
+  const handleFieldClick = useCallback((fieldKey) => {
+    const fieldMap = {
+      biography: 'biography-section',
+      expectedHourlyRate: 'hourly-rate-section',
+      skillTags: 'skills-section',
+      languages: 'languages-section',
+      CV: 'cv-section',
+    };
+    
+    const elementId = fieldMap[fieldKey];
+    if (elementId) {
+      const element = document.getElementById(elementId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Add a subtle highlight effect
+        element.style.transition = 'box-shadow 0.3s ease';
+        element.style.boxShadow = `0 0 0 4px ${alpha(theme.palette.primary.main, 0.2)}`;
+        setTimeout(() => {
+          element.style.boxShadow = '';
+        }, 2000);
+      }
+    }
+  }, [theme]);
 
 
 
@@ -345,16 +412,17 @@ const WorkerProfileForm = React.memo(() => {
         onSubmit={handleSubmit}
         noValidate
         sx={{
-
           mx: 'auto',
           p: { xs: 2, sm: 3, md: 4 },
           minHeight: '100vh',
-          bgcolor: '#fafafa',
+          bgcolor: 'transparent',
+          maxWidth: { xs: '100%', sm: '1400px' },
         }}
       >
+      {/* Success Toast Container - Cleaner Design */}
       <ToastContainer
         position="top-center"
-        autoClose={4000}
+        autoClose={3000}
         hideProgressBar={false}
         newestOnTop
         closeOnClick
@@ -364,17 +432,18 @@ const WorkerProfileForm = React.memo(() => {
         pauseOnHover
         transition={Slide}
         closeButton={<ToastCloseButton />}
-        limit={3}
+        limit={1}
         draggableDirection="x"
         theme="colored"
         toastStyle={{
-          borderRadius: 12,
-          boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
-          paddingRight: 36,
-          maxWidth: '640px',
+          borderRadius: '14px',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          paddingRight: 40,
+          maxWidth: '500px',
           width: 'calc(100% - 24px)',
           margin: '0 auto',
-          fontSize: '0.95rem',
+          fontSize: '0.9375rem',
+          fontWeight: 500,
         }}
         style={{
           zIndex: 1400,
@@ -383,40 +452,182 @@ const WorkerProfileForm = React.memo(() => {
         }}
       />
 
-      {/* Header Section */}
-      <Box sx={{ mb: 4, textAlign: 'center' }}>
+      {/* Onboarding Header - Clean Minimal Design */}
+      <Box sx={{ 
+        mb: { xs: 3, sm: 4 },
+        maxWidth: { xs: '100%', lg: '65%' },
+      }}>
         <Typography
-          variant="h4"
-          component="h1"
           sx={{
+            fontSize: { xs: '1.75rem', sm: '2rem', md: '2.25rem' },
             fontWeight: 700,
-            fontSize: { xs: '1.75rem', sm: '2.125rem' },
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            backgroundClip: 'text',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            mb: 1
+            color: 'text.primary',
+            mb: { xs: 1, sm: 1.25 },
+            lineHeight: 1.2,
+            letterSpacing: '-0.02em',
           }}
         >
           Complete Your Profile
         </Typography>
         <Typography
-          variant="body1"
-          color="text.secondary"
-          sx={{ fontSize: '1.1rem', maxWidth: '600px', mx: 'auto' }}
+          sx={{
+            fontSize: { xs: '0.9375rem', sm: '1rem', md: '1.0625rem' },
+            color: 'text.secondary',
+            lineHeight: 1.6,
+            mb: { xs: 2, sm: 2.5 },
+            maxWidth: { xs: '100%', sm: '90%' },
+          }}
         >
-          Help us understand your skills and experience to connect you with the right opportunities
+          Help potential clients get to know you better. Complete your profile to increase your visibility and match with the right opportunities.
         </Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: { xs: 1.5, sm: 2 },
+            alignItems: 'center',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <CheckCircle2 size={18} color={theme.palette.primary.main} strokeWidth={2.5} />
+            <Typography sx={{ 
+              fontSize: { xs: '0.8125rem', sm: '0.875rem' }, 
+              color: 'text.secondary', 
+              fontWeight: 500,
+              lineHeight: 1.4,
+            }}>
+              Secure & Private
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <CheckCircle2 size={18} color={theme.palette.primary.main} strokeWidth={2.5} />
+            <Typography sx={{ 
+              fontSize: { xs: '0.8125rem', sm: '0.875rem' }, 
+              color: 'text.secondary', 
+              fontWeight: 500,
+              lineHeight: 1.4,
+            }}>
+              Takes 5-10 minutes
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <CheckCircle2 size={18} color={theme.palette.primary.main} strokeWidth={2.5} />
+            <Typography sx={{ 
+              fontSize: { xs: '0.8125rem', sm: '0.875rem' }, 
+              color: 'text.secondary', 
+              fontWeight: 500,
+              lineHeight: 1.4,
+            }}>
+              Increase Job Matches
+            </Typography>
+          </Box>
+        </Box>
       </Box>
 
-      {/* Error Alert */}
+      {/* Funky SaaS-Level Separator */}
+      <Box
+        sx={{
+          position: 'relative',
+          mb: { xs: 3, sm: 4 },
+          maxWidth: { xs: '100%', lg: '65%' },
+          height: { xs: '2px', sm: '3px' },
+          overflow: 'hidden',
+        }}
+      >
+        {/* Animated Gradient Line */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '100%',
+            background: `linear-gradient(90deg, 
+              transparent 0%, 
+              ${alpha(theme.palette.primary.main, 0.2)} 20%, 
+              ${theme.palette.primary.main} 50%, 
+              ${alpha(theme.palette.primary.main, 0.2)} 80%, 
+              transparent 100%
+            )`,
+            backgroundSize: '200% 100%',
+            animation: 'shimmer 3s ease-in-out infinite',
+            '@keyframes shimmer': {
+              '0%': {
+                backgroundPosition: '-200% 0',
+              },
+              '100%': {
+                backgroundPosition: '200% 0',
+              },
+            },
+          }}
+        />
+        {/* Base Gradient Line */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '100%',
+            background: `linear-gradient(90deg, 
+              transparent 0%, 
+              ${alpha(theme.palette.divider, 0.3)} 10%, 
+              ${alpha(theme.palette.primary.main, 0.15)} 30%, 
+              ${alpha(theme.palette.primary.main, 0.25)} 50%, 
+              ${alpha(theme.palette.primary.main, 0.15)} 70%, 
+              ${alpha(theme.palette.divider, 0.3)} 90%, 
+              transparent 100%
+            )`,
+          }}
+        />
+        {/* Decorative Dots */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            display: 'flex',
+            gap: 1,
+            alignItems: 'center',
+            zIndex: 1,
+          }}
+        >
+          {[...Array(3)].map((_, i) => (
+            <Box
+              key={i}
+              sx={{
+                width: { xs: 6, sm: 8 },
+                height: { xs: 6, sm: 8 },
+                borderRadius: '50%',
+                bgcolor: theme.palette.primary.main,
+                boxShadow: `0 0 8px ${alpha(theme.palette.primary.main, 0.5)}`,
+                animation: `pulse 2s ease-in-out infinite ${i * 0.3}s`,
+                '@keyframes pulse': {
+                  '0%, 100%': {
+                    opacity: 0.6,
+                    transform: 'scale(1)',
+                  },
+                  '50%': {
+                    opacity: 1,
+                    transform: 'scale(1.2)',
+                  },
+                },
+              }}
+            />
+          ))}
+        </Box>
+      </Box>
+
+      {/* Server Error Alert */}
       {error && (
         <Alert
           severity="error"
           sx={{
             mb: 3,
-            borderRadius: 3,
-            '& .MuiAlert-message': { fontSize: '0.95rem' }
+            borderRadius: '12px',
+            border: '1px solid rgba(239, 68, 68, 0.2)',
+            '& .MuiAlert-message': { fontSize: '0.9375rem', fontWeight: 500 }
           }}
         >
           {error.response?.data?.message ||
@@ -424,22 +635,232 @@ const WorkerProfileForm = React.memo(() => {
         </Alert>
       )}
 
-      {/* Main Content Grid: Biography Left, Rate & Skills & Languages Right */}
+      {/* Validation Error Summary - Premium Compact Design */}
+      {showErrorSummary && validationErrors.length > 0 && (
+        <Box
+          id="error-summary"
+          sx={{
+            mb: { xs: 2.5, sm: 3 },
+            borderRadius: '14px',
+            bgcolor: '#ffffff',
+            border: '1.5px solid #fecaca',
+            boxShadow: '0 4px 16px rgba(239, 68, 68, 0.12), 0 2px 4px rgba(0, 0, 0, 0.04)',
+            overflow: 'hidden',
+            position: 'relative',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '4px',
+              background: 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)',
+            },
+          }}
+        >
+          {/* Compact Header */}
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            p: { xs: 1.25, sm: 1.5 },
+            bgcolor: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+            background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+            borderBottom: validationErrors.length > 1 ? '1px solid rgba(239, 68, 68, 0.15)' : 'none',
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.875, sm: 1 }, flex: 1, minWidth: 0 }}>
+              <Box
+                sx={{
+                  width: { xs: 28, sm: 32 },
+                  height: { xs: 28, sm: 32 },
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  boxShadow: '0 3px 8px rgba(239, 68, 68, 0.3)',
+                }}
+              >
+                <AlertCircle size={isMobile ? 16 : 18} color="#ffffff" strokeWidth={2.5} />
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography sx={{ 
+                  fontSize: { xs: '0.8125rem', sm: '0.875rem' }, 
+                  fontWeight: 700, 
+                  color: '#7f1d1d',
+                  lineHeight: 1.3,
+                  letterSpacing: '-0.01em',
+                }}>
+                  {validationErrors.length === 1 
+                    ? 'Validation Error' 
+                    : `${validationErrors.length} Errors Found`}
+                </Typography>
+                <Typography sx={{ 
+                  fontSize: { xs: '0.6875rem', sm: '0.75rem' }, 
+                  color: '#b91c1c',
+                  lineHeight: 1.4,
+                  fontWeight: 500,
+                  mt: 0.125,
+                }}>
+                  {validationErrors.length === 1 
+                    ? 'Fix to continue' 
+                    : 'Fix all to continue'}
+                </Typography>
+              </Box>
+            </Box>
+            <IconButton
+              size="small"
+              onClick={() => setShowErrorSummary(false)}
+              sx={{
+                width: { xs: 28, sm: 32 },
+                height: { xs: 28, sm: 32 },
+                borderRadius: '8px',
+                color: '#991b1b',
+                bgcolor: 'rgba(239, 68, 68, 0.08)',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': { 
+                  bgcolor: 'rgba(239, 68, 68, 0.15)',
+                  transform: 'scale(1.08)',
+                  color: '#7f1d1d',
+                },
+                '&:active': {
+                  transform: 'scale(0.95)',
+                },
+              }}
+            >
+              <X size={isMobile ? 16 : 18} strokeWidth={2.5} />
+            </IconButton>
+          </Box>
+
+          {/* Compact Error List */}
+          {validationErrors.length > 1 ? (
+            <Box sx={{ p: { xs: 1.25, sm: 1.5 }, pt: { xs: 1.25, sm: 1.5 } }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 0.75, sm: 0.875 } }}>
+                {validationErrors.map((err, idx) => (
+                  <Box
+                    key={idx}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: { xs: 0.875, sm: 1 },
+                      p: { xs: 0.875, sm: 1 },
+                      borderRadius: '10px',
+                      bgcolor: '#fef2f2',
+                      border: '1px solid rgba(239, 68, 68, 0.2)',
+                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': {
+                        bgcolor: '#fee2e2',
+                        borderColor: 'rgba(239, 68, 68, 0.3)',
+                        transform: 'translateX(2px)',
+                        boxShadow: '0 2px 6px rgba(239, 68, 68, 0.1)',
+                      },
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 5,
+                        height: 5,
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                        flexShrink: 0,
+                        mt: { xs: 0.5, sm: 0.625 },
+                        boxShadow: '0 1px 3px rgba(239, 68, 68, 0.4)',
+                      }}
+                    />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography sx={{ 
+                        fontSize: { xs: '0.75rem', sm: '0.8125rem' }, 
+                        fontWeight: 600, 
+                        color: '#7f1d1d',
+                        mb: 0.25,
+                        lineHeight: 1.4,
+                        letterSpacing: '-0.01em',
+                      }}>
+                        {err.field}
+                      </Typography>
+                      <Typography sx={{ 
+                        fontSize: { xs: '0.6875rem', sm: '0.75rem' }, 
+                        color: '#b91c1c',
+                        lineHeight: 1.5,
+                        fontWeight: 500,
+                      }}>
+                        {err.message}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          ) : (
+            <Box sx={{ p: { xs: 1.25, sm: 1.5 } }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: { xs: 0.875, sm: 1 },
+                  p: { xs: 1, sm: 1.25 },
+                  borderRadius: '10px',
+                  bgcolor: '#fef2f2',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                    flexShrink: 0,
+                    mt: { xs: 0.5, sm: 0.625 },
+                    boxShadow: '0 1px 3px rgba(239, 68, 68, 0.4)',
+                  }}
+                />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{ 
+                    fontSize: { xs: '0.75rem', sm: '0.8125rem' }, 
+                    fontWeight: 600, 
+                    color: '#7f1d1d',
+                    mb: 0.25,
+                    lineHeight: 1.4,
+                    letterSpacing: '-0.01em',
+                  }}>
+                    {validationErrors[0].field}
+                  </Typography>
+                  <Typography sx={{ 
+                    fontSize: { xs: '0.6875rem', sm: '0.75rem' }, 
+                    color: '#b91c1c',
+                    lineHeight: 1.5,
+                    fontWeight: 500,
+                  }}>
+                    {validationErrors[0].message}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+          )}
+        </Box>
+      )}
+
+      {/* Two-Column Layout: Form Content + Progress Tracker */}
       <Box sx={{ 
         display: 'flex', 
-        flexDirection: { xs: 'column', sm: 'column', md: 'row' },
-        gap: { xs: 2.5, sm: 2.5, md: 2.5 },
-        mb: { xs: 3, sm: 3, md: 3 },
+        flexDirection: { xs: 'column', lg: 'row' },
+        gap: { xs: 3, sm: 3.5, lg: 4 },
+        alignItems: 'flex-start',
+        mb: { xs: 3, sm: 4 },
         width: '100%',
-        alignItems: { xs: 'stretch', sm: 'stretch', md: 'stretch' }
       }}>
-        {/* Left Column: Professional Summary */}
+        {/* Main Form Content - Left Side */}
         <Box sx={{ 
-          width: { xs: '100%', sm: '100%', md: '50%' },
-          display: 'flex',
+          flex: { xs: '1 1 100%', lg: '1 1 65%' },
+          minWidth: 0,
+          display: 'flex', 
           flexDirection: 'column',
-          minHeight: { xs: 'auto', sm: 'auto', md: '900px' }
+          gap: { xs: 2.5, sm: 3 },
         }}>
+        {/* Professional Summary - Clean Borderless Design */}
+        <Box id="biography-section">
           <WorkerBiographySection
             value={profile.biography || ''}
             onChange={handleBiographyChange}
@@ -447,143 +868,111 @@ const WorkerProfileForm = React.memo(() => {
             disabled={isPending}
             maxLength={VALIDATION_RULES.biography.maxLength}
             minLength={VALIDATION_RULES.biography.minLength}
-            fullHeight={true}
+            fullHeight={false}
           />
         </Box>
 
-        {/* Right Column: Expected Hourly Rate, Skills & Languages Combined */}
-        <Box sx={{ 
-          width: { xs: '100%', sm: '100%', md: '50%' },
-          display: 'flex',
-          flexDirection: 'column',
-          minHeight: { xs: 'auto', sm: 'auto', md: '900px' }
-        }}>
-      <Card
-        elevation={0}
-        sx={{
-              height: { xs: 'auto', sm: 'auto', md: '100%' },
-              minHeight: { xs: 'auto', sm: 'auto', md: '900px' },
-          borderRadius: 4,
-          border: '1px solid',
-              borderColor: { xs: 'divider', sm: 'divider', md: 'rgba(74, 222, 128, 0.12)' },
-              overflow: { xs: 'visible', sm: 'visible', md: 'auto' },
-          position: 'relative',
-              display: 'flex',
-              flexDirection: 'column',
-              background: { xs: 'white', sm: 'white', md: 'linear-gradient(to bottom, #ffffff 0%, #f0fdf4 100%)' },
-              boxShadow: { 
-                xs: 'none', 
-                sm: 'none', 
-                md: '0 4px 20px rgba(74, 222, 128, 0.08), 0 1px 3px rgba(0,0,0,0.05)' 
-              },
-              transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-          '&:hover': {
-                boxShadow: { 
-                  xs: 'none', 
-                  sm: 'none', 
-                  md: '0 8px 40px rgba(74, 222, 128, 0.15), 0 4px 12px rgba(0,0,0,0.08)' 
-                },
-                transform: { xs: 'none', sm: 'none', md: 'translateY(-4px)' },
-                borderColor: { xs: 'divider', sm: 'divider', md: 'rgba(74, 222, 128, 0.2)' },
-          }
-        }}
-      >
+        {/* Clean SaaS-Level Section Divider */}
         <Box
           sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-                height: '5px',
-                background: 'linear-gradient(90deg, #4ade80 0%, #f59e0b 50%, #8b5cf6 100%)',
-                borderRadius: '16px 16px 0 0',
-                boxShadow: '0 2px 8px rgba(74, 222, 128, 0.3)',
-                backgroundSize: '200% 100%',
-                animation: 'gradientShift 3s ease infinite',
-                '@keyframes gradientShift': {
-                  '0%': { backgroundPosition: '0% 50%' },
-                  '50%': { backgroundPosition: '100% 50%' },
-                  '100%': { backgroundPosition: '0% 50%' }
-                }
-              }}
+            my: { xs: 3, sm: 3.5 },
+            width: '100%',
+            height: '1px',
+            background: `linear-gradient(90deg, transparent 0%, ${alpha(theme.palette.divider, 0.12)} 50%, transparent 100%)`,
+          }}
         />
-            <CardContent sx={{ 
-              p: { xs: 3, sm: 3.5, md: 3.5 },
-              display: 'flex', 
-              flexDirection: 'column', 
-              gap: { xs: 2.5, sm: 2.5, md: 2 },
-              flex: 1,
-              height: '100%',
-              boxSizing: 'border-box',
-              overflow: { xs: 'visible', sm: 'visible', md: 'auto' },
-              '&::-webkit-scrollbar': {
-                width: '6px',
-              },
-              '&::-webkit-scrollbar-track': {
-                background: 'transparent',
-                borderRadius: '3px',
-              },
-              '&::-webkit-scrollbar-thumb': {
-                background: `rgba(154, 165, 177, 0.5)`,
-                borderRadius: '3px',
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  background: `rgba(107, 114, 128, 0.7)`,
-                }
-              }
-            }}>
-      {/* Expected Hourly Rate Section */}
-      <ExpectedHourlyRate
-        disabled={isPending}
-        onValidationChange={handleHourlyRateValidationChange}
-        showErrors={hasAttemptedSubmit}
-      />
 
-              {/* Divider */}
-              <Box sx={{ 
-                height: '1px', 
-                background: 'linear-gradient(90deg, transparent, rgba(224, 224, 224, 0.6), transparent)', 
-                my: 0.5,
-                flexShrink: 0
-              }} />
-
-      {/* Skills Section */}
-      <SkillsSection
-        disabled={isPending}
-        onValidationChange={handleSkillsValidationChange}
-        showErrors={hasAttemptedSubmit}
-      />
-
-              {/* Divider */}
-              <Box sx={{ 
-                height: '1px', 
-                background: 'linear-gradient(90deg, transparent, rgba(224, 224, 224, 0.6), transparent)', 
-                my: { xs: 0.5, sm: 0.5, md: 0.25 },
-                flexShrink: 0
-              }} />
-
-      {/* Languages Section */}
-      <LanguageSection
-        disabled={isPending}
-        onValidationChange={handleLanguageValidationChange}
-        showErrors={hasAttemptedSubmit}
-      />
-
-              {/* Divider */}
-              <Box sx={{ 
-                height: '1px', 
-                background: 'linear-gradient(90deg, transparent, rgba(224, 224, 224, 0.6), transparent)', 
-                my: { xs: 0.5, sm: 0.5, md: 0.25 },
-                flexShrink: 0
-              }} />
-
-      {/* CV Section */}
-      <Box sx={{ flexShrink: 0 }}>
-        <OnboardingCV cvError={formErrors.CV} />
-      </Box>
-        </CardContent>
-      </Card>
+        {/* Expected Hourly Rate - Clean Borderless Design */}
+        <Box id="hourly-rate-section">
+          <ExpectedHourlyRate
+            disabled={isPending}
+            onValidationChange={handleHourlyRateValidationChange}
+            showErrors={hasAttemptedSubmit}
+          />
         </Box>
+
+        {/* Clean SaaS-Level Section Divider */}
+        <Box
+          sx={{
+            my: { xs: 3, sm: 3.5 },
+            width: '100%',
+            height: '1px',
+            background: `linear-gradient(90deg, transparent 0%, ${alpha(theme.palette.divider, 0.12)} 50%, transparent 100%)`,
+          }}
+        />
+
+        {/* Skills Section - Clean Borderless Design */}
+        <Box id="skills-section">
+          <SkillsSection
+            disabled={isPending}
+            onValidationChange={handleSkillsValidationChange}
+            showErrors={hasAttemptedSubmit}
+          />
+        </Box>
+
+        {/* Clean SaaS-Level Section Divider */}
+        <Box
+          sx={{
+            my: { xs: 3, sm: 3.5 },
+            width: '100%',
+            height: '1px',
+            background: `linear-gradient(90deg, transparent 0%, ${alpha(theme.palette.divider, 0.12)} 50%, transparent 100%)`,
+          }}
+        />
+
+        {/* Languages Section - Clean Borderless Design */}
+        <Box id="languages-section">
+          <LanguageSection
+            disabled={isPending}
+            onValidationChange={handleLanguageValidationChange}
+            showErrors={hasAttemptedSubmit}
+          />
+        </Box>
+
+        {/* Clean SaaS-Level Section Divider */}
+        <Box
+          sx={{
+            my: { xs: 3, sm: 3.5 },
+            width: '100%',
+            height: '1px',
+            background: `linear-gradient(90deg, transparent 0%, ${alpha(theme.palette.divider, 0.12)} 50%, transparent 100%)`,
+          }}
+        />
+
+        {/* CV Section - Clean Borderless Design */}
+        <Box id="cv-section">
+          <OnboardingCV cvError={hasAttemptedSubmit ? formErrors.CV : null} />
+        </Box>
+        </Box>
+
+        {/* Progress Tracker Sidebar - Right Side (Desktop Only) */}
+        <Box sx={{ 
+          flex: { xs: '1 1 100%', lg: '0 0 340px' },
+          width: { xs: '100%', lg: '340px' },
+          display: { xs: 'none', lg: 'block' },
+        }}>
+          <RequiredFieldsTracker
+            fields={requiredFields}
+            validationErrors={trackerValidationErrors}
+            onFieldClick={handleFieldClick}
+            showDetails={true}
+            compact={true}
+          />
+        </Box>
+      </Box>
+
+      {/* Progress Tracker - Mobile (Below Form) */}
+      <Box sx={{ 
+        display: { xs: 'block', lg: 'none' },
+        mb: { xs: 3, sm: 3.5 },
+      }}>
+        <RequiredFieldsTracker
+          fields={requiredFields}
+          validationErrors={trackerValidationErrors}
+          onFieldClick={handleFieldClick}
+          showDetails={true}
+          compact={false}
+        />
       </Box>
 
       {/* Submit Button Section */}
@@ -591,98 +980,81 @@ const WorkerProfileForm = React.memo(() => {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        mt: { xs: 4, md: 5 },
+        mt: { xs: 4, sm: 5 },
         mb: 3,
-        gap: 2
+        gap: 2,
+        maxWidth: { xs: '100%', sm: '700px' },
+        mx: 'auto',
+        width: '100%',
       }}>
         <Button
           type="submit"
           variant="contained"
-          disabled={isPending || !isFormValid}
+          disabled={isPending}
           aria-describedby="submit-help"
           sx={{
             minWidth: { xs: '100%', sm: 320, md: 360 },
-            height: { xs: 52, sm: 56, md: 60 },
-            fontSize: { xs: '1rem', sm: '1.1rem', md: '1.15rem' },
-            fontWeight: 700,
-            borderRadius: 3,
-            textTransform: "none",
-            letterSpacing: '0.5px',
-            background: isFormValid 
-              ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-              : 'linear-gradient(135deg, #e0e0e0 0%, #bdbdbd 100%)',
-            boxShadow: isFormValid
-              ? '0 8px 24px rgba(102, 126, 234, 0.35), 0 4px 8px rgba(102, 126, 234, 0.2)'
-              : '0 2px 4px rgba(0,0,0,0.1)',
+            height: { xs: 52, sm: 56 },
+            fontSize: { xs: '1rem', sm: '1.0625rem' },
+            fontWeight: 600,
+            borderRadius: '14px',
+            textTransform: 'none',
+            letterSpacing: '-0.01em',
+            bgcolor: theme.palette.primary.main,
+            boxShadow: 'none',
             position: 'relative',
-            overflow: 'hidden',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: '-100%',
-              width: '100%',
-              height: '100%',
-              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
-              transition: 'left 0.5s ease',
-            },
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
             '&:hover': {
-              background: isFormValid
-                ? 'linear-gradient(135deg, #5a67d8 0%, #6b46a0 100%)'
-                : 'linear-gradient(135deg, #e0e0e0 0%, #bdbdbd 100%)',
-              boxShadow: isFormValid
-                ? '0 12px 32px rgba(102, 126, 234, 0.45), 0 6px 12px rgba(102, 126, 234, 0.3)'
-                : '0 2px 4px rgba(0,0,0,0.1)',
-              transform: isFormValid ? 'translateY(-3px)' : 'none',
-              '&::before': {
-                left: '100%',
-              },
+              bgcolor: theme.palette.primary.dark,
+              boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`,
+              transform: 'translateY(-2px)',
             },
             '&:active': {
-              transform: isFormValid ? 'translateY(-1px)' : 'none',
+              transform: 'translateY(0)',
             },
             '&:disabled': {
-              background: 'linear-gradient(135deg, #e0e0e0 0%, #bdbdbd 100%)',
+              bgcolor: alpha(theme.palette.action.disabledBackground, 0.12),
+              color: alpha(theme.palette.action.disabled, 0.5),
               transform: 'none',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              boxShadow: 'none',
             },
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >
           {isPending ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
               <CircularProgress
-                size={26}
+                size={20}
                 color="inherit"
                 thickness={4}
                 sx={{ color: 'white' }}
               />
-              <Typography variant="inherit" sx={{ fontWeight: 600 }}>
+              <Typography variant="inherit" sx={{ fontWeight: 600, fontSize: 'inherit' }}>
                 Saving Your Profile...
               </Typography>
             </Box>
           ) : (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Typography variant="inherit" sx={{ fontWeight: 700 }}>
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1, 
+                justifyContent: 'center',
+                '&:hover .button-arrow': {
+                  transform: 'translateX(4px)',
+                },
+              }}
+            >
+              <Typography variant="inherit" sx={{ fontWeight: 600, fontSize: 'inherit' }}>
                 Continue to Work History
               </Typography>
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 24,
-                  height: 24,
-                  borderRadius: '50%',
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  transition: 'transform 0.3s ease',
-                  '&:hover': {
-                    transform: 'translateX(4px)',
-                  }
+              <ArrowRight 
+                size={18} 
+                strokeWidth={2.5}
+                className="button-arrow"
+                style={{ 
+                  transition: 'transform 0.2s ease',
                 }}
-              >
-                <Typography sx={{ fontSize: '1.3rem', lineHeight: 1 }}>→</Typography>
-              </Box>
+              />
             </Box>
           )}
         </Button>

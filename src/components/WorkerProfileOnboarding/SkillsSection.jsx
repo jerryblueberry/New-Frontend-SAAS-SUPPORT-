@@ -6,11 +6,11 @@ import {
   TextField,
   Button,
   Chip,
-  Alert,
-  Stack,
   useTheme,
   useMediaQuery,
+  alpha,
 } from '@mui/material';
+import { Plus } from 'lucide-react';
 import useOnboardingStore from '../../stores/useOnboardingStore';
 import { shallow } from 'zustand/shallow';
 
@@ -170,46 +170,71 @@ const SkillsSection = ({
     notifyValidation(skills);
   }, [skills, notifyValidation]);
 
-  // Memoized skill tags display
+  // Memoized skill tags display - Enhanced
   const skillTagsDisplay = useMemo(() => {
     if (skills.length === 0) {
       return null;
     }
 
     return (
-      <Box sx={{ mt: 1.5 }}>
+      <Box sx={{ mt: { xs: 2.5, sm: 3 }, width: '100%' }}>
         <Typography 
-          variant="caption" 
-          fontWeight={600} 
-          sx={{ mb: 1, color: 'text.primary', display: 'block', fontSize: '0.8rem' }}
+          variant="body2" 
+          fontWeight={500} 
+          sx={{ 
+            mb: { xs: 1.5, sm: 1.75 }, 
+            color: 'text.secondary', 
+            display: 'block', 
+            fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+            letterSpacing: '-0.01em',
+            fontWeight: 500,
+          }}
         >
-          Your Skills ({skills.length}/{VALIDATION_RULES.skillTags.maxCount})
+          Your Skills
         </Typography>
-        <Stack direction="row" flexWrap="wrap" gap={0.75}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexWrap: 'wrap', 
+          gap: { xs: 0.875, sm: 1, md: 1.125 },
+          width: '100%',
+        }}>
           {skills.map((skill) => (
             <Chip
               key={skill}
               label={skill}
               onDelete={() => handleRemoveSkill(skill)}
               disabled={disabled}
-              color="primary"
-              variant="outlined"
-              size="small"
               sx={{ 
-                borderRadius: 2, 
+                borderRadius: '10px', 
                 fontWeight: 500,
-                fontSize: '0.8rem',
-                height: 28,
+                fontSize: { xs: '0.8125rem', sm: '0.875rem', md: '0.9375rem' },
+                height: { xs: 38, sm: 42, md: 44 },
+                px: { xs: 1.5, sm: 1.75 },
+                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                color: theme.palette.primary.main,
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.25)}`,
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover:not(.Mui-disabled)': {
+                  bgcolor: alpha(theme.palette.primary.main, 0.14),
+                  borderColor: alpha(theme.palette.primary.main, 0.35),
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+                },
                 '& .MuiChip-deleteIcon': {
-                  fontSize: '1rem'
-                }
+                  fontSize: { xs: '1.125rem', sm: '1.25rem' },
+                  color: theme.palette.primary.main,
+                  transition: 'color 0.2s ease',
+                  '&:hover': {
+                    color: theme.palette.primary.dark,
+                  },
+                },
               }}
             />
           ))}
-        </Stack>
+        </Box>
       </Box>
     );
-  }, [skills, disabled, handleRemoveSkill]);
+  }, [skills, disabled, handleRemoveSkill, theme]);
 
   return (
     <Box sx={{ 
@@ -217,96 +242,167 @@ const SkillsSection = ({
       display: 'flex', 
       flexDirection: 'column', 
       minHeight: 0,
+      width: '100%',
+      maxWidth: '100%',
     }}>
-      {/* Header */}
-      <Box sx={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between', 
-        mb: { xs: 2, sm: 2, md: 2 },
-        flexShrink: 0 
-      }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-          <Box
-            sx={{
-              width: 40,
-              height: 40,
-              borderRadius: 2.5,
-              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.12) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              mr: 1.5,
-              boxShadow: '0 2px 8px rgba(245, 158, 11, 0.15)'
-            }}
-          >
-            <Typography sx={{ fontSize: '1.2rem' }}>🛠️</Typography>
-          </Box>
-          <Box sx={{ flex: 1 }}>
+      {/* Enhanced Header - Premium Typography */}
+      <Box sx={{ mb: { xs: 2.5, sm: 3 }, width: '100%' }}>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: { xs: 'flex-start', sm: 'center' }, 
+          justifyContent: 'space-between', 
+          mb: { xs: 0.75, sm: 1 },
+          flexWrap: 'wrap',
+          gap: { xs: 0.75, sm: 1 },
+        }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography 
-              variant="subtitle1" 
+              variant="h6"
               fontWeight={600} 
               color="text.primary" 
-              sx={{ fontSize: { xs: '1.05rem', md: '1.15rem' }, mb: 0.5 }}
+              sx={{ 
+                fontSize: { xs: '1rem', sm: '1.125rem', md: '1.25rem' }, 
+                letterSpacing: '-0.015em',
+                lineHeight: { xs: 1.35, sm: 1.3 },
+                mb: { xs: 0.5, sm: 0.625 },
+                fontWeight: 600,
+              }}
             >
               Skills & Expertise
             </Typography>
             <Typography 
-              variant="caption" 
+              variant="body2" 
               color="text.secondary" 
-              sx={{ fontSize: '0.8rem', lineHeight: 1.4 }}
+              sx={{ 
+                fontSize: { xs: '0.8125rem', sm: '0.875rem', md: '0.9375rem' }, 
+                lineHeight: { xs: 1.5, sm: 1.55 },
+                fontWeight: 400,
+                color: theme.palette.text.secondary,
+                pr: { xs: 0, sm: 2 },
+              }}
             >
-              Select or add your specialized abilities
+              Add your specialized skills to showcase your expertise
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              px: { xs: 1.25, sm: 1.5 },
+              py: { xs: 0.625, sm: 0.75 },
+              borderRadius: '10px',
+              bgcolor: alpha(theme.palette.primary.main, 0.06),
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minWidth: { xs: 'auto', sm: 72 },
+              flexShrink: 0,
+            }}
+          >
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                fontWeight: 600, 
+                fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                color: theme.palette.primary.main,
+                lineHeight: 1.2,
+                letterSpacing: '0.01em',
+              }}
+            >
+              {skills.length}/{VALIDATION_RULES.skillTags.maxCount}
             </Typography>
           </Box>
         </Box>
-        <Chip
-          label={`${skills.length}/${VALIDATION_RULES.skillTags.maxCount}`}
-          size="small"
-          color={skills.length > 0 ? 'primary' : 'default'}
-          sx={{ 
-            fontWeight: 600, 
-            fontSize: '0.75rem', 
-            height: 26,
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          }}
-        />
       </Box>
 
-      {/* Add Custom Skill */}
-      <Box sx={{ display: 'flex', gap: 1.5, mb: 2 }}>
-        <TextField
-          id="newSkill"
-          label="Add skill"
-          variant="outlined"
-          fullWidth
-          size="small"
-          value={newSkill}
-          onChange={handleNewSkillChange}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              handleAddSkill();
-            }
-          }}
-          error={Boolean(localErrors.newSkill)}
-          helperText={localErrors.newSkill || ''}
-          inputProps={{ maxLength: 50 }}
-          disabled={disabled || skills.length >= VALIDATION_RULES.skillTags.maxCount}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              borderRadius: 2.5,
-              backgroundColor: '#fafafa',
-              height: '40px',
-              fontSize: '0.9rem',
-              '&:hover': { backgroundColor: '#f5f5f5' },
-              '&.Mui-focused': { backgroundColor: 'white' }
-            },
-            '& .MuiInputLabel-root': {
-              fontSize: '0.85rem'
-            }
-          }}
-        />
+      {/* Enhanced Input Section - Better Alignment */}
+      <Box sx={{ 
+        display: 'flex', 
+        gap: { xs: 1, sm: 1.25 }, 
+        mb: { xs: 2.5, sm: 3 },
+        alignItems: { xs: 'stretch', sm: 'flex-start' },
+        flexDirection: { xs: 'column', sm: 'row' },
+      }}>
+        <Box sx={{ flex: 1, width: '100%', minWidth: 0 }}>
+          <TextField
+            id="newSkill"
+            placeholder="Type a skill name..."
+            variant="outlined"
+            fullWidth
+            value={newSkill}
+            onChange={handleNewSkillChange}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleAddSkill();
+              }
+            }}
+            error={Boolean(localErrors.newSkill)}
+            helperText={localErrors.newSkill || ''}
+            inputProps={{ maxLength: 50 }}
+            disabled={disabled || skills.length >= VALIDATION_RULES.skillTags.maxCount}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '12px',
+                bgcolor: localErrors.newSkill
+                  ? alpha(theme.palette.error.main, 0.04)
+                  : alpha(theme.palette.grey[50], 0.6),
+                fontSize: { xs: '0.9375rem', sm: '1rem', md: '1.0625rem' },
+                height: { xs: '50px', sm: '54px', md: '56px' },
+                transition: theme.transitions.create(
+                  ['background-color', 'border-color', 'box-shadow'],
+                  { duration: 200, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' }
+                ),
+                '& fieldset': {
+                  borderColor: localErrors.newSkill
+                    ? alpha(theme.palette.error.main, 0.2)
+                    : alpha(theme.palette.divider, 0.1),
+                  borderWidth: '1px',
+                  transition: 'all 0.2s ease',
+                },
+                '&:hover': {
+                  bgcolor: localErrors.newSkill
+                    ? alpha(theme.palette.error.main, 0.06)
+                    : alpha(theme.palette.grey[100], 0.8),
+                  '& fieldset': {
+                    borderColor: localErrors.newSkill
+                      ? alpha(theme.palette.error.main, 0.3)
+                      : alpha(theme.palette.primary.main, 0.15),
+                  },
+                },
+                '&.Mui-focused': {
+                  bgcolor: 'background.paper',
+                  boxShadow: localErrors.newSkill
+                    ? `0 0 0 2px ${alpha(theme.palette.error.main, 0.08)}`
+                    : `0 0 0 2px ${alpha(theme.palette.primary.main, 0.08)}`,
+                  '& fieldset': {
+                    borderColor: localErrors.newSkill
+                      ? theme.palette.error.main
+                      : theme.palette.primary.main,
+                    borderWidth: '1.5px',
+                  },
+                },
+              },
+              '& .MuiInputBase-input': {
+                fontWeight: 500,
+                color: theme.palette.text.primary,
+                padding: { xs: '15px 18px', sm: '17px 20px', md: '18px 22px' },
+                fontSize: { xs: '0.9375rem', sm: '1rem', md: '1.0625rem' },
+                '&::placeholder': {
+                  color: alpha(theme.palette.text.secondary, 0.45),
+                  opacity: 1,
+                  fontWeight: 400,
+                  fontSize: { xs: '0.9375rem', sm: '1rem' },
+                },
+              },
+              '& .MuiFormHelperText-root': {
+                fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                mt: 0.875,
+                mx: 0,
+                fontWeight: 400,
+              },
+            }}
+          />
+        </Box>
         <Button
           variant="contained"
           color="primary"
@@ -316,85 +412,158 @@ const SkillsSection = ({
             !newSkill.trim() ||
             skills.length >= VALIDATION_RULES.skillTags.maxCount
           }
+          startIcon={<Plus size={isMobile ? 18 : 20} />}
           sx={{
-            minWidth: 80,
-            height: '40px',
-            borderRadius: 2.5,
+            minWidth: { xs: '100%', sm: 110, md: 120 },
+            height: { xs: '50px', sm: '54px', md: '56px' },
+            borderRadius: '12px',
             textTransform: 'none',
             fontWeight: 600,
-            fontSize: '0.85rem',
-            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
-            '&:hover': {
-              boxShadow: '0 6px 16px rgba(102, 126, 234, 0.4)',
-            }
+            fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+            boxShadow: 'none',
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            '&:hover:not(:disabled)': {
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+              transform: 'translateY(-1px)',
+            },
+            '&:active:not(:disabled)': {
+              transform: 'translateY(0)',
+            },
+            '&:disabled': {
+              opacity: 0.5,
+              cursor: 'not-allowed',
+            },
           }}
         >
           Add
         </Button>
       </Box>
 
-      {/* Consolidated Error Display */}
+      {/* Enhanced Error Display */}
       {showErrors && localErrors.skillTags && (
-        <Alert 
-          severity="error" 
-          sx={{ 
-            mb: 1.5, 
-            borderRadius: 2, 
-            py: 0.5, 
-            '& .MuiAlert-message': { fontSize: '0.8rem' } 
+        <Box
+          sx={{
+            mb: { xs: 2, sm: 2.5 },
+            p: { xs: 1.25, sm: 1.5 },
+            borderRadius: '12px',
+            bgcolor: alpha(theme.palette.error.main, 0.06),
+            border: `1px solid ${alpha(theme.palette.error.main, 0.15)}`,
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 1,
+            width: '100%',
           }}
         >
-          {localErrors.skillTags}
-        </Alert>
+          <Box
+            sx={{
+              width: 20,
+              height: 20,
+              borderRadius: '50%',
+              bgcolor: theme.palette.error.main,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              mt: 0.125,
+            }}
+          >
+            <Typography sx={{ color: '#ffffff', fontSize: '0.75rem', fontWeight: 700, lineHeight: 1 }}>
+              !
+            </Typography>
+          </Box>
+          <Typography 
+            variant="body2" 
+            color="error" 
+            sx={{ 
+              fontSize: { xs: '0.8125rem', sm: '0.875rem', md: '0.9375rem' },
+              lineHeight: { xs: 1.5, sm: 1.55 },
+              fontWeight: 500,
+              flex: 1,
+            }}
+          >
+            {localErrors.skillTags}
+          </Typography>
+        </Box>
       )}
 
-      {/* Popular Skills */}
-      <Typography 
-        variant="caption" 
-        fontWeight={600} 
-        sx={{ mb: 1.5, color: 'text.primary', display: 'block', fontSize: '0.8rem' }}
-      >
-        Popular Skills
-      </Typography>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-        {DEFAULT_SKILLS.map((skill) => {
-          const isSelected = skills.includes(skill);
-          
-          return (
-            <Chip
-              key={skill}
-              label={skill}
-              clickable
-              color={isSelected ? 'primary' : 'default'}
-              variant={isSelected ? 'filled' : 'outlined'}
-              onClick={() => handleSuggestedSkillClick(skill)}
-              disabled={
-                disabled ||
-                (!isSelected && skills.length >= VALIDATION_RULES.skillTags.maxCount)
-              }
-              sx={{
-                borderRadius: 2,
-                height: 32,
-                fontSize: '0.8rem',
-                fontWeight: 500,
-                transition: 'all 0.2s ease-in-out',
-                '&:hover': {
-                  transform: 'translateY(-1px)',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                },
-                '&.MuiChip-filled': {
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: 'white',
+      {/* Popular Skills - Enhanced Visibility */}
+      <Box sx={{ mb: { xs: 2.5, sm: 3 }, width: '100%' }}>
+        <Typography 
+          variant="body2" 
+          fontWeight={500} 
+          sx={{ 
+            mb: { xs: 1.5, sm: 1.75 }, 
+            color: 'text.secondary', 
+            display: 'block', 
+            fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+            letterSpacing: '-0.01em',
+            fontWeight: 500,
+          }}
+        >
+          Popular Skills
+        </Typography>
+        <Box sx={{ 
+          display: 'flex', 
+          flexWrap: 'wrap', 
+          gap: { xs: 0.875, sm: 1, md: 1.125 },
+          width: '100%',
+        }}>
+          {DEFAULT_SKILLS.map((skill) => {
+            const isSelected = skills.includes(skill);
+            
+            return (
+              <Chip
+                key={skill}
+                label={skill}
+                clickable
+                onClick={() => handleSuggestedSkillClick(skill)}
+                disabled={
+                  disabled ||
+                  (!isSelected && skills.length >= VALIDATION_RULES.skillTags.maxCount)
                 }
-              }}
-            />
-          );
-        })}
+                sx={{
+                  borderRadius: '10px',
+                  height: { xs: 38, sm: 42, md: 44 },
+                  fontSize: { xs: '0.8125rem', sm: '0.875rem', md: '0.9375rem' },
+                  fontWeight: 500,
+                  px: { xs: 1.5, sm: 1.75 },
+                  bgcolor: isSelected
+                    ? alpha(theme.palette.primary.main, 0.1)
+                    : alpha(theme.palette.grey[50], 0.6),
+                  color: isSelected
+                    ? theme.palette.primary.main
+                    : theme.palette.text.primary,
+                  border: isSelected
+                    ? `1px solid ${alpha(theme.palette.primary.main, 0.25)}`
+                    : `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '&:hover:not(.Mui-disabled)': {
+                    bgcolor: isSelected
+                      ? alpha(theme.palette.primary.main, 0.14)
+                      : alpha(theme.palette.grey[100], 0.8),
+                    borderColor: isSelected
+                      ? alpha(theme.palette.primary.main, 0.35)
+                      : alpha(theme.palette.primary.main, 0.2),
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+                  },
+                  '&:active:not(.Mui-disabled)': {
+                    transform: 'translateY(0)',
+                  },
+                  '&.Mui-disabled': {
+                    opacity: 0.4,
+                    cursor: 'not-allowed',
+                  },
+                }}
+              />
+            );
+          })}
+        </Box>
       </Box>
 
       {/* Selected Skills Display */}
       {skillTagsDisplay && (
-        <Box sx={{ mt: 1.5 }}>
+        <Box sx={{ width: '100%' }}>
           {skillTagsDisplay}
         </Box>
       )}

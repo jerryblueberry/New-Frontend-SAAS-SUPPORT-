@@ -6,19 +6,17 @@ import {
   TextField,
   Button,
   Chip,
-  Alert,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  Card,
-  CardContent,
-  Grid,
+  Stack,
   IconButton,
   useTheme,
   useMediaQuery,
+  alpha,
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
+import { X } from 'lucide-react';
 import useOnboardingStore from '../../stores/useOnboardingStore';
 import { shallow } from 'zustand/shallow';
 
@@ -258,103 +256,115 @@ const LanguageSection = ({
     }
 
     return (
-      <Box sx={{ 
-        mt: { xs: 1.5, sm: 1.5, md: 1.5 },
-        mb: { xs: 0, sm: 0, md: 0 },
-        mx: { xs: 0, sm: 0, md: 0 }
-      }}>
-        <Typography 
-          variant="caption" 
-          fontWeight={600} 
-          sx={{ mb: 1, color: 'text.primary', display: 'block', fontSize: '0.8rem' }}
+      <Box sx={{ mt: { xs: 1.5, sm: 2 } }}>
+        <Typography
+          variant="body2"
+          fontWeight={600}
+          color="text.primary"
+          sx={{ mb: { xs: 1, sm: 1.5 }, fontSize: { xs: '0.9rem', sm: '0.9375rem' } }}
         >
-          Your Languages ({languages.length}/{VALIDATION_RULES.languages.maxCount})
+          Your Selected Languages ({languages.length}/{VALIDATION_RULES.languages.maxCount})
         </Typography>
-
-        <Grid container spacing={1.5} sx={{ 
-          mx: { xs: 0, sm: 0, md: 0 },
-          mb: { xs: 0, sm: 0, md: 0 },
-          mt: { xs: 0, sm: 0, md: 0 }
-        }}>
+        <Stack direction="column" spacing={1}>
           {languages.map((lang, index) => {
             const languageName = getLanguageName(lang) || "Unknown";
             const key = `${languageName}-${index}`;
 
             return (
-              <Grid item xs={12} sm={12} md={12} key={key}>
-                <Card
-                  variant="outlined"
+              <Box
+                key={key}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: { xs: 1, sm: 1.5 },
+                  p: { xs: 1, sm: 1.25 },
+                  borderRadius: '10px',
+                  bgcolor: alpha(theme.palette.primary.main, 0.04),
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.primary.main, 0.06),
+                    borderColor: alpha(theme.palette.primary.main, 0.25),
+                    transform: 'translateX(2px)',
+                    boxShadow: '0 2px 8px rgba(102, 126, 234, 0.1)',
+                  },
+                }}
+              >
+                <Typography
                   sx={{
-                    borderRadius: 2,
-                    bgcolor: "grey.50",
-                    "&:hover": { 
-                      boxShadow: 2,
-                      bgcolor: "grey.100",
-                      transition: 'all 0.2s ease'
-                    },
-                    display: "flex",
-                    alignItems: "center",
+                    flex: 1,
+                    fontWeight: 600,
+                    fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                    color: 'text.primary',
+                    minWidth: 0,
                   }}
+                  noWrap
                 >
-                  <CardContent
+                  {languageName}
+                </Typography>
+
+                <FormControl size="small" disabled={disabled} sx={{ minWidth: { xs: 100, sm: 120 } }}>
+                  <Select
+                    value={lang.proficiency || "fluent"}
+                    onChange={(e) => handleUpdateProficiency(languageName, e.target.value)}
+                    disabled={disabled}
                     sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 0.75,
-                      width: "100%",
-                      p: "6px 10px !important",
+                      borderRadius: '8px',
+                      height: { xs: 36, sm: 40 },
+                      fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                      fontWeight: 500,
+                      bgcolor: '#ffffff',
+                      border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                      '& .MuiSelect-select': {
+                        py: { xs: 0.75, sm: 1 },
+                        px: { xs: 1, sm: 1.25 },
+                      },
+                      '&:hover': {
+                        borderColor: alpha(theme.palette.primary.main, 0.3),
+                      },
+                      '&.Mui-focused': {
+                        borderColor: theme.palette.primary.main,
+                        boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.1)}`,
+                      },
                     }}
                   >
-                    <Typography fontWeight={600} flex={1} noWrap sx={{ fontSize: '0.85rem' }}>
-                      {languageName}
-                    </Typography>
+                    {PROFICIENCY_OPTIONS.map((option) => (
+                      <MenuItem key={option.value} value={option.value} sx={{ fontSize: { xs: '0.8125rem', sm: '0.875rem' } }}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
 
-                    <Select
-                      value={lang.proficiency || "fluent"}
-                      size="small"
-                      onChange={(e) => handleUpdateProficiency(languageName, e.target.value)}
-                      disabled={disabled}
-                      sx={{ 
-                        minWidth: 90,
-                        height: '30px',
-                        fontSize: '0.8rem',
-                        '& .MuiSelect-select': {
-                          py: 0.5,
-                          fontSize: '0.8rem'
-                        }
-                      }}
-                    >
-                      {PROFICIENCY_OPTIONS.map((option) => (
-                        <MenuItem key={option.value} value={option.value} sx={{ fontSize: '0.8rem' }}>
-                          {option.label}
-                        </MenuItem>
-                      ))}
-                    </Select>
-
-                    <IconButton
-                      onClick={() => handleRemoveLanguage(lang)}
-                      disabled={disabled}
-                      size="small"
-                      color="error"
-                      sx={{ 
-                        width: 26,
-                        height: 26,
-                        '& .MuiSvgIcon-root': {
-                          fontSize: '0.9rem'
-                        }
-                      }}
-                    >
-                      <CloseIcon fontSize="small" />
-                    </IconButton>
-                  </CardContent>
-                </Card>
-              </Grid>
+                <IconButton
+                  onClick={() => handleRemoveLanguage(lang)}
+                  disabled={disabled}
+                  size="small"
+                  sx={{
+                    width: { xs: 32, sm: 36 },
+                    height: { xs: 32, sm: 36 },
+                    borderRadius: '8px',
+                    color: theme.palette.error.main,
+                    bgcolor: alpha(theme.palette.error.main, 0.08),
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.error.main, 0.15),
+                      transform: 'scale(1.05)',
+                    },
+                    '&:active': {
+                      transform: 'scale(0.95)',
+                    },
+                  }}
+                >
+                  <X size={isMobile ? 16 : 18} strokeWidth={2.5} />
+                </IconButton>
+              </Box>
             );
           })}
-        </Grid>
+        </Stack>
       </Box>
     );
-  }, [languages, disabled, getLanguageName, handleUpdateProficiency, handleRemoveLanguage]);
+  }, [languages, disabled, getLanguageName, handleUpdateProficiency, handleRemoveLanguage, theme, isMobile]);
 
   // Check if language is selected
   const isLanguageSelected = useCallback((language) => {
@@ -365,110 +375,74 @@ const LanguageSection = ({
   }, [languages, getLanguageName]);
 
   return (
-    <Box sx={{ 
-      flex: 1, 
-      display: 'flex', 
-      flexDirection: 'column', 
+    <Box sx={{
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
       minHeight: 0,
-      mt: { xs: 0, sm: 0, md: 0 },
-      mb: { xs: 0, sm: 0, md: 0 },
-      px: { xs: 0, sm: 0, md: 0 },
-      py: { xs: 0, sm: 0, md: 0 },
-      '& > *': {
-        mx: { xs: 0, sm: 0, md: 0 }
-      }
     }}>
       {/* Header */}
-      <Box sx={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between', 
-        mb: { xs: 2, sm: 2, md: 2 },
-        mt: { xs: 0, sm: 0, md: 0 },
-        flexShrink: 0 
+      <Box sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        mb: { xs: 2, sm: 2.5 },
+        flexShrink: 0
       }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-          <Box
+        <Box sx={{ flex: 1 }}>
+          <Typography
+            variant="h6"
+            fontWeight={700}
+            color="text.primary"
             sx={{
-              width: 40,
-              height: 40,
-              borderRadius: 2.5,
-              background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.12) 0%, rgba(99, 102, 241, 0.12) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              mr: 1.5,
-              boxShadow: '0 2px 8px rgba(139, 92, 246, 0.15)'
+              fontSize: { xs: '1.125rem', sm: '1.25rem' },
+              letterSpacing: '-0.02em',
+              lineHeight: 1.3,
+              mb: 0.5,
             }}
           >
-            <Typography sx={{ fontSize: '1.2rem' }}>🌍</Typography>
-          </Box>
-          <Box sx={{ flex: 1 }}>
-            <Typography 
-              variant="subtitle1" 
-              fontWeight={600} 
-              color="text.primary" 
-              sx={{ fontSize: { xs: '1.05rem', md: '1.15rem' }, mb: 0.5 }}
-            >
-              Languages Spoken
-            </Typography>
-            <Typography 
-              variant="caption" 
-              color="text.secondary" 
-              sx={{ fontSize: '0.8rem', lineHeight: 1.4 }}
-            >
-              Communication skills for diverse clients
-            </Typography>
-          </Box>
+            Languages Spoken
+          </Typography>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{
+              fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+              lineHeight: 1.5,
+              fontWeight: 400,
+            }}
+          >
+            Select or add your communication languages
+          </Typography>
         </Box>
         <Chip
           label={`${languages.length}/${VALIDATION_RULES.languages.maxCount}`}
-          size="small"
-          color={languages.length >= VALIDATION_RULES.languages.minCount ? 'primary' : 'warning'}
-          sx={{ 
-            fontWeight: 600, 
-            fontSize: '0.75rem', 
-            height: 26,
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          size="medium"
+          color={languages.length >= VALIDATION_RULES.languages.minCount ? 'primary' : 'default'}
+          sx={{
+            fontWeight: 600,
+            fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+            height: { xs: 32, sm: 36 },
+            borderRadius: '10px',
+            bgcolor: languages.length >= VALIDATION_RULES.languages.minCount ? theme.palette.primary.main : alpha(theme.palette.grey[100], 0.6),
+            color: languages.length >= VALIDATION_RULES.languages.minCount ? 'white' : theme.palette.text.secondary,
+            border: `1px solid ${languages.length >= VALIDATION_RULES.languages.minCount ? theme.palette.primary.main : alpha(theme.palette.divider, 0.1)}`,
+            boxShadow: 'none',
+            transition: 'all 0.2s ease',
           }}
         />
       </Box>
 
-      {/* Info Alert */}
-      <Alert
-        severity="info"
-        sx={{ 
-          mb: { xs: 1.5, sm: 1.5, md: 1.5 }, 
-          borderRadius: 2, 
-          backgroundColor: '#f0f9ff',
-          py: 0.5,
-          '& .MuiAlert-message': { 
-            fontSize: '0.75rem',
-            '& strong': { fontSize: '0.8rem' }
-          }
-        }}
-      >
-        <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
-          <strong>Minimum {VALIDATION_RULES.languages.minCount} languages required.</strong>
-        </Typography>
-      </Alert>
-
       {/* Popular Languages */}
-      <Typography 
-        variant="caption" 
-        fontWeight={600} 
-        sx={{ mb: 1, color: 'text.primary', display: 'block', fontSize: '0.75rem' }}
+      <Typography
+        variant="body2"
+        fontWeight={600}
+        color="text.primary"
+        sx={{ mb: { xs: 1, sm: 1.5 }, fontSize: { xs: '0.9rem', sm: '0.9375rem' } }}
       >
         Popular Languages
       </Typography>
-      <Box sx={{ 
-        display: 'flex', 
-        flexWrap: 'wrap', 
-        gap: 0.75, 
-        mb: 2,
-        mx: { xs: 0, sm: 0, md: 0 },
-        px: { xs: 0, sm: 0, md: 0 }
-      }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: { xs: 0.75, sm: 1 }, mb: { xs: 2, sm: 2.5 } }}>
         {DEFAULT_LANGUAGES.map((language) => {
           const isSelected = isLanguageSelected(language);
 
@@ -485,19 +459,43 @@ const LanguageSection = ({
                 (!isSelected && languages.length >= VALIDATION_RULES.languages.maxCount)
               }
               sx={{
-                borderRadius: 2,
-                height: 28,
-                fontSize: '0.75rem',
+                borderRadius: '10px',
+                height: { xs: 36, sm: 40 },
+                fontSize: { xs: '0.875rem', sm: '0.9375rem' },
                 fontWeight: 500,
                 transition: 'all 0.2s ease-in-out',
+                bgcolor: isSelected
+                  ? theme.palette.primary.main
+                  : alpha(theme.palette.grey[100], 0.6),
+                color: isSelected
+                  ? 'white'
+                  : theme.palette.text.primary,
+                border: `1px solid ${isSelected
+                  ? theme.palette.primary.main
+                  : alpha(theme.palette.divider, 0.1)}`,
+                boxShadow: 'none',
                 '&:hover': {
                   transform: 'translateY(-1px)',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                  bgcolor: isSelected
+                    ? theme.palette.primary.dark
+                    : alpha(theme.palette.grey[100], 0.8),
+                  borderColor: isSelected
+                    ? theme.palette.primary.dark
+                    : alpha(theme.palette.primary.main, 0.2),
                 },
                 '&.MuiChip-filled': {
-                  background: 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)',
+                  background: theme.palette.primary.main,
                   color: 'white',
-                }
+                },
+                '&.MuiChip-outlined': {
+                  borderColor: alpha(theme.palette.divider, 0.1),
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    borderColor: alpha(theme.palette.primary.main, 0.2),
+                    bgcolor: alpha(theme.palette.grey[100], 0.8),
+                  },
+                },
               }}
             />
           );
@@ -505,25 +503,12 @@ const LanguageSection = ({
       </Box>
 
       {/* Add Custom Language */}
-      <Typography 
-        variant="caption" 
-        fontWeight={600} 
-        sx={{ mb: 1, color: 'text.primary', display: 'block', fontSize: '0.75rem' }}
-      >
-        Add Custom Language
-      </Typography>
-      <Box sx={{
-        display: 'flex',
-        flexDirection: { xs: 'column', sm: 'row' },
-        gap: 1,
-        mb: 1.5
-      }}>
+      <Box sx={{ display: 'flex', gap: { xs: 1, sm: 1.5 }, mb: { xs: 2, sm: 2.5 } }}>
         <TextField
           id="newLanguage"
-          label="Language name"
+          placeholder="Add language"
           variant="outlined"
           fullWidth
-          size="small"
           value={newLanguage}
           onChange={handleNewLanguageChange}
           onKeyDown={(e) => {
@@ -537,27 +522,130 @@ const LanguageSection = ({
           helperText={localErrors.newLanguage || ''}
           disabled={disabled || languages.length >= VALIDATION_RULES.languages.maxCount}
           sx={{
-            flex: 1,
             '& .MuiOutlinedInput-root': {
-              borderRadius: 2.5,
-              backgroundColor: '#fafafa',
-              height: '40px',
-              fontSize: '0.85rem',
-              '&:hover': { backgroundColor: '#f5f5f5' },
-              '&.Mui-focused': { backgroundColor: 'white' }
+              borderRadius: '14px',
+              bgcolor: Boolean(localErrors.newLanguage)
+                ? alpha(theme.palette.error.main, 0.03)
+                : alpha(theme.palette.grey[50], 0.4),
+              fontSize: { xs: '1rem', sm: '1.0625rem' },
+              height: { xs: '52px', sm: '56px' },
+              paddingLeft: { xs: '14px', sm: '16px' },
+              paddingRight: { xs: '14px', sm: '16px' },
+              transition: theme.transitions.create(
+                ['background-color', 'border-color', 'box-shadow'],
+                { duration: 200, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' }
+              ),
+              '& fieldset': {
+                borderColor: Boolean(localErrors.newLanguage)
+                  ? alpha(theme.palette.error.main, 0.25)
+                  : 'transparent',
+                borderWidth: Boolean(localErrors.newLanguage) ? '1.5px' : '0px',
+                transition: 'border-color 0.2s ease',
+              },
+              '&:hover': {
+                bgcolor: Boolean(localErrors.newLanguage)
+                  ? alpha(theme.palette.error.main, 0.04)
+                  : alpha(theme.palette.grey[100], 0.6),
+                '& fieldset': {
+                  borderColor: Boolean(localErrors.newLanguage)
+                    ? alpha(theme.palette.error.main, 0.35)
+                    : alpha(theme.palette.primary.main, 0.2),
+                  borderWidth: '1px',
+                },
+              },
+              '&.Mui-focused': {
+                bgcolor: '#ffffff',
+                boxShadow: Boolean(localErrors.newLanguage)
+                  ? `0 0 0 3px ${alpha(theme.palette.error.main, 0.1)}`
+                  : `0 0 0 3px ${alpha(theme.palette.primary.main, 0.1)}`,
+                '& fieldset': {
+                  borderColor: Boolean(localErrors.newLanguage)
+                    ? theme.palette.error.main
+                    : theme.palette.primary.main,
+                  borderWidth: '2px',
+                },
+              },
+              '&.Mui-disabled': {
+                bgcolor: alpha(theme.palette.grey[100], 0.3),
+                cursor: 'not-allowed',
+                '& fieldset': { borderColor: 'transparent' },
+              },
             },
             '& .MuiInputLabel-root': {
-              fontSize: '0.8rem'
-            }
+              display: 'none',
+            },
+            '& .MuiInputBase-input': {
+              fontWeight: 500,
+              color: theme.palette.text.primary,
+              padding: { xs: '16px 0', sm: '18px 0' },
+              fontSize: { xs: '1rem', sm: '1.0625rem' },
+              lineHeight: 1.5,
+              '&::placeholder': {
+                color: alpha(theme.palette.text.secondary, 0.5),
+                opacity: 1,
+                fontWeight: 400,
+                letterSpacing: '0.01em',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              },
+              '&:focus::placeholder': {
+                opacity: 0.3,
+                color: alpha(theme.palette.text.secondary, 0.3),
+              },
+            },
           }}
         />
 
-        <FormControl 
-          size="small" 
-          disabled={disabled} 
-          sx={{ minWidth: { xs: '100%', sm: 100 } }}
+        <FormControl
+          disabled={disabled}
+          sx={{
+            minWidth: { xs: 120, sm: 140 },
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '14px',
+              bgcolor: alpha(theme.palette.grey[50], 0.4),
+              fontSize: { xs: '1rem', sm: '1.0625rem' },
+              height: { xs: '52px', sm: '56px' },
+              transition: theme.transitions.create(
+                ['background-color', 'border-color', 'box-shadow'],
+                { duration: 200, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' }
+              ),
+              '& fieldset': {
+                borderColor: 'transparent',
+                borderWidth: '0px',
+              },
+              '&:hover': {
+                bgcolor: alpha(theme.palette.grey[100], 0.6),
+                '& fieldset': {
+                  borderColor: alpha(theme.palette.primary.main, 0.2),
+                  borderWidth: '1px',
+                },
+              },
+              '&.Mui-focused': {
+                bgcolor: '#ffffff',
+                boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.1)}`,
+                '& fieldset': {
+                  borderColor: theme.palette.primary.main,
+                  borderWidth: '2px',
+                },
+              },
+              '&.Mui-disabled': {
+                bgcolor: alpha(theme.palette.grey[100], 0.3),
+                cursor: 'not-allowed',
+                '& fieldset': { borderColor: 'transparent' },
+              },
+            },
+            '& .MuiInputLabel-root': {
+              fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+              fontWeight: 500,
+            },
+            '& .MuiSelect-select': {
+              py: { xs: 1.5, sm: 1.75 },
+              px: { xs: 1.5, sm: 2 },
+              fontSize: { xs: '1rem', sm: '1.0625rem' },
+              fontWeight: 500,
+            },
+          }}
         >
-          <InputLabel id="proficiency-label" sx={{ fontSize: '0.8rem' }}>Proficiency</InputLabel>
+          <InputLabel id="proficiency-label">Proficiency</InputLabel>
           <Select
             labelId="proficiency-label"
             id="proficiency"
@@ -565,23 +653,17 @@ const LanguageSection = ({
             onChange={(e) => setLanguageProficiency(e.target.value)}
             label="Proficiency"
             MenuProps={{
-              PaperProps: { style: { maxHeight: 200 } },
-            }}
-            sx={{
-              borderRadius: 2.5,
-              backgroundColor: '#fafafa',
-              height: '40px',
-              fontSize: '0.85rem',
-              '&:hover': { backgroundColor: '#f5f5f5' },
-              '&.Mui-focused': { backgroundColor: 'white' },
-              '& .MuiSelect-select': {
-                fontSize: '0.85rem',
-                py: 1.25
-              }
+              PaperProps: {
+                sx: {
+                  borderRadius: '12px',
+                  mt: 0.5,
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                },
+              },
             }}
           >
             {PROFICIENCY_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value} sx={{ fontSize: '0.85rem' }}>
+              <MenuItem key={option.value} value={option.value} sx={{ fontSize: { xs: '0.9375rem', sm: '1rem' } }}>
                 {option.label}
               </MenuItem>
             ))}
@@ -598,16 +680,22 @@ const LanguageSection = ({
             languages.length >= VALIDATION_RULES.languages.maxCount
           }
           sx={{
-            minWidth: { xs: '100%', sm: 70 },
-            height: '40px',
-            borderRadius: 2.5,
+            minWidth: { xs: 60, sm: 80 },
+            height: { xs: '52px', sm: '56px' },
+            borderRadius: '14px',
             textTransform: 'none',
             fontWeight: 600,
-            fontSize: '0.8rem',
-            boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)',
+            fontSize: { xs: '0.9rem', sm: '1rem' },
+            boxShadow: 'none',
+            background: theme.palette.primary.main,
             '&:hover': {
-              boxShadow: '0 6px 16px rgba(139, 92, 246, 0.4)',
-            }
+              background: theme.palette.primary.dark,
+              boxShadow: 'none',
+            },
+            '&:disabled': {
+              background: alpha(theme.palette.action.disabledBackground, 0.12),
+              color: alpha(theme.palette.action.disabled, 0.5),
+            },
           }}
         >
           Add
@@ -616,17 +704,65 @@ const LanguageSection = ({
 
       {/* Consolidated Error Display */}
       {showErrors && localErrors.languages && (
-        <Alert 
-          severity="error" 
-          sx={{ 
-            mb: 1.5, 
-            borderRadius: 2, 
-            py: 0.5, 
-            '& .MuiAlert-message': { fontSize: '0.75rem' } 
+        <Box
+          sx={{
+            mt: { xs: 1, sm: 1.25 },
+            mb: { xs: 2, sm: 2.5 },
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 0.875,
+            p: { xs: 1, sm: 1.25 },
+            borderRadius: '10px',
+            bgcolor: alpha(theme.palette.error.main, 0.06),
+            border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+            transition: 'all 0.2s ease',
           }}
+          role="alert"
+          aria-live="polite"
         >
-          {localErrors.languages}
-        </Alert>
+          <Box
+            sx={{
+              width: 20,
+              height: 20,
+              borderRadius: '50%',
+              bgcolor: theme.palette.error.main,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              mt: 0.125,
+            }}
+          >
+            <Typography sx={{ color: '#ffffff', fontSize: '0.75rem', fontWeight: 700, lineHeight: 1 }}>
+              !
+            </Typography>
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography
+              variant="caption"
+              color="error"
+              sx={{
+                fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                lineHeight: 1.5,
+                fontWeight: 600,
+                display: 'block',
+                mb: 0.25,
+              }}
+            >
+              {localErrors.languages}
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                lineHeight: 1.4,
+                color: theme.palette.error.dark,
+              }}
+            >
+              Please add between {VALIDATION_RULES.languages.minCount} and {VALIDATION_RULES.languages.maxCount} languages.
+            </Typography>
+          </Box>
+        </Box>
       )}
 
       {/* Selected Languages Display */}

@@ -2,12 +2,11 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import PropTypes from 'prop-types';
 import {
   Box,
-  Card,
-  CardContent,
   Typography,
   Chip,
   useTheme,
   useMediaQuery,
+  alpha,
 } from '@mui/material';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -46,37 +45,6 @@ const VALIDATION_CONFIG = {
   required: false,
 };
 
-// Design tokens
-const COLORS = {
-  primary: {
-    main: '#667EEA',
-    light: '#818CF8',
-    dark: '#5A67D8',
-    subtle: '#F7FAFC',
-  },
-  success: {
-    main: '#10B981',
-    light: '#34D399',
-    dark: '#059669',
-  },
-  warning: {
-    main: '#F59E0B',
-    light: '#FBBF24',
-    dark: '#D97706',
-  },
-  neutral: {
-    50: '#FAFBFC',
-    100: '#F4F6F8',
-    200: '#E5E9ED',
-    300: '#D1D9E0',
-    400: '#9AA5B1',
-    500: '#6B7280',
-    600: '#4B5563',
-    700: '#374151',
-    800: '#1F2937',
-    900: '#111827',
-  },
-};
 
 const WorkerBiographySection = ({
   value = '',
@@ -99,7 +67,9 @@ const WorkerBiographySection = ({
   const [biography, setBiography] = useState(value || '');
   const [biographyCharCount, setBiographyCharCount] = useState(0);
   const [isQuillFocused, setIsQuillFocused] = useState(false);
+  const [quillKey, setQuillKey] = useState(0); // Force remount on breakpoint change
   const quillRef = useRef(null);
+  const containerRef = useRef(null);
 
   // Get plain text length from HTML content (best practice - accurate counting)
   const getPlainTextLength = useCallback((html) => {
@@ -120,7 +90,79 @@ const WorkerBiographySection = ({
       setBiography(value || '');
       setBiographyCharCount(getPlainTextLength(value || ''));
     }
-  }, [value, getPlainTextLength]);
+  }, [value, getPlainTextLength, biography]);
+
+  // Track previous breakpoint to detect actual changes
+  const prevIsMobileRef = useRef(isMobile);
+  
+  // Force remount when breakpoint actually changes
+  useEffect(() => {
+    // Only remount if breakpoint actually changed
+    if (prevIsMobileRef.current !== isMobile) {
+      prevIsMobileRef.current = isMobile;
+      // Small delay to ensure DOM has updated and Quill can properly reinitialize
+      const timeoutId = setTimeout(() => {
+        setQuillKey(prev => prev + 1);
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isMobile]);
+
+  // Handle window resize with debouncing - only remount if breakpoint actually changes
+  useEffect(() => {
+    let resizeTimer;
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        // Check if breakpoint actually changed
+        const currentIsMobile = window.innerWidth < theme.breakpoints.values.sm;
+        if (prevIsMobileRef.current !== currentIsMobile) {
+          prevIsMobileRef.current = currentIsMobile;
+          // Force remount with delay to ensure proper cleanup
+          setTimeout(() => {
+            setQuillKey(prev => prev + 1);
+          }, 100);
+        }
+      }, 300); // Debounce resize events to avoid excessive remounts
+    };
+
+    // Handle visibility change (dev tools open/close)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // Page became visible - ensure Quill is properly initialized
+        setTimeout(() => {
+          if (quillRef.current) {
+            const quill = quillRef.current.getEditor();
+            if (quill && !quill.root) {
+              // Quill seems broken, force remount
+              setQuillKey(prev => prev + 1);
+            }
+          }
+        }, 200);
+      }
+    };
+
+    window.addEventListener('resize', handleResize, { passive: true });
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearTimeout(resizeTimer);
+    };
+  }, [theme.breakpoints.values.sm]);
+
+  // Cleanup Quill instance on unmount
+  useEffect(() => {
+    return () => {
+      if (quillRef.current) {
+        const quill = quillRef.current.getEditor();
+        if (quill) {
+          quill.off('text-change');
+        }
+      }
+    };
+  }, [quillKey]);
 
   // React Quill configuration - optimized for mobile/desktop
   const quillModules = useMemo(() => ({
@@ -218,171 +260,127 @@ const WorkerBiographySection = ({
   }, [error, biography, validateBiography]);
 
   return (
-    <Card
-      elevation={0}
+    <Box
       sx={{
-        height: fullHeight ? { xs: 'auto', sm: 'auto', md: '100%' } : 'auto',
-        minHeight: fullHeight ? { xs: 'auto', sm: 'auto', md: '900px' } : 'auto',
-        borderRadius: 4,
-        border: '1px solid',
-        borderColor: { xs: 'divider', sm: 'divider', md: 'rgba(102, 126, 234, 0.12)' },
-        overflow: 'visible',
-        position: 'relative',
+        width: '100%',
         display: 'flex',
         flexDirection: 'column',
-        background: { xs: 'white', sm: 'white', md: 'linear-gradient(to bottom, #ffffff 0%, #fafbff 100%)' },
-        boxShadow: { 
-          xs: 'none', 
-          sm: 'none', 
-          md: '0 4px 20px rgba(102, 126, 234, 0.08), 0 1px 3px rgba(0,0,0,0.05)' 
-        },
-        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-        '&:hover': {
-          boxShadow: { 
-            xs: 'none', 
-            sm: 'none', 
-            md: '0 8px 40px rgba(102, 126, 234, 0.15), 0 4px 12px rgba(0,0,0,0.08)' 
-          },
-          transform: { xs: 'none', sm: 'none', md: 'translateY(-4px)' },
-          borderColor: { xs: 'divider', sm: 'divider', md: 'rgba(102, 126, 234, 0.2)' },
-        }
+        position: 'relative',
       }}
     >
-      {/* Premium Accent Line */}
-      <Box
-        sx={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '5px',
-          background: 'linear-gradient(90deg, #667eea 0%, #764ba2 50%, #667eea 100%)',
-          borderRadius: '16px 16px 0 0',
-          boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
-          backgroundSize: '200% 100%',
-          animation: 'gradientShift 3s ease infinite',
-          '@keyframes gradientShift': {
-            '0%': { backgroundPosition: '0% 50%' },
-            '50%': { backgroundPosition: '100% 50%' },
-            '100%': { backgroundPosition: '0% 50%' }
-          }
-        }}
-      />
-
-      <CardContent sx={{ 
-        p: { xs: 3, sm: 3.5, md: 4 },
+      <Box sx={{ 
+        p: { xs: 0, sm: 0, md: 0 },
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
         boxSizing: 'border-box',
         position: 'relative',
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '1px',
-          background: 'linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent)',
-          opacity: 0.5
-        }
       }}>
-        {/* Header Section */}
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2.5 }}>
-          <Box
-            sx={{
-              width: 44,
-              height: 44,
-              borderRadius: 2.5,
-              background: 'linear-gradient(135deg, #667eea20 0%, #764ba220 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              mr: 2,
-              boxShadow: '0 2px 8px rgba(102, 126, 234, 0.1)'
-            }}
-          >
-            <Typography sx={{ fontSize: '1.35rem' }}>👤</Typography>
-          </Box>
-          <Box sx={{ flex: 1 }}>
+        {/* Header Section - Clean Design Matching Other Sections */}
+        <Box sx={{ mb: { xs: 2, sm: 2.5 }, flexShrink: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
             <Typography 
               variant="h6" 
-              fontWeight={600} 
+              fontWeight={700} 
               color="text.primary" 
-              sx={{ fontSize: { xs: '1.15rem', md: '1.3rem' }, mb: 0.5 }}
+              sx={{ 
+                fontSize: { xs: '1.125rem', sm: '1.25rem' }, 
+                letterSpacing: '-0.02em',
+                lineHeight: 1.3,
+              }}
             >
               {label}
             </Typography>
-            <Typography 
-              variant="body2" 
-              color="text.secondary" 
-              sx={{ fontSize: '0.875rem', lineHeight: 1.5 }}
-            >
-              {description}
-            </Typography>
+            {showCharacterCount && (
+              <Box
+                sx={{
+                  px: { xs: 1, sm: 1.25 },
+                  py: 0.5,
+                  borderRadius: '8px',
+                  bgcolor: getCharacterCountColor === 'error'
+                    ? alpha(theme.palette.error.main, 0.1)
+                    : getCharacterCountColor === 'warning'
+                    ? alpha(theme.palette.warning.main, 0.1)
+                    : alpha(theme.palette.primary.main, 0.08),
+                  border: `1px solid ${
+                    getCharacterCountColor === 'error'
+                      ? alpha(theme.palette.error.main, 0.2)
+                      : getCharacterCountColor === 'warning'
+                      ? alpha(theme.palette.warning.main, 0.2)
+                      : alpha(theme.palette.primary.main, 0.15)
+                  }`,
+                }}
+              >
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    fontWeight: 600, 
+                    fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                    color: getCharacterCountColor === 'error'
+                      ? theme.palette.error.main
+                      : getCharacterCountColor === 'warning'
+                      ? theme.palette.warning.main
+                      : theme.palette.primary.main,
+                  }}
+                >
+                  {biographyCharCount}/{maxLength}
+                </Typography>
+              </Box>
+            )}
           </Box>
+          <Typography 
+            variant="body2" 
+            color="text.secondary" 
+            sx={{ 
+              fontSize: { xs: '0.8125rem', sm: '0.875rem' }, 
+              lineHeight: 1.5,
+              fontWeight: 400,
+            }}
+          >
+            {description}
+          </Typography>
         </Box>
 
-        {/* Character Count Display */}
-        {showCharacterCount && (
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2, flexShrink: 0 }}>
-            <Chip
-              size="small"
-              label={`${biographyCharCount}/${maxLength}`}
-              variant="outlined"
-              color={getCharacterCountColor}
-              sx={{ 
-                borderRadius: 2, 
-                fontSize: '0.75rem', 
-                height: 26,
-                boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                fontWeight: 600,
-              }}
-            />
-          </Box>
-        )}
-
-        {/* React Quill Editor Container */}
+        {/* React Quill Editor Container - Clean Borderless Design */}
         <Box 
           sx={{ 
             position: 'relative',
             width: '100%',
             flex: 1,
-            minHeight: { xs: '300px', sm: '350px', md: '650px' },
+            minHeight: { xs: '280px', sm: '320px', md: '400px' },
             display: 'flex',
             flexDirection: 'column',
-            borderRadius: { xs: 2, sm: 2.5, md: 3 },
+            borderRadius: '14px',
             overflow: 'hidden',
-            bgcolor: { xs: 'transparent', sm: 'rgba(255, 255, 255, 0.3)', md: 'rgba(255, 255, 255, 0.6)' },
+            bgcolor: validationError 
+              ? alpha(theme.palette.error.main, 0.03)
+              : alpha(theme.palette.grey[50], 0.5),
             border: validationError 
-              ? `1px solid ${theme.palette.error.main}` 
-              : { xs: '1px solid rgba(0, 0, 0, 0.08)', sm: '1px solid rgba(102, 126, 234, 0.06)', md: '1px solid rgba(102, 126, 234, 0.08)' },
-            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-            boxShadow: { 
-              xs: 'inset 0 1px 4px rgba(0,0,0,0.02)', 
-              sm: 'inset 0 2px 6px rgba(102, 126, 234, 0.03)', 
-              md: 'inset 0 2px 8px rgba(102, 126, 234, 0.04)' 
-            },
+              ? `1.5px solid ${alpha(theme.palette.error.main, 0.25)}` 
+              : `1px solid ${alpha(theme.palette.grey[300], 0.3)}`,
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            boxShadow: validationError 
+              ? '0 2px 8px rgba(239, 68, 68, 0.1)' 
+              : '0 1px 3px rgba(0, 0, 0, 0.04)',
             '&:hover': {
-              bgcolor: { xs: 'rgba(255, 255, 255, 0.5)', sm: 'rgba(255, 255, 255, 0.7)', md: 'rgba(255, 255, 255, 0.9)' },
-              borderColor: validationError 
-                ? theme.palette.error.main 
-                : { xs: 'rgba(0, 0, 0, 0.12)', sm: 'rgba(102, 126, 234, 0.12)', md: 'rgba(102, 126, 234, 0.15)' },
-              boxShadow: { 
-                xs: 'inset 0 1px 6px rgba(0,0,0,0.03)', 
-                sm: 'inset 0 2px 10px rgba(102, 126, 234, 0.05)', 
-                md: 'inset 0 2px 12px rgba(102, 126, 234, 0.06)' 
-              }
+              bgcolor: validationError 
+                ? alpha(theme.palette.error.main, 0.04)
+                : alpha(theme.palette.grey[50], 0.8),
+              border: validationError 
+                ? `1.5px solid ${alpha(theme.palette.error.main, 0.35)}` 
+                : `1px solid ${alpha(theme.palette.grey[400], 0.4)}`,
+              boxShadow: validationError 
+                ? '0 4px 12px rgba(239, 68, 68, 0.15)' 
+                : '0 2px 8px rgba(0, 0, 0, 0.06)',
             },
             '&:focus-within': {
-              borderColor: validationError 
-                ? theme.palette.error.main 
-                : { xs: 'rgba(102, 126, 234, 0.2)', sm: 'rgba(102, 126, 234, 0.25)', md: 'rgba(102, 126, 234, 0.3)' },
-              boxShadow: { 
-                xs: '0 0 0 3px rgba(102, 126, 234, 0.1)', 
-                sm: '0 0 0 4px rgba(102, 126, 234, 0.12)', 
-                md: '0 0 0 4px rgba(102, 126, 234, 0.15)' 
-              }
+              bgcolor: '#ffffff',
+              border: validationError 
+                ? `2px solid ${theme.palette.error.main}` 
+                : `2px solid ${alpha(theme.palette.grey[600], 0.4)}`,
+              boxShadow: validationError
+                ? `0 0 0 3px ${alpha(theme.palette.error.main, 0.1)}, 0 4px 12px rgba(239, 68, 68, 0.15)`
+                : `0 0 0 3px ${alpha(theme.palette.grey[500], 0.08)}, 0 4px 12px ${alpha(theme.palette.common.black, 0.06)}`,
             },
             // React Quill specific styles
             '& .quill-biography-editor': {
@@ -392,19 +390,20 @@ const WorkerBiographySection = ({
               position: 'relative',
             },
             '& .ql-toolbar.ql-snow': {
-              border: `1px solid rgba(0, 0, 0, 0.12) !important`,
-              borderBottom: 'none',
-              borderRadius: { xs: '8px 8px 0 0', sm: '10px 10px 0 0', md: '12px 12px 0 0' },
-              background: `rgba(250, 251, 252, 0.8)`,
-              padding: { xs: '8px 10px', sm: '9px 11px', md: '10px 12px' },
+              border: 'none !important',
+              borderBottom: `1px solid ${alpha(theme.palette.grey[300], 0.2)} !important`,
+              borderRadius: '14px 14px 0 0',
+              background: alpha(theme.palette.grey[50], 0.8),
+              padding: { xs: '12px 14px', sm: '14px 16px', md: '16px 18px' },
               width: '100% !important',
               boxSizing: 'border-box',
               display: 'block !important',
               visibility: 'visible !important',
               flexWrap: { xs: 'wrap', sm: 'nowrap', md: 'nowrap' },
               gap: { xs: '4px', sm: '6px', md: '8px' },
+              transition: 'background 0.2s ease',
               [`@media (max-width: ${theme.breakpoints.values.sm}px)`]: {
-                padding: '6px 8px',
+                padding: '10px 12px',
                 '& .ql-formats': {
                   marginRight: '8px !important',
                   marginBottom: '4px',
@@ -412,33 +411,33 @@ const WorkerBiographySection = ({
               }
             },
             '& .ql-container.ql-snow': {
-              border: `1px solid rgba(0, 0, 0, 0.12) !important`,
-              borderRadius: { xs: '0 0 8px 8px', sm: '0 0 10px 10px', md: '0 0 12px 12px' },
+              border: 'none !important',
+              borderRadius: '0 0 14px 14px',
               fontFamily: theme.typography.fontFamily,
-              fontSize: { xs: '0.9rem', sm: '0.925rem', md: '0.95rem' },
+              fontSize: { xs: '0.9375rem', sm: '0.96875rem', md: '1rem' },
               lineHeight: 1.6,
               width: '100% !important',
               boxSizing: 'border-box',
-              background: theme.palette.background.paper,
+              background: 'transparent',
               display: 'block !important',
               visibility: 'visible !important',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             },
             '& .ql-editor': {
-              minHeight: { xs: '300px !important', sm: '350px !important', md: '650px !important' },
+              minHeight: { xs: '280px !important', sm: '320px !important', md: '400px !important' },
               maxHeight: { xs: '400px', sm: '500px', md: 'none' },
-              padding: { xs: '12px 16px', sm: '14px 18px', md: '16px 20px' },
+              padding: { xs: '16px 18px', sm: '18px 20px', md: '20px 24px' },
               color: theme.palette.text.primary,
               overflowY: 'auto',
               width: '100% !important',
               boxSizing: 'border-box',
-              fontSize: { xs: '0.9rem', sm: '0.925rem', md: '0.95rem' },
-              lineHeight: { xs: 1.5, sm: 1.55, md: 1.6 },
+              fontSize: { xs: '0.9375rem', sm: '0.96875rem', md: '1rem' },
+              lineHeight: { xs: 1.6, sm: 1.65, md: 1.7 },
               letterSpacing: '0.01em',
               display: 'block !important',
               visibility: 'visible !important',
               scrollbarWidth: 'thin',
-              scrollbarColor: `rgba(154, 165, 177, 0.6) transparent`,
+              scrollbarColor: `${alpha(theme.palette.grey[400], 0.6)} transparent`,
               WebkitOverflowScrolling: 'touch',
               '&::-webkit-scrollbar': {
                 width: { xs: '4px', sm: '5px', md: '6px' },
@@ -448,42 +447,42 @@ const WorkerBiographySection = ({
                 borderRadius: '3px',
               },
               '&::-webkit-scrollbar-thumb': {
-                background: `rgba(154, 165, 177, 0.5)`,
+                background: alpha(theme.palette.grey[400], 0.5),
                 borderRadius: '3px',
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  background: `rgba(107, 114, 128, 0.7)`,
+                  background: alpha(theme.palette.grey[500], 0.7),
                 }
               }
             },
             '& .ql-editor.ql-blank::before': {
               content: `"${placeholder}"`,
-              color: `rgba(0, 0, 0, 0.6)`,
-              fontStyle: 'italic',
+              color: alpha(theme.palette.text.secondary, 0.5),
+              fontStyle: 'normal',
               fontWeight: 400,
-              left: { xs: '16px', sm: '18px', md: '20px' },
-              right: { xs: '16px', sm: '18px', md: '20px' },
-              top: { xs: '12px', sm: '14px', md: '16px' },
+              left: { xs: '18px', sm: '20px', md: '24px' },
+              right: { xs: '18px', sm: '20px', md: '24px' },
+              top: { xs: '16px', sm: '18px', md: '20px' },
               bottom: 'auto',
               position: 'absolute',
               pointerEvents: 'none',
               whiteSpace: 'pre-wrap',
               wordWrap: 'break-word',
-              lineHeight: { xs: 1.5, sm: 1.55, md: 1.6 },
-              fontSize: { xs: '0.9rem', sm: '0.925rem', md: '0.95rem' },
+              lineHeight: { xs: 1.6, sm: 1.65, md: 1.7 },
+              fontSize: { xs: '0.9375rem', sm: '0.96875rem', md: '1rem' },
               letterSpacing: '0.01em',
               zIndex: 1,
             },
             '& .ql-editor:focus': {
               outline: 'none',
-              background: `rgba(102, 126, 234, 0.01)`,
+              background: 'transparent',
               borderColor: 'transparent',
             },
             '& .ql-editor:focus-within': {
-              background: `rgba(102, 126, 234, 0.01)`,
+              background: 'transparent',
             },
             '& .ql-editor::selection': {
-              background: `rgba(102, 126, 234, 0.2)`,
+              background: alpha(theme.palette.grey[400], 0.25),
               color: theme.palette.text.primary,
             },
             '& .ql-toolbar .ql-formats': {
@@ -528,22 +527,22 @@ const WorkerBiographySection = ({
               transform: 'scale(0)',
             },
             '& .ql-toolbar button:hover::before': {
-              background: `rgba(102, 126, 234, 0.08)`,
+              background: alpha(theme.palette.grey[400], 0.1),
               transform: 'scale(1)',
             },
             '& .ql-toolbar button:hover': {
-              color: theme.palette.primary.main,
+              color: theme.palette.text.primary,
               transform: 'translateY(-1px)',
-              boxShadow: `0 4px 12px rgba(102, 126, 234, 0.15)`,
+              boxShadow: `0 2px 6px ${alpha(theme.palette.common.black, 0.08)}`,
             },
             '& .ql-toolbar button.ql-active': {
-              background: `rgba(102, 126, 234, 0.12)`,
-              color: theme.palette.primary.main,
+              background: alpha(theme.palette.grey[400], 0.15),
+              color: theme.palette.text.primary,
               transform: 'translateY(0)',
-              boxShadow: `0 2px 8px rgba(102, 126, 234, 0.2)`,
+              boxShadow: `0 1px 4px ${alpha(theme.palette.common.black, 0.1)}`,
             },
             '& .ql-toolbar button.ql-active::before': {
-              background: `rgba(102, 126, 234, 0.08)`,
+              background: alpha(theme.palette.grey[400], 0.1),
               transform: 'scale(1)',
             },
             '& .ql-toolbar .ql-picker': {
@@ -551,24 +550,24 @@ const WorkerBiographySection = ({
               transition: 'all 0.25s ease',
             },
             '& .ql-toolbar .ql-picker:hover': {
-              background: `rgba(102, 126, 234, 0.08)`,
+              background: alpha(theme.palette.grey[400], 0.1),
             },
             '& .ql-container': {
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             },
             '&:hover .ql-container': {
-              borderColor: `rgba(102, 126, 234, 0.3)`,
+              borderColor: alpha(theme.palette.grey[400], 0.3),
             },
             '&.focused .ql-container, & .ql-container:focus-within': {
-              borderColor: theme.palette.primary.main,
-              boxShadow: `0 0 0 4px rgba(102, 126, 234, 0.08), 0 8px 32px rgba(102, 126, 234, 0.12)`,
-              transform: 'translateY(-2px)',
+              borderColor: alpha(theme.palette.grey[500], 0.4),
+              boxShadow: `0 0 0 3px ${alpha(theme.palette.grey[500], 0.06)}, 0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
+              transform: 'translateY(-1px)',
             },
             '& .ql-editor p': {
-              margin: { xs: '0.4em 0', sm: '0.45em 0', md: '0.5em 0' },
+              margin: { xs: '0.5em 0', sm: '0.55em 0', md: '0.6em 0' },
               textAlign: 'left',
-              lineHeight: { xs: 1.5, sm: 1.55, md: 1.6 },
-              fontSize: { xs: '0.9rem', sm: '0.925rem', md: '0.95rem' },
+              lineHeight: { xs: 1.6, sm: 1.65, md: 1.7 },
+              fontSize: { xs: '0.9375rem', sm: '0.96875rem', md: '1rem' },
               letterSpacing: '0.01em',
             },
             '& .ql-editor p:first-child': {
@@ -578,14 +577,14 @@ const WorkerBiographySection = ({
               marginBottom: 0,
             },
             '& .ql-editor ul, & .ql-editor ol': {
-              margin: { xs: '0.4em 0', sm: '0.45em 0', md: '0.5em 0' },
-              paddingLeft: { xs: '1.25em', sm: '1.375em', md: '1.5em' },
-              lineHeight: { xs: 1.5, sm: 1.55, md: 1.6 },
+              margin: { xs: '0.5em 0', sm: '0.55em 0', md: '0.6em 0' },
+              paddingLeft: { xs: '1.5em', sm: '1.75em', md: '2em' },
+              lineHeight: { xs: 1.6, sm: 1.65, md: 1.7 },
             },
             '& .ql-editor li': {
-              margin: { xs: '0.25em 0', sm: '0.275em 0', md: '0.3em 0' },
-              lineHeight: { xs: 1.5, sm: 1.55, md: 1.6 },
-              fontSize: { xs: '0.9rem', sm: '0.925rem', md: '0.95rem' },
+              margin: { xs: '0.3em 0', sm: '0.35em 0', md: '0.4em 0' },
+              lineHeight: { xs: 1.6, sm: 1.65, md: 1.7 },
+              fontSize: { xs: '0.9375rem', sm: '0.96875rem', md: '1rem' },
               letterSpacing: '0.01em',
             },
             '& .ql-editor strong': {
@@ -597,49 +596,51 @@ const WorkerBiographySection = ({
               color: `rgba(0, 0, 0, 0.87)`,
             },
             '& .ql-editor a': {
-              color: theme.palette.primary.main,
-              textDecoration: 'none',
-              background: `linear-gradient(transparent 60%, rgba(102, 126, 234, 0.2) 60%)`,
+              color: theme.palette.text.primary,
+              textDecoration: 'underline',
+              textDecorationColor: alpha(theme.palette.grey[400], 0.4),
+              textUnderlineOffset: '2px',
               padding: '2px 4px',
               borderRadius: '4px',
               transition: 'all 0.2s ease',
             },
             '& .ql-editor a:hover': {
-              background: `rgba(102, 126, 234, 0.15)`,
+              background: alpha(theme.palette.grey[200], 0.5),
+              textDecorationColor: alpha(theme.palette.grey[600], 0.6),
               transform: 'translateY(-1px)',
             },
             '& .ql-editor blockquote': {
-              borderLeft: `4px solid ${theme.palette.primary.main}`,
-              margin: { xs: '0.6em 0', sm: '0.675em 0', md: '0.75em 0' },
-              paddingLeft: { xs: '1em', sm: '1.125em', md: '1.25em' },
-              paddingRight: { xs: '0.75em', sm: '0.875em', md: '1em' },
-              paddingTop: { xs: '0.4em', sm: '0.45em', md: '0.5em' },
-              paddingBottom: { xs: '0.4em', sm: '0.45em', md: '0.5em' },
-              color: `rgba(0, 0, 0, 0.85)`,
+              borderLeft: `4px solid ${alpha(theme.palette.grey[400], 0.5)}`,
+              margin: { xs: '0.75em 0', sm: '0.875em 0', md: '1em 0' },
+              paddingLeft: { xs: '1.25em', sm: '1.5em', md: '1.75em' },
+              paddingRight: { xs: '1em', sm: '1.25em', md: '1.5em' },
+              paddingTop: { xs: '0.5em', sm: '0.625em', md: '0.75em' },
+              paddingBottom: { xs: '0.5em', sm: '0.625em', md: '0.75em' },
+              color: alpha(theme.palette.text.primary, 0.85),
               fontStyle: 'italic',
-              background: `rgba(250, 251, 252, 0.4)`,
+              background: alpha(theme.palette.grey[50], 0.7),
               borderRadius: '0 8px 8px 0',
-              lineHeight: { xs: 1.5, sm: 1.55, md: 1.6 },
-              fontSize: { xs: '0.85rem', sm: '0.875rem', md: '0.9rem' },
+              lineHeight: { xs: 1.6, sm: 1.65, md: 1.7 },
+              fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '0.96875rem' },
               letterSpacing: '0.01em',
             },
             '& .ql-toolbar.ql-snow:hover': {
-              background: `linear-gradient(135deg, rgba(250, 251, 252, 0.95) 0%, rgba(244, 246, 248, 0.7) 100%)`,
+              background: alpha(theme.palette.grey[100], 0.6),
             },
             '& .ql-tooltip': {
-              borderRadius: { xs: '6px', sm: '7px', md: '8px' },
-              border: `1px solid rgba(0, 0, 0, 0.12)`,
-              boxShadow: `0 8px 32px rgba(0, 0, 0, 0.12)`,
+              borderRadius: '8px',
+              border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+              boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.12)}`,
               background: theme.palette.background.paper,
               backdropFilter: 'blur(10px)',
-              fontSize: { xs: '0.85rem', sm: '0.9rem', md: '0.95rem' },
+              fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '0.96875rem' },
             },
             '&.loading': {
               opacity: 0.7,
               pointerEvents: 'none',
             },
             '&.loading .ql-editor': {
-              background: `rgba(244, 246, 248, 0.3)`,
+              background: alpha(theme.palette.grey[100], 0.3),
             },
             // Mobile-specific optimizations
             [`@media (max-width: ${theme.breakpoints.values.sm}px)`]: {
@@ -679,6 +680,7 @@ const WorkerBiographySection = ({
           }}
         >
           <ReactQuill 
+            key={`quill-${quillKey}-${isMobile ? 'mobile' : 'desktop'}`}
             ref={quillRef}
             theme="snow"
             value={biography}
@@ -693,18 +695,58 @@ const WorkerBiographySection = ({
           />
         </Box>
 
-        {/* Error Message */}
+        {/* Error Message - Clean Card-Based Design */}
         {validationError && (
-          <Typography 
-            variant="caption" 
-            color="error" 
-            sx={{ mt: 1, display: 'block', fontSize: '0.75rem', fontWeight: 500 }}
+          <Box
+            sx={{
+              mt: { xs: 1.5, sm: 2 },
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 0.875,
+              p: { xs: 1, sm: 1.25 },
+              borderRadius: '10px',
+              bgcolor: alpha(theme.palette.error.main, 0.06),
+              border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+              transition: 'all 0.2s ease',
+            }}
+            role="alert"
+            aria-live="polite"
           >
-            {validationError}
-          </Typography>
+            <Box
+              sx={{
+                width: 20,
+                height: 20,
+                borderRadius: '50%',
+                bgcolor: theme.palette.error.main,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                mt: 0.125,
+              }}
+            >
+              <Typography sx={{ color: '#ffffff', fontSize: '0.75rem', fontWeight: 700, lineHeight: 1 }}>
+                !
+              </Typography>
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography
+                variant="caption"
+                color="error"
+                sx={{
+                  fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                  lineHeight: 1.5,
+                  fontWeight: 600,
+                  display: 'block',
+                }}
+              >
+                {validationError}
+              </Typography>
+            </Box>
+          </Box>
         )}
-      </CardContent>
-    </Card>
+      </Box>
+    </Box>
   );
 };
 
