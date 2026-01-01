@@ -60,44 +60,33 @@ const ExperienceCard = styled(Card, {
 })(({ theme, isExpanded, hasErrors }) => ({
   width: '100%',
   margin: '0 auto',
-  borderRadius: 2,
+  borderRadius: '16px',
   boxShadow: hasErrors 
-    ? `0 1px 3px rgba(0,0,0,0.04), 0 2px 8px ${alpha(theme.palette.error.main, 0.1)}`
+    ? `0 1px 3px rgba(0,0,0,0.04), 0 2px 8px ${alpha(theme.palette.error.main, 0.08)}`
     : '0 1px 3px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.04)',
-  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-  border: 'none',
+  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+  border: hasErrors
+    ? `1px solid ${alpha(theme.palette.error.main, 0.2)}`
+    : `1px solid ${alpha(theme.palette.divider, 0.08)}`,
   overflow: 'hidden',
   backgroundColor: theme.palette.background.paper,
   position: 'relative',
-  '&::before': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '3px',
-    background: hasErrors
-      ? `linear-gradient(90deg, ${theme.palette.error.main}, ${theme.palette.error.light})`
-      : `linear-gradient(90deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.primary.main, 0.05)})`,
-    opacity: hasErrors ? 1 : 0,
-    transition: 'opacity 0.3s ease',
-  },
   '&:hover': {
     boxShadow: hasErrors 
-      ? `0 4px 12px ${alpha(theme.palette.error.main, 0.15)}, 0 2px 4px rgba(0,0,0,0.04)`
-      : '0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04)',
-    transform: 'translateY(-2px)',
-    '&::before': {
-      opacity: 1,
-    },
+      ? `0 4px 16px ${alpha(theme.palette.error.main, 0.12)}, 0 2px 4px rgba(0,0,0,0.04)`
+      : '0 4px 16px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04)',
+    transform: 'translateY(-1px)',
+    borderColor: hasErrors
+      ? alpha(theme.palette.error.main, 0.3)
+      : alpha(theme.palette.primary.main, 0.15),
   },
   [theme.breakpoints.down('sm')]: {
-    borderRadius: 1.5,
+    borderRadius: '12px',
   },
 }));
 
 const CardHeaderStyled = styled(CardHeader)(({ theme }) => ({
-  padding: theme.spacing(1.5, 2),
+  padding: theme.spacing(2, 2.5),
   cursor: 'pointer',
   transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
   '&:hover': {
@@ -105,24 +94,28 @@ const CardHeaderStyled = styled(CardHeader)(({ theme }) => ({
   },
   '& .MuiCardHeader-content': {
     overflow: 'hidden',
+    flex: 1,
+    minWidth: 0,
   },
   '& .MuiCardHeader-title': {
     fontWeight: 600,
-    fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+    fontSize: { xs: '0.9375rem', sm: '1rem', md: '1.0625rem' },
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     color: theme.palette.text.primary,
-    lineHeight: 1.2,
+    lineHeight: 1.3,
+    letterSpacing: '-0.01em',
   },
   '& .MuiCardHeader-subheader': {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     color: theme.palette.text.secondary,
-    fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-    lineHeight: 1.3,
+    fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+    lineHeight: 1.4,
     mt: 0.25,
+    fontWeight: 400,
   },
   '& .MuiCardHeader-avatar': {
     marginRight: theme.spacing(1.5),
@@ -288,80 +281,149 @@ const OnboardingJobExperience = ({
     }
   }, []);
 
+  // Helper function to generate appealing, user-friendly card titles
+  const getCardTitle = useCallback((job, index, totalJobs) => {
+    if (job.company && job.company.trim()) {
+      return job.company.trim();
+    }
+    // More appealing, contextual fallback titles
+    if (index === 0 && totalJobs === 1) {
+      return 'Your Work Experience';
+    }
+    if (index === 0) {
+      return 'Primary Experience';
+    }
+    return `Experience ${index + 1}`;
+  }, []);
+
+  // Helper function to generate appealing, user-friendly card subtitles
+  const getCardSubtitle = useCallback((job, index, totalJobs) => {
+    if (job.title && job.title.trim()) {
+      return job.title.trim();
+    }
+    // More appealing, contextual fallback subtitles
+    if (index === 0 && totalJobs === 1) {
+      return 'Share your professional background';
+    }
+    if (index === 0) {
+      return 'Your primary work experience';
+    }
+    return 'Additional professional experience';
+  }, []);
+
   const handleRemoveWithConfirmation = (index) => {
     onRemoveJob(index);
   };
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
-      <SectionContainer sx={{}}>
-        {/* Header Section - Compact SaaS-Level Design */}
-        <Box sx={{ mb: { xs: 1, sm: 1.25 } }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, sm: 0.875 }, mb: 0.5 }}>
-            <WorkIcon sx={{ color: 'primary.main', fontSize: { xs: '1.1rem', sm: '1.2rem' } }} />
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                fontWeight: 600,
-                color: 'text.primary',
-                fontSize: { xs: '0.875rem', sm: '0.9375rem' },
-                lineHeight: 1.2,
-              }}
-            >
-              Work Experience
-            </Typography>
+      <SectionContainer>
+        {/* Enhanced Header - Clean, Single Design */}
+        <Box sx={{ mb: { xs: 2.5, sm: 3 }, width: '100%' }}>
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: { xs: 'flex-start', sm: 'center' }, 
+            justifyContent: 'space-between',
+            gap: { xs: 1.5, sm: 2 },
+            flexWrap: 'wrap',
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.25 }, flex: 1, minWidth: 0 }}>
+              <Box
+                sx={{
+                  width: { xs: 40, sm: 44 },
+                  height: { xs: 40, sm: 44 },
+                  borderRadius: '12px',
+                  bgcolor: alpha(theme.palette.primary.main, 0.08),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+                }}
+              >
+                <WorkIcon sx={{ 
+                  color: 'primary.main', 
+                  fontSize: { xs: 20, sm: 22 } 
+                }} />
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography 
+                  variant="h6" 
+                  sx={{ 
+                    fontWeight: 600,
+                    color: 'text.primary',
+                    fontSize: { xs: '1rem', sm: '1.125rem', md: '1.25rem' },
+                    lineHeight: 1.3,
+                    letterSpacing: '-0.015em',
+                    mb: 0.5,
+                  }}
+                >
+                  Work Experience
+                </Typography>
+                <Typography 
+                  variant="body2" 
+                  color="text.secondary" 
+                  sx={{ 
+                    fontSize: { xs: '0.8125rem', sm: '0.875rem', md: '0.9375rem' }, 
+                    lineHeight: 1.5,
+                    fontWeight: 400,
+                    color: theme.palette.text.secondary,
+                  }}
+                >
+                  Share your professional journey and key achievements
+                </Typography>
+              </Box>
+            </Box>
             <Chip 
-              label="REQUIRED" 
+              label="Required" 
               size="small" 
-              color="error" 
-              variant="outlined"
               sx={{ 
                 fontWeight: 600,
-                fontSize: { xs: '0.65rem', sm: '0.7rem' },
-                height: { xs: 18, sm: 20 },
-                ml: { xs: 0.5, sm: 0.75 },
+                fontSize: { xs: '0.6875rem', sm: '0.75rem' },
+                height: { xs: 24, sm: 26 },
+                bgcolor: alpha(theme.palette.error.main, 0.08),
+                color: theme.palette.error.main,
+                border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+                flexShrink: 0,
+                borderRadius: '8px',
               }}
             />
           </Box>
-          <Typography 
-            variant="body2" 
-            color="text.secondary" 
-            sx={{ 
-              fontSize: { xs: '0.7rem', sm: '0.75rem' }, 
-              lineHeight: 1.3,
-              ml: { xs: 2.5, sm: 2.75 },
-            }}
-          >
-            Showcase your professional journey and skills
-          </Typography>
         </Box>
 
 
-        {/* Form-wide Errors - Compact SaaS-Level Design */}
+        {/* Form-wide Errors - Modern Design */}
         {formErrors.jobs && (
           <Fade in>
             <Alert 
               severity="error" 
               sx={{ 
-                mb: { xs: 1, sm: 1.25 }, 
-                borderRadius: 1.5,
-                border: 'none',
-                py: { xs: 0.75, sm: 1 },
-                bgcolor: alpha(theme.palette.error.main, 0.08),
+                mb: { xs: 2, sm: 2.5 }, 
+                borderRadius: '12px',
+                border: `1px solid ${alpha(theme.palette.error.main, 0.15)}`,
+                py: { xs: 1.25, sm: 1.5 },
+                px: { xs: 1.5, sm: 2 },
+                bgcolor: alpha(theme.palette.error.main, 0.06),
                 '& .MuiAlert-icon': {
-                  fontSize: { xs: '1rem', sm: '1.1rem' },
+                  fontSize: { xs: 20, sm: 22 },
                   color: theme.palette.error.main,
                 },
               }}
             >
-              <AlertTitle sx={{ fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.8rem' }, mb: 0.25 }}>
+              <AlertTitle sx={{ 
+                fontWeight: 600, 
+                fontSize: { xs: '0.8125rem', sm: '0.875rem' }, 
+                mb: 0.5,
+                color: theme.palette.error.main,
+              }}>
                 Work Experience Required
               </AlertTitle>
               <Typography 
                 variant="body2"
                 sx={{
-                  fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                  lineHeight: 1.4
+                  fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                  lineHeight: 1.5,
+                  color: theme.palette.error.dark,
                 }}
               >
                 {formErrors.jobs}
@@ -430,17 +492,22 @@ const OnboardingJobExperience = ({
                     {canCollapse ? (
                       // Collapsible header for additional jobs or when multiple jobs exist
                       <CardHeaderStyled
-                        title={job.company || `Experience ${index + 1}`}
-                        subheader={job.title || 'Enter job details'}
+                        title={getCardTitle(job, index, jobs.length)}
+                        subheader={getCardSubtitle(job, index, jobs.length)}
                         avatar={
                           <Avatar sx={{ 
-                            bgcolor: hasJobErrors ? theme.palette.error.light : theme.palette.primary.light,
-                            width: { xs: 40, sm: 44, md: 48 },
-                            height: { xs: 40, sm: 44, md: 48 }
+                            bgcolor: hasJobErrors 
+                              ? alpha(theme.palette.error.main, 0.1)
+                              : alpha(theme.palette.primary.main, 0.1),
+                            width: { xs: 44, sm: 48, md: 52 },
+                            height: { xs: 44, sm: 48, md: 52 },
+                            border: `1px solid ${hasJobErrors 
+                              ? alpha(theme.palette.error.main, 0.2)
+                              : alpha(theme.palette.primary.main, 0.2)}`,
                           }}>
                             <BusinessIcon sx={{ 
                               color: hasJobErrors ? theme.palette.error.main : theme.palette.primary.main,
-                              fontSize: { xs: 20, sm: 22, md: 24 }
+                              fontSize: { xs: 22, sm: 24, md: 26 }
                             }} />
                           </Avatar>
                         }
@@ -458,19 +525,6 @@ const OnboardingJobExperience = ({
                                   display: { xs: 'none', sm: 'flex' },
                                   fontSize: '0.7rem',
                                   height: 24
-                                }}
-                              />
-                            )}
-                            {isFirstJob && (
-                              <Chip
-                                label="Required"
-                                size="small"
-                                color="error"
-                                variant="outlined"
-                                sx={{ 
-                                  fontSize: '0.7rem',
-                                  height: 24,
-                                  fontWeight: 600
                                 }}
                               />
                             )}
@@ -516,22 +570,27 @@ const OnboardingJobExperience = ({
                       // Non-collapsible header for first mandatory job (when it's the only job)
                       <Box
                         sx={{
-                          p: { xs: 2, sm: 2.5, md: 3 },
-                          pb: { xs: 1.5, sm: 2, md: 2.5 },
+                          p: { xs: 2, sm: 2.5, md: 2.5 },
+                          pb: { xs: 1.5, sm: 2, md: 2 },
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 2,
-                          borderBottom: `1px solid ${hasJobErrors ? theme.palette.error.light : theme.palette.divider}`,
+                          gap: { xs: 1.5, sm: 2 },
+                          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
                         }}
                       >
                         <Avatar sx={{ 
-                          bgcolor: hasJobErrors ? theme.palette.error.light : theme.palette.primary.light,
-                          width: { xs: 40, sm: 44, md: 48 },
-                          height: { xs: 40, sm: 44, md: 48 }
+                          bgcolor: hasJobErrors 
+                            ? alpha(theme.palette.error.main, 0.1)
+                            : alpha(theme.palette.primary.main, 0.1),
+                          width: { xs: 44, sm: 48, md: 52 },
+                          height: { xs: 44, sm: 48, md: 52 },
+                          border: `1px solid ${hasJobErrors 
+                            ? alpha(theme.palette.error.main, 0.2)
+                            : alpha(theme.palette.primary.main, 0.2)}`,
                         }}>
                           <BusinessIcon sx={{ 
                             color: hasJobErrors ? theme.palette.error.main : theme.palette.primary.main,
-                            fontSize: { xs: 20, sm: 22, md: 24 }
+                            fontSize: { xs: 22, sm: 24, md: 26 }
                           }} />
                         </Avatar>
                         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -539,47 +598,41 @@ const OnboardingJobExperience = ({
                             variant="h6"
                             sx={{
                               fontWeight: 600,
-                              fontSize: { xs: '0.95rem', sm: '1rem', md: '1.1rem' },
+                              fontSize: { xs: '0.9375rem', sm: '1rem', md: '1.0625rem' },
                               color: 'text.primary',
-                              mb: 0.5,
+                              mb: 0.375,
+                              letterSpacing: '-0.01em',
+                              lineHeight: 1.3,
                             }}
                           >
-                            {job.company || 'Work Experience'}
+                            {getCardTitle(job, index, jobs.length)}
                           </Typography>
                           <Typography
                             variant="body2"
                             sx={{
-                              fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                              fontSize: { xs: '0.8125rem', sm: '0.875rem' },
                               color: 'text.secondary',
+                              lineHeight: 1.4,
+                              fontWeight: 400,
                             }}
                           >
-                            {job.title || 'Please fill in your work experience details'}
+                            {getCardSubtitle(job, index, jobs.length)}
                           </Typography>
                         </Box>
                         {hasJobErrors && (
                           <Chip
-                            icon={<WarningIcon sx={{ fontSize: 14 }} />}
+                            icon={<WarningIcon sx={{ fontSize: { xs: 14, sm: 16 } }} />}
                             label={`${Object.keys(jobErrors).length} error${Object.keys(jobErrors).length > 1 ? 's' : ''}`}
                             size="small"
                             color="error"
                             sx={{ 
-                              fontSize: '0.7rem',
-                              height: 24,
-                              fontWeight: 600
+                              fontSize: { xs: '0.6875rem', sm: '0.75rem' },
+                              height: { xs: 24, sm: 26 },
+                              fontWeight: 600,
+                              flexShrink: 0,
                             }}
                           />
                         )}
-                        <Chip
-                          label="Required"
-                          size="small"
-                          color="error"
-                          variant="outlined"
-                          sx={{ 
-                            fontSize: '0.7rem',
-                            height: 24,
-                            fontWeight: 600
-                          }}
-                        />
                       </Box>
                     )}
 
@@ -591,14 +644,17 @@ const OnboardingJobExperience = ({
                       appear={false}
                     >
                       {canCollapse && <Divider />}
-                      {/* CardContent - Optimized for Mobile Responsiveness */}
+                      {/* CardContent - Modern, Clean Design */}
                       <CardContent sx={{ 
-                        p: { xs: 1.5, sm: 2, md: 2.5 },
-                        pt: { xs: 1.5, sm: 2, md: 2.5 },
-                        px: { xs: 1.5, sm: 2, md: 2.5 },
+                        p: { xs: 2, sm: 2.5, md: 3 },
+                        pt: { xs: 2, sm: 2.5, md: 3 },
+                        px: { xs: 2, sm: 2.5, md: 3 },
                         width: '100%',
                         maxWidth: '100%',
                         boxSizing: 'border-box',
+                        '&:last-child': {
+                          pb: { xs: 2, sm: 2.5, md: 3 },
+                        },
                       }}>
                         {/* SaaS-Level Responsive Grid Layout - Optimized for Mobile */}
                         <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
@@ -645,23 +701,30 @@ const OnboardingJobExperience = ({
                                 sx={{
                                   width: '100%',
                                   '& .MuiOutlinedInput-root': {
-                                    borderRadius: 1.5,
-                                    bgcolor: 'background.paper',
-                                    minHeight: { xs: '48px', sm: '40px' },
+                                    borderRadius: '12px',
+                                    bgcolor: alpha(theme.palette.grey[50], 0.6),
+                                    minHeight: { xs: '48px', sm: '48px', md: '52px' },
                                     transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    '& fieldset': {
+                                      borderColor: jobErrors.company
+                                        ? alpha(theme.palette.error.main, 0.2)
+                                        : alpha(theme.palette.divider, 0.1),
+                                      borderWidth: '1px',
+                                    },
                                     '&:hover': {
-                                      '& .MuiOutlinedInput-notchedOutline': {
+                                      bgcolor: alpha(theme.palette.grey[100], 0.8),
+                                      '& fieldset': {
                                         borderColor: jobErrors.company
-                                          ? theme.palette.error.main
-                                          : theme.palette.primary.main + '60',
-                                        borderWidth: '1.5px',
+                                          ? alpha(theme.palette.error.main, 0.3)
+                                          : alpha(theme.palette.primary.main, 0.15),
                                       },
                                     },
                                     '&.Mui-focused': {
+                                      bgcolor: 'background.paper',
                                       boxShadow: jobErrors.company
-                                        ? `0 0 0 3px ${alpha(theme.palette.error.main, 0.15)}`
-                                        : `0 0 0 3px ${alpha(theme.palette.primary.main, 0.15)}`,
-                                      '& .MuiOutlinedInput-notchedOutline': {
+                                        ? `0 0 0 2px ${alpha(theme.palette.error.main, 0.08)}`
+                                        : `0 0 0 2px ${alpha(theme.palette.primary.main, 0.08)}`,
+                                      '& fieldset': {
                                         borderColor: jobErrors.company
                                           ? theme.palette.error.main
                                           : theme.palette.primary.main,
@@ -669,20 +732,20 @@ const OnboardingJobExperience = ({
                                       },
                                     },
                                     '&.Mui-error': {
-                                      '& .MuiOutlinedInput-notchedOutline': {
+                                      '& fieldset': {
                                         borderColor: theme.palette.error.main,
-                                        borderWidth: '1.5px',
                                       },
                                     },
                                   },
                                   '& .MuiInputLabel-root': {
                                     fontSize: { xs: '0.875rem', sm: '0.9375rem' },
-                                    fontWeight: 600,
+                                    fontWeight: 500,
                                   },
                                   '& .MuiInputBase-input': {
-                                    fontSize: { xs: '0.9375rem', sm: '0.9375rem' },
-                                    py: { xs: 1.25, sm: 1 },
-                                    px: { xs: 1, sm: 1 },
+                                    fontSize: { xs: '0.9375rem', sm: '1rem' },
+                                    py: { xs: 1.25, sm: 1.375 },
+                                    px: { xs: 1, sm: 1.25 },
+                                    fontWeight: 500,
                                   }
                                 }}
                               />
@@ -731,23 +794,30 @@ const OnboardingJobExperience = ({
                                 sx={{
                                   width: '100%',
                                   '& .MuiOutlinedInput-root': {
-                                    borderRadius: 1.5,
-                                    bgcolor: 'background.paper',
-                                    minHeight: { xs: '48px', sm: '40px' },
+                                    borderRadius: '12px',
+                                    bgcolor: alpha(theme.palette.grey[50], 0.6),
+                                    minHeight: { xs: '48px', sm: '48px', md: '52px' },
                                     transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    '& fieldset': {
+                                      borderColor: jobErrors.title
+                                        ? alpha(theme.palette.error.main, 0.2)
+                                        : alpha(theme.palette.divider, 0.1),
+                                      borderWidth: '1px',
+                                    },
                                     '&:hover': {
-                                      '& .MuiOutlinedInput-notchedOutline': {
+                                      bgcolor: alpha(theme.palette.grey[100], 0.8),
+                                      '& fieldset': {
                                         borderColor: jobErrors.title
-                                          ? theme.palette.error.main
-                                          : theme.palette.primary.main + '60',
-                                        borderWidth: '1.5px',
+                                          ? alpha(theme.palette.error.main, 0.3)
+                                          : alpha(theme.palette.primary.main, 0.15),
                                       },
                                     },
                                     '&.Mui-focused': {
+                                      bgcolor: 'background.paper',
                                       boxShadow: jobErrors.title
-                                        ? `0 0 0 3px ${alpha(theme.palette.error.main, 0.15)}`
-                                        : `0 0 0 3px ${alpha(theme.palette.primary.main, 0.15)}`,
-                                      '& .MuiOutlinedInput-notchedOutline': {
+                                        ? `0 0 0 2px ${alpha(theme.palette.error.main, 0.08)}`
+                                        : `0 0 0 2px ${alpha(theme.palette.primary.main, 0.08)}`,
+                                      '& fieldset': {
                                         borderColor: jobErrors.title
                                           ? theme.palette.error.main
                                           : theme.palette.primary.main,
@@ -755,20 +825,20 @@ const OnboardingJobExperience = ({
                                       },
                                     },
                                     '&.Mui-error': {
-                                      '& .MuiOutlinedInput-notchedOutline': {
+                                      '& fieldset': {
                                         borderColor: theme.palette.error.main,
-                                        borderWidth: '1.5px',
                                       },
                                     },
                                   },
                                   '& .MuiInputLabel-root': {
                                     fontSize: { xs: '0.875rem', sm: '0.9375rem' },
-                                    fontWeight: 600,
+                                    fontWeight: 500,
                                   },
                                   '& .MuiInputBase-input': {
-                                    fontSize: { xs: '0.9375rem', sm: '0.9375rem' },
-                                    py: { xs: 1.25, sm: 1 },
-                                    px: { xs: 1, sm: 1 },
+                                    fontSize: { xs: '0.9375rem', sm: '1rem' },
+                                    py: { xs: 1.25, sm: 1.375 },
+                                    px: { xs: 1, sm: 1.25 },
+                                    fontWeight: 500,
                                   }
                                 }}
                               />
@@ -829,22 +899,35 @@ const OnboardingJobExperience = ({
                                       sx: {
                                         width: '100%',
                                         '& .MuiOutlinedInput-root': {
-                                          borderRadius: 1.5,
-                                          bgcolor: 'background.paper',
-                                          minHeight: { xs: '48px', sm: '40px' }, // Better touch target
-                                          transition: 'all 0.2s ease',
+                                          borderRadius: '12px',
+                                          bgcolor: alpha(theme.palette.grey[50], 0.6),
+                                          minHeight: { xs: '48px', sm: '48px', md: '52px' },
+                                          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                          '& fieldset': {
+                                            borderColor: jobErrors.startDate
+                                              ? alpha(theme.palette.error.main, 0.2)
+                                              : alpha(theme.palette.divider, 0.1),
+                                            borderWidth: '1px',
+                                          },
                                           '&:hover': {
-                                            '& .MuiOutlinedInput-notchedOutline': {
+                                            bgcolor: alpha(theme.palette.grey[100], 0.8),
+                                            '& fieldset': {
                                               borderColor: jobErrors.startDate
-                                                ? theme.palette.error.main
-                                                : theme.palette.primary.main + '60',
-                                              borderWidth: '1.5px',
+                                                ? alpha(theme.palette.error.main, 0.3)
+                                                : alpha(theme.palette.primary.main, 0.15),
                                             },
                                           },
                                           '&.Mui-focused': {
+                                            bgcolor: 'background.paper',
                                             boxShadow: jobErrors.startDate
-                                              ? `0 0 0 3px ${alpha(theme.palette.error.main, 0.15)}`
-                                              : `0 0 0 3px ${alpha(theme.palette.primary.main, 0.15)}`,
+                                              ? `0 0 0 2px ${alpha(theme.palette.error.main, 0.08)}`
+                                              : `0 0 0 2px ${alpha(theme.palette.primary.main, 0.08)}`,
+                                            '& fieldset': {
+                                              borderColor: jobErrors.startDate
+                                                ? theme.palette.error.main
+                                                : theme.palette.primary.main,
+                                              borderWidth: '1.5px',
+                                            },
                                           },
                                         },
                                         '& .MuiFormHelperText-root': {
@@ -915,22 +998,35 @@ const OnboardingJobExperience = ({
                                       sx: {
                                         width: '100%',
                                         '& .MuiOutlinedInput-root': {
-                                          borderRadius: 1.5,
-                                          bgcolor: 'background.paper',
-                                          minHeight: { xs: '48px', sm: '40px' }, // Better touch target
-                                          transition: 'all 0.2s ease',
+                                          borderRadius: '12px',
+                                          bgcolor: alpha(theme.palette.grey[50], 0.6),
+                                          minHeight: { xs: '48px', sm: '48px', md: '52px' },
+                                          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                          '& fieldset': {
+                                            borderColor: (!job.currentlyWorking && jobErrors.endDate)
+                                              ? alpha(theme.palette.error.main, 0.2)
+                                              : alpha(theme.palette.divider, 0.1),
+                                            borderWidth: '1px',
+                                          },
                                           '&:hover': {
-                                            '& .MuiOutlinedInput-notchedOutline': {
+                                            bgcolor: alpha(theme.palette.grey[100], 0.8),
+                                            '& fieldset': {
                                               borderColor: (!job.currentlyWorking && jobErrors.endDate)
-                                                ? theme.palette.error.main
-                                                : theme.palette.primary.main + '60',
-                                              borderWidth: '1.5px',
+                                                ? alpha(theme.palette.error.main, 0.3)
+                                                : alpha(theme.palette.primary.main, 0.15),
                                             },
                                           },
                                           '&.Mui-focused': {
+                                            bgcolor: 'background.paper',
                                             boxShadow: (!job.currentlyWorking && jobErrors.endDate)
-                                              ? `0 0 0 3px ${alpha(theme.palette.error.main, 0.15)}`
-                                              : `0 0 0 3px ${alpha(theme.palette.primary.main, 0.15)}`,
+                                              ? `0 0 0 2px ${alpha(theme.palette.error.main, 0.08)}`
+                                              : `0 0 0 2px ${alpha(theme.palette.primary.main, 0.08)}`,
+                                            '& fieldset': {
+                                              borderColor: (!job.currentlyWorking && jobErrors.endDate)
+                                                ? theme.palette.error.main
+                                                : theme.palette.primary.main,
+                                              borderWidth: '1.5px',
+                                            },
                                           },
                                         },
                                         '& .MuiFormHelperText-root': {
@@ -1165,42 +1261,50 @@ const OnboardingJobExperience = ({
                                   maxWidth: '100%',
                                   boxSizing: 'border-box',
                                   '& .MuiOutlinedInput-root': {
-                                    borderRadius: 1.5,
+                                    borderRadius: '12px',
                                     width: '100%',
                                     transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    backgroundColor: 'background.paper',
+                                    backgroundColor: alpha(theme.palette.grey[50], 0.6),
                                     minHeight: { xs: '140px', sm: '160px' },
+                                    '& fieldset': {
+                                      borderColor: jobErrors.description
+                                        ? alpha(theme.palette.error.main, 0.2)
+                                        : alpha(theme.palette.divider, 0.1),
+                                      borderWidth: '1px',
+                                    },
                                     '& textarea': {
                                       resize: 'vertical',
                                       width: '100% !important',
                                       maxWidth: '100% !important',
                                       boxSizing: 'border-box',
                                       padding: { 
-                                        xs: '10px 6px', 
-                                        sm: '12px 8px'
+                                        xs: '12px 8px', 
+                                        sm: '14px 10px'
                                       },
-                                      fontSize: { xs: '0.9375rem', sm: '0.9375rem' },
+                                      fontSize: { xs: '0.9375rem', sm: '1rem' },
                                       lineHeight: { xs: 1.6, sm: 1.65 },
                                       fontFamily: 'inherit',
                                       minHeight: { xs: '120px', sm: '140px' },
+                                      fontWeight: 400,
                                       '&::placeholder': {
-                                        opacity: 0.6,
+                                        opacity: 0.5,
                                         fontSize: { xs: '0.875rem', sm: '0.9375rem' },
                                       },
                                     },
                                     '&:hover': {
-                                      '& .MuiOutlinedInput-notchedOutline': {
+                                      bgcolor: alpha(theme.palette.grey[100], 0.8),
+                                      '& fieldset': {
                                         borderColor: jobErrors.description 
-                                          ? theme.palette.error.main 
-                                          : theme.palette.primary.main + '60',
-                                        borderWidth: '1.5px',
+                                          ? alpha(theme.palette.error.main, 0.3)
+                                          : alpha(theme.palette.primary.main, 0.15),
                                       },
                                     },
                                     '&.Mui-focused': {
+                                      bgcolor: 'background.paper',
                                       boxShadow: jobErrors.description
-                                        ? `0 0 0 3px ${alpha(theme.palette.error.main, 0.15)}`
-                                        : `0 0 0 3px ${alpha(theme.palette.primary.main, 0.15)}`,
-                                      '& .MuiOutlinedInput-notchedOutline': {
+                                        ? `0 0 0 2px ${alpha(theme.palette.error.main, 0.08)}`
+                                        : `0 0 0 2px ${alpha(theme.palette.primary.main, 0.08)}`,
+                                      '& fieldset': {
                                         borderColor: jobErrors.description 
                                           ? theme.palette.error.main 
                                           : theme.palette.primary.main,
@@ -1208,9 +1312,8 @@ const OnboardingJobExperience = ({
                                       },
                                     },
                                     '&.Mui-error': {
-                                      '& .MuiOutlinedInput-notchedOutline': {
+                                      '& fieldset': {
                                         borderColor: theme.palette.error.main,
-                                        borderWidth: '1.5px',
                                       },
                                     },
                                   },
@@ -1278,20 +1381,6 @@ const OnboardingJobExperience = ({
                                   Remove Experience
                                 </SecondaryButton>
                               )}
-                              {/* Show mandatory indicator for first job */}
-                              {isFirstJob && (
-                                <Chip
-                                  label="Required"
-                                  size="small"
-                                  color="error"
-                                  variant="outlined"
-                                  sx={{ 
-                                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                                    fontWeight: 600,
-                                    height: { xs: 24, sm: 28 }
-                                  }}
-                                />
-                              )}
                               {hasJobErrors && (
                                 <Box sx={{ 
                                   display: 'flex', 
@@ -1353,20 +1442,21 @@ const OnboardingJobExperience = ({
             <Button
               variant="outlined"
               color="primary"
-              startIcon={<AddIcon sx={{ fontSize: { xs: 16, sm: 18 } }} />}
+              startIcon={<AddIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />}
               onClick={() => {
                 onAddJob();
               }}
               sx={{ 
                 width: { xs: '100%', sm: 'auto' },
-                minWidth: { xs: '100%', sm: 180 },
+                minWidth: { xs: '100%', sm: 200, md: 220 },
+                height: { xs: 48, sm: 50, md: 52 },
                 borderStyle: 'dashed',
                 borderWidth: '1.5px',
-                borderColor: alpha(theme.palette.primary.main, 0.5),
-                borderRadius: 1.5,
-                py: { xs: 0.875, sm: 1 },
-                px: { xs: 2, sm: 2.5 },
-                fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                borderColor: alpha(theme.palette.primary.main, 0.3),
+                borderRadius: '12px',
+                py: { xs: 1, sm: 1.25 },
+                px: { xs: 2.5, sm: 3 },
+                fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
                 fontWeight: 600,
                 textTransform: 'none',
                 color: 'primary.main',
@@ -1374,10 +1464,10 @@ const OnboardingJobExperience = ({
                 transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                 '&:hover': {
                   borderStyle: 'solid',
-                  borderColor: 'primary.main',
+                  borderColor: theme.palette.primary.main,
                   bgcolor: alpha(theme.palette.primary.main, 0.08),
                   transform: 'translateY(-1px)',
-                  boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.2)}`,
+                  boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`,
                 },
                 '&:active': {
                   transform: 'translateY(0)',

@@ -726,6 +726,7 @@ const WorkHistoryForm = ({ onNextStep }) => {
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
+        width: '100%',
       }}
     >
     <Toaster position="top-right" />
@@ -736,9 +737,10 @@ const WorkHistoryForm = ({ onNextStep }) => {
       sx={{ 
         py: { xs: 2, md: 3 },
         px: { xs: 2, sm: 2.5, md: 3 },
-        flex: 1,
+        flex: '1 1 auto',
         display: 'flex',
         flexDirection: 'column',
+        width: '100%',
       }}
     >
       {/* Desktop/Laptop Layout: Flex Row */}
@@ -881,93 +883,112 @@ const WorkHistoryForm = ({ onNextStep }) => {
       </Box>
     </Container>
 
-    {/* Document Preview Modal */}
-    {/* Form Navigation Actions - SaaS-Level Design */}
+    {/* Premium Footer - Natural Bottom Position */}
     <Box
-      component="section"
+      component="footer"
       sx={{
-        position: 'sticky',
-        bottom: 0,
-        bgcolor: alpha(theme.palette.background.paper, 0.95),
-        backdropFilter: 'blur(10px)',
-        borderTop: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-        py: { xs: 2, md: 2.5 },
-        px: { xs: 2, md: 3 },
-        mt: 'auto',
-        boxShadow: '0 -4px 20px rgba(0,0,0,0.08)',
-        zIndex: 10,
+        bgcolor: 'background.paper',
+        borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+        py: { xs: 3, sm: 3.5, md: 4 },
+        px: { xs: 2, sm: 2.5, md: 3 },
+        mt: { xs: 4, sm: 5, md: 6 },
+        width: '100%',
       }}
     >
       <Container maxWidth="xl">
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           justifyContent="space-between"
-          alignItems="center"
+          alignItems={{ xs: 'stretch', sm: 'center' }}
           spacing={{ xs: 1.5, sm: 2 }}
         >
-          {/* Back Button */}
+          {/* Back Button - Premium Design */}
           <Button
             variant="outlined"
             color="primary"
-            startIcon={<ArrowBackIcon />}
+            startIcon={<ArrowBackIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />}
             onClick={prevStep}
             disabled={isPending}
-            size={isMobile ? 'small' : 'medium'}
             sx={{
-              minWidth: { xs: '100%', sm: 130 },
-              height: { xs: 44, sm: 42 },
-              borderRadius: 2,
+              minWidth: { xs: '100%', sm: 140, md: 150 },
+              height: { xs: 48, sm: 50, md: 52 },
+              borderRadius: '12px',
               textTransform: 'none',
               fontWeight: 600,
-              fontSize: { xs: '0.875rem', sm: '0.9375rem' },
-              borderColor: alpha(theme.palette.primary.main, 0.3),
+              fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+              borderColor: alpha(theme.palette.primary.main, 0.2),
+              borderWidth: '1.5px',
+              color: theme.palette.primary.main,
+              bgcolor: 'transparent',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
               '&:hover': {
                 borderColor: theme.palette.primary.main,
-                bgcolor: alpha(theme.palette.primary.main, 0.05),
+                bgcolor: alpha(theme.palette.primary.main, 0.04),
                 transform: 'translateY(-1px)',
+                boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.15)}`,
+              },
+              '&:active': {
+                transform: 'translateY(0)',
+              },
+              '&:disabled': {
+                borderColor: alpha(theme.palette.action.disabled, 0.3),
+                color: theme.palette.action.disabled,
               },
             }}
           >
             Back
           </Button>
 
-          {/* Next Button */}
+          {/* Next Button - Premium Design */}
           <Button
             type="submit"
             variant="contained"
             color="primary"
             disabled={isPending}
-            size={isMobile ? 'small' : 'medium'}
-            endIcon={!isPending && <ArrowForwardIcon />}
+            endIcon={!isPending && <ArrowForwardIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />}
             sx={{
-              minWidth: { xs: '100%', sm: 170 },
-              height: { xs: 44, sm: 42 },
-              borderRadius: 2,
+              minWidth: { xs: '100%', sm: 180, md: 200 },
+              height: { xs: 48, sm: 50, md: 52 },
+              borderRadius: '12px',
               textTransform: 'none',
               fontWeight: 600,
-              fontSize: { xs: '0.875rem', sm: '0.9375rem' },
-              boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}`,
-              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-              '&:hover': {
-                boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.4)}`,
+              fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+              boxShadow: `0 2px 12px ${alpha(theme.palette.primary.main, 0.25)}`,
+              bgcolor: theme.palette.primary.main,
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover:not(:disabled)': {
+                boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.35)}`,
                 transform: 'translateY(-2px)',
-                background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
+                bgcolor: theme.palette.primary.dark,
+              },
+              '&:active:not(:disabled)': {
+                transform: 'translateY(0)',
+                boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}`,
               },
               '&:disabled': {
                 boxShadow: 'none',
                 transform: 'none',
-                background: theme.palette.action.disabledBackground,
+                bgcolor: alpha(theme.palette.action.disabledBackground, 0.5),
+                color: theme.palette.action.disabled,
               },
             }}
           >
             {isPending ? (
-              <Stack direction="row" spacing={1} alignItems="center">
+              <Stack direction="row" spacing={1.25} alignItems="center">
                 <CircularProgress 
                   size={18} 
                   color="inherit"
                   thickness={4}
                 />
-                <span>Saving...</span>
+                <Typography 
+                  component="span"
+                  sx={{ 
+                    fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                    fontWeight: 600,
+                  }}
+                >
+                  Saving...
+                </Typography>
               </Stack>
             ) : (
               'Next: Availability'
