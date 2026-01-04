@@ -313,6 +313,7 @@ const useOnboardingStore = create(
       },
 
       // Load document tracking from database
+      // SaaS-Level: Backend is source of truth
       loadDocumentTrackingFromDatabase: async () => {
         try {
           const response = await api.get('/documents-tracking/user');
@@ -328,7 +329,9 @@ const useOnboardingStore = create(
                   documentType: doc.documentType,
                   fileName: doc.fileName,
                   fileType: doc.fileType,
+                  url: doc.documentUrl, // Add URL for consistency
                   trackedAt: doc.uploadDate,
+                  isUsed: doc.isUsed || false,
                   additionalInfo: doc.additionalInfo || {}
                 };
               }
@@ -342,10 +345,15 @@ const useOnboardingStore = create(
               }
             }));
 
-            console.log('Document tracking loaded from database');
+            console.log(`✅ Document tracking loaded from database: ${Object.keys(trackedDocs).length} documents`);
+            
+            // Return documents for localStorage sync
+            return documents;
           }
+          return [];
         } catch (error) {
-          console.error('Error loading document tracking from database:', error);
+          console.error('❌ Error loading document tracking from database:', error);
+          throw error; // Re-throw for error handling in component
         }
       },
 

@@ -64,6 +64,22 @@ import { NATIONALITIES } from '../../utils/constants';
 import RenderEducationFields from '../../components/WorkerCertificateOnboarding/RenderEducationFields';
 import RenderInsuranceField from '../../components/WorkerCertificateOnboarding/RenderInsuranceField';
 import AddOtherCertificate from '../../components/WorkerCertificateOnboarding/AddOtherCertificate';
+import {
+  AddCertificationsStep,
+  PersonalInfoStep,
+  ReviewSubmitStep,
+  CertificationFormDrawer,
+  DocumentTrackingService,
+  setZustandSyncCallback,
+  clearZustandSyncCallback,
+  normalizeCertificationType,
+  isWorkingWithChildrenCheck,
+  isWorkingWithChildrenCheckType,
+  isDegreeMissing,
+  formatFieldLabel,
+  isCertFullyComplete,
+  getFieldTooltip
+} from '../../components/workerForm/components/CertificateOnboardingComponents';
 
 const { Title, Text, Paragraph } = Typography;
 const { Step } = Steps;
@@ -72,307 +88,16 @@ const { TabPane } = Tabs;
 const { confirm } = Modal;
 
 
-const RESIDENCY_STATUSES = [
-  { value: 'Citizen', label: 'Australian Citizen', icon: <IdcardOutlined />, color: 'green' },
-  { value: 'NZCitizen', label: 'New Zealand Citizen', icon: <IdcardOutlined />, color: 'teal' },
-  { value: 'PermanentResident', label: 'Permanent Resident', icon: <FileDoneOutlined />, color: 'blue' },
-  { value: 'StudentVisa', label: 'Student Visa (Subclass 500)', icon: <ReadOutlined />, color: 'purple' },
-  { value: 'TemporaryGraduateVisa', label: 'Temporary Graduate Visa (485)', icon: <SolutionOutlined />, color: 'geekblue' },
-  { value: 'TSS', label: 'Temporary Skill Shortage (482)', icon: <FileOutlined />, color: 'orange' },
-  { value: 'BridgingVisa', label: 'Bridging Visa', icon: <ClockCircleOutlined />, color: 'gold' },
-  { value: 'OtherTemporaryVisa', label: 'Other Temporary Visa', icon: <FileOutlined />, color: 'cyan' }
-];
-
-const CATEGORY_ICONS = {
-  'Citizenship': <IdcardOutlined />,
-  'Identity': <FileDoneOutlined />,
-  'Visa': <GlobalOutlined />,
-  'Training': <SafetyCertificateOutlined />,
-  'Industry': <SafetyOutlined />,
-  'License': <CarOutlined />,
-  'Health': <MedicineBoxOutlined />,
-  'Financial': <BankOutlined />
-};
-// Constants
+// Constants moved to CertificateOnboardingComponents/constants.js
 
 
 
 
 
-// LocalStorage utility functions for document tracking
-const DOCUMENT_TRACKING_KEY = 'certification_documents_tracking';
-const UNTRACKED_DOCUMENTS_KEY = 'untracked_documents';
+// DocumentTrackingService moved to CertificateOnboardingComponents/utils/documentTrackingService.js
 
-const DocumentTrackingService = {
-  // Get all tracked document public IDs
-  getTrackedDocuments: () => {
-    try {
-      const stored = localStorage.getItem(DOCUMENT_TRACKING_KEY);
-      if (!stored) return {};
-
-      const parsed = JSON.parse(stored);
-      return typeof parsed === 'object' && parsed !== null ? parsed : {};
-    } catch (error) {
-      console.error('Error reading tracked documents from localStorage:', error);
-      return {};
-    }
-  },
-
-  // Add a document public ID to tracking with full document data
-  addTrackedDocument: (publicId, documentData = {}) => {
-    try {
-      const tracked = DocumentTrackingService.getTrackedDocuments();
-
-      // Validate input
-      if (!publicId || typeof publicId !== 'string') {
-        console.error('Invalid publicId provided for document tracking');
-        return false;
-      }
-
-      // Add document with full metadata
-      tracked[publicId] = {
-        publicId,
-        url: documentData.url || '',
-        fileName: documentData.fileName || '',
-        fileType: documentData.fileType || '',
-        documentName: documentData.documentName || `Document ${publicId}`,
-        documentType: documentData.documentType || 'Support Worker',
-        trackedAt: new Date().toISOString(),
-        isUsed: false, // Will be set to true when used in certifications
-        ...documentData
-      };
-
-      localStorage.setItem(DOCUMENT_TRACKING_KEY, JSON.stringify(tracked));
-      console.log(`Document tracked: ${publicId}`, tracked[publicId]);
-      return true;
-    } catch (error) {
-      console.error('Error adding document to tracking:', error);
-      return false;
-    }
-  },
-
-  // Check if document public ID is already tracked
-  isDocumentTracked: (publicId) => {
-    try {
-      const tracked = DocumentTrackingService.getTrackedDocuments();
-      return tracked.hasOwnProperty(publicId);
-    } catch (error) {
-      console.error('Error checking document tracking status:', error);
-      return false;
-    }
-  },
-
-  // Remove document public ID from tracking
-  removeTrackedDocument: (publicId) => {
-    try {
-      const tracked = DocumentTrackingService.getTrackedDocuments();
-      if (tracked[publicId]) {
-        delete tracked[publicId];
-        localStorage.setItem(DOCUMENT_TRACKING_KEY, JSON.stringify(tracked));
-        console.log(`Document removed from tracking: ${publicId}`);
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Error removing document from tracking:', error);
-      return false;
-    }
-  },
-
-  // Mark document as used in certifications
-  markDocumentAsUsed: (publicId) => {
-    try {
-      const tracked = DocumentTrackingService.getTrackedDocuments();
-      if (tracked[publicId]) {
-        tracked[publicId].isUsed = true;
-        tracked[publicId].usedAt = new Date().toISOString();
-        localStorage.setItem(DOCUMENT_TRACKING_KEY, JSON.stringify(tracked));
-        console.log(`Document marked as used: ${publicId}`);
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Error marking document as used:', error);
-      return false;
-    }
-  },
-
-  // Get tracking statistics
-  getTrackingStats: () => {
-    try {
-      const tracked = DocumentTrackingService.getTrackedDocuments();
-      const publicIds = Object.keys(tracked);
-      const usedDocs = Object.values(tracked).filter(doc => doc.isUsed);
-      const unusedDocs = Object.values(tracked).filter(doc => !doc.isUsed);
-
-      return {
-        totalTracked: publicIds.length,
-        usedDocuments: usedDocs.length,
-        unusedDocuments: unusedDocs.length,
-        publicIds: publicIds,
-        usedPublicIds: usedDocs.map(doc => doc.publicId),
-        unusedPublicIds: unusedDocs.map(doc => doc.publicId)
-      };
-    } catch (error) {
-      console.error('Error getting tracking statistics:', error);
-      return { totalTracked: 0, usedDocuments: 0, unusedDocuments: 0, publicIds: [], usedPublicIds: [], unusedPublicIds: [] };
-    }
-  },
-
-  // Get unused documents (untracked documents)
-  getUnusedDocuments: () => {
-    try {
-      const tracked = DocumentTrackingService.getTrackedDocuments();
-      return Object.values(tracked).filter(doc => !doc.isUsed);
-    } catch (error) {
-      console.error('Error getting unused documents:', error);
-      return [];
-    }
-  },
-
-  // Clean up unused documents (called during submit)
-  cleanupUnusedDocuments: () => {
-    try {
-      const tracked = DocumentTrackingService.getTrackedDocuments();
-      const unusedDocs = Object.values(tracked).filter(doc => !doc.isUsed);
-
-      // Remove unused documents from tracking
-      unusedDocs.forEach(doc => {
-        delete tracked[doc.publicId];
-      });
-
-      localStorage.setItem(DOCUMENT_TRACKING_KEY, JSON.stringify(tracked));
-      console.log(`Cleaned up ${unusedDocs.length} unused documents from tracking`);
-      return unusedDocs.length;
-    } catch (error) {
-      console.error('Error cleaning up unused documents:', error);
-      return 0;
-    }
-  },
-
-  // Clean up old documents (older than specified days)
-  cleanupOldDocuments: (daysOld = 30) => {
-    try {
-      const tracked = DocumentTrackingService.getTrackedDocuments();
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-
-      let cleanedCount = 0;
-      Object.keys(tracked).forEach(publicId => {
-        const trackedAt = new Date(tracked[publicId].trackedAt);
-        if (trackedAt < cutoffDate && !tracked[publicId].isUsed) {
-          delete tracked[publicId];
-          cleanedCount++;
-        }
-      });
-
-      if (cleanedCount > 0) {
-        localStorage.setItem(DOCUMENT_TRACKING_KEY, JSON.stringify(tracked));
-        console.log(`Cleaned up ${cleanedCount} old unused documents from tracking`);
-      }
-
-      return cleanedCount;
-    } catch (error) {
-      console.error('Error cleaning up old documents:', error);
-      return 0;
-    }
-  },
-
-  // Clear all tracked documents
-  clearAllTrackedDocuments: () => {
-    try {
-      localStorage.removeItem(DOCUMENT_TRACKING_KEY);
-      console.log('All tracked documents cleared from localStorage');
-      return true;
-    } catch (error) {
-      console.error('Error clearing tracked documents:', error);
-      return false;
-    }
-  },
-
-  // Export tracking data for backup
-  exportTrackingData: () => {
-    try {
-      const tracked = DocumentTrackingService.getTrackedDocuments();
-      const stats = DocumentTrackingService.getTrackingStats();
-      return {
-        trackedDocuments: tracked,
-        statistics: stats,
-        exportedAt: new Date().toISOString()
-      };
-    } catch (error) {
-      console.error('Error exporting tracking data:', error);
-      return null;
-    }
-  },
-
-  // Import tracking data from backup
-  importTrackingData: (data) => {
-    try {
-      if (data && data.trackedDocuments) {
-        localStorage.setItem(DOCUMENT_TRACKING_KEY, JSON.stringify(data.trackedDocuments));
-        console.log('Tracking data imported successfully');
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Error importing tracking data:', error);
-      return false;
-    }
-  }
-};
-
-// Helper function to normalize certification type (handles both object and string formats)
-const normalizeCertificationType = (certType) => {
-  return {
-    _id: certType._id,
-    name: certType.name || certType.certTypeName || 'Unknown',
-    requiredFields: certType.requiredFields || [],
-    hasExpiryDate: certType.hasExpiryDate,
-    documentRequired: certType.documentRequired,
-    category: certType.category,
-    description: certType.description,
-    instructions: certType.instructions,
-    isEducation: certType.isEducation,
-    educationSetting: certType.isEducation ? {
-      degreeOptions: certType.educationSetting?.degreeOptions || []
-    } : undefined,
-    isVisa: certType.isVisa,
-    visaSettings: certType.isVisa ? {
-      subclassOptions: certType.visaSettings?.subclassOptions || [],
-      requiresWorkRights: certType.visaSettings?.requiresWorkRights !== false,
-      requiresConditions: certType.visaSettings?.requiresConditions !== false,
-      allowedCountries: certType.visaSettings?.allowedCountries || []
-    } : undefined,
-    isCitizenshipProof: certType.isCitizenshipProof,
-    acceptableFor: certType.acceptableFor
-  };
-};
-
-// Add this helper above the component
-const isCertFullyComplete = (certType, selectedCerts) => {
-  const cert = selectedCerts.find(c => c.certificationType === certType._id);
-  if (!cert) return false;
-  // Check all required fields
-  const allFieldsFilled = certType.requiredFields.every(f => !!cert[f]);
-  // Check document requirement
-  const docsFilled = !certType.documentRequired || (cert.documents && cert.documents.length > 0);
-  return allFieldsFilled && docsFilled;
-};
-
-// Add this helper for degree field validation
-const isDegreeMissing = (degree) => {
-  if (Array.isArray(degree)) return degree.length === 0;
-  return !degree || degree === '';
-};
-
-// Add at the top, after other constants
-const PREDEFINED_INSURANCE_TYPES = [
-  "Comprehensive",
-  "Third Party Property",
-  "CTP (Compulsory Third Party)",
-
-];
+// normalizeCertificationType moved to CertificateOnboardingComponents/utils/certificationHelpers.js
+// PREDEFINED_INSURANCE_TYPES moved to CertificateOnboardingComponents/constants.js
 
 const CertificateSecond = ({ initialStep = 0 }) => {
   const customDegreeInputRef = useRef(null);
@@ -483,6 +208,142 @@ const CertificateSecond = ({ initialStep = 0 }) => {
       }
     }
   }, [onboardingData, isLoadingOnboardingData, updateCertifications, updateResidencyStatus, updateOtherCertificates]);
+
+  // SaaS-Level: Backend Server as Source of Truth
+  // Load document tracking from backend first, then sync to localStorage
+  useEffect(() => {
+    // Create sync callback that updates Zustand store
+    const syncCallback = async (action, publicId, data) => {
+      try {
+        const store = useOnboardingStore.getState();
+        
+        switch (action) {
+          case 'add':
+            if (store.addTrackedDocument && data) {
+              await store.addTrackedDocument(publicId, data);
+            }
+            break;
+          case 'remove':
+            if (store.removeTrackedDocument) {
+              await store.removeTrackedDocument(publicId);
+            }
+            break;
+          case 'markUsed':
+            if (store.documentTracking?.trackedDocuments?.[publicId] && data) {
+              const updatedTracking = {
+                ...store.documentTracking.trackedDocuments,
+                [publicId]: {
+                  ...store.documentTracking.trackedDocuments[publicId],
+                  ...data
+                }
+              };
+              useOnboardingStore.setState({
+                documentTracking: {
+                  ...store.documentTracking,
+                  trackedDocuments: updatedTracking
+                }
+              });
+            }
+            break;
+        }
+      } catch (error) {
+        console.debug('Zustand sync error:', error);
+      }
+    };
+    
+    // Set the callback
+    setZustandSyncCallback(syncCallback);
+    
+    // SaaS-Level: Load from backend first (source of truth)
+    const loadFromBackendAndSync = async () => {
+      try {
+        console.log('🔄 Loading document tracking from backend (source of truth)...');
+        
+        // Step 1: Load from backend via Zustand store
+        const { loadDocumentTrackingFromDatabase } = useOnboardingStore.getState();
+        await loadDocumentTrackingFromDatabase();
+        
+        // Step 2: Get backend data from Zustand store (now populated from backend)
+        const { documentTracking } = useOnboardingStore.getState();
+        const backendDocs = documentTracking?.trackedDocuments || {};
+        const backendPublicIds = Object.keys(backendDocs);
+        
+        console.log(`✅ Loaded ${backendPublicIds.length} documents from backend`);
+        
+        // Step 3: Get current localStorage data
+        const localStorageDocs = DocumentTrackingService.getTrackedDocuments();
+        const localStoragePublicIds = Object.keys(localStorageDocs);
+        
+        // Step 4: Backend is source of truth - overwrite localStorage with backend data
+        if (backendPublicIds.length > 0) {
+          // Clear localStorage and repopulate with backend data
+          DocumentTrackingService.clearAllTrackedDocuments();
+          
+          // Populate localStorage with backend data
+          let syncedCount = 0;
+          for (const publicId of backendPublicIds) {
+            const backendDoc = backendDocs[publicId];
+            if (backendDoc) {
+              DocumentTrackingService.addTrackedDocument(publicId, {
+                url: backendDoc.url || '',
+                fileName: backendDoc.fileName || '',
+                fileType: backendDoc.fileType || '',
+                documentName: backendDoc.documentName || `Document ${publicId}`,
+                documentType: backendDoc.documentType || 'Support Worker',
+                trackedAt: backendDoc.trackedAt || new Date().toISOString(),
+                isUsed: backendDoc.isUsed || false,
+                ...backendDoc
+              });
+              syncedCount++;
+            }
+          }
+          console.log(`✅ Synced ${syncedCount} documents from backend to localStorage`);
+        } else {
+          // No backend data - check if localStorage has orphaned data
+          if (localStoragePublicIds.length > 0) {
+            console.warn(`⚠️ Backend has no documents, but localStorage has ${localStoragePublicIds.length}. Keeping localStorage as fallback.`);
+          }
+        }
+        
+        // Step 5: Find documents in localStorage that don't exist in backend (orphaned)
+        const orphanedInLocalStorage = localStoragePublicIds.filter(
+          id => !backendPublicIds.includes(id)
+        );
+        
+        if (orphanedInLocalStorage.length > 0) {
+          console.warn(`⚠️ Found ${orphanedInLocalStorage.length} orphaned documents in localStorage (not in backend). These will be cleaned up.`);
+          // Optionally: Remove orphaned documents from localStorage
+          // Or keep them as fallback until backend sync
+        }
+        
+      } catch (error) {
+        console.error('❌ Error loading document tracking from backend:', error);
+        // Fallback: Use localStorage if backend fails
+        console.warn('⚠️ Falling back to localStorage due to backend error');
+        const localStorageDocs = DocumentTrackingService.getTrackedDocuments();
+        const localStoragePublicIds = Object.keys(localStorageDocs);
+        
+        if (localStoragePublicIds.length > 0) {
+          // Sync localStorage to Zustand as fallback
+          localStoragePublicIds.forEach(publicId => {
+            const doc = localStorageDocs[publicId];
+            if (doc) {
+              useOnboardingStore.getState().addTrackedDocument(publicId, doc);
+            }
+          });
+          console.log(`✅ Fallback: Synced ${localStoragePublicIds.length} documents from localStorage to Zustand store`);
+        }
+      }
+    };
+
+    // Load from backend on mount (backend is source of truth)
+    loadFromBackendAndSync();
+    
+    // Cleanup: remove callback on unmount
+    return () => {
+      clearZustandSyncCallback();
+    };
+  }, []);
 
   // Fetch certification types from API
   const fetchCertTypes = async () => {
@@ -759,10 +620,21 @@ const CertificateSecond = ({ initialStep = 0 }) => {
     }
     setSubmitLoading(true);
 
-    // Clean up unused documents before submitting
+    // Extract all active document publicIds from certifications
+    const activePublicIds = selectedCerts.flatMap(cert => 
+      cert.documents?.map(doc => doc.publicId || doc.uid).filter(Boolean) || []
+    );
+
+    // Clean up orphaned documents (in tracking but not in active certifications)
+    const orphanedCount = DocumentTrackingService.cleanupOrphanedDocuments(activePublicIds);
+    if (orphanedCount > 0) {
+      console.log(`✅ Cleaned up ${orphanedCount} orphaned documents before submission`);
+    }
+
+    // Clean up unused documents (marked as unused)
     const unusedCount = DocumentTrackingService.cleanupUnusedDocuments();
     if (unusedCount > 0) {
-      console.log(`Cleaned up ${unusedCount} unused documents before submission`);
+      console.log(`✅ Cleaned up ${unusedCount} unused documents before submission`);
     }
 
     // Gather tracked document objects from localStorage
@@ -861,9 +733,7 @@ const CertificateSecond = ({ initialStep = 0 }) => {
   // Add WWCC draft state
   const [wwccDraft, setWwccDraft] = useState(null);
 
-  // Helper to check if a certType is the Working With Children Check
-  const isWorkingWithChildrenCheckType = (certType) =>
-    certType && certType.name && certType.name.trim().toLowerCase() === 'working with children check';
+  // isWorkingWithChildrenCheckType imported from utils
 
   const addCertification = useCallback((certTypeId) => {
     const certType = certificationTypes.find(t => t._id === certTypeId);
@@ -1162,6 +1032,7 @@ const CertificateSecond = ({ initialStep = 0 }) => {
       console.log('================================');
 
       // Track document in localStorage with full metadata
+      // DocumentTrackingService.addTrackedDocument now syncs with Zustand store automatically
       const trackingSuccess = DocumentTrackingService.addTrackedDocument(data.public_id, {
         url: data.secure_url,
         fileName: file.name,
@@ -1170,10 +1041,28 @@ const CertificateSecond = ({ initialStep = 0 }) => {
         documentType: 'Support Worker',
         uploadedAt: new Date().toISOString()
       });
+      
+      // Also add to Zustand store's documentTracking for consistency
+      try {
+        const { addTrackedDocument } = useOnboardingStore.getState();
+        if (addTrackedDocument) {
+          await addTrackedDocument(data.public_id, {
+            url: data.secure_url,
+            fileName: file.name,
+            fileType: file.type,
+            documentName: file.name,
+            documentType: 'Support Worker',
+            uploadedAt: new Date().toISOString()
+          });
+        }
+      } catch (storeError) {
+        console.debug('Zustand store tracking skipped:', storeError.message);
+      }
+      
       if (trackingSuccess) {
-        console.log(`Document ${data.public_id} tracked in localStorage`);
+        console.log(`✅ Document ${data.public_id} tracked in localStorage and Zustand store`);
       } else {
-        console.warn(`Failed to track document ${data.public_id} in localStorage`);
+        console.warn(`⚠️ Failed to track document ${data.public_id} in localStorage`);
       }
 
       return {
@@ -1196,30 +1085,189 @@ const CertificateSecond = ({ initialStep = 0 }) => {
     }
   };
 
-  const handleRemoveDocument = useCallback((certIndex, docIndex) => {
-    confirm({
-      title: 'Remove Document?',
-      icon: <ExclamationCircleOutlined />,
-      content: 'Are you sure you want to remove this document?',
-      okText: 'Yes, remove it',
-      okType: 'danger',
-      cancelText: 'No, keep it',
-      onOk() {
-        performDocumentRemoval(certIndex, docIndex);
+  /**
+   * Extract publicId from Cloudinary URL
+   * Helper function for document removal
+   */
+  const extractPublicIdFromUrl = useCallback((url) => {
+    if (!url || typeof url !== 'string') return null;
+    
+    try {
+      // Cloudinary URL format: https://res.cloudinary.com/{cloud_name}/image/upload/{version}/{public_id}.{format}
+      const match = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+      if (match && match[1]) {
+        return decodeURIComponent(match[1]);
       }
+      
+      // Fallback: if URL contains publicId directly
+      const publicIdMatch = url.match(/public[Ii]d[=:]([^&]+)/);
+      if (publicIdMatch && publicIdMatch[1]) {
+        return decodeURIComponent(publicIdMatch[1]);
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error extracting publicId from URL:', error);
+      return null;
+    }
+  }, []);
+
+  // Centralized document removal function
+  // SaaS-level best practice: Atomic operations with proper error handling and cleanup
+  const removeDocumentFromAllStates = useCallback(async (certIndex, docIndex, publicId = null) => {
+    try {
+      // Validate inputs
+      if (certIndex < 0 || certIndex >= selectedCerts.length) {
+        throw new Error('Invalid certification index');
+      }
+      
+      const cert = selectedCerts[certIndex];
+      if (!cert || !cert.documents || docIndex < 0 || docIndex >= cert.documents.length) {
+        throw new Error('Invalid document index');
+      }
+      
+      const document = cert.documents[docIndex];
+      
+      // Extract publicId from multiple possible sources
+      const docPublicId = publicId || 
+                         document?.publicId || 
+                         document?.uid || 
+                         (document?.url ? extractPublicIdFromUrl(document.url) : null);
+      
+      if (!docPublicId) {
+        console.warn('⚠️ No publicId found for document, proceeding with local removal only');
+      }
+
+      // Step 1: Remove from Zustand store certifications array (immediate UI update)
+      removeCertificationDocument(certIndex, docIndex);
+
+      // Step 2: Update local component state immediately (optimistic update)
+      const updatedCerts = [...selectedCerts];
+      const updatedDocuments = updatedCerts[certIndex].documents.filter((_, i) => i !== docIndex);
+      updatedCerts[certIndex] = {
+        ...updatedCerts[certIndex],
+        documents: updatedDocuments
+      };
+      setSelectedCerts(updatedCerts);
+      updateCertifications(updatedCerts); // Sync with Zustand
+      
+      // Step 2.5: Update form if drawer is open and editing this cert
+      // This ensures the form reflects the deletion immediately
+      // Use setTimeout to ensure state has updated first
+      setTimeout(() => {
+        if (certDetailsVisible && isEditing && currentCertIndex === certIndex) {
+          // Update form with new document list
+          certForm.setFieldsValue({
+            documents: updatedDocuments
+          });
+          
+          // Trigger form validation to update UI
+          certForm.validateFields(['documents']).catch(() => {});
+        }
+      }, 0);
+
+      // Step 3: Remove from localStorage tracking (DocumentTrackingService)
+      // This also syncs with Zustand store's documentTracking if available
+      if (docPublicId) {
+        const removedFromTracking = DocumentTrackingService.removeTrackedDocument(docPublicId);
+        if (!removedFromTracking) {
+          console.warn(`⚠️ Document ${docPublicId} was not found in tracking - may have been already removed`);
+        }
+      }
+
+      // Step 4: Remove from Zustand store's documentTracking (if exists)
+      // This ensures complete cleanup across all storage layers
+      // Note: DocumentTrackingService.removeTrackedDocument already handles this via sync callback
+      // But we do it explicitly here as well for redundancy
+      try {
+        const { documentTracking, removeTrackedDocument } = useOnboardingStore.getState();
+        if (docPublicId && documentTracking?.trackedDocuments?.[docPublicId]) {
+          await removeTrackedDocument(docPublicId);
+        }
+      } catch (storeError) {
+        console.debug('Zustand documentTracking cleanup skipped:', storeError.message);
+      }
+
+      // Step 5: Delete from Cloudinary in background (non-blocking, non-critical)
+      // Cloudinary deletion is fire-and-forget - don't block on it
+      // Even if it fails, the document is already removed from UI and storage
+      if (docPublicId) {
+        // Don't await - let it run in background without blocking
+        deleteCloudinaryImage(docPublicId)
+          .then(() => {
+            console.log(`✅ Document ${docPublicId} deleted from Cloudinary`);
+          })
+          .catch((error) => {
+            // Log warning but don't throw - document is already removed from UI/storage
+            // Cloudinary deletion failure is non-critical
+            console.warn(`⚠️ Failed to delete ${docPublicId} from Cloudinary (non-critical):`, error.message);
+            // Could queue for retry in production, but don't fail the operation
+          });
+      }
+      
+      // Return success - local removal is complete
+      // Cloudinary deletion is non-critical and happens in background
+      return { success: true, publicId: docPublicId };
+    } catch (error) {
+      console.error('❌ Error in removeDocumentFromAllStates:', error);
+      // Only throw if critical operations failed (state updates, localStorage)
+      // Cloudinary errors are non-critical and shouldn't cause failure
+      throw error;
+    }
+  }, [selectedCerts, removeCertificationDocument, updateCertifications, certDetailsVisible, isEditing, currentCertIndex, certForm, extractPublicIdFromUrl]);
+
+  const handleRemoveDocument = useCallback((certIndex, docIndex) => {
+    // Validate indices
+    if (certIndex < 0 || certIndex >= selectedCerts.length) {
+      toast.error('Invalid certification index');
+      return Promise.reject(new Error('Invalid certification index'));
+    }
+    
+    const cert = selectedCerts[certIndex];
+    if (!cert || !cert.documents || docIndex < 0 || docIndex >= cert.documents.length) {
+      toast.error('Invalid document index');
+      return Promise.reject(new Error('Invalid document index'));
+    }
+    
+    const document = cert.documents[docIndex];
+    const documentName = document?.fileName || document?.name || 'this document';
+    
+    return new Promise((resolve, reject) => {
+      confirm({
+        title: 'Remove Document?',
+        icon: <ExclamationCircleOutlined />,
+        content: `Are you sure you want to remove "${documentName}"? This action cannot be undone.`,
+        okText: 'Yes, remove it',
+        okType: 'danger',
+        cancelText: 'No, keep it',
+        onOk() {
+          performDocumentRemoval(certIndex, docIndex, document)
+            .then(resolve)
+            .catch(reject);
+        },
+        onCancel() {
+          reject(new Error('User cancelled'));
+        }
+      });
     });
 
-    function performDocumentRemoval(certIndex, docIndex) {
-      const cert = selectedCerts[certIndex];
-      const document = cert.documents[docIndex];
-
-      // Show immediate feedback
-      message.info('Document removed from view. Cleaning up cloud storage...');
-
-      // Use centralized removal function
-      removeDocumentFromAllStates(certIndex, docIndex, document?.publicId);
+    async function performDocumentRemoval(certIndex, docIndex, document) {
+      // Extract publicId from document
+      const publicId = document?.publicId || document?.uid || null;
+      
+      try {
+        // Use centralized removal function (optimized - handles all cleanup)
+        await removeDocumentFromAllStates(certIndex, docIndex, publicId);
+        
+        // Single success toast
+        toast.success('Document removed successfully');
+      } catch (error) {
+        console.error('Error removing document:', error);
+        toast.error('Failed to remove document. Please try again.');
+        throw error; // Re-throw for caller to handle
+      }
     }
-  }, [selectedCerts, removeCertificationDocument]);
+  }, [selectedCerts, removeDocumentFromAllStates]);
 
   const isCertComplete = useCallback((cert) => {
     const type = certificationTypes.find(t => t._id === cert.certificationType);
@@ -1231,11 +1279,7 @@ const CertificateSecond = ({ initialStep = 0 }) => {
     return fieldsComplete && docsComplete;
   }, [certificationTypes]);
 
-  // Helper to check if a cert is the Working With Children Check (case-insensitive, trimmed)
-  const isWorkingWithChildrenCheck = (cert) => {
-    const name = cert.name || cert.certTypeName;
-    return name && name.trim().toLowerCase() === 'working with children check';
-  };
+  // isWorkingWithChildrenCheck imported from utils
 
   const getRequiredCertsAddedCount = useCallback(() => {
     // Only count truly required certs (exclude Working With Children Check)
@@ -1251,26 +1295,7 @@ const CertificateSecond = ({ initialStep = 0 }) => {
     return getRequiredCertsAddedCount() === requiredCount;
   }, [getRequiredCertsAddedCount, requiredCerts]);
 
-  const formatFieldLabel = (field) => {
-    return field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1');
-  };
-
-  const getFieldTooltip = (field) => {
-    const tooltips = {
-      number: 'The unique identifier on your certificate or document',
-      policeRefNo: 'The unique identifier on your certificate or document',
-      dateOfCompletion: 'The date when this certification was completed',
-      workerScreeningId: "The unique identifier for your worker screening id",
-      insuranceType: "Any Insurance Type you have",
-      issuedDate: 'The date when this certification was issued',
-      expiryDate: 'The date when this certification will expire',
-      country: 'The country that issued this certification',
-      state: 'The state or territory that issued this certification',
-      subclass: 'The visa subclass number',
-      visaConditions: 'Any specific conditions attached to this visa'
-    };
-    return tooltips[field] || null;
-  };
+  // formatFieldLabel and getFieldTooltip imported from utils
   console.log("CertForm", certForm)
   const validateCurrentStep = useCallback(() => {
     if (currentStep === 0) {
@@ -1372,470 +1397,48 @@ const CertificateSecond = ({ initialStep = 0 }) => {
 
   // Render functions for each step
   const renderPersonalInfoStep = useMemo(() => (
-    <Card
-
-      title={<Title level={4} style={{ margin: 0 }}>Personal Information</Title>}
-      style={{ maxWidth: 800, margin: '0 auto', borderRadius: 8,display: 'flex', flexDirection: 'column', gap: 24, justifyContent: 'center', alignItems: 'center' }}
-      headStyle={{ borderBottom: 'none', padding: '24px 24px 0' }}
-      bodyStyle={{ padding: '16px 24px 24px' }}
-    >
-      <Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
-        Please provide your personal details so we can determine which certifications are required for you.
-      </Text>
-
-      <Form layout="vertical" style={{ maxWidth: 600 }}>
-        {/* <Form.Item 
-          label={
-            <Space>
-              <GlobalOutlined />
-              <span>Nationality</span>
-            </Space>
-          }
-          required
-          validateStatus={formErrors.nationality ? 'error' : ''}
-          help={formErrors.nationality}
-        >
-          <Select
-            value={nationality}
-            onChange={(value) => {
-              updateNationality(value);
-              setFormErrors(prev => ({ ...prev, nationality: undefined }));
-            }}
-            placeholder="Select your nationality"
-            optionLabelProp="label"
-            showSearch
-            filterOption={(input, option) =>
-              option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-            }
-            style={{ width: '100%' }}
-          >
-            {NATIONALITIES.map(option => (
-              <Option 
-                key={option.value} 
-                value={option.value}
-                label={
-                  <Space>
-                    <span>{option.flag}</span>
-                    <span>{option.label}</span>
-                  </Space>
-                }
-              >
-                <Space>
-                  <span>{option.flag}</span>
-                  <span>{option.label}</span>
-                </Space>
-              </Option>
-            ))}
-          </Select>
-        </Form.Item> */}
-
-
-        <Form.Item
-          label={
-            <Space>
-              <IdcardOutlined />
-              <span>Residency Status</span>
-            </Space>
-          }
-          required
-          validateStatus={formErrors.residencyStatus ? 'error' : ''}
-          help={formErrors.residencyStatus}
-        >
-          <Select
-            value={residencyStatus}
-            onChange={handleResidencyStatusChange}
-            placeholder="Select your status"
-            optionLabelProp="label"
-            style={{ width: '100%' }}
-          >
-            {RESIDENCY_STATUSES.map(option => (
-              <Option
-                key={option.value}
-                value={option.value}
-                label={
-                  <Space>
-                    {option.icon}
-                    <span>{option.label}</span>
-                  </Space>
-                }
-              >
-                <Space>
-                  {option.icon}
-                  <span>{option.label}</span>
-                </Space>
-              </Option>
-            ))}
-          </Select>
-        </Form.Item>
-      </Form>
-
-      {residencyStatus && (
-        <Alert
-          message="Profile Information Saved"
-          description="Your   residency information has been saved. Click Next to continue to certification selection."
-          type="success"
-          showIcon
-          style={{ marginTop: 24, maxWidth: 600 }}
-        />
-      )}
-    </Card>
-  ), [residencyStatus, formErrors, updateResidencyStatus]);
+    <PersonalInfoStep
+      residencyStatus={residencyStatus}
+      formErrors={formErrors}
+      onResidencyStatusChange={handleResidencyStatusChange}
+    />
+  ), [residencyStatus, formErrors, handleResidencyStatusChange]);
 
   const renderAddCertificationsStep = useMemo(() => (
-
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: 40 }}>
-          <Spin size="large" />
-          <p>Loading certification requirements...</p>
-        </div>
-      ) : (
-        <>
-
-
-          {!allRequiredCertsAdded() && selectedCerts.length > 0 && (
-            <Alert
-              message="Required Certifications Missing"
-              description={
-                <div>
-                  <p>You still need to add {requiredCerts.length - getRequiredCertsAddedCount()} required certifications.</p>
-                  {/* <Button 
-                      type="link" 
-                      onClick={() => setActiveTab('required')}
-                      style={{ padding: 0 }}
-                    >
-                      View required certifications
-                    </Button> */}
-                </div>
-              }
-              type="warning"
-              showIcon
-              style={{ marginTop: 16 }}
-            />
-          )}
-          <Card
-            // title={<Title level={4} style={{ margin: 0 }}>Available Certifications</Title>}
-            style={{ borderRadius: 8 }}
-            bodyStyle={{ padding: '16px 0' }}
-          >
-            <Tabs
-              activeKey={activeTab}
-              onChange={setActiveTab}
-              tabPosition="top"
-              style={{ padding: '0 16px' }}
-            >
-              <TabPane
-                tab={
-                  <span>
-                    <IdcardOutlined />
-                    Required Certifications
-                    <Badge
-                      count={`${getRequiredCertsAddedCount()}/${requiredCerts.length}`}
-                      style={{
-                        backgroundColor: allRequiredCertsAdded() ? '#52c41a' : '#faad14',
-                        marginLeft: 8
-                      }}
-                    />
-                  </span>
-                }
-                key="required"
-              >
-                {hasExistingCertifications && allRequiredCertsAdded() ? (
-                  <Alert
-                    message="Required Certifications Complete"
-                    description="You have already added all required certifications. You can add additional optional certifications if needed."
-                    type="success"
-                    showIcon
-                    style={{ margin: 16 }}
-                  />
-                ) : filteredRequiredCerts.length > 0 ? (
-                  <div>
-                       <List
-                    dataSource={filteredRequiredCerts}
-
-                    renderItem={cert => {
-                      const certIsComplete = isCertFullyComplete(cert, selectedCerts);
-                      const certInList = selectedCerts.some(c => c.certificationType === cert._id);
-
-                      return (
-                        <List.Item
-                          style={{ padding: '12px 24px' }}
-                          actions={[
-                            certIsComplete ? (
-                              <>
-                                <Button
-                                  icon={<CheckCircleOutlined />}
-                                  type="text"
-                                  style={{ color: '#52c41a' }}
-                                  disabled
-                                >
-                                  Completed
-                                </Button>
-                                {/* <Button
-                                  icon={<EditOutlined />}
-                                  type="link"
-                                  onClick={() => {
-                                    const idx = selectedCerts.findIndex(c => c.certificationType === cert._id);
-                                    editCertification(idx);
-                                  }}
-                                  size="small"
-                                  style={{ marginLeft: 8 }}
-                                >
-                                  Edit
-                                </Button> */}
-                              </>
-                            ) : (
-                              <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
-                                onClick={() => {
-                                  if (!certInList) {
-                                    addCertification(cert._id);
-                                  } else {
-                                    const idx = selectedCerts.findIndex(c => c.certificationType === cert._id);
-                                    editCertification(idx);
-                                  }
-                                }}
-                                size="small"
-                              >
-                                {certInList ? "Add" : "Add"}
-                              </Button>
-                            )
-                          ]}
-                        >
-                          <List.Item.Meta
-
-                            onClick={() => {
-                              const idx = selectedCerts.findIndex(c => c.certificationType === cert._id);
-                              editCertification(idx);
-                            }}
-                            avatar={
-                              <Avatar
-                                icon={cert.isVisa ? <GlobalOutlined /> : CATEGORY_ICONS[cert.category] || <SafetyCertificateOutlined />}
-                                style={{
-                                  backgroundColor: certIsComplete ? '#52c41a' : '#faad14',
-                                  color: '#fff'
-                                }}
-                              />
-                            }
-                            title={
-                              <Space
-
-                              >
-                                <Text strong>{cert.name}</Text>
-                                {!isWorkingWithChildrenCheck(cert) && <p style={{ color: 'red' }}>*</p>}
-                              </Space>
-                            }
-                            description={
-                              !certIsComplete && certInList && (
-                                <div>
-                                  <Text type="danger">
-                                    <WarningOutlined /> Missing:&nbsp;
-                                    {cert.requiredFields
-                                      .filter(field => {
-                                        // If this cert is being edited, use the form's current values
-                                        let userCert;
-                                        if (
-                                          certDetailsVisible &&
-                                          ((isEditing && selectedCerts[currentCertIndex]?.certificationType === cert._id) ||
-                                            (!isEditing && pendingCertTypeId === cert._id))
-                                        ) {
-                                          // Get live form values
-                                          userCert = certForm.getFieldsValue();
-                                        } else {
-                                          // Use saved state
-                                          userCert = certifications.find(sel => sel.certificationType === cert._id);
-                                        }
-                                        if (!userCert) return true;
-                                        // Special handling for degree (array or string)
-                                        if (field === 'degree') {
-                                          return isDegreeMissing(userCert.degree);
-                                        }
-                                        return !userCert[field];
-                                      })
-                                      .map(field => (
-                                        <Tag color="red" key={field}>{formatFieldLabel(field)}</Tag>
-                                      ))}
-                                    {cert.documentRequired && (() => {
-                                      let userCert;
-                                      if (
-                                        certDetailsVisible &&
-                                        ((isEditing && selectedCerts[currentCertIndex]?.certificationType === cert._id) ||
-                                          (!isEditing && pendingCertTypeId === cert._id))
-                                      ) {
-                                        userCert = certForm.getFieldsValue();
-                                      } else {
-                                        userCert = certifications.find(sel => sel.certificationType === cert._id);
-                                      }
-                                      return (!userCert || !userCert.documents || userCert.documents.length === 0) && (
-                                        <Tag color="red">Documents</Tag>
-                                      );
-                                    })()}
-                                  </Text>
-                                </div>
-                              )
-                            }
-                          />
-                        </List.Item>
-                      );
-                    }}
-                  />
-
-                  {/* nadada */}
-                  <AddOtherCertificate
-                    otherCertifications={otherCertifications}
-                    addOtherCertificate={addOtherCertificate}
-                    removeOtherCertificate={removeOtherCertificate}
-                    uploadToCloudinary={uploadToCloudinary}
-                    DocumentTrackingService={DocumentTrackingService}
-                    deleteCloudinaryImage={deleteCloudinaryImage}
-                    currentStep={currentStep}
-                    otherCertDrawerOpen={otherCertDrawerOpen}
-                    setOtherCertDrawerOpen={setOtherCertDrawerOpen}
-                    editingOtherCertIndex={editingOtherCertIndex}
-                    setEditingOtherCertIndex={setEditingOtherCertIndex}
-                  />
-
-                  </div>
-               
-                ) : (
-                  <div style={{ textAlign: 'center', padding: 24 }}>
-                    <Text type="secondary">No required certifications found based on your profile</Text>
-                  </div>
-                )}
-              </TabPane>
-            </Tabs>
-          </Card>
-
-          {
-            onboardingData?.data?.profile?.certifications?.length > 0 ? (<Card
-              title={<Title level={4} style={{ margin: 0 }}>Your Certifications</Title>}
-              style={{ borderRadius: 8 }}
-
-              extra={
-                <Space>
-                  <Tooltip title="Overall completion status">
-                    <Badge
-                      count={`${progress}%`}
-                      color={progress === 100 ? '#52c41a' : '#faad14'}
-                      style={{ backgroundColor: 'transparent', color: progress === 100 ? '#52c41a' : '#faad14' }}
-                    />
-                  </Tooltip>
-                  <Progress
-                    percent={progress}
-                    status={progress < 100 ? 'active' : 'success'}
-                    showInfo={false}
-                    strokeWidth={10}
-                    style={{ width: 100 }}
-                  />
-                </Space>
-              }
-            >
-              {onboardingData?.data?.profile?.certifications?.length > 0 ? (
-                <div style={{
-                  display:'flex',
-                  flexDirection:'column',
-                 
-                }}>
-                  <List style={{}}
-                    dataSource={selectedCerts}
-                    renderItem={(cert, index) => {
-                      const type = certificationTypes.find(t => t._id === cert.certificationType);
-                      const isComplete = isCertComplete(cert);
-                      const isRequired = requiredCerts.some(rc => rc._id === cert.certificationType);
-                      return (
-                        <List.Item
-                          onClick={() => editCertification(index)}
-                          style={{ padding: '12px 24px', cursor: 'pointer', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}
-                        >
-                          <List.Item.Meta
-                            avatar={
-                              <Avatar
-                                icon={type?.isVisa ? <GlobalOutlined /> : CATEGORY_ICONS[type?.category] || <SafetyCertificateOutlined />}
-                                style={{
-                                  backgroundColor: isComplete ? '#52c41a' : '#faad14',
-                                  color: '#fff'
-                                }}
-                              />
-                            }
-                            title={
-                              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 }}>
-                                <span style={{ fontWeight: 600, fontSize: 16, color: '#222' }} className="text_your_cert">{cert.certTypeName}</span>
-                                {isComplete && (
-                                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto', color: '#52c41a', fontWeight: 500, fontSize: 15 }}>
-                                    <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 18 }} />
-                                    <span className="completed-label">Completed</span>
-                                  </span>
-                                )}
-                              </div>
-                            }
-                            description={
-                              !isComplete && (
-                                <div style={{ marginTop: 4 }}>
-                                  <Text type="danger">
-                                    <WarningOutlined /> Missing:&nbsp;
-                                    {type?.requiredFields
-                                      .filter(field => !cert[field])
-                                      .map(field => (
-                                        <Tag color="red" key={field}>{formatFieldLabel(field)}</Tag>
-                                      ))}
-                                    {type?.documentRequired && (!cert.documents || cert.documents.length === 0) && (
-                                      <Tag color="red">Documents</Tag>
-                                    )}
-                                  </Text>
-                                </div>
-                              )
-                            }
-                          />
-                        </List.Item>
-                      );
-                    }}
-                  />
-                  <div style={{
-                    height:'1.2px',
-                    backgroundColor:'#f2f2f2',
-                    width:'100%'
-                  }}>s</div>
-                  <AddOtherCertificate
-                    otherCertifications={otherCertifications}
-                    addOtherCertificate={addOtherCertificate}
-                    removeOtherCertificate={removeOtherCertificate}
-                    uploadToCloudinary={uploadToCloudinary}
-                    DocumentTrackingService={DocumentTrackingService}
-                    deleteCloudinaryImage={deleteCloudinaryImage}
-                    currentStep={currentStep}
-                    otherCertDrawerOpen={otherCertDrawerOpen}
-                    setOtherCertDrawerOpen={setOtherCertDrawerOpen}
-                    editingOtherCertIndex={editingOtherCertIndex}
-                    setEditingOtherCertIndex={setEditingOtherCertIndex}
-                  />
-
-                </div>
-
-              ) : (
-                <div style={{ textAlign: 'center', padding: 20 }}>
-                  <Text type="secondary">No certifications added yet</Text>
-                  <div style={{ marginTop: 16 }}>
-                    <Button
-                      type="primary"
-                      icon={<PlusOutlined />}
-                      onClick={() => setActiveTab('required')}
-                    >
-                      Add Required Certifications
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-
-            </Card>) : (null)
-          }
-
-
-
-        </>
-      )}
-    </div>
+    <AddCertificationsStep
+      loading={loading}
+      requiredCerts={requiredCerts}
+      selectedCerts={selectedCerts}
+      certificationTypes={certificationTypes}
+      filteredRequiredCerts={filteredRequiredCerts}
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      progress={progress}
+      hasExistingCertifications={hasExistingCertifications}
+      allRequiredCertsAdded={allRequiredCertsAdded}
+      getRequiredCertsAddedCount={getRequiredCertsAddedCount}
+      isCertComplete={isCertComplete}
+      addCertification={addCertification}
+      editCertification={editCertification}
+      certDetailsVisible={certDetailsVisible}
+      isEditing={isEditing}
+      currentCertIndex={currentCertIndex}
+      pendingCertTypeId={pendingCertTypeId}
+      certForm={certForm}
+      certifications={certifications}
+      otherCertifications={otherCertifications}
+      addOtherCertificate={addOtherCertificate}
+      removeOtherCertificate={removeOtherCertificate}
+      uploadToCloudinary={uploadToCloudinary}
+      DocumentTrackingService={DocumentTrackingService}
+      deleteCloudinaryImage={deleteCloudinaryImage}
+      currentStep={currentStep}
+      otherCertDrawerOpen={otherCertDrawerOpen}
+      setOtherCertDrawerOpen={setOtherCertDrawerOpen}
+      editingOtherCertIndex={editingOtherCertIndex}
+      setEditingOtherCertIndex={setEditingOtherCertIndex}
+      onboardingData={onboardingData}
+    />
   ), [
     loading,
     requiredCerts,
@@ -1848,295 +1451,87 @@ const CertificateSecond = ({ initialStep = 0 }) => {
     isCertComplete,
     addCertification,
     editCertification,
-    handleRemoveCertification,
-    handleSearch,
     hasExistingCertifications,
-    filteredRequiredCerts
+    filteredRequiredCerts,
+    certDetailsVisible,
+    isEditing,
+    currentCertIndex,
+    pendingCertTypeId,
+    certForm,
+    certifications,
+    otherCertifications,
+    addOtherCertificate,
+    removeOtherCertificate,
+    uploadToCloudinary,
+    DocumentTrackingService,
+    deleteCloudinaryImage,
+    currentStep,
+    otherCertDrawerOpen,
+    setOtherCertDrawerOpen,
+    editingOtherCertIndex,
+    setEditingOtherCertIndex,
+    onboardingData
   ]);
 
+  // Function to handle document preview with tracking
+  const handleDocumentPreview = useCallback((document) => {
+    setPreviewDocument(document);
+  }, []);
+
   const renderReviewSubmitStep = useMemo(() => (
-    <Card
-      title={<Title level={4} style={{ margin: 0 }}>Review & Submit</Title>}
-      style={{ maxWidth: 1200, margin: '0 auto', borderRadius: 8 }}
-      bodyStyle={{ padding: '24px' }}
-    >
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text strong style={{ fontSize: 16 }}>Submission Progress</Text>
-          <Text strong style={{ color: progress === 100 ? '#52c41a' : '#faad14' }}>
-            {progress}% Complete
-          </Text>
-        </div>
-        <Progress
-          percent={progress}
-          status={progress < 100 ? 'active' : 'success'}
-          strokeColor={progress === 100 ? '#52c41a' : '#1890ff'}
-          style={{ marginBottom: 16 }}
-        />
-        {progress < 100 ? (
-          <Alert
-            message="Incomplete Information"
-            description={
-              <div>
-                <p>Some certifications are missing required information.</p>
-                <Button
-                  type="link"
-                  onClick={() => setCurrentStep(1)}
-                  style={{ padding: 0 }}
-                >
-                  Go back to complete missing information
-                </Button>
-              </div>
-            }
-            type="warning"
-            showIcon
-          />
-        ) : (
-          <Alert
-            message="Ready to Submit"
-            description="All required information has been provided. Review your certifications below before submitting."
-            type="success"
-            showIcon
-          />
-        )}
-      </div>
-      <div>
-        <List
-          itemLayout="vertical"
-          dataSource={selectedCerts}
-          renderItem={(cert, index) => {
-            const type = certificationTypes.find(t => t._id === cert.certificationType);
-            const isComplete = isCertComplete(cert);
-            const isRequired = requiredCerts.some(rc => rc._id === cert.certificationType);
-            return (
-              <Card
-                key={index}
-                style={{ marginBottom: 16, borderRadius: 8 }}
-                title={
-                  <Space>
-                    <Text strong>{cert.certTypeName}</Text>
-                  </Space>
-                }
-                extra={
-                  <Space>
-                    <Tag color={isComplete ? 'success' : 'warning'}>
-                      {isComplete ? 'Complete' : 'Incomplete'}
-                    </Tag>
-                    <Button
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={() => editCertification(index)}
-                    >
-                      Edit
-                    </Button>
-                  </Space>
-                }
-              >
-                <div style={{ marginTop: 8 }}>
-                  {type?.requiredFields.map(field => (
-                    <div key={field} style={{ marginBottom: 8, display: 'flex' }}>
-                      <div style={{ width: 150, fontWeight: 'bold' }}>
-                        {formatFieldLabel(field)}:
-                      </div>
-                      <div>
-                        {field === 'degree' ? (
-                          isDegreeMissing(cert[field]) ? <Text type="danger">Missing</Text> : (Array.isArray(cert[field]) ? cert[field].join(', ') : cert[field])
-                        ) : cert[field] ? (
-                          field.toLowerCase().includes('date') ? (
-                            <Text>{dayjs(cert[field]).format('DD/MM/YYYY')}</Text>
-                          ) : (
-                            <Text>{cert[field]}</Text>
-                          )
-                        ) : (
-                          <Text type="danger">Missing</Text>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {type?.documentRequired && (
-                    <div style={{ marginTop: 12 }}>
-                      <div style={{ fontWeight: 'bold', marginBottom: 4 }}>Documents:</div>
-                      {cert.documents?.length ? (
-                        <ul style={{ margin: 0, paddingLeft: 20 }}>
-                          {cert.documents.map((doc, i) => (
-                            <li key={i}>
-                              <a
-                                href={doc.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  handleDocumentPreview(doc);
-                                }}
-                              >
-                                {doc.fileName || doc.name}
-                              </a>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <Text type="danger">No documents uploaded</Text>
-                      )}
-                    </div>
-                  )}
-                  {/* WWCC incomplete logic */}
-                  {isWorkingWithChildrenCheckType(type) && !isComplete && (
-                    <div style={{ marginTop: 16, background: '#fffbe6', padding: 16, borderRadius: 8, border: '1px solid #ffe58f' }}>
-                      <Text type="danger">
-                        This certification is incomplete. Please complete all fields or remove this certification.
-                      </Text>
-                      <div style={{ marginTop: 8 }}>
-                        <Button
-                          type="primary"
-                          size="small"
-                          onClick={() => editCertification(index)}
-                          style={{ marginRight: 8 }}
-                        >
-                          Complete
-                        </Button>
-                        <Button
-                          danger
-                          size="small"
-                          onClick={() => handleRemoveCertification(index)}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            );
-          }}
-        />
-             {/* Other Certifications Section */}
-      <Card
-        title={
-          <Space size={8}>
-            <SafetyCertificateOutlined style={{ color: '#1890ff' }} />
-            <Text strong style={{ fontSize: 16 }}>Other Certifications</Text>
-            <Tag color="blue" style={{ borderRadius: 12 }}>{otherCertifications?.length || 0}</Tag>
-          </Space>
-        }
-        style={{ marginTop: 24, borderRadius: 8, border: '1px solid #f0f0f0', boxShadow: '0 4px 14px rgba(0,0,0,0.06)' }}
-        bodyStyle={{ padding: 16 }}
-      >
-        {otherCertifications && otherCertifications.length > 0 ? (
-          <List
-            dataSource={otherCertifications}
-            renderItem={(cert, idx) => {
-              const isComplete = Array.isArray(cert.documents) && cert.documents.length > 0;
-              return (
-                <Card
-                  key={idx}
-                  style={{ marginBottom: 12, borderRadius: 8 }}
-                  title={
-                    <Space>
-                      <Text strong>{cert.certificationTitle}</Text>
-                    </Space>
-                  }
-                  extra={
-                    <Space>
-                      <Tag color={isComplete ? 'success' : 'warning'}>
-                        {isComplete ? 'Complete' : 'Incomplete'}
-                      </Tag>
-                      <Button
-                        size="small"
-                        icon={<EditOutlined />}
-                        onClick={() => handleEditOtherCertificateFromReview(idx)}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        Edit
-                      </Button>
-                    </Space>
-                  }
-                >
-                  <div style={{ marginTop: 8 }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: 4 }}>Documents:</div>
-                    {isComplete ? (
-                      <Space size={6} wrap>
-                        <Text type="secondary">{cert.documents.length} document{cert.documents.length > 1 ? 's' : ''}</Text>
-                        {/* {cert.documents.map((doc, i) => (
-                          // <Tooltip title="Preview Document" key={i}>
-                          //   <Button
-                          //     type="link"
-                          //     icon={<EyeOutlined />}
-                          //     onClick={() => setPreviewDocument(doc)}
-                          //     style={{ padding: 0, marginLeft: 8 }}
-                          //   />
-                          // </Tooltip>
-                        ))} */}
-                      </Space>
-                    ) : (
-                      <Text type="danger">No documents uploaded</Text>
-                    )}
-                  </div>
-                </Card>
-              );
-            }}
-          />
-        ) : (
-          <div style={{ textAlign: 'center', padding: 16 }}>
-            <Text type="secondary">No other certifications added.</Text>
-          </div>
-        )}
-        {/* Mount drawer for Other Certificates in Review step context */}
-        <AddOtherCertificate
-          otherCertifications={otherCertifications}
-          addOtherCertificate={addOtherCertificate}
-          removeOtherCertificate={removeOtherCertificate}
-          uploadToCloudinary={uploadToCloudinary}
-          DocumentTrackingService={DocumentTrackingService}
-          deleteCloudinaryImage={deleteCloudinaryImage}
-          currentStep={currentStep}
-          otherCertDrawerOpen={otherCertDrawerOpen}
-          setOtherCertDrawerOpen={setOtherCertDrawerOpen}
-          editingOtherCertIndex={editingOtherCertIndex}
-          setEditingOtherCertIndex={setEditingOtherCertIndex}
-        />
-      </Card>
-      </div>
- 
-      <Divider />
-      <div style={{ marginTop: 24, textAlign: 'center' }}>
-        <Button
-          type="primary"
-          size="large"
-          onClick={handleSubmit}
-          loading={submitLoading}
-          disabled={selectedCerts.length === 0 || progress < 100 || !allRequiredCertsAdded() || submitLoading}
-          style={{ minWidth: 200, height: 48 }}
-        >
-          {submitLoading ? 'Submitting...' : 'Submit Certifications'}
-        </Button>
-        {(progress < 100 || !allRequiredCertsAdded()) && (
-          <div style={{ marginTop: 16 }}>
-            <Text type="secondary">
-              {!allRequiredCertsAdded()
-                ? `Please add ${requiredCerts.length - getRequiredCertsAddedCount()} more required certifications before submitting`
-                : 'Please complete all required information before submitting'}
-            </Text>
-          </div>
-        )}
-      </div>
-    </Card>
+    <ReviewSubmitStep
+      selectedCerts={selectedCerts}
+      certificationTypes={certificationTypes}
+      requiredCerts={requiredCerts}
+      progress={progress}
+      otherCertifications={otherCertifications}
+      isCertComplete={isCertComplete}
+      allRequiredCertsAdded={allRequiredCertsAdded}
+      getRequiredCertsAddedCount={getRequiredCertsAddedCount}
+      requiredCertsCount={requiredCerts.length}
+      onEditCertification={editCertification}
+      onRemoveCertification={handleRemoveCertification}
+      onSubmit={handleSubmit}
+      submitLoading={submitLoading}
+      onDocumentPreview={handleDocumentPreview}
+      onEditOtherCertificate={handleEditOtherCertificateFromReview}
+      onNavigateToStep={setCurrentStep}
+      addOtherCertificate={addOtherCertificate}
+      removeOtherCertificate={removeOtherCertificate}
+      uploadToCloudinary={uploadToCloudinary}
+      DocumentTrackingService={DocumentTrackingService}
+      deleteCloudinaryImage={deleteCloudinaryImage}
+      currentStep={currentStep}
+      otherCertDrawerOpen={otherCertDrawerOpen}
+      setOtherCertDrawerOpen={setOtherCertDrawerOpen}
+      editingOtherCertIndex={editingOtherCertIndex}
+      setEditingOtherCertIndex={setEditingOtherCertIndex}
+    />
   ), [
     selectedCerts,
     certificationTypes,
+    requiredCerts,
     progress,
-    isSubmitting,
+    otherCertifications,
+    isCertComplete,
     allRequiredCertsAdded,
     getRequiredCertsAddedCount,
-    requiredCerts.length,
     editCertification,
-    isCertComplete,
-    handleSubmit,
     handleRemoveCertification,
-    isWorkingWithChildrenCheckType,
-    formatFieldLabel,
-    isDegreeMissing,
+    handleSubmit,
     submitLoading,
-    otherCertifications
+    handleDocumentPreview,
+    handleEditOtherCertificateFromReview,
+    addOtherCertificate,
+    removeOtherCertificate,
+    uploadToCloudinary,
+    DocumentTrackingService,
+    deleteCloudinaryImage,
+    currentStep,
+    otherCertDrawerOpen,
+    setOtherCertDrawerOpen,
+    editingOtherCertIndex,
+    setEditingOtherCertIndex
   ]);
 
 
@@ -2160,341 +1555,48 @@ const CertificateSecond = ({ initialStep = 0 }) => {
       return null;
     }
     if (!certType) return null;
-    // Handler to update form validity
-    const handleFieldsChange = (_, allFields) => {
-      const hasErrors = allFields.some(field => field.errors.length > 0);
-      setIsFormValid(!hasErrors);
-    };
     // For WWCC, bind Upload to wwccDraft
-    const uploadFileList = isWWCC ? (wwccDraft?.documents || []) : (cert.documents || []);
+    // Always get fresh data from selectedCerts to ensure we have the latest state after deletion
+    const currentCert = isEditing && currentCertIndex >= 0 && currentCertIndex < selectedCerts.length
+      ? selectedCerts[currentCertIndex]
+      : cert;
+    const uploadFileList = isWWCC ? (wwccDraft?.documents || []) : (currentCert?.documents || []);
     const uploadDisabled = isUploading[currentCertIndex] || (isWWCC && isUploading['wwcc']);
+    
     return (
-      <Drawer
-        title={
-          <Space>
-            <span>{cert.certTypeName || certType?.name || 'Certification'} </span>
-
-            {!isWorkingWithChildrenCheck(cert) && <p style={{ color: 'red' }}>*</p>}
-          </Space>
-        }
-        width={600}
-        open={certDetailsVisible}
+      <CertificationFormDrawer
+        visible={certDetailsVisible}
+        cert={currentCert}
+        certType={certType}
+        isEditing={isEditing}
+        isWWCC={isWWCC}
+        wwccDraft={wwccDraft}
+        setWwccDraft={setWwccDraft}
+        certForm={certForm}
+        isFormValid={isFormValid}
+        setIsFormValid={setIsFormValid}
+        uploadFileList={uploadFileList}
+        uploadDisabled={uploadDisabled}
         onClose={handleDrawerClose}
-        footer={
-          <div style={{ textAlign: 'right' }}>
-            <Button onClick={handleDrawerClose} style={{ marginRight: 8 }}>
-              Cancel
-            </Button>
-            <Button type="primary" onClick={() => certForm.submit()}
-              disabled={!isFormValid}
-            >
-              Save
-            </Button>
-          </div>
-        }
-        bodyStyle={{ paddingBottom: 80 }}
-      >
-        {certType.instructions && (
-          <Alert
-            message="Instructions"
-            description={certType.instructions}
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-        )}
-        <Form
-          form={certForm}
-          layout="vertical"
-          onFinish={updateCertification}
-          initialValues={{
-            ...cert,
-            issuedDate: cert.issuedDate ? dayjs(cert.issuedDate) : null,
-            expiryDate: cert.expiryDate ? dayjs(cert.expiryDate) : null,
-            degree: Array.isArray(cert.degree) ? cert.degree : (cert.degree ? [cert.degree] : [])
-          }}
-          onFieldsChange={handleFieldsChange}
-        >
-          <RenderEducationFields
-            certType={certType}
-            certIndex={currentCertIndex}
-            showCustomDegree={showCustomDegree}
-            setShowCustomDegree={setShowCustomDegree}
-            customDegreeValue={customDegreeValue}
-            setCustomDegreeValue={setCustomDegreeValue}
-            certForm={certForm}
-            customDegreeInputRef={customDegreeInputRef}
-            degreeSelectRef={degreeSelectRef}
-          />
-          {/* Insurance Type Field (moved to its own component) */}
-          {certType.requiredFields.includes('insuranceType') && (
-            <RenderInsuranceField
-              showCustomInsurance={showCustomInsurance}
-              setShowCustomInsurance={setShowCustomInsurance}
-              customInsuranceValue={customInsuranceValue}
-              setCustomInsuranceValue={setCustomInsuranceValue}
-              certForm={certForm}
-              customInsuranceInputRef={customInsuranceInputRef}
-              insuranceSelectRef={insuranceSelectRef} // <-- Pass the ref here
-            />
-          )}
-          {certType.requiredFields.map(field => {
-            if (field === 'degree' || field === 'insuranceType') return null; // Skip, handled above
-            const isDateField = field.toLowerCase().includes('date');
-            const fieldLabel = formatFieldLabel(field);
-            const fieldTooltip = getFieldTooltip(field);
-            return (
-              <Form.Item
-                key={field}
-                name={field}
-                label={fieldLabel}
-                rules={[{ required: true, message: `Please enter ${fieldLabel}` }]}
-                tooltip={fieldTooltip}
-                style={{ marginBottom: 16 }}
-              >
-                {isDateField ? (
-                  <DatePicker
-                    style={{ width: '100%' }}
-                    format="DD/MM/YYYY"
-                    disabledDate={(current) => {
-                      if (field === 'issuedDate') {
-                        return current && current > dayjs().endOf('day');
-                      } else if (field === 'expiryDate') {
-                        return current && current < dayjs().startOf('day');
-                      }
-                      return false;
-                    }}
-                  />
-                ) : field === 'country' ? (
-                  <Select
-                    placeholder="Select country"
-                    showSearch
-                    optionFilterProp="children"
-                    filterOption={(input, option) =>
-                      option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-                    }
-                  >
-                    {NATIONALITIES.map(option => (
-                      <Option key={option.value} value={option.value}>
-                        {option.label}
-                      </Option>
-                    ))}
-                  </Select>
-                ) : field === 'state' ? (
-                  <Select placeholder="Select state">
-                    <Option value="NSW">New South Wales</Option>
-                    <Option value="VIC">Victoria</Option>
-                    <Option value="QLD">Queensland</Option>
-                    <Option value="WA">Western Australia</Option>
-                    <Option value="SA">South Australia</Option>
-                    <Option value="TAS">Tasmania</Option>
-                    <Option value="ACT">Australian Capital Territory</Option>
-                    <Option value="NT">Northern Territory</Option>
-                  </Select>
-                ) : field === 'subclass' ? (
-                  <Select
-                    placeholder="Select or enter visa subclass"
-                    showSearch
-                    allowClear
-                    value={cert[field] || undefined}
-                    onChange={value => certForm.setFieldsValue({ subclass: value })}
-                    style={{ width: '100%' }}
-                    optionFilterProp="children"
-                    // Allow user to type a custom value
-                    dropdownRender={menu => (
-                      <>
-                        {menu}
-                        <div style={{ display: 'flex', flexWrap: 'nowrap', padding: 8 }}>
-                          <Input
-                            style={{ flex: 'auto' }}
-                            placeholder="Enter custom subclass"
-                            onPressEnter={e => {
-                              const val = e.target.value;
-                              if (val) {
-                                certForm.setFieldsValue({ subclass: val });
-                              }
-                            }}
-                          />
-                        </div>
-                      </>
-                    )}
-                  >
-                    {certType.visaSettings?.subclassOptions?.map(option => (
-                      <Option key={option} value={option}>
-                        {option}
-                      </Option>
-                    ))}
-                  </Select>
-                ) : (
-                  <Input
-                    placeholder={`Enter ${fieldLabel}`}
-                    maxLength={field === 'number' ? 50 : 100}
-                    pattern={field === 'number' && certType.numberPattern ? certType.numberPattern : undefined}
-                  />
-                )}
-              </Form.Item>
-            );
-          })}
-          {certType.documentRequired && (
-            <Form.Item
-              label={
-                <span>
-                  Documents
-                </span>
-              }
-              name="documents"
-              required={certType.documentRequired}
-              rules={[
-                {
-                  validator: (_, value) => {
-                    if (certType.documentRequired && (!uploadFileList || uploadFileList.length === 0)) {
-                      return Promise.reject('Please upload at least one document');
-                    }
-                    return Promise.resolve();
-                  }
-                }
-              ]}
-            >
-              <Upload
-                accept=".pdf,.jpg,.jpeg,.png"
-                fileList={uploadFileList}
-                onRemove={(file) => {
-                  if (isWWCC) {
-                    // For WWCC draft, handle differently
-                    const newUploadFileList = (wwccDraft?.documents || []).filter(d => d.uid !== file.uid);
-                    setWwccDraft(prev => ({
-                      ...prev,
-                      documents: newUploadFileList
-                    }));
-                    certForm.setFieldsValue({ documents: newUploadFileList });
-                  } else {
-                    // For regular certifications, use the Cloudinary deletion handler
-                    const docIndex = cert.documents.findIndex(d => d.uid === file.uid);
-                    if (docIndex >= 0) {
-                      handleRemoveDocument(currentCertIndex, docIndex);
-                    }
-                  }
-                }}
-                beforeUpload={(file, fileList) => {
-                  // Calculate total files after upload
-                  const currentCount = uploadFileList.length;
-                  const newCount = currentCount + fileList.length;
-                  if (newCount > maxFiles) {
-                    toast.error(`You can only upload ${maxFiles - currentCount} more document(s)`);
-                    return Upload.LIST_IGNORE;
-                  }
-                  if (!allowedFileTypes.includes(file.type)) {
-                    toast.error('Only PDF, JPG, PNG files are allowed');
-                    return Upload.LIST_IGNORE;
-                  }
-                  if (file.size > maxFileSize) {
-                    toast.error('Each file must be less than 5MB');
-                    return Upload.LIST_IGNORE;
-                  }
-                  toast.loading(`Uploading ${fileList.length} document(s)...`);
-                  handleDocumentUpload(fileList, isWWCC ? 'wwcc' : currentCertIndex, isWWCC)
-                    .then(() => {
-                      toast.dismiss();
-                      // After upload, update form value for documents
-                      let newUploadFileList;
-                      if (isWWCC) {
-                        newUploadFileList = (wwccDraft?.documents || []).concat([]); // force new array
-                      } else {
-                        newUploadFileList = (cert.documents || []).concat([]);
-                      }
-                      certForm.setFieldsValue({ documents: newUploadFileList });
-                    })
-                    .catch(() => toast.dismiss());
-                  return false; // Prevent default upload
-                }}
-                multiple
-                listType="picture-card"
-                showUploadList={{
-                  showPreviewIcon: true,
-                  showRemoveIcon: true,
-                  previewIcon: (file) => (
-                    <Tooltip title="Preview Document">
-                      <button
-                        type="button"
-                        aria-label="Preview Document"
-                        tabIndex={0}
-                        style={{
-                          color: '#fff',
-                          background: 'linear-gradient(135deg, #1890ff 60%, #40a9ff 100%)',
-                          fontSize: 28,
-                          border: 'none',
-                          borderRadius: '50%',
-                          width: 28,
-                          height: 28,
-                          marginRight: 10,
-                          boxShadow: '0 4px 16px rgba(24,144,255,0.18)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                          outline: 'none',
-                          transition: 'box-shadow 0.2s, background 0.2s',
-                        }}
-                        className="upload-action-btn preview-btn"
-                        onMouseOver={e => e.currentTarget.style.boxShadow = '0 6px 24px rgba(24,144,255,0.28)'}
-                        onMouseOut={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(24,144,255,0.18)'}
-                      >
-                        <EyeOutlined />
-                      </button>
-                    </Tooltip>
-                  ),
-                  removeIcon: (file) => (
-                    <Tooltip title="Delete Document">
-                      <button
-                        type="button"
-                        aria-label="Delete Document"
-                        tabIndex={0}
-                        style={{
-                          color: '#fff',
-                          background: 'linear-gradient(135deg, #ff4d4f 60%, #ff7875 100%)',
-                          fontSize: 28,
-                          border: 'none',
-                          borderRadius: '50%',
-                          width: 28,
-                          height: 28,
-                          marginLeft: 10,
-                          boxShadow: '0 4px 16px rgba(255,77,79,0.18)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                          outline: 'none',
-                          transition: 'box-shadow 0.2s, background 0.2s',
-                        }}
-                        className="upload-action-btn delete-btn"
-                        onMouseOver={e => e.currentTarget.style.boxShadow = '0 6px 24px rgba(255,77,79,0.28)'}
-                        onMouseOut={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(255,77,79,0.18)'}
-                      >
-                        <DeleteOutlined />
-                      </button>
-                    </Tooltip>
-                  ),
-                }}
-                onPreview={(file) => {
-                  const doc = uploadFileList.find(d => d.uid === file.uid);
-                  if (doc) handleDocumentPreview(doc);
-                }}
-                disabled={uploadDisabled}
-              >
-                {uploadFileList.length >= maxFiles ? null : (
-                  <div>
-                    <PlusOutlined />
-                    <div style={{ marginTop: 8 }}>Upload</div>
-                  </div>
-                )}
-              </Upload>
-              <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-                Accepted formats: PDF, JPG, PNG (Max 5MB each, 1-2 documents required)
-              </Text>
-            </Form.Item>
-          )}
-        </Form>
-      </Drawer>
+        onFinish={updateCertification}
+        onDocumentUpload={handleDocumentUpload}
+        onRemoveDocument={handleRemoveDocument}
+        onDocumentPreview={handleDocumentPreview}
+        currentCertIndex={currentCertIndex}
+        DocumentTrackingService={DocumentTrackingService}
+        showCustomDegree={showCustomDegree}
+        setShowCustomDegree={setShowCustomDegree}
+        customDegreeValue={customDegreeValue}
+        setCustomDegreeValue={setCustomDegreeValue}
+        customDegreeInputRef={customDegreeInputRef}
+        degreeSelectRef={degreeSelectRef}
+        showCustomInsurance={showCustomInsurance}
+        setShowCustomInsurance={setShowCustomInsurance}
+        customInsuranceValue={customInsuranceValue}
+        setCustomInsuranceValue={setCustomInsuranceValue}
+        customInsuranceInputRef={customInsuranceInputRef}
+        insuranceSelectRef={insuranceSelectRef}
+      />
     );
   }, [
     certDetailsVisible,
@@ -2506,14 +1608,28 @@ const CertificateSecond = ({ initialStep = 0 }) => {
     updateCertification,
     handleDocumentUpload,
     handleRemoveDocument,
+    handleDocumentPreview,
     isUploading,
-    requiredCerts,
     handleDrawerClose,
     pendingCertTypeId,
     setIsFormValid,
     wwccDraft,
-    removeCertificationDocument
+    setWwccDraft,
+    isFormValid,
+    showCustomDegree,
+    setShowCustomDegree,
+    customDegreeValue,
+    setCustomDegreeValue,
+    customDegreeInputRef,
+    degreeSelectRef,
+    showCustomInsurance,
+    setShowCustomInsurance,
+    customInsuranceValue,
+    setCustomInsuranceValue,
+    customInsuranceInputRef,
+    insuranceSelectRef
   ]);
+
 
   const steps = useMemo(() => [
     {
@@ -2533,64 +1649,37 @@ const CertificateSecond = ({ initialStep = 0 }) => {
     },
   ], [renderPersonalInfoStep, renderAddCertificationsStep, renderReviewSubmitStep]);
 
-  // Function to handle document preview with tracking
-  const handleDocumentPreview = useCallback((document) => {
-    setPreviewDocument(document);
-  }, []);
-
-  // Centralized document removal function
-  const removeDocumentFromAllStates = useCallback(async (certIndex, docIndex, publicId = null) => {
-    // 1. Remove from Zustand store
-    removeCertificationDocument(certIndex, docIndex);
-
-    // 2. Update local component state immediately
-    const updatedCerts = [...selectedCerts];
-    updatedCerts[certIndex] = {
-      ...updatedCerts[certIndex],
-      documents: updatedCerts[certIndex].documents.filter((_, i) => i !== docIndex)
-    };
-    setSelectedCerts(updatedCerts);
-
-    // 3. Remove from localStorage tracking if publicId exists
-    if (publicId) {
-      DocumentTrackingService.removeTrackedDocument(publicId);
-    }
-
-    // 4. Delete from Cloudinary in background if publicId exists
-    if (publicId) {
-      deleteCloudinaryImage(publicId)
-        .then(() => {
-          console.log(`Document ${publicId} deleted from Cloudinary`);
-          message.success('Document removed successfully from cloud storage');
-        })
-        .catch((error) => {
-          console.error('Failed to delete from Cloudinary:', error);
-          message.warning('Document removed locally but failed to delete from cloud storage');
-        });
-    }
-  }, [selectedCerts, removeCertificationDocument]);
-
   // Function to handle document deletion from preview with tracking
-  const handleDocumentDeleteFromPreview = useCallback(() => {
-    if (previewDocument) {
+  const handleDocumentDeleteFromPreview = useCallback(async () => {
+    if (!previewDocument) return;
+    
+    try {
       const certIndex = selectedCerts.findIndex(cert =>
         cert.documents?.some(doc => doc.url === previewDocument.url)
       );
+      
       if (certIndex >= 0) {
         const docIndex = selectedCerts[certIndex].documents.findIndex(
           doc => doc.url === previewDocument.url
         );
+        
         if (docIndex >= 0) {
           const publicId = selectedCerts[certIndex].documents[docIndex].publicId;
 
-          // Show immediate feedback
-          message.info('Document removed from view. Cleaning up cloud storage...');
-
-          // Use centralized removal function
-          removeDocumentFromAllStates(certIndex, docIndex, publicId);
+          // Use centralized removal function (handles all cleanup and shows single toast)
+          await removeDocumentFromAllStates(certIndex, docIndex, publicId);
+          
+          // Close preview after successful removal
+          setPreviewDocument(null);
+        } else {
+          toast.error('Document not found');
         }
+      } else {
+        toast.error('Certification not found');
       }
-      setPreviewDocument(null);
+    } catch (error) {
+      console.error('Error deleting document from preview:', error);
+      // Error toast already shown by removeDocumentFromAllStates
     }
   }, [previewDocument, selectedCerts, removeDocumentFromAllStates]);
 

@@ -1,27 +1,25 @@
 // src/components/Onboarding/AvailabilityForm.jsx
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
-  Button,
   IconButton,
-  Dialog,
-  DialogContent,
-  DialogActions,
-  TextField,
   useTheme,
   useMediaQuery,
   Stack,
   Alert,
-  Slider,
   Container,
   LinearProgress,
+  Chip,
+  Tooltip,
 } from '@mui/material';
 import {
-  ArrowBack as ArrowBackIcon,
   Close as CloseIcon,
+  Error as ErrorIcon,
+  CheckCircle as CheckCircleIcon,
+  Info as InfoIcon,
 } from '@mui/icons-material';
-import { MapPin, Car, Calendar, Lightbulb, ChevronRight, Clock, CalendarOff } from 'lucide-react';
+import { MapPin, Car, Calendar, Clock, CalendarOff, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { alpha } from '@mui/material/styles';
 import { toast, ToastContainer, Slide } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -29,117 +27,14 @@ import useOnboardingStore, { useAvailabilityMutation } from '../../stores/useOnb
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchUserUpcomingHolidays, createUserUpcomingHoliday, deleteUserUpcomingHoliday, updateUserUpcomingHoliday } from '../../api/holidays';
 
-import SuburbSelector from './SuburbSelector';
-import UpcomingHolidayDatePicker from '../AvailabilityComponent/DatePicker/UpcomingHolidayDatePicker';
 import HolidayDisplaySection from '../AvailabilityComponent/UpcomingHoliday/HolidayDisplaySection';
 import TimeSlotSelector from '../WorkerAvailabilityOnboarding/TimeSlotSelector';
-
-// Section Header Component
-const SectionHeader = ({ icon: Icon, iconColor, iconBg, title, subtitle, step }) => (
-  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5 }}>
-    <Box
-      sx={{
-        width: 44,
-        height: 44,
-        borderRadius: '12px',
-        bgcolor: iconBg,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
-        flexShrink: 0,
-      }}
-    >
-      <Icon size={20} color={iconColor} strokeWidth={2} />
-      {step && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: -6,
-            right: -6,
-            width: 20,
-            height: 20,
-            borderRadius: '50%',
-            bgcolor: iconColor,
-            color: '#fff',
-            fontSize: '0.6875rem',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {step}
-        </Box>
-      )}
-    </Box>
-    <Box sx={{ flex: 1, minWidth: 0 }}>
-      <Typography
-        sx={{
-          fontSize: { xs: '1.0625rem', sm: '1.125rem' },
-          fontWeight: 700,
-          color: 'text.primary',
-          letterSpacing: '-0.02em',
-          lineHeight: 1.25,
-        }}
-      >
-        {title}
-      </Typography>
-      {subtitle && (
-        <Typography
-          sx={{
-            fontSize: { xs: '0.8125rem', sm: '0.875rem' },
-            color: 'text.secondary',
-            lineHeight: 1.4,
-            mt: 0.25,
-          }}
-        >
-          {subtitle}
-        </Typography>
-      )}
-    </Box>
-  </Box>
-);
-
-// Tip Box Component
-const TipBox = ({ color, text }) => (
-  <Box
-    sx={{
-      display: 'flex',
-      alignItems: 'flex-start',
-      gap: 1,
-      p: 1.5,
-      borderRadius: '10px',
-      bgcolor: alpha(color, 0.06),
-      border: `1px solid ${alpha(color, 0.1)}`,
-    }}
-  >
-    <Lightbulb size={14} color={color} style={{ marginTop: 2, flexShrink: 0 }} />
-    <Typography sx={{ fontSize: '0.8125rem', color: alpha(color, 0.9), lineHeight: 1.5 }}>
-      {text}
-    </Typography>
-  </Box>
-);
-
-// Section Card Component
-const SectionCard = ({ children, error, theme }) => (
-  <Box
-    sx={{
-      p: { xs: 2.5, sm: 3 },
-      borderRadius: '16px',
-      bgcolor: 'background.paper',
-      border: `1px solid ${error ? theme.palette.error.main : alpha(theme.palette.divider, 0.06)}`,
-      boxShadow: `0 1px 3px ${alpha(theme.palette.common.black, 0.02)}`,
-      transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
-      '&:hover': {
-        borderColor: error ? theme.palette.error.main : alpha(theme.palette.divider, 0.12),
-        boxShadow: `0 2px 8px ${alpha(theme.palette.common.black, 0.04)}`,
-      },
-    }}
-  >
-    {children}
-  </Box>
-);
+import SectionHeader from '../WorkerAvailabilityOnboarding/components/shared/SectionHeader';
+import TipBox from '../WorkerAvailabilityOnboarding/components/shared/TipBox';
+import SectionCard from '../WorkerAvailabilityOnboarding/components/shared/SectionCard';
+import LocationTravelSection from './components/LocationTravelSection';
+import HolidayDialog from './components/HolidayDialog';
+import FormActions from './components/FormActions';
 
 const AvailabilityForm = () => {
   const theme = useTheme();
@@ -252,6 +147,8 @@ const AvailabilityForm = () => {
   const { mutate: saveAvailability, isPending, error: mutationError } = useAvailabilityMutation();
 
   const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+  const [validationState, setValidationState] = useState({});
 
   useEffect(() => {
     if (!availability.customTimeSlots) updateAvailability({ customTimeSlots: [] });
@@ -261,19 +158,85 @@ const AvailabilityForm = () => {
   const travelDistance = availability.kmWillingToTravel || 20;
   const suburb = availability.suburb || '';
 
+  // Real-time validation with status tracking
+  const validateField = useCallback((field, value) => {
+    switch (field) {
+      case 'timeSlots':
+        if (!availability.customTimeSlots || availability.customTimeSlots.length === 0) {
+          return { error: 'At least one time slot is required', status: 'error' };
+        }
+        return { error: null, status: 'success' };
+      case 'suburb':
+        if (!value || !value.trim()) {
+          return { error: 'Please enter your suburb location', status: 'error' };
+        }
+        return { error: null, status: 'success' };
+      case 'travelDistance':
+        const dist = value || 20;
+        if (isNaN(dist) || dist < 1 || dist > 100) {
+          return { error: 'Travel distance must be between 1 and 100 km', status: 'error' };
+        }
+        if (dist < 10) {
+          return { error: null, status: 'warning', message: 'A smaller radius may reduce your job match rate' };
+        }
+        return { error: null, status: 'success' };
+      default:
+        return { error: null, status: 'default' };
+    }
+  }, [availability.customTimeSlots]);
+
+  // Dynamic validation on field changes
+  useEffect(() => {
+    const newValidationState = {};
+    
+    // Validate time slots
+    const timeSlotsValidation = validateField('timeSlots', availability.customTimeSlots);
+    if (touched.timeSlots || availability.customTimeSlots?.length > 0) {
+      newValidationState.timeSlots = timeSlotsValidation;
+    }
+
+    // Validate suburb
+    const suburbValidation = validateField('suburb', suburb);
+    if (touched.suburb || suburb) {
+      newValidationState.suburb = suburbValidation;
+    }
+
+    // Validate travel distance
+    const travelValidation = validateField('travelDistance', travelDistance);
+    if (touched.travelDistance || travelDistance !== 20) {
+      newValidationState.travelDistance = travelValidation;
+    }
+
+    setValidationState(newValidationState);
+  }, [availability.customTimeSlots, suburb, travelDistance, touched, validateField]);
+
   const validateForm = useCallback(() => {
     const newErrors = {};
     if (!availability.customTimeSlots || availability.customTimeSlots.length === 0) {
       newErrors.timeSlots = 'Please add at least one time slot';
     }
-    if (isNaN(travelDistance) || travelDistance < 1 || travelDistance > 100) {
+    const travelDist = availability.kmWillingToTravel || 20;
+    if (isNaN(travelDist) || travelDist < 1 || travelDist > 100) {
       newErrors.travelDistance = 'Travel distance must be between 1 and 100 km';
     }
-    if (!suburb || !suburb.trim()) {
+    const suburbValue = availability.suburb || '';
+    if (!suburbValue || !suburbValue.trim()) {
       newErrors.suburb = 'Please enter your suburb';
     }
     return newErrors;
-  }, [availability.customTimeSlots, travelDistance, suburb]);
+  }, [availability]);
+
+  // Calculate form completion percentage
+  const formCompletion = useMemo(() => {
+    let completed = 0;
+    let total = 3;
+    
+    if (availability.customTimeSlots && availability.customTimeSlots.length > 0) completed++;
+    if (suburb && suburb.trim()) completed++;
+    if (travelDistance >= 1 && travelDistance <= 100) completed++;
+    
+    return Math.round((completed / total) * 100);
+  }, [availability.customTimeSlots, suburb, travelDistance]);
 
   const ToastCloseButton = useCallback(({ closeToast }) => (
     <IconButton aria-label="close" size="small" onClick={closeToast} sx={{ position: 'absolute', right: 8, top: 8 }}>
@@ -283,17 +246,35 @@ const AvailabilityForm = () => {
 
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
+    // Mark all fields as touched
+    setTouched({
+      timeSlots: true,
+      suburb: true,
+      travelDistance: true,
+    });
+    
     const formErrors = validateForm();
     setErrors(formErrors);
+    
     if (Object.keys(formErrors).length === 0) {
       saveAvailability(availability);
     } else {
-      toast.error('Please complete all required fields', { position: 'top-center', autoClose: 3000 });
+      const errorFields = Object.keys(formErrors);
+      toast.error(
+        `Please complete: ${errorFields.map(f => {
+          if (f === 'timeSlots') return 'working hours';
+          if (f === 'suburb') return 'location';
+          if (f === 'travelDistance') return 'travel radius';
+          return f;
+        }).join(', ')}`,
+        { position: 'top-center', autoClose: 4000 }
+      );
     }
   }, [availability, saveAvailability, validateForm]);
 
   const handleAddSlot = useCallback((slot) => {
     addCustomTimeSlot(slot);
+    setTouched(prev => ({ ...prev, timeSlots: true }));
     setErrors(prev => ({ ...prev, timeSlots: null }));
   }, [addCustomTimeSlot]);
 
@@ -301,15 +282,29 @@ const AvailabilityForm = () => {
     const updatedSlots = [...availability.customTimeSlots];
     updatedSlots[index] = slot;
     updateAvailability({ customTimeSlots: updatedSlots });
+    setTouched(prev => ({ ...prev, timeSlots: true }));
     setErrors(prev => ({ ...prev, timeSlots: null }));
   }, [availability.customTimeSlots, updateAvailability]);
 
   const handleRemoveSlot = useCallback((index) => {
     removeCustomTimeSlot(index);
+    setTouched(prev => ({ ...prev, timeSlots: true }));
     if (availability.customTimeSlots?.length <= 1) {
       setErrors(prev => ({ ...prev, timeSlots: 'Please add at least one time slot' }));
     }
   }, [removeCustomTimeSlot, availability.customTimeSlots]);
+
+  const handleSuburbChange = useCallback((val) => {
+    updateAvailability({ suburb: val });
+    setTouched(prev => ({ ...prev, suburb: true }));
+    setErrors(prev => ({ ...prev, suburb: null }));
+  }, [updateAvailability]);
+
+  const handleTravelDistanceChange = useCallback((val) => {
+    updateAvailability({ kmWillingToTravel: val });
+    setTouched(prev => ({ ...prev, travelDistance: true }));
+    setErrors(prev => ({ ...prev, travelDistance: null }));
+  }, [updateAvailability]);
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 } }}>
@@ -323,94 +318,207 @@ const AvailabilityForm = () => {
         toastStyle={{ borderRadius: 12, boxShadow: '0 10px 40px rgba(0,0,0,0.12)' }}
       />
 
-      {/* Page Header - Compact SaaS Design */}
+      {/* Page Header - Enhanced SaaS Design with Progress */}
       <Box sx={{ mb: { xs: 3, md: 4 } }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
-          <Box
-            sx={{
-              width: 48,
-              height: 48,
-              borderRadius: '14px',
-              background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-            }}
-          >
-            <Calendar size={24} color="white" strokeWidth={2.5} />
-          </Box>
-          <Box>
-            <Typography
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
+            <Box
               sx={{
-                fontSize: { xs: '1.375rem', sm: '1.5rem' },
-                fontWeight: 800,
-                color: '#0f172a',
-                letterSpacing: '-0.02em',
-                lineHeight: 1.2,
+                width: 48,
+                height: 48,
+                borderRadius: '14px',
+                background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+                flexShrink: 0,
               }}
             >
-              Your Availability
-            </Typography>
-            <Typography sx={{ fontSize: '0.875rem', color: '#64748b', mt: 0.25 }}>
-              Set your schedule • Get more jobs
-            </Typography>
+              <Calendar size={24} color="white" strokeWidth={2.5} />
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography
+                sx={{
+                  fontSize: { xs: '1.375rem', sm: '1.5rem' },
+                  fontWeight: 800,
+                  color: '#0f172a',
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1.2,
+                }}
+              >
+                Your Availability
+              </Typography>
+              <Typography sx={{ fontSize: '0.875rem', color: '#64748b', mt: 0.25, lineHeight: 1.4 }}>
+                Set your schedule to match with employers • Broader availability increases your job match rate
+              </Typography>
+            </Box>
+          </Box>
+          
+          {/* Completion Badge */}
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              px: 1.5,
+              py: 0.75,
+              borderRadius: '10px',
+              bgcolor: formCompletion === 100 ? '#ecfdf5' : '#f0f9ff',
+              border: `1px solid ${formCompletion === 100 ? '#10b981' : '#3b82f6'}20`,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              {formCompletion === 100 ? (
+                <CheckCircle2 size={16} color="#10b981" strokeWidth={2.5} />
+              ) : (
+                <Box
+                  sx={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    border: '2px solid #3b82f6',
+                    borderTopColor: 'transparent',
+                    animation: 'spin 0.8s linear infinite',
+                    '@keyframes spin': {
+                      '0%': { transform: 'rotate(0deg)' },
+                      '100%': { transform: 'rotate(360deg)' },
+                    },
+                  }}
+                />
+              )}
+              <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600, color: formCompletion === 100 ? '#10b981' : '#3b82f6' }}>
+                {formCompletion}% Complete
+              </Typography>
+            </Box>
           </Box>
         </Box>
 
-        {/* Status Pills Row */}
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-          <Box
-            sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 0.5,
-              px: 1.25,
-              py: 0.5,
-              borderRadius: '8px',
-              bgcolor: '#eff6ff',
-            }}
-          >
-            <Clock size={13} color="#3b82f6" strokeWidth={2.5} />
-            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-              {availability.customTimeSlots?.length || 0} slots
+        {/* Progress Bar */}
+        <Box sx={{ mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+            <Typography sx={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>
+              Form completion
+            </Typography>
+            <Typography sx={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>
+              {formCompletion}%
             </Typography>
           </Box>
-          <Box
+          <LinearProgress
+            variant="determinate"
+            value={formCompletion}
             sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 0.5,
-              px: 1.25,
-              py: 0.5,
-              borderRadius: '8px',
-              bgcolor: suburb ? '#ecfdf5' : '#fef3c7',
+              height: 6,
+              borderRadius: 3,
+              bgcolor: '#e2e8f0',
+              '& .MuiLinearProgress-bar': {
+                borderRadius: 3,
+                bgcolor: formCompletion === 100 ? '#10b981' : '#3b82f6',
+                transition: 'all 0.3s ease',
+              },
             }}
-          >
-            <MapPin size={13} color={suburb ? '#10b981' : '#f59e0b'} strokeWidth={2.5} />
-            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: suburb ? '#10b981' : '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-              {suburb ? 'Located' : 'Needed'}
-            </Typography>
-          </Box>
-          <Box
-            sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 0.5,
-              px: 1.25,
-              py: 0.5,
-              borderRadius: '8px',
-              bgcolor: '#f0fdf4',
-            }}
-          >
-            <Car size={13} color="#22c55e" strokeWidth={2.5} />
-            <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-              {travelDistance}km
-            </Typography>
-          </Box>
+          />
         </Box>
 
-        {isPending && <LinearProgress sx={{ mt: 2, borderRadius: 1 }} />}
+        {/* Status Pills Row - Enhanced */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 2 }}>
+          <Tooltip title={`${availability.customTimeSlots?.length || 0} time slot${(availability.customTimeSlots?.length || 0) !== 1 ? 's' : ''} configured`} arrow>
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.5,
+                px: 1.25,
+                py: 0.625,
+                borderRadius: '8px',
+                bgcolor: (availability.customTimeSlots?.length || 0) > 0 ? '#eff6ff' : '#f1f5f9',
+                border: `1px solid ${(availability.customTimeSlots?.length || 0) > 0 ? '#3b82f640' : '#e2e8f0'}`,
+                cursor: 'help',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  bgcolor: (availability.customTimeSlots?.length || 0) > 0 ? '#dbeafe' : '#e2e8f0',
+                },
+              }}
+            >
+              <Clock size={13} color={(availability.customTimeSlots?.length || 0) > 0 ? "#3b82f6" : "#94a3b8"} strokeWidth={2.5} />
+              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: (availability.customTimeSlots?.length || 0) > 0 ? '#3b82f6' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                {availability.customTimeSlots?.length || 0} {availability.customTimeSlots?.length === 1 ? 'slot' : 'slots'}
+              </Typography>
+              {(availability.customTimeSlots?.length || 0) > 0 && (
+                <CheckCircle2 size={12} color="#10b981" strokeWidth={2.5} />
+              )}
+            </Box>
+          </Tooltip>
+          
+          <Tooltip title={suburb ? `Location: ${suburb}` : 'Location not set'} arrow>
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.5,
+                px: 1.25,
+                py: 0.625,
+                borderRadius: '8px',
+                bgcolor: suburb ? '#ecfdf5' : '#fef3c7',
+                border: `1px solid ${suburb ? '#10b98140' : '#f59e0b40'}`,
+                cursor: 'help',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  bgcolor: suburb ? '#d1fae5' : '#fde68a',
+                },
+              }}
+            >
+              <MapPin size={13} color={suburb ? '#10b981' : '#f59e0b'} strokeWidth={2.5} />
+              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: suburb ? '#10b981' : '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                {suburb ? 'Located' : 'Needed'}
+              </Typography>
+              {suburb && <CheckCircle2 size={12} color="#10b981" strokeWidth={2.5} />}
+            </Box>
+          </Tooltip>
+          
+          <Tooltip title={`Willing to travel up to ${travelDistance} km from your location`} arrow>
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.5,
+                px: 1.25,
+                py: 0.625,
+                borderRadius: '8px',
+                bgcolor: '#f0fdf4',
+                border: '1px solid #22c55e40',
+                cursor: 'help',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  bgcolor: '#dcfce7',
+                },
+              }}
+            >
+              <Car size={13} color="#22c55e" strokeWidth={2.5} />
+              <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                {travelDistance}km
+              </Typography>
+              <CheckCircle2 size={12} color="#10b981" strokeWidth={2.5} />
+            </Box>
+          </Tooltip>
+        </Box>
+
+        {isPending && (
+          <Box sx={{ mt: 2 }}>
+            <LinearProgress 
+              sx={{ 
+                borderRadius: 1,
+                height: 4,
+                '& .MuiLinearProgress-bar': {
+                  bgcolor: '#3b82f6',
+                },
+              }} 
+            />
+            <Typography sx={{ fontSize: '0.75rem', color: '#64748b', mt: 0.75, textAlign: 'center' }}>
+              Saving your availability...
+            </Typography>
+          </Box>
+        )}
       </Box>
 
       <form onSubmit={handleSubmit}>
@@ -421,14 +529,60 @@ const AvailabilityForm = () => {
               What it does: Define your working hours for each day
           ═══════════════════════════════════════════════════════════════ */}
           <SectionCard error={errors.timeSlots} theme={theme}>
-            <SectionHeader
-              icon={Clock}
-              iconColor="#6366f1"
-              iconBg={alpha('#6366f1', 0.1)}
-              title="Working Hours"
-              subtitle="Set the times you are available to work each day"
-              step="1"
-            />
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2.5, flexWrap: 'wrap', gap: 1.5 }}>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <SectionHeader
+                  icon={Clock}
+                  iconColor="#6366f1"
+                  iconBg={alpha('#6366f1', 0.1)}
+                  title="Working Hours"
+                  subtitle="Define when you're available to work each day of the week"
+                  step="1"
+                />
+              </Box>
+              {/* Validation Status */}
+              {touched.timeSlots && validationState.timeSlots && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0 }}>
+                  {validationState.timeSlots.status === 'success' ? (
+                    <Chip
+                      icon={<CheckCircle2 size={14} color="#10b981" />}
+                      label="Complete"
+                      size="small"
+                      sx={{
+                        bgcolor: '#ecfdf5',
+                        color: '#10b981',
+                        fontWeight: 600,
+                        fontSize: '0.6875rem',
+                        height: 24,
+                        '& .MuiChip-icon': { color: '#10b981' },
+                      }}
+                    />
+                  ) : (
+                    <Chip
+                      icon={<AlertCircle size={14} color="#ef4444" />}
+                      label="Required"
+                      size="small"
+                      sx={{
+                        bgcolor: '#fef2f2',
+                        color: '#ef4444',
+                        fontWeight: 600,
+                        fontSize: '0.6875rem',
+                        height: 24,
+                        '& .MuiChip-icon': { color: '#ef4444' },
+                      }}
+                    />
+                  )}
+                </Box>
+              )}
+            </Box>
+
+            {/* Helper Text */}
+            <Box sx={{ mb: 2, p: 1.5, borderRadius: '10px', bgcolor: alpha('#6366f1', 0.04), border: `1px solid ${alpha('#6366f1', 0.1)}` }}>
+              <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.6 }}>
+                <strong>Tip:</strong> Add multiple time slots per day to increase your job matches. Employers search for workers available during specific hours.
+              </Typography>
+            </Box>
+
             <TimeSlotSelector
               customTimeSlots={availability.customTimeSlots || []}
               onAddSlot={handleAddSlot}
@@ -437,8 +591,35 @@ const AvailabilityForm = () => {
               disabled={isPending}
               error={errors.timeSlots}
             />
+
+            {/* Dynamic Feedback */}
+            {touched.timeSlots && validationState.timeSlots && (
+              <Box sx={{ mt: 2 }}>
+                {validationState.timeSlots.status === 'success' ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, p: 1.25, borderRadius: '8px', bgcolor: '#ecfdf5', border: '1px solid #10b98130' }}>
+                    <CheckCircle2 size={16} color="#10b981" strokeWidth={2.5} />
+                    <Typography sx={{ fontSize: '0.8125rem', color: '#10b981', fontWeight: 500 }}>
+                      Great! You have {availability.customTimeSlots?.length || 0} time slot{(availability.customTimeSlots?.length || 0) !== 1 ? 's' : ''} configured.
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.75, p: 1.25, borderRadius: '8px', bgcolor: '#fef2f2', border: '1px solid #ef444430' }}>
+                    <AlertCircle size={16} color="#ef4444" strokeWidth={2.5} style={{ marginTop: 2, flexShrink: 0 }} />
+                    <Box>
+                      <Typography sx={{ fontSize: '0.8125rem', color: '#ef4444', fontWeight: 600, mb: 0.25 }}>
+                        Time slots required
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.75rem', color: '#991b1b', lineHeight: 1.5 }}>
+                        Add at least one time slot to show when you're available. This helps employers find you for jobs.
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+              </Box>
+            )}
+
             <Box sx={{ mt: 2.5 }}>
-              <TipBox color="#6366f1" text="More availability means more job opportunities. Consider adding multiple time slots for flexibility." />
+              <TipBox color="#6366f1" text="Pro tip: Configure separate availability for weekdays and weekends to maximize your job matches across different scheduling needs." />
             </Box>
           </SectionCard>
 
@@ -446,162 +627,22 @@ const AvailabilityForm = () => {
               SECTION 2: LOCATION & TRAVEL
               What it does: Set your base location and travel radius
           ═══════════════════════════════════════════════════════════════ */}
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-              gap: { xs: 2, md: 3 },
-            }}
-          >
-            {/* Location Card */}
-            <Box
-              sx={{
-                p: { xs: 2, sm: 2.5 },
-                borderRadius: '14px',
-                bgcolor: 'background.paper',
-                border: `1px solid ${errors.suburb ? theme.palette.error.main : alpha(theme.palette.divider, 0.08)}`,
-              }}
-            >
-              {/* Header */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 2 }}>
-                <Box
-                  sx={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: '10px',
-                    bgcolor: '#f1f5f9',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <MapPin size={18} color="#475569" strokeWidth={2} />
-                </Box>
-                <Box>
-                  <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', lineHeight: 1.25 }}>
-                    Your Location
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
-                    Where are you based?
-                  </Typography>
-                </Box>
-              </Box>
-
-              {/* Selector */}
-              <Box sx={{ mb: 2 }}>
-                <SuburbSelector
-                  suburbInput={availability.suburb || ''}
-                  setSuburbInput={(val) => updateAvailability({ suburb: val })}
-                  updateAvailability={updateAvailability}
-                  errors={errors}
-                  setErrors={setErrors}
-                />
-              </Box>
-
-              {/* Tip */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1.5, py: 1, borderRadius: '8px', bgcolor: '#f8fafc' }}>
-                <Lightbulb size={12} color="#94a3b8" />
-                <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>
-                  Helps employers find nearby workers
-                </Typography>
-              </Box>
+          <Box>
+            <Box sx={{ mb: 2 }}>
+              <Typography sx={{ fontSize: '0.875rem', color: '#64748b', lineHeight: 1.6, mb: 1.5 }}>
+                <strong>Why this matters:</strong> Your location and travel radius help employers find workers in their area. A larger radius expands your job match potential but may require more travel time.
+              </Typography>
             </Box>
-
-            {/* Travel Distance Card */}
-            <Box
-              sx={{
-                p: { xs: 2, sm: 2.5 },
-                borderRadius: '14px',
-                bgcolor: 'background.paper',
-                border: `1px solid ${errors.travelDistance ? theme.palette.error.main : alpha(theme.palette.divider, 0.08)}`,
-              }}
-            >
-              {/* Header */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 2 }}>
-                <Box
-                  sx={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: '10px',
-                    bgcolor: '#f1f5f9',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Car size={18} color="#475569" strokeWidth={2} />
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', lineHeight: 1.25 }}>
-                    Travel Radius
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
-                    How far will you go?
-                  </Typography>
-                </Box>
-                {/* Distance Badge */}
-                <Box
-                  sx={{
-                    px: 1.5,
-                    py: 0.5,
-                    borderRadius: '8px',
-                    bgcolor: '#3b82f6',
-                  }}
-                >
-                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: '#fff' }}>
-                    {travelDistance} km
-                  </Typography>
-                </Box>
-              </Box>
-
-              {/* Slider */}
-              <Box sx={{ px: 0.5, mb: 1.5 }}>
-                <Slider
-                  value={travelDistance}
-                  onChange={(_, val) => {
-                    updateAvailability({ kmWillingToTravel: val });
-                    setErrors(prev => ({ ...prev, travelDistance: null }));
-                  }}
-                  min={1}
-                  max={100}
-                  step={1}
-                  sx={{
-                    height: 6,
-                    '& .MuiSlider-thumb': {
-                      height: 20,
-                      width: 20,
-                      backgroundColor: '#fff',
-                      border: '2px solid #3b82f6',
-                      boxShadow: '0 2px 6px rgba(59, 130, 246, 0.25)',
-                      '&:hover, &.Mui-focusVisible': {
-                        boxShadow: `0 0 0 6px ${alpha('#3b82f6', 0.1)}`,
-                      },
-                    },
-                    '& .MuiSlider-track': { bgcolor: '#3b82f6', border: 'none' },
-                    '& .MuiSlider-rail': { bgcolor: '#e2e8f0' },
-                  }}
-                />
-                {/* Range Labels */}
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                  <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 500 }}>1 km</Typography>
-                  <Typography sx={{ fontSize: '0.6875rem', color: '#94a3b8', fontWeight: 500 }}>100 km</Typography>
-                </Box>
-              </Box>
-
-              {errors.travelDistance && (
-                <Alert severity="error" sx={{ mb: 1.5, borderRadius: '8px', py: 0.25 }}>
-                  {errors.travelDistance}
-                </Alert>
-              )}
-
-              {/* Tip */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1.5, py: 1, borderRadius: '8px', bgcolor: '#f8fafc' }}>
-                <Lightbulb size={12} color="#94a3b8" />
-                <Typography sx={{ fontSize: '0.6875rem', color: '#64748b' }}>
-                  Larger radius = more opportunities
-                </Typography>
-              </Box>
-            </Box>
+            <LocationTravelSection
+              availability={availability}
+              updateAvailability={updateAvailability}
+              errors={errors}
+              setErrors={setErrors}
+              touched={touched}
+              validationState={validationState}
+              onSuburbChange={handleSuburbChange}
+              onTravelDistanceChange={handleTravelDistanceChange}
+            />
           </Box>
 
           {/* ═══════════════════════════════════════════════════════════════
@@ -614,9 +655,19 @@ const AvailabilityForm = () => {
               iconColor="#6366f1"
               iconBg={alpha('#6366f1', 0.1)}
               title="Upcoming Time Off"
-              subtitle="Let employers know when you are not available"
-              step="4"
+              subtitle="Block dates when you won't be available for work (optional)"
+              step="3"
             />
+            
+            {/* Helper Text */}
+            <Box sx={{ mb: 2.5, p: 1.5, borderRadius: '10px', bgcolor: alpha('#6366f1', 0.04), border: `1px solid ${alpha('#6366f1', 0.1)}` }}>
+              <Typography sx={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.6, mb: 0.75 }}>
+                <strong>Why add time off?</strong> When you mark dates as unavailable, employers won't see you in search results for those days. This prevents scheduling conflicts and saves everyone time.
+              </Typography>
+              <Typography sx={{ fontSize: '0.75rem', color: '#64748b', lineHeight: 1.5 }}>
+                💡 <strong>Tip:</strong> Add holidays, vacations, or personal commitments in advance to avoid last-minute cancellations.
+              </Typography>
+            </Box>
             
             <Box sx={{ mb: 2.5 }}>
               <HolidayDisplaySection
@@ -630,76 +681,86 @@ const AvailabilityForm = () => {
               />
             </Box>
 
-            <TipBox color="#6366f1" text="Adding planned time off helps avoid scheduling conflicts with employers." />
+            {/* Status Summary */}
+            {upcomingHolidays.length > 0 && (
+              <Box sx={{ mb: 2, p: 1.25, borderRadius: '8px', bgcolor: '#ecfdf5', border: '1px solid #10b98130', display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <CheckCircle2 size={16} color="#10b981" strokeWidth={2.5} />
+                <Typography sx={{ fontSize: '0.8125rem', color: '#10b981', fontWeight: 500 }}>
+                  {upcomingHolidays.length} time off period{upcomingHolidays.length !== 1 ? 's' : ''} configured
+                </Typography>
+              </Box>
+            )}
+
+            <TipBox color="#6366f1" text="This section is optional. You can always add or remove time off periods later from your profile settings." />
           </SectionCard>
 
           {/* ═══════════════════════════════════════════════════════════════
-              FORM ACTIONS
+              FORM ACTIONS - Premium SaaS Design with Enhanced Responsive Layout
           ═══════════════════════════════════════════════════════════════ */}
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: { xs: 'column', sm: 'row' },
-              justifyContent: 'space-between',
-              alignItems: { xs: 'stretch', sm: 'center' },
-              gap: 2,
-              pt: 3,
-              mt: 1,
-            }}
-          >
-            <Button
-              variant="text"
-              startIcon={<ArrowBackIcon />}
-              onClick={prevStep}
-              disabled={isPending}
-              sx={{
-                color: 'text.secondary',
-                fontWeight: 600,
-                fontSize: '0.9375rem',
-                px: 2.5,
-                py: 1.25,
-                borderRadius: '10px',
-                order: { xs: 2, sm: 1 },
-                '&:hover': { bgcolor: alpha(theme.palette.grey[500], 0.08) },
-              }}
-            >
-              Back
-            </Button>
+          <FormActions
+            onBack={prevStep}
+            onSubmit={handleSubmit}
+            isPending={isPending}
+            disabled={false}
+          />
 
-            <Button
-              type="submit"
-              variant="contained"
-              endIcon={!isPending && <ChevronRight size={20} />}
-              disabled={isPending}
-              sx={{
-                bgcolor: '#0f172a',
-                fontWeight: 600,
-                fontSize: '0.9375rem',
-                px: 4,
-                py: 1.5,
-                borderRadius: '12px',
-                order: { xs: 1, sm: 2 },
-                boxShadow: 'none',
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  bgcolor: '#1e293b',
-                  boxShadow: '0 4px 14px rgba(15, 23, 42, 0.2)',
-                  transform: 'translateY(-1px)',
-                },
-                '&:active': {
-                  transform: 'translateY(0)',
-                },
-              }}
-            >
-              {isPending ? 'Saving...' : 'Continue to Certifications'}
-            </Button>
-          </Box>
-
-          {/* Global Error */}
+          {/* Global Error - Premium Design */}
           {mutationError && (
-            <Alert severity="error" sx={{ borderRadius: '12px' }}>
-              {mutationError}
-            </Alert>
+            <Box
+              sx={{
+                mt: { xs: 2, sm: 2.5 },
+                p: { xs: 1.5, sm: 2 },
+                borderRadius: '12px',
+                border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+                bgcolor: alpha(theme.palette.error.main, 0.06),
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 1.5,
+              }}
+            >
+              <Box
+                sx={{
+                  width: { xs: 40, sm: 44 },
+                  height: { xs: 40, sm: 44 },
+                  borderRadius: '10px',
+                  bgcolor: theme.palette.error.main,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <ErrorIcon sx={{ 
+                  fontSize: { xs: 20, sm: 22 },
+                  color: '#fff',
+                }} />
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography 
+                  variant="subtitle2"
+                  sx={{
+                    fontWeight: 600,
+                    fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                    mb: 0.5,
+                    color: theme.palette.error.main,
+                    lineHeight: 1.3,
+                  }}
+                >
+                  Unable to Save
+                </Typography>
+                <Typography 
+                  variant="body2"
+                  sx={{
+                    fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                    lineHeight: 1.5,
+                    color: theme.palette.error.dark,
+                    fontWeight: 400,
+                  }}
+                >
+                  {mutationError?.message || mutationError || 'An error occurred while saving your availability. Please try again.'}
+                </Typography>
+              </Box>
+            </Box>
           )}
         </Stack>
       </form>
@@ -707,135 +768,21 @@ const AvailabilityForm = () => {
       {/* ═══════════════════════════════════════════════════════════════
           HOLIDAY DIALOG
       ═══════════════════════════════════════════════════════════════ */}
-      <Dialog
+      <HolidayDialog
         open={openHolidayDialog}
-        onClose={() => { setOpenHolidayDialog(false); setEditingHoliday(null); }}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: { xs: '20px 20px 0 0', sm: '20px' },
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-            m: { xs: 0, sm: 2 },
-            maxHeight: { xs: '92vh', sm: '90vh' },
-            minHeight: { sm: 580 },
-            width: { xs: '100%', sm: '90vw', md: '800px', lg: '860px' },
-            maxWidth: { sm: 860 },
-            position: { xs: 'fixed', sm: 'relative' },
-            bottom: { xs: 0, sm: 'auto' },
-            display: 'flex',
-            flexDirection: 'column',
-          },
-        }}
-      >
-        {/* Dialog Header */}
-        <Box sx={{ px: { xs: 2.5, sm: 3.5 }, pt: { xs: 2.5, sm: 3.5 }, pb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Box
-                sx={{
-                  width: { xs: 44, sm: 48 },
-                  height: { xs: 44, sm: 48 },
-                  borderRadius: '12px',
-                  bgcolor: alpha('#6366f1', 0.1),
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <CalendarOff size={22} color="#6366f1" />
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' }, fontWeight: 700, letterSpacing: '-0.02em' }}>
-                  {editingHoliday ? 'Edit Time Off' : 'Add Time Off'}
-                </Typography>
-                <Typography sx={{ fontSize: { xs: '0.8125rem', sm: '0.875rem' }, color: 'text.secondary' }}>
-                  Block dates when you are unavailable
-                </Typography>
-              </Box>
-            </Box>
-            <IconButton 
-              onClick={() => { setOpenHolidayDialog(false); setEditingHoliday(null); }} 
-              sx={{ 
-                width: 40, 
-                height: 40, 
-                borderRadius: '10px',
-                bgcolor: alpha(theme.palette.grey[500], 0.08), 
-                '&:hover': { bgcolor: alpha(theme.palette.grey[500], 0.15) } 
-              }}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </Box>
-        </Box>
-
-        <DialogContent sx={{ px: { xs: 2.5, sm: 3.5 }, py: { xs: 2, sm: 2.5 }, flex: 1, overflowY: 'auto' }}>
-          <Stack spacing={2.5}>
-            <TextField
-              label="Name (optional)"
-              value={newHoliday.name}
-              onChange={e => { setNewHoliday({ ...newHoliday, name: e.target.value }); setHolidayError(''); }}
-              fullWidth
-              placeholder="e.g., Family vacation"
-              size="small"
-              helperText="Leave empty for auto-generated name"
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-            />
-            
-            <UpcomingHolidayDatePicker
-              newHoliday={newHoliday}
-              setNewHoliday={setNewHoliday}
-              editingHoliday={editingHoliday}
-              setHolidayError={setHolidayError}
-              dateOverlapWarning={dateOverlapWarning}
-              setDateOverlapWarning={setDateOverlapWarning}
-              checkDateOverlap={checkDateOverlap}
-            />
-
-            <TextField
-              label="Notes (optional)"
-              value={newHoliday.description}
-              onChange={e => setNewHoliday({ ...newHoliday, description: e.target.value })}
-              fullWidth
-              multiline
-              rows={2}
-              placeholder="Any additional details..."
-              size="small"
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-            />
-
-            {(holidayError || createError) && (
-              <Alert severity="error" sx={{ borderRadius: '10px', py: 0.5 }}>
-                {holidayError || createError?.message}
-              </Alert>
-            )}
-          </Stack>
-        </DialogContent>
-
-        <DialogActions sx={{ px: { xs: 2.5, sm: 3.5 }, pb: { xs: 2.5, sm: 3.5 }, pt: 1.5, gap: 1.5 }}>
-          <Button
-            onClick={() => { setOpenHolidayDialog(false); setEditingHoliday(null); }}
-            sx={{ flex: 1, borderRadius: '10px', color: 'text.secondary', fontWeight: 600, py: 1.25 }}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleCreateOrEditHoliday}
-            variant="contained"
-            disabled={isCreating || !newHoliday.startDate || !newHoliday.endDate}
-            sx={{
-              flex: 1,
-              borderRadius: '10px',
-              bgcolor: '#6366f1',
-              fontWeight: 600,
-              py: 1.25,
-              '&:hover': { bgcolor: '#4f46e5' },
-            }}
-          >
-            {isCreating ? 'Saving...' : editingHoliday ? 'Update' : 'Add'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onClose={() => setOpenHolidayDialog(false)}
+        newHoliday={newHoliday}
+        setNewHoliday={setNewHoliday}
+        editingHoliday={editingHoliday}
+        setEditingHoliday={setEditingHoliday}
+        handleCreateOrEditHoliday={handleCreateOrEditHoliday}
+        isCreating={isCreating}
+        holidayError={holidayError || createError?.message}
+        setHolidayError={setHolidayError}
+        dateOverlapWarning={dateOverlapWarning}
+        setDateOverlapWarning={setDateOverlapWarning}
+        checkDateOverlap={checkDateOverlap}
+      />
     </Container>
   );
 };
