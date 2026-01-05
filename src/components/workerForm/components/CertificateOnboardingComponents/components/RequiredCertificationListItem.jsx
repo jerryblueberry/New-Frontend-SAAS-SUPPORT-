@@ -97,6 +97,7 @@ const RequiredCertificationListItem = ({
         )
       ]}
     >
+     
       <List.Item.Meta
         onClick={handleClick}
         style={{ cursor: 'pointer' }}

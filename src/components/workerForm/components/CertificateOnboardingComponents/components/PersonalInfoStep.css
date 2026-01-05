@@ -1,0 +1,105 @@
+/* Premium SaaS-Level Select Styling */
+.premium-residency-select {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.premium-residency-select .ant-select-selector {
+  border: 1.5px solid #e8e8e8 !important;
+  border-radius: 10px !important;
+  background: #ffffff !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  padding: 0 16px !important;
+}
+
+.premium-residency-select:hover .ant-select-selector {
+  border-color: #1890ff !important;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.12) !important;
+}
+
+.premium-residency-select.ant-select-focused .ant-select-selector {
+  border-color: #1890ff !important;
+  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.1) !important;
+}
+
+.premium-residency-select .ant-select-selection-item {
+  font-weight: 500 !important;
+  color: #1a1a1a !important;
+  line-height: 1.5 !important;
+}
+
+.premium-residency-select .ant-select-selection-placeholder {
+  color: #bfbfbf !important;
+  font-weight: 400 !important;
+}
+
+.premium-residency-select .ant-select-arrow {
+  color: #8c8c8c !important;
+  transition: transform 0.2s ease !important;
+}
+
+.premium-residency-select.ant-select-open .ant-select-arrow {
+  transform: rotate(180deg) !important;
+}
+
+/* Premium Option Styling */
+.premium-select-option {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.premium-select-option:hover {
+  background: linear-gradient(90deg, rgba(24, 144, 255, 0.06) 0%, rgba(24, 144, 255, 0.02) 100%) !important;
+  transform: translateX(2px);
+}
+
+.premium-select-option.ant-select-item-option-selected {
+  background: linear-gradient(90deg, rgba(24, 144, 255, 0.1) 0%, rgba(24, 144, 255, 0.04) 100%) !important;
+  font-weight: 500 !important;
+}
+
+.premium-select-option.ant-select-item-option-active {
+  background: linear-gradient(90deg, rgba(24, 144, 255, 0.08) 0%, rgba(24, 144, 255, 0.03) 100%) !important;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+  .premium-residency-select .ant-select-selector {
+    padding: 0 12px !important;
+    border-radius: 8px !important;
+  }
+  
+  .premium-select-option {
+    padding: 8px 10px !important;
+  }
+}
+
+/* Tablet Optimizations */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .premium-residency-select .ant-select-selector {
+    padding: 0 14px !important;
+  }
+}
+
+/* Smooth Scrollbar for Dropdown */
+.premium-residency-select .ant-select-dropdown {
+  scrollbar-width: thin;
+  scrollbar-color: #d9d9d9 transparent;
+}
+
+.premium-residency-select .ant-select-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.premium-residency-select .ant-select-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.premium-residency-select .ant-select-dropdown::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 3px;
+}
+
+.premium-residency-select .ant-select-dropdown::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
+}
+

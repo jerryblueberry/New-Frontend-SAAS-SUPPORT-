@@ -43,16 +43,65 @@ export const getCategoryIcon = (category, defaultIcon = SafetyCertificateOutline
 /**
  * Residency status options
  * Note: icon stores the component reference, not JSX element
+ * SaaS-level: Includes descriptions for better UX and clarity
  */
 export const RESIDENCY_STATUSES = [
-  { value: 'Citizen', label: 'Australian Citizen', icon: IdcardOutlined, color: 'green' },
-  { value: 'NZCitizen', label: 'New Zealand Citizen', icon: IdcardOutlined, color: 'teal' },
-  { value: 'PermanentResident', label: 'Permanent Resident', icon: FileDoneOutlined, color: 'blue' },
-  { value: 'StudentVisa', label: 'Student Visa (Subclass 500)', icon: ReadOutlined, color: 'purple' },
-  { value: 'TemporaryGraduateVisa', label: 'Temporary Graduate Visa (485)', icon: SolutionOutlined, color: 'geekblue' },
-  { value: 'TSS', label: 'Temporary Skill Shortage (482)', icon: FileOutlined, color: 'orange' },
-  { value: 'BridgingVisa', label: 'Bridging Visa', icon: ClockCircleOutlined, color: 'gold' },
-  { value: 'OtherTemporaryVisa', label: 'Other Temporary Visa', icon: FileOutlined, color: 'cyan' }
+  { 
+    value: 'Citizen', 
+    label: 'Australian Citizen', 
+    icon: IdcardOutlined, 
+    color: 'green',
+    description: 'Standard certification flow'
+  },
+  { 
+    value: 'NZCitizen', 
+    label: 'New Zealand Citizen', 
+    icon: IdcardOutlined, 
+    color: 'teal',
+    description: 'Special Category Visa holder'
+  },
+  { 
+    value: 'PermanentResident', 
+    label: 'Permanent Resident', 
+    icon: FileDoneOutlined, 
+    color: 'blue',
+    description: 'Additional residency verification required'
+  },
+  { 
+    value: 'StudentVisa', 
+    label: 'Student Visa (Subclass 500)', 
+    icon: ReadOutlined, 
+    color: 'purple',
+    description: 'Student visa documentation required'
+  },
+  { 
+    value: 'TemporaryGraduateVisa', 
+    label: 'Temporary Graduate Visa (485)', 
+    icon: SolutionOutlined, 
+    color: 'geekblue',
+    description: 'Graduate visa documentation required'
+  },
+  { 
+    value: 'TSS', 
+    label: 'Temporary Skill Shortage (482)', 
+    icon: FileOutlined, 
+    color: 'orange',
+    description: 'Work visa documentation required'
+  },
+  { 
+    value: 'BridgingVisa', 
+    label: 'Bridging Visa', 
+    icon: ClockCircleOutlined, 
+    color: 'gold',
+    description: 'Bridging visa documentation required'
+  },
+  { 
+    value: 'OtherTemporaryVisa', 
+    label: 'Other Temporary Visa', 
+    icon: FileOutlined, 
+    color: 'cyan',
+    description: 'Expanded compliance checks required'
+  }
 ];
 
 /**
