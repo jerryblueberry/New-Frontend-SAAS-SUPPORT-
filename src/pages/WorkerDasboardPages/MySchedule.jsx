@@ -19,6 +19,7 @@ const MySchedule = () => {
   // Onboarding information
   const { data: onboardingData } = useOnboardingQuery();
   console.log("Dataaaa", onboardingData);
+  console.log("Dataaaa");
 
   return (
     <Box
