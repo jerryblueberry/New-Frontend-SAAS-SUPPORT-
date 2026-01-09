@@ -211,7 +211,7 @@ const validateTimeSlots = (slots) => {
   return issues;
 };
 
-// Memoized Day List Card Component for optimal performance
+// Memoized Day List Card Component - Premium Clean Design
 const DayListCard = React.memo(function DayListCard({ 
   day, 
   dayTheme, 
@@ -222,145 +222,330 @@ const DayListCard = React.memo(function DayListCard({
   theme 
 }) {
   return (
-    <Card 
-      variant="outlined" 
-      sx={{ 
-        borderRadius: 2,
-        transition: 'all 0.2s',
+    <Box
+      sx={{
+        position: 'relative',
+        borderRadius: { xs: 2, sm: 2.5 },
+        overflow: 'hidden',
+        border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+        background: theme.palette.background.paper,
+        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
         '&:hover': {
-          boxShadow: theme.shadows[4],
-          borderColor: alpha(dayTheme.primary, 0.4),
+          boxShadow: `0 8px 24px ${alpha(dayTheme.primary, 0.12)}`,
+          transform: 'translateY(-2px)',
+          borderColor: alpha(dayTheme.primary, 0.2),
+        },
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 3,
+          background: `linear-gradient(90deg, ${dayTheme.primary} 0%, ${alpha(dayTheme.primary, 0.6)} 100%)`,
         }
       }}
     >
-      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-        <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
-          <Typography 
-            variant="h6" 
-            fontWeight={600} 
-            sx={{ 
-              color: dayTheme.primary,
-              fontSize: { xs: '1.1rem', sm: '1.25rem' }
+      {/* Day Header */}
+      <Box 
+        sx={{ 
+          p: { xs: 2, sm: 2.5 },
+          pb: slots.length > 0 ? { xs: 1.5, sm: 2 } : { xs: 2, sm: 2.5 },
+          background: `linear-gradient(135deg, ${alpha(dayTheme.primary, 0.03)} 0%, ${alpha(theme.palette.background.paper, 1)} 100%)`,
+        }}
+      >
+        <Stack 
+          direction="row" 
+          alignItems="center" 
+          justifyContent="space-between"
+          flexWrap="wrap"
+          gap={1.5}
+        >
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <Box
+              sx={{
+                width: { xs: 36, sm: 40 },
+                height: { xs: 36, sm: 40 },
+                borderRadius: 1.5,
+                background: `linear-gradient(135deg, ${dayTheme.primary} 0%, ${alpha(dayTheme.primary, 0.8)} 100%)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: `0 4px 12px ${alpha(dayTheme.primary, 0.25)}`,
+              }}
+            >
+              <Typography
+                variant="h6"
+                fontWeight={800}
+                sx={{
+                  color: 'white',
+                  fontSize: { xs: '0.85rem', sm: '0.9rem' },
+                }}
+              >
+                {day.substring(0, 3).toUpperCase()}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography 
+                variant="h6" 
+                fontWeight={700} 
+                sx={{ 
+                  color: 'text.primary',
+                  fontSize: { xs: '1rem', sm: '1.1rem' },
+                  lineHeight: 1.2,
+                }}
+              >
+                {day}
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{
+                  color: 'text.secondary',
+                  fontSize: { xs: '0.7rem', sm: '0.72rem' },
+                  fontWeight: 500,
+                }}
+              >
+                {slots.length} time {slots.length === 1 ? 'slot' : 'slots'}
+              </Typography>
+            </Box>
+          </Stack>
+
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            {slots.length > 0 && (
+              <Chip
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Box
+                      sx={{
+                        width: 5,
+                        height: 5,
+                        borderRadius: '50%',
+                        bgcolor: dayTheme.primary,
+                        boxShadow: `0 0 6px ${alpha(dayTheme.primary, 0.6)}`,
+                      }}
+                    />
+                    <Typography variant="caption" fontWeight={700} sx={{ fontSize: { xs: '0.7rem', sm: '0.72rem' } }}>
+                      Active
+                    </Typography>
+                  </Box>
+                }
+                size="small"
+                sx={{
+                  height: { xs: 26, sm: 28 },
+                  bgcolor: alpha(dayTheme.primary, 0.08),
+                  color: dayTheme.primary,
+                  border: `1px solid ${alpha(dayTheme.primary, 0.15)}`,
+                  borderRadius: 1.5,
+                  '& .MuiChip-label': { px: 1.5 },
+                }}
+              />
+            )}
+            {issues.length > 0 && (
+              <Chip
+                label={`${issues.length} Issue${issues.length !== 1 ? 's' : ''}`}
+                size="small"
+                sx={{
+                  height: { xs: 26, sm: 28 },
+                  bgcolor: alpha(theme.palette.warning.main, 0.08),
+                  color: 'warning.dark',
+                  border: `1px solid ${alpha(theme.palette.warning.main, 0.15)}`,
+                  borderRadius: 1.5,
+                  fontSize: { xs: '0.7rem', sm: '0.72rem' },
+                  fontWeight: 700,
+                }}
+              />
+            )}
+          </Stack>
+        </Stack>
+      </Box>
+
+      {/* Time Slots Content */}
+      <Box sx={{ p: { xs: 2, sm: 2.5 }, pt: 0 }}>
+        {slots.length > 0 ? (
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, 1fr)',
+                md: 'repeat(3, 1fr)',
+              },
+              gap: { xs: 1.25, sm: 1.5 },
             }}
           >
-            {day}
-          </Typography>
-          <Chip
-            label={`${slots.length} slot${slots.length !== 1 ? 's' : ''}`}
-            size="small"
-            sx={{
-              bgcolor: alpha(dayTheme.primary, 0.1),
-              color: dayTheme.primary,
-              borderColor: dayTheme.primary,
-              fontSize: { xs: '0.7rem', sm: '0.75rem' }
-            }}
-            variant="outlined"
-          />
-          {issues.length > 0 && (
-            <Chip
-              label={`${issues.length} issue${issues.length !== 1 ? 's' : ''}`}
-              size="small"
-              color="warning"
-              variant="outlined"
-              sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
-            />
-          )}
-        </Stack>
-        
-        {slots.length > 0 ? (
-          <Grid container spacing={{ xs: 1.5, sm: 2 }}>
-            {slots.map((slot, idx) => (
-              <Grid item xs={12} sm={6} md={4} key={idx}>
-                <Paper
-                  variant="outlined"
+            {slots.map((slot, idx) => {
+              const duration = calculateDuration(slot.startTime, slot.endTime);
+              const isShort = duration && !duration.includes('h') && !duration.includes('Invalid');
+              
+              return (
+                <Box
+                  key={idx}
                   sx={{
-                    p: { xs: 1.5, sm: 2 },
-                    borderRadius: 2,
-                    background: alpha(dayTheme.primary, 0.05),
-                    borderColor: alpha(dayTheme.primary, 0.2),
-                    transition: 'all 0.2s',
+                    position: 'relative',
+                    p: { xs: 1.5, sm: 1.75 },
+                    borderRadius: 1.5,
+                    bgcolor: alpha(dayTheme.primary, 0.04),
+                    border: `1px solid ${alpha(dayTheme.primary, 0.1)}`,
+                    borderLeft: `3px solid ${dayTheme.primary}`,
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
-                      borderColor: dayTheme.primary,
-                      transform: 'translateY(-1px)',
-                      boxShadow: `0 2px 8px ${alpha(dayTheme.primary, 0.15)}`,
+                      bgcolor: alpha(dayTheme.primary, 0.08),
+                      borderColor: alpha(dayTheme.primary, 0.25),
+                      transform: 'translateX(3px)',
+                      boxShadow: `0 4px 12px ${alpha(dayTheme.primary, 0.15)}`,
                     }
                   }}
                 >
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <AccessTimeIcon 
-                      sx={{ 
-                        color: dayTheme.primary, 
-                        fontSize: { xs: 18, sm: 20 }
-                      }} 
-                    />
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Typography 
-                        variant="body2" 
-                        fontWeight={600}
-                        sx={{ 
-                          fontSize: { xs: '0.8rem', sm: '0.875rem' },
-                          color: dayTheme.accent
+                  <Stack spacing={1}>
+                    {/* Time Range */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box
+                        sx={{
+                          width: { xs: 28, sm: 30 },
+                          height: { xs: 28, sm: 30 },
+                          borderRadius: 1,
+                          bgcolor: alpha(dayTheme.primary, 0.12),
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
                         }}
-                        noWrap
                       >
-                        {formatTo12Hour(slot.startTime)} - {formatTo12Hour(slot.endTime)}
-                      </Typography>
+                        <AccessTimeIcon 
+                          sx={{ 
+                            fontSize: { xs: 14, sm: 16 },
+                            color: dayTheme.primary,
+                          }} 
+                        />
+                      </Box>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography 
+                          variant="body2" 
+                          fontWeight={700}
+                          sx={{ 
+                            fontSize: { xs: '0.8rem', sm: '0.85rem' },
+                            color: 'text.primary',
+                            lineHeight: 1.3,
+                          }}
+                        >
+                          {formatTo12Hour(slot.startTime)}
+                        </Typography>
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            fontSize: { xs: '0.7rem', sm: '0.72rem' },
+                            color: 'text.secondary',
+                            fontWeight: 500,
+                          }}
+                        >
+                          to {formatTo12Hour(slot.endTime)}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {/* Duration Badge */}
+                    <Box
+                      sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 0.75,
+                        px: 1.25,
+                        py: 0.5,
+                        borderRadius: 1.5,
+                        bgcolor: isShort 
+                          ? alpha(theme.palette.warning.main, 0.1)
+                          : alpha(dayTheme.primary, 0.1),
+                        alignSelf: 'flex-start',
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          bgcolor: isShort ? theme.palette.warning.main : dayTheme.primary,
+                          boxShadow: `0 0 6px ${isShort ? alpha(theme.palette.warning.main, 0.5) : alpha(dayTheme.primary, 0.5)}`,
+                        }}
+                      />
                       <Typography 
                         variant="caption" 
-                        color="text.secondary"
-                        sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+                        fontWeight={700}
+                        sx={{ 
+                          fontSize: { xs: '0.7rem', sm: '0.72rem' },
+                          color: isShort ? 'warning.dark' : dayTheme.primary,
+                          lineHeight: 1,
+                        }}
                       >
-                        {calculateDuration(slot.startTime, slot.endTime)}
+                        {duration}
                       </Typography>
                     </Box>
                   </Stack>
-                </Paper>
-              </Grid>
-            ))}
-          </Grid>
+                </Box>
+              );
+            })}
+          </Box>
         ) : (
           <Box
             sx={{
               textAlign: 'center',
-              py: { xs: 2, sm: 3 },
+              py: { xs: 3, sm: 4 },
               borderRadius: 2,
-              bgcolor: alpha(theme.palette.grey[100], 0.5),
-              border: `1px dashed ${theme.palette.grey[300]}`,
+              bgcolor: alpha(theme.palette.grey[100], 0.4),
+              border: `1px dashed ${alpha(theme.palette.divider, 0.15)}`,
             }}
           >
             <Typography 
-              color="text.secondary" 
-              fontStyle="italic"
-              sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+              variant="body2"
+              sx={{ 
+                color: 'text.secondary',
+                fontSize: { xs: '0.8rem', sm: '0.85rem' },
+                fontWeight: 500,
+                fontStyle: 'italic',
+              }}
             >
-              No time slots scheduled for this day
+              No time slots scheduled
             </Typography>
           </Box>
         )}
         
+        {/* Issues Section */}
         {issues.length > 0 && (
           <Stack spacing={1} sx={{ mt: 2 }}>
             {issues.map((issue, idx) => (
-              <Alert 
-                key={idx} 
-                severity={issue.type} 
-                size="small"
+              <Box
+                key={idx}
                 sx={{
-                  fontSize: { xs: '0.75rem', sm: '0.8rem' },
-                  '& .MuiAlert-message': {
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: isMobile ? 'nowrap' : 'normal'
-                  }
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 1,
+                  p: { xs: 1, sm: 1.25 },
+                  borderRadius: 1.5,
+                  bgcolor: issue.type === 'error' 
+                    ? alpha(theme.palette.error.main, 0.06)
+                    : alpha(theme.palette.warning.main, 0.06),
+                  border: `1px solid ${issue.type === 'error'
+                    ? alpha(theme.palette.error.main, 0.12)
+                    : alpha(theme.palette.warning.main, 0.12)}`,
                 }}
               >
-                {issue.message}
-              </Alert>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: { xs: '0.7rem', sm: '0.72rem' },
+                    color: issue.type === 'error' ? 'error.dark' : 'warning.dark',
+                    fontWeight: 600,
+                    flex: 1,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {issue.message}
+                </Typography>
+              </Box>
             ))}
           </Stack>
         )}
-      </CardContent>
-    </Card>
+      </Box>
+    </Box>
   );
 });
 
@@ -451,44 +636,66 @@ const TimeslotList = ({
   // Empty state
   if (daysWithData.length === 0) {
     return (
-      <Paper elevation={3} sx={{ borderRadius: 3, p: 3 }}>
-        <Typography variant="h5" fontWeight={700} sx={{ mb: 3 }}>
-          Detailed Schedule Overview
-        </Typography>
+      <Box>
         <Box
           sx={{
             textAlign: 'center',
-            py: 6,
-            borderRadius: 2,
-            bgcolor: alpha(theme.palette.grey[100], 0.5),
-            border: `2px dashed ${theme.palette.grey[300]}`,
+            py: { xs: 6, sm: 8 },
+            borderRadius: { xs: 2.5, sm: 3 },
+            border: `1px dashed ${alpha(theme.palette.divider, 0.2)}`,
+            bgcolor: alpha(theme.palette.grey[50], 0.5),
           }}
         >
-          <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+          <Box
+            sx={{
+              width: { xs: 64, sm: 72 },
+              height: { xs: 64, sm: 72 },
+              borderRadius: 3,
+              bgcolor: alpha(theme.palette.primary.main, 0.08),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mx: 'auto',
+              mb: 2,
+            }}
+          >
+            <AccessTimeIcon 
+              sx={{ 
+                fontSize: { xs: 32, sm: 36 }, 
+                color: alpha(theme.palette.primary.main, 0.5),
+              }} 
+            />
+          </Box>
+          <Typography 
+            variant="h6" 
+            fontWeight={700}
+            sx={{ 
+              mb: 1,
+              fontSize: { xs: '1rem', sm: '1.1rem' },
+              color: 'text.secondary',
+            }}
+          >
             No Schedule Configured
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Add time slots to your availability to see them listed here.
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              color: 'text.secondary',
+              fontSize: { xs: '0.85rem', sm: '0.9rem' },
+              maxWidth: 400,
+              mx: 'auto',
+            }}
+          >
+            Add time slots to your availability to see them listed here in detail
           </Typography>
         </Box>
-      </Paper>
+      </Box>
     );
   }
 
   return (
-    <Paper elevation={3} sx={{ borderRadius: 3, p: { xs: 2, sm: 3 } }}>
-      <Typography 
-        variant="h5" 
-        fontWeight={700} 
-        sx={{ 
-          mb: 3,
-          fontSize: { xs: '1.25rem', sm: '1.5rem' }
-        }}
-      >
-        Detailed Schedule Overview
-      </Typography>
-      
-      <Stack spacing={{ xs: 2, sm: 3 }}>
+    <Box>
+      <Stack spacing={{ xs: 2, sm: 2.5 }}>
         {dayData.map(({ day, dayTheme, slots, issues }) => (
           <DayListCard
             key={day}
@@ -502,7 +709,7 @@ const TimeslotList = ({
           />
         ))}
       </Stack>
-    </Paper>
+    </Box>
   );
 };
 
