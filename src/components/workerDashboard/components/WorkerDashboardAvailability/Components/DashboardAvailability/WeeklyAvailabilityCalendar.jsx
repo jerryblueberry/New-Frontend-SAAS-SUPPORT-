@@ -359,8 +359,8 @@ const DayColumn = React.memo(function DayColumn({
                       sx={{
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: { xs: 0.5, sm: 0.75, md: 0.75 },
-                        p: { xs: 1, sm: 1.25, md: 1.5 },
+                        gap: { xs: 0.4, sm: 0.6, md: 0.75 },
+                        p: { xs: 0.75, sm: 1, md: 1.25 },
                         bgcolor: alpha(dayColor, 0.06),
                         border: `1px solid ${alpha(dayColor, 0.15)}`,
                         borderRadius: 1.5,
@@ -375,18 +375,18 @@ const DayColumn = React.memo(function DayColumn({
                         },
                       }}
                     >
-                      {/* Time Range - Compact Mobile */}
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                      {/* Time Range - Ultra Compact Mobile */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: { xs: 0.3, sm: 0.4, md: 0.5 } }}>
                         {/* Start Time */}
-                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.25, flexShrink: 0 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: { xs: 0.15, sm: 0.2, md: 0.25 }, flexShrink: 0 }}>
                           <Typography
                             variant="caption"
                             fontWeight={800}
                             sx={{
                               color: dayColor,
-                              fontSize: { xs: '0.72rem', sm: '0.75rem', md: '0.78rem' },
+                              fontSize: { xs: '0.68rem', sm: '0.72rem', md: '0.75rem' },
                               lineHeight: 1,
-                              letterSpacing: '-0.01em',
+                              letterSpacing: '-0.02em',
                             }}
                           >
                             {startTime.time}
@@ -396,7 +396,7 @@ const DayColumn = React.memo(function DayColumn({
                             fontWeight={600}
                             sx={{
                               color: alpha(dayColor, 0.65),
-                              fontSize: { xs: '0.55rem', sm: '0.58rem', md: '0.6rem' },
+                              fontSize: { xs: '0.5rem', sm: '0.54rem', md: '0.57rem' },
                               lineHeight: 1,
                               textTransform: 'uppercase',
                             }}
@@ -405,14 +405,14 @@ const DayColumn = React.memo(function DayColumn({
                           </Typography>
                         </Box>
 
-                        {/* Simple Dash Separator */}
+                        {/* Minimal Dash Separator */}
                         <Typography
                           variant="caption"
                           sx={{
                             color: alpha(theme.palette.text.secondary, 0.4),
-                            fontSize: { xs: '0.7rem', sm: '0.72rem', md: '0.74rem' },
+                            fontSize: { xs: '0.65rem', sm: '0.68rem', md: '0.7rem' },
                             fontWeight: 700,
-                            px: 0.25,
+                            px: { xs: 0.15, sm: 0.2, md: 0.25 },
                             lineHeight: 1,
                           }}
                         >
@@ -420,15 +420,15 @@ const DayColumn = React.memo(function DayColumn({
                         </Typography>
 
                         {/* End Time */}
-                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.25, flexShrink: 0 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: { xs: 0.15, sm: 0.2, md: 0.25 }, flexShrink: 0 }}>
                           <Typography
                             variant="caption"
                             fontWeight={800}
                             sx={{
                               color: dayColor,
-                              fontSize: { xs: '0.72rem', sm: '0.75rem', md: '0.78rem' },
+                              fontSize: { xs: '0.68rem', sm: '0.72rem', md: '0.75rem' },
                               lineHeight: 1,
-                              letterSpacing: '-0.01em',
+                              letterSpacing: '-0.02em',
                             }}
                           >
                             {endTime.time}
@@ -438,7 +438,7 @@ const DayColumn = React.memo(function DayColumn({
                             fontWeight={600}
                             sx={{
                               color: alpha(dayColor, 0.65),
-                              fontSize: { xs: '0.55rem', sm: '0.58rem', md: '0.6rem' },
+                              fontSize: { xs: '0.5rem', sm: '0.54rem', md: '0.57rem' },
                               lineHeight: 1,
                               textTransform: 'uppercase',
                             }}
@@ -448,15 +448,15 @@ const DayColumn = React.memo(function DayColumn({
                         </Box>
                       </Box>
 
-                      {/* Duration */}
+                      {/* Duration - Compact */}
                       {duration && (
                         <Box
                           sx={{
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            gap: 0.4,
-                            py: 0.3,
+                            gap: { xs: 0.3, sm: 0.35, md: 0.4 },
+                            py: { xs: 0.25, sm: 0.3 },
                             borderRadius: 1,
                             bgcolor: isShort
                               ? alpha(theme.palette.warning.main, 0.1)
@@ -465,7 +465,7 @@ const DayColumn = React.memo(function DayColumn({
                         >
                           <AccessTimeIcon
                             sx={{
-                              fontSize: { xs: 10, sm: 11, md: 12 },
+                              fontSize: { xs: 9, sm: 10, md: 11 },
                               color: isShort ? 'warning.dark' : dayColor,
                             }}
                           />
@@ -474,7 +474,7 @@ const DayColumn = React.memo(function DayColumn({
                             fontWeight={700}
                             sx={{
                               color: isShort ? 'warning.dark' : dayColor,
-                              fontSize: { xs: '0.65rem', sm: '0.68rem', md: '0.7rem' },
+                              fontSize: { xs: '0.62rem', sm: '0.65rem', md: '0.68rem' },
                               lineHeight: 1,
                             }}
                           >
