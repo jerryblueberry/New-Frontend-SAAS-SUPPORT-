@@ -3,11 +3,25 @@
  * CLIENT ONBOARDING STORE (Backward Compatibility)
  * ═══════════════════════════════════════════════════════════════════════════════
  * 
+ * ⚠️ USAGE: This store is ONLY for client onboarding flow (/client-onboarding)
+ * 
+ * For profile management pages (/client/profile/*), use useClientProfileStore instead.
+ * 
  * This file maintains backward compatibility with existing imports.
  * The store has been split into modular files in stores/clientStores/
  * 
  * This creates a combined store that merges onboarding, profile, and audit stores
  * to maintain backward compatibility with existing code.
+ * 
+ * Used in:
+ * - ClientOnboarding.jsx (main onboarding page)
+ * - ClientProfile.jsx component (onboarding step component)
+ * - ClientCarePreferences.jsx component (onboarding step component)
+ * 
+ * NOT used in:
+ * - BasicInformation.jsx (uses useClientProfileStore)
+ * - Preferences.jsx (uses useClientProfileStore)
+ * - Other profile management pages (use useClientProfileStore)
  * 
  * @module stores/useClientOnboardingStore
  */

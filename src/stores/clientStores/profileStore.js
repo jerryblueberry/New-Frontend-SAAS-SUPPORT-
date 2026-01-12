@@ -6,6 +6,23 @@
  * Store for client profile data, completeness, and enterprise fields.
  * This is the primary store for profile state and is persisted.
  * 
+ * ⚠️ CRITICAL: This store holds DERIVED/TRANSFORMED data, NOT raw server data.
+ * 
+ * What this store holds:
+ * - ✅ Derived state: profileCompleteness (computed from server data)
+ * - ✅ Transformed data: onboarding status (computed from profile + completeness)
+ * - ✅ Extracted fields: enterpriseData (parsed from profile)
+ * - ✅ Profile data: Transformed via hydrateFromApi (not raw API response)
+ * 
+ * What this store does NOT hold:
+ * - ❌ Raw API responses (TanStack Query cache is source of truth)
+ * - ❌ Canonical server entities (queries handle that)
+ * 
+ * Purpose:
+ * - Persist transformed data for offline access
+ * - Cache UI-specific projections (completeness, onboarding status)
+ * - Provide fast access to derived state without recomputation
+ * 
  * @module stores/clientStores/profileStore
  */
 
@@ -99,24 +116,31 @@ export const useClientProfileStore = create(
 
 				/**
 				 * Hydrate store from API response
-				 * @param {Object} data - API response data
+				 * 
+				 * ⚠️ CRITICAL: This stores TRANSFORMED data, not raw server data.
+				 * The profile object here is transformed (enterprise fields extracted,
+				 * onboarding status computed). TanStack Query cache is still the
+				 * source of truth for fresh server data.
+				 * 
+				 * @param {Object} data - API response data (already transformed by query)
 				 */
 				hydrateFromApi: (data) => {
 					if (!data) return
 
 					const { profile, profileCompletion, onboarding } = data
 
-					// Extract enterprise fields from profile (optional fields)
+					// Extract enterprise fields from profile (TRANSFORMATION)
 					const enterpriseData = parseEnterpriseFields(profile || {})
 
-					// Calculate onboarding status
+					// Calculate onboarding status (DERIVED STATE)
 					const onboardingStatus = computeOnboardingStatus(profile, profileCompletion)
 
+					// Store transformed data (not raw API response)
 					set({
-						profile: profile || null,
-						profileCompleteness: profileCompletion || initialState.profileCompleteness,
-						onboarding: onboarding || onboardingStatus,
-						enterpriseData,
+						profile: profile || null, // Transformed profile (enterprise fields extracted)
+						profileCompleteness: profileCompletion || initialState.profileCompleteness, // Derived
+						onboarding: onboarding || onboardingStatus, // Computed status
+						enterpriseData, // Extracted fields
 					})
 				},
 

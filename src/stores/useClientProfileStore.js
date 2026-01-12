@@ -3,6 +3,10 @@
  * CLIENT PROFILE MANAGEMENT STORE
  * ═══════════════════════════════════════════════════════════════════════════════
  * 
+ * ⚠️ USAGE: This store is for client profile management pages (/client/profile/*)
+ * 
+ * For onboarding flow (/client-onboarding), use useClientOnboardingStore instead.
+ * 
  * Production-ready Zustand store for client profile management:
  * - Minimal API calls with PATCH support for partial updates
  * - TanStack Query integration for efficient caching
@@ -14,6 +18,18 @@
  * - Optimistic updates for instant feedback
  * - Automatic cache invalidation on mutations
  * - Error handling with user-friendly messages
+ * 
+ * Used in:
+ * - BasicInformation.jsx (/client/profile)
+ * - Preferences.jsx (/client/profile/preferences)
+ * - CarePlan.jsx (/client/profile/care-plan)
+ * - Communication.jsx (/client/profile/communication)
+ * - BillingPreferences.jsx (/client/billing/preferences)
+ * - Invoices.jsx (/client/billing/invoices)
+ * - ClientProfile.jsx (main profile display page)
+ * 
+ * NOT used in:
+ * - ClientOnboarding.jsx (uses useClientOnboardingStore)
  * 
  * @module stores/useClientProfileStore
  */

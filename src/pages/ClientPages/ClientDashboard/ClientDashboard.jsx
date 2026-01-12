@@ -4,16 +4,12 @@ import {
   Card,
   CardContent,
   Typography,
-  LinearProgress,
   Chip,
   Button,
   Grid,
   Paper,
   Avatar,
   IconButton,
-  Stepper,
-  Step,
-  StepLabel,
   Alert,
   Divider,
   useTheme,
@@ -43,7 +39,8 @@ import {
   Lock,
   HourglassEmpty,
   AttachMoney,
-  Warning
+  Warning,
+  Info
 } from '@mui/icons-material'
 import { useAuth } from '../../../context/AuthContext'
 import { useQuery } from '@tanstack/react-query'
@@ -56,7 +53,6 @@ const ClientDashboard = () => {
 
   const { user } = useAuth()
 
-  const [activeStep, setActiveStep] = useState(0)
   const [topOffset, setTopOffset] = useState(64)
 
   useEffect(() => {
@@ -70,32 +66,38 @@ const ClientDashboard = () => {
     window.addEventListener('resize', measureNavbar)
     return () => window.removeEventListener('resize', measureNavbar)
   }, [])
-
-  // ONE-STEP ONBOARDING: Only basic info is required
-  const onboardingSteps = ['Basic Information']
   
   const { data: profileResp, isLoading, isError, error } = useQuery({
     queryKey: ['clientProfile'],
     queryFn: async () => {
       const res = await getClientProfile()
+      // Log raw API response
+      console.log('🔵 [ClientDashboard] Raw API Response:', res)
+      console.log('🔵 [ClientDashboard] Response Data:', res.data)
+      console.log('🔵 [ClientDashboard] Profile Data:', res.data?.profile)
       return res.data?.profile || null
     },
     staleTime: 5 * 60 * 1000,
     refetchInterval: 60 * 1000,
   })
 
-  const progressPercentage = useMemo(() => {
-    // Cap at 100 and treat basic information as 100% onboarding completion
-    if (profileResp?.profileCompleteness?.percentage != null) {
-      return Math.min(100, Math.round(profileResp.profileCompleteness.percentage))
+  // Log profile response whenever it changes
+  useEffect(() => {
+    if (profileResp) {
+      console.log('🟢 [ClientDashboard] Profile Response:', profileResp)
+      console.log('🟢 [ClientDashboard] Profile Status:', profileResp?.status)
+      console.log('🟢 [ClientDashboard] Profile Completeness:', profileResp?.profileCompleteness)
+      console.log('🟢 [ClientDashboard] Engagement Metrics:', profileResp?.engagementMetrics)
+      console.log('🟢 [ClientDashboard] Documents:', profileResp?.documents)
+      console.log('🟢 [ClientDashboard] Preferences:', profileResp?.preferences)
+      console.log('🟢 [ClientDashboard] Account Type:', profileResp?.accountType)
     }
-    // Fallback
-    return 0
   }, [profileResp])
 
+  // Simple completion status - no percentage
   const isProfileComplete = useMemo(() => {
-    return progressPercentage === 100
-  }, [progressPercentage])
+    return profileResp?.profileCompleteness?.completedSteps?.basicInformation === true
+  }, [profileResp])
 
   const profileStatus = useMemo(() => {
     return profileResp?.status || 'draft'
@@ -109,10 +111,6 @@ const ClientDashboard = () => {
     return profileStatus === 'verified' || profileStatus === 'active'
   }, [profileStatus])
 
-  useEffect(() => {
-    // ONE-STEP ONBOARDING: Always single step
-    setActiveStep(0)
-  }, [profileResp])
 
   // Get status configuration
   const getStatusConfig = (status) => {
@@ -174,7 +172,7 @@ const ClientDashboard = () => {
       return daysUntilExpiry <= 30 && daysUntilExpiry > 0
     }).length
     
-    return [
+    const stats = [
       { 
         icon: <Schedule sx={{ fontSize: 40 }} />, 
         value: engagement.jobsActive?.toString() || '0', 
@@ -197,6 +195,17 @@ const ClientDashboard = () => {
         tooltip: `${verifiedDocuments} verified, ${pendingDocuments} pending${expiringSoon > 0 ? `, ${expiringSoon} expiring soon` : ''}`
       }
     ]
+    
+    console.log('📈 [ClientDashboard] Quick Stats:', stats)
+    console.log('📈 [ClientDashboard] Engagement Metrics:', engagement)
+    console.log('📈 [ClientDashboard] Document Stats:', {
+      totalDocuments,
+      verifiedDocuments,
+      pendingDocuments,
+      expiringSoon
+    })
+    
+    return stats
   }, [profileResp])
 
   // Generate dynamic action items based on profile data
@@ -253,7 +262,9 @@ const ClientDashboard = () => {
       })
     }
     
-    return tasks.slice(0, 5) // Limit to 5 tasks
+    const finalTasks = tasks.slice(0, 5) // Limit to 5 tasks
+    console.log('✅ [ClientDashboard] Upcoming Tasks:', finalTasks)
+    return finalTasks
   }, [profileResp])
 
   return (
@@ -287,233 +298,476 @@ const ClientDashboard = () => {
             width: '100%'
           }}>
         
-        {/* Welcome Header */}
+        {/* Welcome Header - Redesigned */}
         <Paper 
           elevation={0}
           sx={{ 
-            p: { xs: 2.5, sm: 3, md: 4 },
-            mb: { xs: 2, sm: 3 },
-            borderRadius: 2,
-            bgcolor: 'background.paper',
-            border: '1px solid #e5e7eb'
+            p: { xs: 3, sm: 4, md: 5 },
+            mb: { xs: 3, sm: 4 },
+            borderRadius: 3,
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            position: 'relative',
+            overflow: 'hidden',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              width: '200px',
+              height: '200px',
+              background: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '50%',
+              transform: 'translate(30%, -30%)',
+            }
           }}
         >
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 2 }}>
-            <Box>
-              <Typography variant={isMobile ? 'h5' : 'h4'} fontWeight="700" gutterBottom>
-                {`Welcome back${user?.firstName ? `, ${user.firstName}` : ''}!`} 👋
-              </Typography>
-              {isLoading ? (
-                <Skeleton variant="text" width={260} height={24} />
-              ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-                  {isProfileComplete 
-                    ? isVerified 
-                      ? 'Your profile is verified and ready for service matching'
-                      : 'Your profile is under admin verification'
-                    : "Let's complete your journey to personalized care"
-                  }
+          <Box sx={{ position: 'relative', zIndex: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 2 }}>
+              <Box>
+                <Typography 
+                  variant={isMobile ? 'h5' : 'h4'} 
+                  fontWeight="700" 
+                  gutterBottom
+                  sx={{ color: 'white', mb: 1 }}
+                >
+                  {`Welcome back${user?.firstName ? `, ${user.firstName}` : ''}!`} 👋
                 </Typography>
-              )}
-            </Box>
-            {isLoading ? (
-              <Skeleton variant="rounded" width={150} height={32} />
-            ) : (
-              <Chip 
-                label={statusConfig.label} 
-                color={statusConfig.color}
-                icon={statusConfig.icon}
-                variant={isProfileComplete ? "filled" : "outlined"}
-                sx={{ fontWeight: 600 }}
-              />
-            )}
-          </Box>
-        </Paper>
-
-        {/* Onboarding Progress Card - Show if incomplete */}
-        {!isLoading && !isProfileComplete && (
-          <Card elevation={0} sx={{ mb: { xs: 2, sm: 3 }, borderRadius: 2, border: '1px solid #e5e7eb' }}>
-            <CardContent sx={{ p: { xs: 2.5, sm: 3, md: 4 } }}>
-              <Typography variant={isMobile ? 'h6' : 'h5'} fontWeight="700" gutterBottom>
-                Complete Your Profile Setup
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                {`You're almost there — complete basic information to finish onboarding.`}
-              </Typography>
-
-              {/* Progress Bar */}
-              <Box sx={{ mb: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2" fontWeight="600">Overall Progress</Typography>
-                  <Typography variant="body2" fontWeight="600">{Math.round(progressPercentage)}%</Typography>
-                </Box>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={progressPercentage}
-                  sx={{
-                    height: 8,
-                    borderRadius: 1,
-                    bgcolor: 'action.hover',
-                    '& .MuiLinearProgress-bar': {
-                      borderRadius: 1,
-                      bgcolor: progressPercentage === 100 ? 'success.main' : 'primary.main'
+                {isLoading ? (
+                  <Skeleton variant="text" width={260} height={24} sx={{ bgcolor: 'rgba(255,255,255,0.3)' }} />
+                ) : (
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      fontSize: { xs: '0.875rem', sm: '1rem' },
+                      color: 'rgba(255, 255, 255, 0.9)',
+                      fontWeight: 400
+                    }}
+                  >
+                    {isProfileComplete 
+                      ? isVerified 
+                        ? 'Your profile is verified and ready for service matching'
+                        : 'Your profile is under admin verification'
+                      : "Complete your basic profile setup to unlock all features"
+                    }
+                  </Typography>
+                )}
+              </Box>
+              {isLoading ? (
+                <Skeleton variant="rounded" width={150} height={40} sx={{ bgcolor: 'rgba(255,255,255,0.3)' }} />
+              ) : (
+                <Chip 
+                  label={statusConfig.label} 
+                  color={statusConfig.color}
+                  icon={statusConfig.icon}
+                  variant={isProfileComplete ? "filled" : "outlined"}
+                  sx={{ 
+                    fontWeight: 600,
+                    bgcolor: isProfileComplete ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                    color: 'white',
+                    borderColor: 'rgba(255, 255, 255, 0.5)',
+                    '& .MuiChip-icon': {
+                      color: 'white'
                     }
                   }}
                 />
+              )}
+            </Box>
+          </Box>
+        </Paper>
+
+        {/* Onboarding Prompt Card - Simplified Design */}
+        {!isLoading && !isProfileComplete && (
+          <Card 
+            elevation={0} 
+            sx={{ 
+              mb: { xs: 3, sm: 4 }, 
+              borderRadius: 3, 
+              border: '2px solid',
+              borderColor: 'primary.main',
+              background: 'linear-gradient(135deg, #f0f4ff 0%, #ffffff 100%)',
+              position: 'relative',
+              overflow: 'hidden',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '4px',
+                background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+              }
+            }}
+          >
+            <CardContent sx={{ p: { xs: 3, sm: 4, md: 4.5 } }}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2.5, mb: 3 }}>
+                <Box sx={{ 
+                  p: 1.5, 
+                  borderRadius: 2.5, 
+                  bgcolor: 'primary.main',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  width: { xs: 48, sm: 56 },
+                  height: { xs: 48, sm: 56 }
+                }}>
+                  <Timeline sx={{ fontSize: { xs: 24, sm: 28 } }} />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography 
+                    variant={isMobile ? 'h6' : 'h5'} 
+                    fontWeight="700" 
+                    gutterBottom
+                    sx={{ mb: 1 }}
+                  >
+                    Complete Your Basic Profile Setup
+                  </Typography>
+                  <Typography 
+                    variant="body1" 
+                    color="text.secondary"
+                    sx={{ 
+                      fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                      lineHeight: 1.6,
+                      mb: 2
+                    }}
+                  >
+                    Complete your basic information to unlock all features and start finding the perfect support workers for your needs.
+                  </Typography>
+                  
+                  {/* Status Badge */}
+                  <Chip
+                    icon={<RadioButtonUnchecked sx={{ fontSize: 16 }} />}
+                    label="Incomplete"
+                    size="small"
+                    sx={{
+                      bgcolor: 'warning.50',
+                      color: 'warning.dark',
+                      border: '1px solid',
+                      borderColor: 'warning.main',
+                      fontWeight: 600,
+                      fontSize: '0.8125rem',
+                      height: 28,
+                      '& .MuiChip-icon': {
+                        color: 'warning.main'
+                      }
+                    }}
+                  />
+                </Box>
               </Box>
 
-              {/* Stepper - Single step */}
-              <Box sx={{ mt: 2 }}>
-                <Stepper activeStep={0} alternativeLabel>
-                  <Step>
-                    <StepLabel>Basic Information</StepLabel>
-                    </Step>
-                </Stepper>
-              </Box>
-
-              {/* Mobile Stepper - Single step */}
-              <Box sx={{ display: { xs: 'block', sm: 'none' }, mt: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-                  {profileResp?.profileCompleteness?.completedSteps?.basicInformation ? (
-                      <CheckCircle sx={{ color: 'success.main', mr: 1.5, fontSize: 24 }} />
-                    ) : (
-                      <RadioButtonUnchecked sx={{ color: 'text.secondary', mr: 1.5, fontSize: 24 }} />
-                    )}
-                    <Typography variant="body2">
-                    Basic Information
-                    </Typography>
-                  </Box>
-              </Box>
-
+              {/* Action Button */}
               <Button 
                 variant="contained"
                 endIcon={<ChevronRight />}
-                fullWidth={isMobile}
-                sx={{ mt: 2, textTransform: 'none' }}
-                onClick={() => {
-                  navigate('/client-onboarding')
+                fullWidth
+                size="large"
+                sx={{ 
+                  textTransform: 'none',
+                  py: 1.75,
+                  borderRadius: 2,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  fontWeight: 600,
+                  fontSize: { xs: '0.9375rem', sm: '1rem' },
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)',
+                    boxShadow: '0 6px 16px rgba(102, 126, 234, 0.5)',
+                    transform: 'translateY(-2px)'
+                  },
+                  transition: 'all 0.2s ease'
                 }}
+                onClick={() => navigate('/client-onboarding')}
               >
-                Continue Setup
+                Complete Profile Setup
               </Button>
             </CardContent>
           </Card>
         )}
 
-        {/* Status Card - Show if profile is complete */}
+        {/* Profile Completion Status Card - Enhanced Design */}
         {!isLoading && isProfileComplete && (
-          <Card elevation={0} sx={{ mb: { xs: 2, sm: 3 }, borderRadius: 2, border: '1px solid #e5e7eb' }}>
-            <CardContent sx={{ p: { xs: 2.5, sm: 3, md: 4 } }}>
-              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 2 }}>
-                <Box sx={{ 
-                  p: 1.5, 
-                  borderRadius: 2, 
-                  bgcolor: statusConfig.bgColor,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  {React.cloneElement(statusConfig.icon, { 
-                    sx: { color: `${statusConfig.color}.main`, fontSize: 32 } 
-                  })}
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant={isMobile ? 'h6' : 'h5'} fontWeight="700" gutterBottom>
-                    Profile Status: {statusConfig.label}
-                  </Typography>
-                  <Typography variant="body2" color={statusConfig.textColor} sx={{ mb: 2 }}>
-                    {statusConfig.message}
-                  </Typography>
-                  {isUnderVerification && !isVerified && (
-                    <Alert severity={statusConfig.severity} sx={{ mt: 1, borderRadius: 1 }}>
-                      <Typography variant="body2">
-                        Your profile is currently under admin review. This process typically takes 1-3 business days. 
-                        You'll receive a notification once verification is complete.
-                      </Typography>
-                    </Alert>
-                  )}
-                </Box>
-              </Box>
+          <Card 
+            elevation={0} 
+            sx={{ 
+              mb: { xs: 3, sm: 4 }, 
+              borderRadius: 3, 
+              border: `2px solid ${isVerified ? '#10b981' : '#f59e0b'}`,
+              background: isVerified 
+                ? 'linear-gradient(135deg, #f0fdf4 0%, #ffffff 50%, #f0fdf4 100%)'
+                : 'linear-gradient(135deg, #fffbeb 0%, #ffffff 50%, #fffbeb 100%)',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              position: 'relative',
+              overflow: 'hidden',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '4px',
+                background: isVerified 
+                  ? 'linear-gradient(90deg, #10b981 0%, #34d399 50%, #10b981 100%)'
+                  : 'linear-gradient(90deg, #f59e0b 0%, #fbbf24 50%, #f59e0b 100%)',
+              },
+              '&:hover': {
+                boxShadow: isVerified 
+                  ? '0 12px 32px rgba(16, 185, 129, 0.2)'
+                  : '0 12px 32px rgba(245, 158, 11, 0.2)',
+                transform: 'translateY(-4px)'
+              }
+            }}
+          >
+            <CardContent sx={{ p: { xs: 3, sm: 4, md: 4.5 } }}>
+              <Grid container spacing={3} alignItems="center">
+                {/* Icon and Status */}
+                <Grid item xs={12} sm={4} md={3}>
+                  <Box sx={{ 
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: { xs: 'flex-start', sm: 'center' },
+                    gap: 2
+                  }}>
+                    <Box sx={{ 
+                      p: 2, 
+                      borderRadius: 3, 
+                      bgcolor: isVerified ? 'success.50' : 'warning.50',
+                      border: `2px solid ${isVerified ? '#10b981' : '#f59e0b'}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: { xs: 80, sm: 96 },
+                      height: { xs: 80, sm: 96 },
+                      position: 'relative',
+                      '&::after': {
+                        content: '""',
+                        position: 'absolute',
+                        inset: -4,
+                        borderRadius: 3,
+                        border: `2px solid ${isVerified ? '#10b981' : '#f59e0b'}`,
+                        opacity: 0.2,
+                        animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                      },
+                      '@keyframes pulse': {
+                        '0%, 100%': { opacity: 0.2 },
+                        '50%': { opacity: 0.4 },
+                      }
+                    }}>
+                      {React.cloneElement(statusConfig.icon, { 
+                        sx: { 
+                          color: isVerified ? 'success.main' : 'warning.main', 
+                          fontSize: { xs: 40, sm: 48 },
+                          zIndex: 1
+                        } 
+                      })}
+                    </Box>
+                    <Chip
+                      label={statusConfig.label}
+                      color={statusConfig.color}
+                      icon={statusConfig.icon}
+                      sx={{
+                        fontWeight: 700,
+                        fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                        height: { xs: 28, sm: 32 },
+                        px: 1
+                      }}
+                    />
+                  </Box>
+                </Grid>
 
-              {/* Progress Summary */}
-              <Box sx={{ mb: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2" fontWeight="600">Profile Completion</Typography>
-                  <Typography variant="body2" fontWeight="600">{Math.round(progressPercentage)}%</Typography>
-                </Box>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={progressPercentage}
-                  sx={{
-                    height: 8,
-                    borderRadius: 1,
-                    bgcolor: 'action.hover',
-                    '& .MuiLinearProgress-bar': {
-                      borderRadius: 1,
-                      bgcolor: 'success.main'
-                    }
-                  }}
-                />
-              </Box>
+                {/* Status Details */}
+                <Grid item xs={12} sm={8} md={9}>
+                  <Box>
+                    <Typography 
+                      variant={isMobile ? 'h6' : 'h5'} 
+                      fontWeight="700" 
+                      gutterBottom
+                      sx={{ 
+                        mb: 1.5,
+                        color: isVerified ? 'success.dark' : 'warning.dark'
+                      }}
+                    >
+                      {isVerified ? 'Profile Verified & Active' : 'Profile Under Review'}
+                    </Typography>
+                    <Typography 
+                      variant="body1" 
+                      color="text.secondary" 
+                      sx={{ 
+                        mb: 2.5, 
+                        fontWeight: 400,
+                        fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                        lineHeight: 1.7
+                      }}
+                    >
+                      {statusConfig.message}
+                    </Typography>
 
-              {/* Action Button based on status */}
-              {isUnderVerification && !isVerified && (
-                <Button 
-                  variant="outlined"
-                  fullWidth={isMobile}
-                  sx={{ mt: 2, textTransform: 'none' }}
-                  onClick={() => navigate('/client-onboarding')}
-                >
-                  View Profile
-                </Button>
-              )}
-              {isVerified && (
-                <Button 
-                  variant="contained"
-                  endIcon={<ChevronRight />}
-                  fullWidth={isMobile}
-                  sx={{ mt: 2, textTransform: 'none' }}
-                  onClick={() => navigate('/client-onboarding')}
-                >
-                  Update Profile
-                </Button>
-              )}
-              
-              {/* Quick Navigation removed per minimal onboarding paradigm */}
+                    {/* Completion Badge */}
+                    <Box sx={{ 
+                      display: 'inline-flex', 
+                      alignItems: 'center', 
+                      gap: 1.5,
+                      p: { xs: 1.5, sm: 2 },
+                      pr: { xs: 2.5, sm: 3 },
+                      borderRadius: 2.5,
+                      bgcolor: 'success.50',
+                      border: '2px solid',
+                      borderColor: 'success.main',
+                      mb: 2.5
+                    }}>
+                      <CheckCircle sx={{ color: 'success.main', fontSize: { xs: 24, sm: 28 }, flexShrink: 0 }} />
+                      <Box>
+                        <Typography 
+                          variant="body1" 
+                          fontWeight="700" 
+                          color="success.dark"
+                          sx={{ fontSize: { xs: '0.875rem', sm: '0.9375rem' }, lineHeight: 1.2 }}
+                        >
+                          Profile Complete
+                        </Typography>
+                        <Typography 
+                          variant="caption" 
+                          color="text.secondary" 
+                          sx={{ fontSize: { xs: '0.75rem', sm: '0.8125rem' }, display: 'block' }}
+                        >
+                          All required information submitted
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {/* Status-specific Alert */}
+                    {isUnderVerification && !isVerified && (
+                      <Alert 
+                        severity="warning" 
+                        icon={<HourglassEmpty />}
+                        sx={{ 
+                          borderRadius: 2,
+                          bgcolor: 'warning.50',
+                          border: '1px solid',
+                          borderColor: 'warning.main',
+                          '& .MuiAlert-icon': {
+                            fontSize: { xs: 20, sm: 24 },
+                            color: 'warning.main'
+                          }
+                        }}
+                      >
+                        <Typography variant="body2" fontWeight={600} sx={{ fontSize: { xs: '0.8125rem', sm: '0.875rem' }, mb: 0.5 }}>
+                          Under Admin Review
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.8125rem' } }}>
+                          Verification typically takes 1-3 business days. You'll be notified once complete.
+                        </Typography>
+                      </Alert>
+                    )}
+                    {isVerified && (
+                      <Alert 
+                        severity="success" 
+                        icon={<Verified />}
+                        sx={{ 
+                          borderRadius: 2,
+                          bgcolor: 'success.50',
+                          border: '1px solid',
+                          borderColor: 'success.main',
+                          '& .MuiAlert-icon': {
+                            fontSize: { xs: 20, sm: 24 },
+                            color: 'success.main'
+                          }
+                        }}
+                      >
+                        <Typography variant="body2" fontWeight={600} sx={{ fontSize: { xs: '0.8125rem', sm: '0.875rem' }, mb: 0.5 }}>
+                          Ready for Service Matching
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.8125rem' } }}>
+                          Your profile is active and you can now find support workers and post jobs.
+                        </Typography>
+                      </Alert>
+                    )}
+                  </Box>
+                </Grid>
+              </Grid>
             </CardContent>
           </Card>
         )}
 
-        {/* Quick Stats Grid */}
-        <Grid container spacing={{ xs: 1.5, sm: 2, md: 3, lg: 3, xl: 4 }} sx={{ mb: { xs: 2, sm: 3 } }}>
+        {/* Quick Stats Grid - Redesigned */}
+        <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }} sx={{ mb: { xs: 3, sm: 4 } }}>
           {quickStats.map((stat, index) => (
-            <Grid item xs={6} sm={6} md={3} lg={3} xl={3} key={index}>
-              <Tooltip title={stat.tooltip || stat.label} arrow>
+            <Grid item xs={6} sm={6} md={4} lg={4} xl={4} key={index}>
+              <Tooltip title={stat.tooltip || stat.label} arrow placement="top">
                 <Card 
                   elevation={0} 
                   sx={{ 
                     height: '100%', 
-                    borderRadius: 2, 
+                    borderRadius: 3, 
                     border: '1px solid #e5e7eb',
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    background: 'linear-gradient(to bottom, #ffffff 0%, #f8f9ff 100%)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '4px',
+                      background: `linear-gradient(90deg, ${stat.color} 0%, ${stat.color}dd 100%)`,
+                      transform: 'scaleX(0)',
+                      transformOrigin: 'left',
+                      transition: 'transform 0.3s ease'
+                    },
                     '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: 2,
-                      borderColor: stat.color
+                      transform: 'translateY(-4px)',
+                      boxShadow: `0 12px 24px ${stat.color}33`,
+                      borderColor: stat.color,
+                      '&::before': {
+                        transform: 'scaleX(1)'
+                      }
                     }
                   }}
                 >
-                  <CardContent sx={{ p: { xs: 2, sm: 2.5, md: 3 } }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <Box sx={{ color: stat.color, mr: 1 }}>
-                        {stat.icon}
+                  <CardContent sx={{ p: { xs: 2.5, sm: 3, md: 3.5 } }}>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      alignItems: 'flex-start', 
+                      justifyContent: 'space-between',
+                      mb: 2
+                    }}>
+                      <Box sx={{ 
+                        p: 1.5, 
+                        borderRadius: 2, 
+                        bgcolor: `${stat.color}15`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <Box sx={{ color: stat.color }}>
+                          {React.cloneElement(stat.icon, { sx: { fontSize: { xs: 32, sm: 36 } } })}
+                        </Box>
                       </Box>
                     </Box>
-                    <Typography variant={isMobile ? 'h5' : 'h4'} fontWeight="700" gutterBottom sx={{ color: stat.color }}>
+                    <Typography 
+                      variant={isMobile ? 'h4' : 'h3'} 
+                      fontWeight="700" 
+                      gutterBottom 
+                      sx={{ 
+                        color: stat.color,
+                        mb: 0.5,
+                        lineHeight: 1.2
+                      }}
+                    >
                       {stat.value}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography 
+                      variant="body2" 
+                      color="text.secondary"
+                      sx={{ 
+                        fontWeight: 500,
+                        fontSize: { xs: '0.875rem', sm: '0.9375rem' }
+                      }}
+                    >
                       {stat.label}
                     </Typography>
                   </CardContent>
@@ -525,156 +779,296 @@ const ClientDashboard = () => {
 
         {/* Care Plan Summary removed in minimal onboarding paradigm */}
 
-        {/* Action Items & Notifications Grid */}
-        <Grid container spacing={{ xs: 2, sm: 2, md: 3, lg: 3, xl: 4 }}>
+        {/* Action Items & Notifications Grid - Redesigned */}
+        <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
           {/* Action Items */}
           <Grid item xs={12} md={7} lg={7} xl={7}>
-            <Card elevation={0} sx={{ borderRadius: 2, height: '100%', border: '1px solid #e5e7eb' }}>
-              <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
+            <Card 
+              elevation={0} 
+              sx={{ 
+                borderRadius: 3, 
+                height: '100%', 
+                border: '1px solid #e5e7eb',
+                background: 'linear-gradient(to bottom, #ffffff 0%, #f8f9ff 100%)',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 8px 24px rgba(102, 126, 234, 0.1)'
+                }
+              }}
+            >
+              <CardContent sx={{ p: { xs: 3, sm: 3.5, md: 4 } }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                  <Typography variant="h6" fontWeight="700">
-                    Action Items
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box sx={{ 
+                      p: 1, 
+                      borderRadius: 2, 
+                      bgcolor: 'primary.main',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <Timeline sx={{ fontSize: 20 }} />
+                    </Box>
+                    <Typography variant="h6" fontWeight="700" color="text.primary">
+                      Action Items
+                    </Typography>
+                  </Box>
                   <Chip 
-                    label={`${upcomingTasks.length} pending`}
+                    label={`${upcomingTasks.length} ${upcomingTasks.length === 1 ? 'item' : 'items'}`}
                     size="small"
                     variant="outlined"
+                    sx={{
+                      fontWeight: 600,
+                      borderColor: 'primary.main',
+                      color: 'primary.main'
+                    }}
                   />
                 </Box>
 
                 {upcomingTasks.map((task, index) => (
                   <React.Fragment key={index}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', py: 2 }}>
-                      <Avatar sx={{ mr: 2, width: { xs: 36, sm: 40 }, height: { xs: 36, sm: 40 } }}>
-                        <Description fontSize="small" />
+                    <Box 
+                      sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        py: 2.5,
+                        px: 1,
+                        borderRadius: 2,
+                        transition: 'all 0.2s ease',
+                        cursor: 'pointer',
+                        '&:hover': {
+                          bgcolor: 'action.hover',
+                          transform: 'translateX(4px)'
+                        }
+                      }}
+                    >
+                      <Avatar 
+                        sx={{ 
+                          mr: 2, 
+                          width: { xs: 44, sm: 48 }, 
+                          height: { xs: 44, sm: 48 },
+                          bgcolor: task.status === 'urgent' 
+                            ? 'error.main' 
+                            : task.status === 'completed'
+                            ? 'success.main'
+                            : 'primary.main'
+                        }}
+                      >
+                        {task.status === 'urgent' ? (
+                          <Warning sx={{ fontSize: 24 }} />
+                        ) : task.status === 'completed' ? (
+                          <CheckCircle sx={{ fontSize: 24 }} />
+                        ) : (
+                          <Description sx={{ fontSize: 24 }} />
+                        )}
                       </Avatar>
                       <Box sx={{ flex: 1 }}>
-                        <Typography variant="body1" fontWeight="600" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
+                        <Typography 
+                          variant="body1" 
+                          fontWeight="600" 
+                          sx={{ 
+                            fontSize: { xs: '0.9375rem', sm: '1rem' },
+                            mb: 0.5
+                          }}
+                        >
                           {task.title}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                        <Typography 
+                          variant="body2" 
+                          color="text.secondary" 
+                          sx={{ 
+                            fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                            fontWeight: 400
+                          }}
+                        >
                           {task.time}
                         </Typography>
                       </Box>
-                      <IconButton size="small">
+                      <IconButton 
+                        size="small"
+                        sx={{
+                          color: 'text.secondary',
+                          '&:hover': {
+                            color: 'primary.main',
+                            bgcolor: 'primary.50'
+                          }
+                        }}
+                      >
                         <ChevronRight />
                       </IconButton>
                     </Box>
-                    {index < upcomingTasks.length - 1 && <Divider />}
+                    {index < upcomingTasks.length - 1 && (
+                      <Divider sx={{ my: 0.5 }} />
+                    )}
                   </React.Fragment>
                 ))}
               </CardContent>
             </Card>
           </Grid>
 
-          {/* Quick Links */}
+          {/* Quick Links - Redesigned */}
           <Grid item xs={12} md={5} lg={5} xl={5}>
-            <Card elevation={0} sx={{ borderRadius: 3, height: '100%' }}>
-              <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
-                <Typography variant="h6" fontWeight="700" gutterBottom sx={{ color: '#1a237e', mb: 3 }}>
-                  Quick Actions
-                </Typography>
+            <Card 
+              elevation={0} 
+              sx={{ 
+                borderRadius: 3, 
+                height: '100%',
+                border: '1px solid #e5e7eb',
+                background: 'linear-gradient(135deg, #667eea15 0%, #764ba215 100%)',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: '0 8px 24px rgba(102, 126, 234, 0.15)'
+                }
+              }}
+            >
+              <CardContent sx={{ p: { xs: 3, sm: 3.5, md: 4 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+                  <Box sx={{ 
+                    p: 1, 
+                    borderRadius: 2, 
+                    bgcolor: 'primary.main',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <EmojiEvents sx={{ fontSize: 20 }} />
+                  </Box>
+                  <Typography variant="h6" fontWeight="700" sx={{ color: '#1a237e' }}>
+                    Quick Actions
+                  </Typography>
+                </Box>
 
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<Person />}
-                  sx={{ 
-                    mb: 2,
-                    py: 1.5,
-                    borderRadius: 2,
-                    borderColor: '#e0e7ff',
-                    color: '#4f46e5',
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    justifyContent: 'flex-start',
-                    '&:hover': {
-                      borderColor: '#4f46e5',
-                      bgcolor: '#f5f7ff'
-                    }
-                  }}
-                >
-                  Find Support Worker
-                </Button>
+                <Stack spacing={1.5}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    startIcon={<Person />}
+                    sx={{ 
+                      py: 1.75,
+                      borderRadius: 2,
+                      borderColor: '#e0e7ff',
+                      borderWidth: 2,
+                      color: '#4f46e5',
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      justifyContent: 'flex-start',
+                      fontSize: '0.9375rem',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        borderColor: '#4f46e5',
+                        bgcolor: '#f5f7ff',
+                        transform: 'translateX(4px)',
+                        borderWidth: 2
+                      }
+                    }}
+                  >
+                    Find Support Worker
+                  </Button>
 
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<CalendarToday />}
-                  sx={{ 
-                    mb: 2,
-                    py: 1.5,
-                    borderRadius: 2,
-                    borderColor: '#e0e7ff',
-                    color: '#4f46e5',
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    justifyContent: 'flex-start',
-                    '&:hover': {
-                      borderColor: '#4f46e5',
-                      bgcolor: '#f5f7ff'
-                    }
-                  }}
-                >
-                  Schedule Session
-                </Button>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    startIcon={<CalendarToday />}
+                    sx={{ 
+                      py: 1.75,
+                      borderRadius: 2,
+                      borderColor: '#e0e7ff',
+                      borderWidth: 2,
+                      color: '#4f46e5',
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      justifyContent: 'flex-start',
+                      fontSize: '0.9375rem',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        borderColor: '#4f46e5',
+                        bgcolor: '#f5f7ff',
+                        transform: 'translateX(4px)',
+                        borderWidth: 2
+                      }
+                    }}
+                  >
+                    Schedule Session
+                  </Button>
 
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<Description />}
-                  sx={{ 
-                    mb: 2,
-                    py: 1.5,
-                    borderRadius: 2,
-                    borderColor: '#e0e7ff',
-                    color: '#4f46e5',
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    justifyContent: 'flex-start',
-                    '&:hover': {
-                      borderColor: '#4f46e5',
-                      bgcolor: '#f5f7ff'
-                    }
-                  }}
-                  onClick={() => navigate('/client-onboarding')}
-                >
-                  View Documents
-                </Button>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    startIcon={<Description />}
+                    sx={{ 
+                      py: 1.75,
+                      borderRadius: 2,
+                      borderColor: '#e0e7ff',
+                      borderWidth: 2,
+                      color: '#4f46e5',
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      justifyContent: 'flex-start',
+                      fontSize: '0.9375rem',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        borderColor: '#4f46e5',
+                        bgcolor: '#f5f7ff',
+                        transform: 'translateX(4px)',
+                        borderWidth: 2
+                      }
+                    }}
+                    onClick={() => navigate('/client/profile/documents')}
+                  >
+                    View Documents
+                  </Button>
 
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<Shield />}
-                  sx={{ 
-                    py: 1.5,
-                    borderRadius: 2,
-                    borderColor: '#e0e7ff',
-                    color: '#4f46e5',
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    justifyContent: 'flex-start',
-                    '&:hover': {
-                      borderColor: '#4f46e5',
-                      bgcolor: '#f5f7ff'
-                    }
-                  }}
-                  onClick={() => navigate('/client/profile/preferences')}
-                >
-                  Update Preferences
-                </Button>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    startIcon={<Shield />}
+                    sx={{ 
+                      py: 1.75,
+                      borderRadius: 2,
+                      borderColor: '#e0e7ff',
+                      borderWidth: 2,
+                      color: '#4f46e5',
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      justifyContent: 'flex-start',
+                      fontSize: '0.9375rem',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        borderColor: '#4f46e5',
+                        bgcolor: '#f5f7ff',
+                        transform: 'translateX(4px)',
+                        borderWidth: 2
+                      }
+                    }}
+                    onClick={() => navigate('/client/profile/preferences')}
+                  >
+                    Update Preferences
+                  </Button>
+                </Stack>
 
                 <Alert 
                   severity="info" 
                   sx={{ 
                     mt: 3,
                     borderRadius: 2,
+                    bgcolor: '#eff6ff',
+                    border: '1px solid #bfdbfe',
                     '& .MuiAlert-icon': {
-                      fontSize: { xs: 20, sm: 24 }
+                      fontSize: { xs: 20, sm: 24 },
+                      color: '#3b82f6'
                     }
                   }}
                 >
-                  <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                      fontWeight: 500,
+                      color: '#1e40af'
+                    }}
+                  >
                     Your support coordinator will contact you within 24 hours
                   </Typography>
                 </Alert>

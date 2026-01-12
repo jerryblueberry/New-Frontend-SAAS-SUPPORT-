@@ -4,7 +4,10 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  * 
  * TanStack Query hooks for fetching client data.
- * These queries hydrate the Zustand stores on success.
+ * These queries hydrate the Zustand stores on success with TRANSFORMED data.
+ * 
+ * ⚠️ CRITICAL: TanStack Query cache is the source of truth for server data.
+ * Stores only receive derived/transformed data via hydrateFromApi().
  * 
  * @module stores/clientStores/queries
  */
@@ -39,25 +42,41 @@ export const useClientOnboardingQuery = () => {
 		},
 		onSuccess: (data) => {
 			if (data?.success && data.data) {
-				// Hydrate stores from API response
+				// Transform data before hydrating stores (derived state computation)
 				const responseData = {
 					...data.data,
+					// Compute onboarding status (DERIVED STATE)
 					onboarding: data.data.onboarding || computeOnboardingStatus(
 						data.data.profile,
 						data.data.profileCompletion
 					),
 				}
 				
-				// Hydrate profile store
+				// ✅ Hydrate profile store with TRANSFORMED data
+				// Note: hydrateFromApi() further transforms (extracts enterprise fields)
 				useClientProfileStore.getState().hydrateFromApi(responseData)
 				
-				// Update completed steps in onboarding store
+				// ✅ Update completed steps in onboarding store (UI state)
+				// ⚠️ TO ADD MORE STEPS: Add checks for new step completions here
 				const completedSteps = []
 				if (data.data.profileCompletion?.completedSections?.basicInformation) {
 					completedSteps.push(1)
 				}
+				// Example for step 2:
+				// if (data.data.profileCompletion?.completedSections?.newStep) {
+				//   completedSteps.push(2)
+				// }
 				useClientOnboardingStore.setState({ completedSteps })
 			}
+		},
+		onError: (error) => {
+			// Error handling - queries handle errors via error state
+			// Components can access error via query.error
+			console.error('Client onboarding query error:', {
+				error: error.message,
+				code: error.response?.data?.code,
+				status: error.response?.status,
+			})
 		},
 		retry: false,
 		refetchOnWindowFocus: false,

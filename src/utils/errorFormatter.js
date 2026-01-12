@@ -166,6 +166,31 @@ export const formatApiError = (error) => {
 
   // Handle validation errors (400, 422)
   if (statusCode === 400 || statusCode === 422) {
+    // Check for specific error codes from backend
+    if (data?.code === 'INCOMPLETE_PROFILE') {
+      const missingFields = data?.missingFields || {};
+      const missingList = Object.entries(missingFields)
+        .filter(([_, isMissing]) => isMissing)
+        .map(([field]) => FIELD_NAME_MAP[field] || field);
+      
+      if (missingList.length > 0) {
+        return `Please complete the following fields before submission:\n• ${missingList.join('\n• ')}`;
+      }
+      return data?.message || 'Basic information must be complete before submission.';
+    }
+    
+    if (data?.code === 'ALREADY_SUBMITTED') {
+      return data?.message || 'Your profile has already been submitted for review.';
+    }
+    
+    if (data?.code === 'ACCOUNT_TYPE_LOCKED') {
+      return 'Account type cannot be changed after profile creation. Please contact support if you need to change your account type.';
+    }
+    
+    if (data?.code === 'PREFERENCES_NOT_APPLICABLE') {
+      return 'Organizations cannot set profile preferences. Each job must have unique requirements.';
+    }
+    
     if (data?.errors) {
       return formatValidationErrors(data.errors);
     }
@@ -194,6 +219,10 @@ export const formatApiError = (error) => {
 
   // Handle not found errors (404)
   if (statusCode === 404) {
+    // Check for specific error codes from backend
+    if (data?.code === 'NO_PROFILE') {
+      return 'No profile found. Please complete your onboarding first.';
+    }
     return 'The requested resource was not found.';
   }
 

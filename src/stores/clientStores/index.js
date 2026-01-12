@@ -3,6 +3,13 @@
  * CLIENT STORES INDEX
  * ═══════════════════════════════════════════════════════════════════════════════
  * 
+ * ⚠️ NOTE: This modular structure is wrapped by useClientOnboardingStore.js
+ * 
+ * Direct imports from this file are NOT currently used in client pages.
+ * Instead, use:
+ * - useClientOnboardingStore (for onboarding) - wraps these stores
+ * - useClientProfileStore (for profile management) - separate store
+ * 
  * Main export file for client stores.
  * Provides backward-compatible exports and unified access to all stores.
  * 

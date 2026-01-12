@@ -1,17 +1,38 @@
 /**
- * Client Onboarding Component
- * Refactored to follow Worker Onboarding Pattern
- * - Uses separate mutations for each step
- * - 1-based step indexing (Step 1-2)
- * - Better progress tracking with completedSteps array
- * - Simpler state management
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * CLIENT ONBOARDING PAGE
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 
+ * Production-ready single-step onboarding flow for NDIS clients.
+ * 
+ * Features:
+ * - Single-step onboarding (Basic Information only)
+ * - Clean, focused UI without progress bars (single step)
+ * - Clear call-to-action with "Complete Profile" button
+ * - Responsive design
+ * - Error handling and loading states
+ * 
+ * @module pages/ClientPages/OnboardingPages/ClientOnboarding
  */
 
-import React, { useEffect, useCallback, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Box, Card, CardContent, Typography, LinearProgress, Stepper, Step,Stack, StepLabel, StepButton, Chip, useMediaQuery, useTheme, Snackbar, Alert, Tooltip } from '@mui/material'
-import { CheckCircle, RadioButtonUnchecked, Lock, Info, Error } from '@mui/icons-material'
-import { Toaster, toast } from 'react-hot-toast'
+import { 
+  Box, 
+  Card, 
+  CardContent, 
+  Typography, 
+  Chip, 
+  useMediaQuery, 
+  useTheme, 
+  Snackbar, 
+  Alert,
+  Container,
+  alpha,
+  Fade
+} from '@mui/material'
+import { CheckCircle, Info, Error as ErrorIcon, Person } from '@mui/icons-material'
+import { Toaster } from 'react-hot-toast'
 import WorkerNavbar from '../../../components/Navbar/WorkerNavbar'
 import { formatApiError } from '../../../utils/errorFormatter'
 
@@ -22,14 +43,7 @@ import useClientOnboardingStore, {
 
 // Step Components
 import ClientProfile from '../../../components/ClientComponents/ClientOnboarding/ClientProfile'
-import ClientCarePreferences from '../../../components/ClientComponents/ClientOnboarding/ClientCarePreferences'
 import LoadingSpinner from '../../../components/common/LoadingSpinner'
-
-// Step Configuration (1-based) - ONE-STEP ONBOARDING
-// NOTE: Preferences are managed via profile pages, not onboarding
-const STEPS = [
-  { number: 1, label: 'Basic Information', key: 'basicInformation', required: true },
-]
 
 // Status Configuration
 const STATUS_CONFIG = {
@@ -46,17 +60,11 @@ const ClientOnboarding = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const navigate = useNavigate()
 
-  // Realtime refresh handled by TanStack Query refetchInterval in hook
-
   // Get state from store
-  const currentStep = useClientOnboardingStore((state) => state.currentStep)
-  const completedSteps = useClientOnboardingStore((state) => state.completedSteps)
-  const profileCompleteness = useClientOnboardingStore((state) => state.profileCompleteness)
   const onboarding = useClientOnboardingStore((state) => state.onboarding)
-  const setStep = useClientOnboardingStore((state) => state.setStep)
   const resetStore = useClientOnboardingStore((state) => state.resetStore)
 
-  // Fetch onboarding data (similar to worker pattern)
+  // Fetch onboarding data
   const {
     data: onboardingData,
     isLoading: isQueryLoading,
@@ -69,12 +77,6 @@ const ClientOnboarding = () => {
 
   // Local UI state
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' })
-
-  // Check persistence on mount
-  useEffect(() => {
-    const store = useClientOnboardingStore.getState()
-    store.checkPersistence()
-  }, [])
 
   // Handle new user state
   useEffect(() => {
@@ -90,35 +92,8 @@ const ClientOnboarding = () => {
         navigate('/client/login')
         return
       }
-      
-      // Show user-friendly error message
-      const errorMessage = formatApiError(queryError)
-      toast.error(errorMessage, {
-        duration: 6000,
-        style: {
-          maxWidth: '500px',
-          whiteSpace: 'pre-line',
-        }
-      })
     }
   }, [queryError, navigate])
-
-  // Calculate completed steps and next available step
-  // ONE-STEP ONBOARDING: Step 1 is required, Step 2 is optional
-  const { nextAvailableStep } = useMemo(() => {
-    // Step 1 is always available
-    if (!completedSteps.includes(1)) {
-      return { nextAvailableStep: 1 }
-    }
-    
-    // Step 2 is optional - only available for individual clients
-    if (onboarding?.canAddPreferences) {
-      return { nextAvailableStep: 2 }
-    }
-    
-    // Stay on step 1 if can't add preferences (organizations)
-    return { nextAvailableStep: 1 }
-  }, [completedSteps, onboarding?.canAddPreferences])
 
   // Check if profile is deleted
   const isProfileDeleted = useMemo(() => {
@@ -134,90 +109,40 @@ const ClientOnboarding = () => {
     return STATUS_CONFIG[currentStatus] || STATUS_CONFIG.draft
   }, [currentStatus])
 
-  // Check if profile can be edited
-  const canEditProfile = useMemo(() => {
-    if (!profile) return true // New users can create profiles
-    if (isProfileDeleted) return false // Deleted profiles cannot be edited
-
-    const editableStatuses = ['draft', 'unverified', 'rejected']
-    return editableStatuses.includes(currentStatus)
-  }, [profile, isProfileDeleted, currentStatus])
-
   // Check if onboarding is complete (ONE-STEP: basic info = 100%)
   const isProfileComplete = useMemo(() => {
-    return onboarding?.onboardingComplete === true
-  }, [onboarding?.onboardingComplete])
+    return onboarding?.onboardingComplete === true || 
+           profile?.profileCompleteness?.completedSteps?.basicInformation === true
+  }, [onboarding?.onboardingComplete, profile?.profileCompleteness?.completedSteps?.basicInformation])
+
+  // Redirect to dashboard if profile is complete (prevent access to onboarding)
+  useEffect(() => {
+    if (!isQueryLoading && isProfileComplete && profile && !isProfileDeleted) {
+      navigate('/client-dashboard', { replace: true })
+    }
+  }, [isQueryLoading, isProfileComplete, profile, isProfileDeleted, navigate])
   
   // Check if can add preferences (only individual clients)
   const canAddPreferences = useMemo(() => {
     return onboarding?.canAddPreferences === true
   }, [onboarding?.canAddPreferences])
 
-  // Check if step is completed
-  const isStepCompleted = useCallback(
-    (stepNumber) => {
-      return completedSteps.includes(stepNumber)
-    },
-    [completedSteps]
-  )
-
-  // Handle step click from progress bar
-  const handleStepClick = useCallback(
-    (stepNumber) => {
-      // ONE-STEP ONBOARDING: Step 1 is required, Step 2 is optional
-      if (stepNumber === 1) {
-        // Step 1 is always accessible
-        setStep(stepNumber)
-      } else if (stepNumber === 2) {
-        // Step 2 is optional - only accessible if:
-        // 1. Basic info is complete (step 1 done)
-        // 2. User is individual client (can add preferences)
-        if (onboarding?.isBasicInfoComplete && onboarding?.canAddPreferences) {
-          setStep(stepNumber)
-        } else if (!onboarding?.isBasicInfoComplete) {
-          setSnackbar({
-            open: true,
-            message: 'Please complete basic information first',
-            severity: 'warning',
-          })
-        } else if (!onboarding?.canAddPreferences) {
-          setSnackbar({
-            open: true,
-            message: 'Preferences are not available for organization accounts',
-            severity: 'info',
-          })
-        }
-      } else {
-        setSnackbar({
-          open: true,
-          message: `Please complete previous steps first`,
-          severity: 'warning',
-        })
-      }
-    },
-    [completedSteps, currentStep, nextAvailableStep, setStep, onboarding]
-  )
-
-  // Define step components - Only Step 1 (Basic Information)
-  const stepComponents = useMemo(
-    () => ({
-      1: <ClientProfile />,
-    }),
-    []
-  )
-
   // Show loading state
   if (isQueryLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner
-          size="lg"
-          showLogo={true}
-          text="Loading your profile..."
-          fullPage={true}
-          variant="gradient"
-        />
-      </div>
+      <>
+        <WorkerNavbar />
+        <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <LoadingSpinner
+            size="lg"
+            showLogo={true}
+            text="Loading your profile..."
+            fullPage={true} 
+            variant="gradient"
+            color="primary"
+          />
+        </Box>
+      </>
     )
   }
 
@@ -225,266 +150,212 @@ const ClientOnboarding = () => {
   if (queryError && !isQueryLoading) {
     const errorMessage = formatApiError(queryError)
     return (
-      <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Alert severity="error" sx={{ maxWidth: 600, mx: 'auto' }}>
-          <Typography variant="h6" sx={{ mb: 1 }}>Unable to Load Profile</Typography>
-          <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
-            {errorMessage}
-          </Typography>
-        </Alert>
-      </Box>
+      <>
+        <WorkerNavbar />
+        <Container maxWidth="sm" sx={{ py: 4 }}>
+          <Alert 
+            severity="error" 
+            icon={<ErrorIcon />}
+            sx={{ 
+              borderRadius: 2,
+              border: `2px solid ${alpha(theme.palette.error.main, 0.3)}`
+            }}
+          >
+            <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>
+              Unable to Load Profile
+            </Typography>
+            <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+              {errorMessage}
+            </Typography>
+          </Alert>
+        </Container>
+      </>
     )
   }
 
   return (
     <>
-    <WorkerNavbar />
-
-<Box
-      sx={{
-        mt:13,
-        px: { xs: 2, sm: 3, md: 4 },
-        py: { xs: 2, sm: 3 },
-        maxWidth: 1000,
-        mx: 'auto',
-        minHeight: '100vh',
-      }}
-    >
+      <WorkerNavbar />
       <Toaster position="top-right" />
-
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            mb: 1,
-          }}
-        >
-          <Box>
-            <Typography variant={isMobile ? 'h5' : 'h4'} fontWeight={700} gutterBottom>
-              Client Onboarding
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Complete your profile to get matched with the best support workers
-            </Typography>
-          </Box>
-          {/* Status Badge */}
-          <Chip
-            icon={<Info fontSize="small" />}
-            label={profile ? statusConfig.label : 'Getting Started'}
-            color={profile ? statusConfig.color : 'default'}
-            size="small"
-            sx={{
-              fontWeight: 600,
-              height: 28,
-              '& .MuiChip-icon': { fontSize: '0.875rem' },
-            }}
-          />
-        </Box>
-
-        {/* Status Messages */}
-        {isProfileDeleted && (
-          <Alert
-            severity="error"
-            icon={<Error />}
-            sx={{
-              mt: 2,
-              borderRadius: 2,
-              border: '2px solid',
-              borderColor: 'error.main',
-            }}
-          >
-            <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>
-              Your profile has been deactivated
-            </Typography>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              Please contact support for assistance.
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Profile deactivated on: {new Date(profile.deletedAt).toLocaleDateString()}
-            </Typography>
-          </Alert>
-        )}
-      </Box>
-
-      {/* Progress Card */}
-      <Card elevation={0} sx={{ border: '1px solid #e5e7eb', borderRadius: 2, mb: 3 }}>
-        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-          {/* Progress Bar */}
-          <Box sx={{ mb: 3 }}>
+      
+      <Container 
+        maxWidth="lg" 
+        sx={{ 
+          mt: { xs: 10, sm: 13 },
+          px: { xs: 2, sm: 3, md: 4 },
+          py: { xs: 3, sm: 4 },
+          minHeight: 'calc(100vh - 64px)',
+        }}
+      >
+        {/* Header Section */}
+        <Fade in timeout={500}>
+          <Box sx={{ mb: 4 }}>
             <Box
               sx={{
                 display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
                 justifyContent: 'space-between',
-                alignItems: 'center',
-                mb: 1,
+                alignItems: { xs: 'flex-start', sm: 'center' },
+                gap: 2,
+                mb: 3,
               }}
             >
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Typography variant="body2" fontWeight={700} color="text.primary">
-                  Onboarding Progress
-                </Typography>
-                <Chip
-                  label={onboarding?.onboardingComplete ? 'Complete' : 'Step 1 of 1'}
-                  size="small"
-                  color={onboarding?.onboardingComplete ? 'success' : 'default'}
-                  sx={{ fontWeight: 600, height: 22 }}
-                />
-                {onboarding?.canAddPreferences && (
-                  <Tooltip
-                    title="Preferences are optional and can be added anytime"
-                    placement="top"
-                    arrow
+              <Box sx={{ flex: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                  <Box
+                    sx={{
+                      width: { xs: 40, sm: 48 },
+                      height: { xs: 40, sm: 48 },
+                      borderRadius: 2,
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`
+                    }}
                   >
-                    <Chip
-                      label="Preferences Optional"
-                      size="small"
-                      color="default"
-                      sx={{ fontWeight: 600, height: 22, bgcolor: 'action.hover' }}
-                    />
-                  </Tooltip>
-                )}
-              </Stack>
-              <Chip
-                label={`${Math.min(100, Math.round(profileCompleteness.percentage))}%`}
-                size="small"
-                color={onboarding?.onboardingComplete ? 'success' : 'primary'}
-                sx={{ fontWeight: 700 }}
-              />
-            </Box>
-            <LinearProgress
-              variant="determinate"
-              value={onboarding?.isBasicInfoComplete ? 100 : Math.min(100, profileCompleteness.percentage)}
-              sx={{
-                height: 8,
-                borderRadius: 1,
-                bgcolor: 'action.hover',
-                '& .MuiLinearProgress-bar': {
-                  borderRadius: 1,
-                  bgcolor: onboarding?.onboardingComplete ? 'success.main' : 'primary.main',
-                },
-              }}
-            />
-            <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="caption" color="text.secondary">
-                {onboarding?.onboardingComplete
-                  ? 'Basic information complete. You can start posting jobs.'
-                  : 'Complete basic information to finish onboarding.'}
-              </Typography>
-              {onboarding?.isBasicInfoComplete && onboarding?.canAddPreferences && (
-                <Tooltip title="Optional: Add your preferences to speed up job posting" arrow>
-                  <Chip
-                    label="Add Preferences"
-                    color="primary"
-                    size="small"
-                    onClick={() => navigate('/client/profile/preferences')}
-                    sx={{ cursor: 'pointer', height: 24, fontWeight: 600 }}
-                  />
-                </Tooltip>
-              )}
-            </Box>
-          </Box>
-
-          {/* Desktop Stepper - Only show Step 1 */}
-          {!isMobile && (
-            <Stepper activeStep={0} alternativeLabel sx={{ mt: 2 }}>
-              <Step key={1} completed={isStepCompleted(1)}>
-                <Tooltip title="Basic Information" arrow placement="top">
-                  <span>
-                    <StepButton
-                      onClick={() => handleStepClick(1)}
-                      sx={{
-                        cursor: 'pointer',
-                        '& .MuiStepLabel-label': {
-                          fontSize: { sm: '0.875rem', md: '0.9375rem' },
-                          fontWeight: 700,
-                        },
+                    <Person sx={{ color: 'white', fontSize: { xs: 20, sm: 24 } }} />
+                  </Box>
+                  <Box>
+                    <Typography 
+                      variant={isMobile ? 'h5' : 'h4'} 
+                      fontWeight={700} 
+                      gutterBottom
+                      sx={{ 
+                        background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary?.main || theme.palette.primary.dark} 100%)`,
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text',
                       }}
                     >
-                      Basic Information
-                    </StepButton>
-                  </span>
-                </Tooltip>
-              </Step>
-            </Stepper>
-          )}
+                      Complete Your Profile
+                    </Typography>
+                    <Typography 
+                      variant="body1" 
+                      color="text.secondary"
+                      sx={{ mt: 0.5 }}
+                    >
+                      {isProfileComplete 
+                        ? 'Your profile is complete. You can update information anytime.'
+                        : 'Fill in your basic information to get started and connect with support workers.'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+              
+              {/* Status Badge */}
+              {profile && (
+                <Chip
+                  icon={isProfileComplete ? <CheckCircle /> : <Info />}
+                  label={isProfileComplete ? 'Complete' : statusConfig.label}
+                  color={isProfileComplete ? 'success' : statusConfig.color}
+                  size="medium"
+                  sx={{
+                    fontWeight: 600,
+                    height: { xs: 32, sm: 36 },
+                    fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                    '& .MuiChip-icon': { fontSize: { xs: '1rem', sm: '1.125rem' } },
+                  }}
+                />
+              )}
+            </Box>
 
-          {/* Mobile Step Indicators - Only Step 1 */}
-          {isMobile && (
-            <Box sx={{ mt: 2 }}>
-              <Box
-                onClick={() => handleStepClick(1)}
+            {/* Status Messages */}
+            {isProfileDeleted && (
+              <Alert
+                severity="error"
+                icon={<ErrorIcon />}
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  py: 1.5,
-                  px: 1,
-                  mb: 0.5,
-                  borderRadius: 1,
-                  cursor: 'pointer',
-                  bgcolor: 'action.selected',
-                  '&:hover': { bgcolor: 'action.hover' },
-                  transition: 'background-color 0.2s',
+                  borderRadius: 2,
+                  border: `2px solid ${alpha(theme.palette.error.main, 0.3)}`,
+                  bgcolor: alpha(theme.palette.error.main, 0.05),
                 }}
               >
-                <CheckCircle sx={{ color: isStepCompleted(1) ? 'success.main' : 'primary.main', mr: 1.5, fontSize: 24 }} />
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    Basic Information
+                <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>
+                  Your profile has been deactivated
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  Please contact support for assistance.
+                </Typography>
+                {profile?.deletedAt && (
+                  <Typography variant="caption" color="text.secondary">
+                    Profile deactivated on: {new Date(profile.deletedAt).toLocaleDateString()}
                   </Typography>
-                </Box>
-                <Chip
-                  label="Current"
-                  size="small"
-                  color="primary"
-                  sx={{ ml: 1, height: 20, fontSize: '0.7rem' }}
-                />
-              </Box>
-            </Box>
-          )}
-        </CardContent>
-      </Card>
+                )}
+              </Alert>
+            )}
 
-      {/* Step Content Card */}
-      <Card elevation={0} sx={{ border: '1px solid #e5e7eb', borderRadius: 2 }}>
-        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-          {isProfileDeleted ? (
-            <Alert severity="error">
-              <Typography variant="body2" fontWeight={600}>
-                Profile Deactivated
-              </Typography>
-              <Typography variant="caption">
-                Your profile has been deactivated. Please contact support.
-              </Typography>
-            </Alert>
-          ) : !profile && !isNewUser ? null : (
-            stepComponents[currentStep] || <Typography>Invalid step</Typography>
-          )}
-        </CardContent>
-      </Card>
+            {/* Success Message for Complete Profile */}
+            {isProfileComplete && !isProfileDeleted && (
+              <Fade in timeout={600}>
+                <Alert
+                  severity="success"
+                  icon={<CheckCircle />}
+                  sx={{
+                    borderRadius: 2,
+                    border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                    bgcolor: alpha(theme.palette.success.main, 0.05),
+                  }}
+                >
+                  <Typography variant="body1" fontWeight={600}>
+                    🎉 Profile Complete!
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    You can now start posting jobs and connecting with support workers. 
+                    {canAddPreferences && ' Add preferences anytime from your profile settings.'}
+                  </Typography>
+                </Alert>
+              </Fade>
+            )}
+          </Box>
+        </Fade>
 
-      {/* Snackbar for notifications */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={4000}
-        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert
+        {/* Main Content Card */}
+        <Fade in timeout={700}>
+          <Card 
+            elevation={0} 
+            sx={{ 
+              border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+              borderRadius: 3,
+              overflow: 'hidden',
+              boxShadow: `0 2px 8px ${alpha(theme.palette.common.black, 0.04)}`,
+            }}
+          >
+            <CardContent sx={{ p: { xs: 3, sm: 4, md: 5 } }}>
+              {isProfileDeleted ? (
+                <Alert severity="error">
+                  <Typography variant="body2" fontWeight={600}>
+                    Profile Deactivated
+                  </Typography>
+                  <Typography variant="caption">
+                    Your profile has been deactivated. Please contact support.
+                  </Typography>
+                </Alert>
+              ) : (
+                <ClientProfile />
+              )}
+            </CardContent>
+          </Card>
+        </Fade>
+
+        {/* Snackbar for notifications */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={4000}
           onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
-          severity={snackbar.severity}
-          variant="filled"
-          sx={{ width: '100%' }}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
         >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
-
+          <Alert
+            onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+            severity={snackbar.severity}
+            variant="filled"
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Container>
     </>
-  
   )
 }
 

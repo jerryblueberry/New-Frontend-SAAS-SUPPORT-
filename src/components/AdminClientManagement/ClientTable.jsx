@@ -216,7 +216,7 @@ const ClientTable = () => {
       <Table size="small" sx={{ minWidth: 800 }}>
         <TableHead>
           <TableRow sx={{ bgcolor: 'grey.50' }}>
-            <TableCell sx={{ fontWeight: 600, py: 1.5 }}>Organization</TableCell>
+            <TableCell sx={{ fontWeight: 600, py: 1.5 }}>Client Name</TableCell>
             <TableCell sx={{ fontWeight: 600, py: 1.5 }}>NDIS Number</TableCell>
             <TableCell sx={{ fontWeight: 600, py: 1.5 }}>Type</TableCell>
             <TableCell sx={{ fontWeight: 600, py: 1.5 }}>Location</TableCell>
@@ -247,7 +247,11 @@ const ClientTable = () => {
               >
                 <TableCell sx={{ py: 1.5 }}>
                   <Typography variant="body2" fontWeight={500}>
-                    {client.organizationName || 'N/A'}
+                    {client.accountType === 'individual' 
+                      ? client.user?.firstName && client.user?.lastName
+                        ? `${client.user.firstName} ${client.user.lastName}`
+                        : client.user?.email || 'N/A'
+                      : client.organizationName || 'N/A'}
                   </Typography>
                 </TableCell>
                 <TableCell sx={{ py: 1.5 }}>
@@ -351,7 +355,11 @@ const ClientTable = () => {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <Box sx={{ flex: 1 }}>
                     <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                      {client.organizationName || 'N/A'}
+                      {client.accountType === 'individual' 
+                        ? client.user?.firstName && client.user?.lastName
+                          ? `${client.user.firstName} ${client.user.lastName}`
+                          : client.user?.email || 'N/A'
+                        : client.organizationName || 'N/A'}
                     </Typography>
                     <Typography variant="caption" color="text.secondary" display="block">
                       NDIS: {client.ndisNumber || 'N/A'}

@@ -40,6 +40,7 @@ import {
   Fade,
   Collapse,
   Alert,
+  Container,
 } from '@mui/material'
 import {
   MyLocation as MyLocationIcon,
@@ -54,6 +55,7 @@ import {
   Save as SaveIcon,
   Cancel as CancelIcon,
   InfoOutlined as InfoOutlinedIcon,
+  Error as ErrorIcon,
 } from '@mui/icons-material'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -67,6 +69,11 @@ import { useAuth } from '../../../context/AuthContext'
 import { toast } from 'react-hot-toast'
 import { toE164Au, isValidAuPhone, formatAuInternational } from '../../../utils/phone'
 import { formatApiError } from '../../../utils/errorFormatter'
+import LoadingSpinner from '../../../components/common/LoadingSpinner'
+import { 
+  canEditRestrictedFields as canEditRestrictedFieldsHelper,
+  buildBasicInfoPayload 
+} from '../../../stores/clientStores/helpers'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS & VALIDATION
@@ -149,17 +156,9 @@ const BasicInformation = () => {
   const { data: basicInfo, isLoading, isError, error, update, isUpdating } = useBasicInfo()
   const { data: fullProfile } = useClientProfile() // Get profile status
   
-  // Determine which fields can be edited based on status
+  // Domain rules - computed from profile status (no memoization needed for simple values)
   const profileStatus = fullProfile?.status || 'draft'
-  const editableStatuses = ['draft', 'unverified', 'rejected']
-  const canEditRestrictedFields = editableStatuses.includes(profileStatus)
-  
-  // Fields that are restricted when verified (only editable in draft/unverified/rejected)
-  // These are critical business identifiers that cannot be changed after verification
-  const restrictedFields = ['accountType', 'organizationName', 'abn']
-  
-  // Fields that can always be edited (regardless of status)
-  const alwaysEditableFields = ['ndisNumber', 'address', 'emergencyContact']
+  const canEditRestrictedFields = canEditRestrictedFieldsHelper(profileStatus)
 
   // Measure navbar height
   useEffect(() => {
@@ -308,56 +307,13 @@ const BasicInformation = () => {
     )
   }, [fetchAddressFromCoordinates, setValue])
 
-  // Form submission with field-level restriction handling
+  // Form submission - uses domain helper for payload building
   const onSubmit = useCallback(
     (values) => {
-      if (values.accountType === 'individual') {
-        values.organizationName = undefined
-        values.abn = undefined
-      }
+      // Build payload using domain helper (handles field restrictions)
+      const payload = buildBasicInfoPayload(values, profileStatus, location, addressMethod)
 
-      // Build payload with field-level restrictions
-      const payload = {}
-      
-      // Only include restricted fields if status allows (accountType, organizationName, abn)
-      if (canEditRestrictedFields) {
-        if (values.accountType !== undefined) payload.accountType = values.accountType
-        if (values.organizationName !== undefined) payload.organizationName = values.organizationName
-        if (values.abn !== undefined) payload.abn = values.abn
-      }
-      
-      // Always include always-editable fields (ndisNumber, address, emergencyContact)
-      if (values.ndisNumber !== undefined) payload.ndisNumber = values.ndisNumber
-      
-      if (values.address) {
-        const addressData = {
-          street: values.address?.street || '',
-          suburb: values.address?.suburb || '',
-          state: values.address?.state || '',
-          postcode: values.address?.postcode || '',
-        }
-        
-        if (location.coordinates && addressMethod === 'geolocation') {
-          addressData.coordinates = location.coordinates
-        }
-        
-        payload.address = addressData
-      }
-      
-      if (values.emergencyContact) {
-        payload.emergencyContact = values.emergencyContact
-      }
-
-      // Remove empty strings and null values
-      const cleanedPayload = Object.fromEntries(
-        Object.entries(payload).filter(([_, v]) => {
-          if (v === '' || v === null || v === undefined) return false
-          if (typeof v === 'object' && Object.keys(v).length === 0) return false
-          return true
-        })
-      )
-
-      update(cleanedPayload, {
+      update(payload, {
         onSuccess: () => {
           setIsEditMode(false)
           toast.success('Basic information updated successfully')
@@ -388,7 +344,7 @@ const BasicInformation = () => {
         },
       })
     },
-    [update, location, addressMethod, canEditRestrictedFields]
+    [update, location, addressMethod, profileStatus]
   )
 
   // Toggle edit mode
@@ -402,8 +358,78 @@ const BasicInformation = () => {
     reset(defaultValues)
   }, [reset, defaultValues])
 
-  // Loading state
+  // Check if error is "not found" (should show empty state, not error)
+  // ⚠️ CRITICAL: This computation MUST be done before any conditional returns
+  const isNotFoundError = isError && error && (
+    error?.response?.status === 404 ||
+    error?.response?.data?.code === 'NO_PROFILE' ||
+    (typeof (error?.response?.data?.message || error?.message || '') === 'string' && (
+      (error?.response?.data?.message || error?.message || '').toLowerCase().includes('not found') ||
+      (error?.response?.data?.message || error?.message || '').toLowerCase().includes('no profile')
+    ))
+  )
+
+  // Full-screen loading state - Production-ready pattern
   if (isLoading) {
+    return (
+      <>
+        <WorkerNavbar />
+        <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <LoadingSpinner
+            size="lg"
+            showLogo={true}
+            text="Loading your profile..."
+            fullPage={true}
+            variant="gradient"
+            color="primary"
+          />
+        </Box>
+      </>
+    )
+  }
+
+  // Error state - Show empty state for "not found", error for other cases
+  if (isError && !isNotFoundError) {
+    const errorMessage = formatApiError(error)
+    return (
+      <>
+        <WorkerNavbar />
+        <Box sx={{ display: 'flex', width: '100%' }}>
+          <ClientSidebar topOffset={topOffset} navigate={navigate} />
+          <Box
+            sx={{
+              flexGrow: 1,
+              width: { xs: '100%', md: `calc(100% - ${CLIENT_SIDEBAR_WIDTH}px)` },
+              pt: { xs: 10, md: 8.7 },
+              px: { xs: 2, sm: 3, md: 4 },
+              pb: { xs: 4, sm: 5, md: 6 },
+            }}
+          >
+            <Container maxWidth="sm">
+              <Alert
+                severity="error"
+                icon={<ErrorIcon />}
+                sx={{
+                  borderRadius: 2,
+                  border: `2px solid ${alpha(theme.palette.error.main, 0.3)}`,
+                }}
+              >
+                <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>
+                  Unable to Load Profile
+                </Typography>
+                <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+                  {errorMessage || 'Failed to load your profile. Please try refreshing the page.'}
+                </Typography>
+              </Alert>
+            </Container>
+          </Box>
+        </Box>
+      </>
+    )
+  }
+
+  // Empty state - No profile found (should complete onboarding)
+  if (isError && isNotFoundError) {
     return (
       <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
         <WorkerNavbar />
@@ -421,20 +447,70 @@ const BasicInformation = () => {
               justifyContent: 'center',
             }}
           >
-            <Stack spacing={2} alignItems="center">
-              <CircularProgress size={48} />
-              <Typography variant="body1" color="text.secondary">
-                Loading profile...
+            <Card
+              elevation={0}
+              sx={{
+                maxWidth: 600,
+                width: '100%',
+                borderRadius: 3,
+                border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                textAlign: 'center',
+                p: { xs: 3, sm: 4, md: 5 },
+              }}
+            >
+              <Box
+                sx={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.light, 0.05)} 100%)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mx: 'auto',
+                  mb: 3,
+                }}
+              >
+                <PersonIcon sx={{ fontSize: 40, color: 'primary.main' }} />
+              </Box>
+              
+              <Typography variant="h5" fontWeight={700} gutterBottom sx={{ mb: 1 }}>
+                Profile Not Found
               </Typography>
-            </Stack>
+              
+              <Typography variant="body1" color="text.secondary" sx={{ mb: 3, maxWidth: 400, mx: 'auto' }}>
+                It looks like you haven't completed your profile setup yet. Complete your onboarding to access all features.
+              </Typography>
+              
+              <Button
+                variant="contained"
+                size="large"
+                onClick={() => navigate('/client-onboarding')}
+                startIcon={<PersonIcon />}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  px: 4,
+                  py: 1.5,
+                  boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.3)}`,
+                  '&:hover': {
+                    boxShadow: `0 6px 24px ${alpha(theme.palette.primary.main, 0.4)}`,
+                    transform: 'translateY(-2px)',
+                  },
+                }}
+              >
+                Complete Your Profile
+              </Button>
+            </Card>
           </Box>
         </Box>
       </Box>
     )
   }
 
-  // Error state
-  if (isError) {
+  // Empty state - No data loaded yet (but not an error)
+  if (!isLoading && !basicInfo && !isError) {
     return (
       <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
         <WorkerNavbar />
@@ -447,14 +523,67 @@ const BasicInformation = () => {
               pt: { xs: 10, md: 8.7 },
               px: { xs: 2, sm: 3, md: 4 },
               pb: { xs: 4, sm: 5, md: 6 },
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            <Alert severity="error" sx={{ borderRadius: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Error Loading Profile
+            <Card
+              elevation={0}
+              sx={{
+                maxWidth: 600,
+                width: '100%',
+                borderRadius: 3,
+                border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                textAlign: 'center',
+                p: { xs: 3, sm: 4, md: 5 },
+              }}
+            >
+              <Box
+                sx={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.light, 0.05)} 100%)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mx: 'auto',
+                  mb: 3,
+                }}
+              >
+                <PersonIcon sx={{ fontSize: 40, color: 'primary.main' }} />
+              </Box>
+              
+              <Typography variant="h5" fontWeight={700} gutterBottom sx={{ mb: 1 }}>
+                No Profile Found
               </Typography>
-              <Typography variant="body2">{error?.message || 'Failed to load your profile.'}</Typography>
-            </Alert>
+              
+              <Typography variant="body1" color="text.secondary" sx={{ mb: 3, maxWidth: 400, mx: 'auto' }}>
+                Complete your profile setup to get started. It only takes a few minutes.
+              </Typography>
+              
+              <Button
+                variant="contained"
+                size="large"
+                onClick={() => navigate('/client-onboarding')}
+                startIcon={<PersonIcon />}
+                sx={{
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  px: 4,
+                  py: 1.5,
+                  boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.3)}`,
+                  '&:hover': {
+                    boxShadow: `0 6px 24px ${alpha(theme.palette.primary.main, 0.4)}`,
+                    transform: 'translateY(-2px)',
+                  },
+                }}
+              >
+                Complete Your Profile
+              </Button>
+            </Card>
           </Box>
         </Box>
       </Box>
@@ -462,29 +591,58 @@ const BasicInformation = () => {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <WorkerNavbar />
-
-      <Box sx={{ display: 'flex', width: '100%' }}>
-        <ClientSidebar topOffset={topOffset} navigate={navigate} />
-
+    <>
+      {/* Full-screen loading overlay during form submission */}
+      {isUpdating && (
         <Box
           sx={{
-            flexGrow: 1,
-            width: { xs: '100%', md: `calc(100% - ${CLIENT_SIDEBAR_WIDTH}px)` },
-            minWidth: 0,
-            pt: { xs: 10, md: 8.7 },
-            px: { xs: 2, sm: 3, md: 4, lg: 5, xl: 6 },
-            pb: { xs: 4, sm: 5, md: 6 },
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            bgcolor: alpha(theme.palette.background.default, 0.8),
+            backdropFilter: 'blur(4px)',
+            zIndex: 1300,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
+          <LoadingSpinner
+            size="lg"
+            showLogo={true}
+            text="Saving your changes..."
+            fullPage={false}
+            variant="gradient"
+            color="primary"
+          />
+        </Box>
+      )}
+
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+        <WorkerNavbar />
+
+        <Box sx={{ display: 'flex', width: '100%' }}>
+          <ClientSidebar topOffset={topOffset} navigate={navigate} />
+
           <Box
             sx={{
-              maxWidth: { xs: '100%', sm: '100%', md: '100%', lg: '1400px', xl: '1600px' },
-              mx: 'auto',
-              width: '100%',
+              flexGrow: 1,
+              width: { xs: '100%', md: `calc(100% - ${CLIENT_SIDEBAR_WIDTH}px)` },
+              minWidth: 0,
+              pt: { xs: 10, md: 8.7 },
+              px: { xs: 2, sm: 3, md: 4, lg: 5, xl: 6 },
+              pb: { xs: 4, sm: 5, md: 6 },
             }}
           >
+            <Box
+              sx={{
+                maxWidth: { xs: '100%', sm: '100%', md: '100%', lg: '1400px', xl: '1600px' },
+                mx: 'auto',
+                width: '100%',
+              }}
+            >
             <Stack spacing={3}>
               {/* Header Card */}
               <Card
@@ -1113,12 +1271,14 @@ const BasicInformation = () => {
                 )}
               </Paper>
             </Stack>
+            </Box>
           </Box>
         </Box>
       </Box>
-    </Box>
+    </>
   )
 }
 
+// Export default component
 export default BasicInformation
 

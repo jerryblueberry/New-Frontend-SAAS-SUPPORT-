@@ -4,10 +4,23 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  * 
  * Minimal store for onboarding step/wizard logic only.
- * ONE-STEP ONBOARDING: Only basic info required (step 1)
- * Step 2 (preferences) is optional and managed via profile pages.
+ * 
+ * CURRENT: SINGLE-STEP ONBOARDING (step 1 only)
+ * FUTURE: Easily expandable to multiple steps - see ADDING_ONBOARDING_STEPS_GUIDE.md
+ * 
+ * NOTE: Preferences are NOT part of onboarding - they can be added later via
+ * profile pages but do not affect onboarding completion.
  * 
  * This store does NOT persist step state (wizard UIs should start clean).
+ * 
+ * ⚠️ TO ADD MORE STEPS:
+ * 1. Update REQUIRED_STEPS and TOTAL_STEPS constants below
+ * 2. Navigation logic already supports multiple steps
+ * 3. Add new mutation in mutations.js (copy useBasicInformationMutation pattern)
+ * 4. Add backend endpoint (copy saveBasicInformationStep pattern)
+ * 5. Update backend model progressStep max value
+ * 
+ * See ADDING_ONBOARDING_STEPS_GUIDE.md for detailed instructions.
  * 
  * @module stores/clientStores/clientOnboardingStore
  */
@@ -15,9 +28,11 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 
-// Step configuration - ONE-STEP ONBOARDING
-const REQUIRED_STEPS = 1 // Only step 1 is required for onboarding
-const OPTIONAL_STEP = 2 // Preferences step (optional)
+// Step configuration - EASILY EXPANDABLE
+// ⚠️ TO ADD MORE STEPS: Update these constants and navigation logic below
+const REQUIRED_STEPS = 1 // Number of required steps (currently: step 1 only)
+const TOTAL_STEPS = 1 // Total number of steps (currently: 1 step)
+// Example for 3 steps: const REQUIRED_STEPS = 2, const TOTAL_STEPS = 3
 
 /**
  * Initial state for onboarding wizard
@@ -25,8 +40,8 @@ const OPTIONAL_STEP = 2 // Preferences step (optional)
  */
 const initialState = {
 	// Step management (ephemeral - not persisted)
-	currentStep: 1, // 1-based indexing (1-2)
-	completedSteps: [], // Array of completed step numbers [1, 2]
+	currentStep: 1, // Start at step 1
+	completedSteps: [], // Array of completed step numbers (e.g., [1, 2, 3])
 }
 
 /**
@@ -42,11 +57,14 @@ export const useClientOnboardingStore = create(
 
 			/**
 			 * Set current step
-			 * @param {number} step - Step number (1-2)
+			 * @param {number} step - Step number (1 to TOTAL_STEPS)
+			 * 
+			 * ⚠️ TO ADD MORE STEPS: This already supports multiple steps!
+			 * Just update TOTAL_STEPS constant above.
 			 */
 			setStep: (step) => {
-				// Allow step 1 (required) and step 2 (optional)
-				if (step >= 1 && step <= 2) {
+				// Allow steps 1 through TOTAL_STEPS
+				if (step >= 1 && step <= TOTAL_STEPS) {
 					set({ currentStep: step })
 					window.scrollTo(0, 0)
 				}
@@ -54,11 +72,13 @@ export const useClientOnboardingStore = create(
 
 			/**
 			 * Move to next step
-			 * Don't auto-advance - step 2 is optional
+			 * 
+			 * ⚠️ TO ADD MORE STEPS: This already supports multiple steps!
+			 * Just update TOTAL_STEPS constant above.
 			 */
 			nextStep: () => {
 				const currentStep = get().currentStep
-				if (currentStep < 2) {
+				if (currentStep < TOTAL_STEPS) {
 					set({ currentStep: currentStep + 1 })
 					window.scrollTo(0, 0)
 				}
@@ -104,19 +124,33 @@ export const useClientOnboardingStore = create(
 
 			/**
 			 * Get next available step
+			 * Finds the first incomplete step (required first, then optional)
+			 * 
+			 * ⚠️ TO ADD MORE STEPS: This already supports multiple steps!
+			 * Just update REQUIRED_STEPS and TOTAL_STEPS constants above.
+			 * 
+			 * @param {Object} onboarding - Optional onboarding data
 			 * @returns {number} Next available step number
 			 */
 			getNextAvailableStep: (onboarding) => {
 				const completedSteps = get().completedSteps
-				// Step 1 is required
-				if (!completedSteps.includes(1)) {
-					return 1
+				
+				// Find first incomplete required step (1 to REQUIRED_STEPS)
+				for (let step = 1; step <= REQUIRED_STEPS; step++) {
+					if (!completedSteps.includes(step)) {
+						return step
+					}
 				}
-				// Step 2 is optional - can always access if basic info is complete
-				if (onboarding?.isBasicInfoComplete && onboarding?.canAddPreferences) {
-					return 2 // Optional preferences step
+				
+				// All required steps complete, check optional steps (REQUIRED_STEPS + 1 to TOTAL_STEPS)
+				for (let step = REQUIRED_STEPS + 1; step <= TOTAL_STEPS; step++) {
+					if (!completedSteps.includes(step)) {
+						return step
+					}
 				}
-				return 1 // Stay on step 1 if can't add preferences
+				
+				// All steps complete, return last step
+				return TOTAL_STEPS
 			},
 		}),
 		{
