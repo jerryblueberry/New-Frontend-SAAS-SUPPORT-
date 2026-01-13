@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   Box,
   Drawer,
@@ -62,7 +62,8 @@ const DEFAULT_TOP_OFFSET = DEFAULT_TOP_OFFSET_CONST; // px
 
 const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  // Match navbar breakpoint: mobile at 768px (navbar uses max-width: 768px for 84px height)
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const location = useLocation();
   const auth = useAuth();
   const { user } = auth || {};
@@ -70,6 +71,7 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openMenus, setOpenMenus] = useState({});
   const [selectedItem, setSelectedItem] = useState('dashboard');
+  const isInitialized = useRef(false);
 
   // Fetch profile to get account type
   const { data: profileData } = useQuery({
@@ -111,7 +113,7 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
   const isOrganization = accountType === 'organization';
 
   // Build Profile submenu dynamically based on account type
-  const profileChildren = [
+  const profileChildren = useMemo(() => [
     { id: 'basic-info', label: 'Basic Information', icon: <AccountCircle />, path: '/client/profile' },
     // Preferences only for Individual clients
     ...(!isOrganization ? [
@@ -120,9 +122,9 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
     // Care Plan removed from minimal onboarding (no longer applicable)
     // Communication settings available for all
     { id: 'communication', label: 'Communication', icon: <Phone />, path: '/client/profile/communication' }
-  ];
+  ], [isOrganization]);
 
-  const menuItems = [
+  const menuItems = useMemo(() => [
     {
       id: 'dashboard',
       label: 'Dashboard',
@@ -197,63 +199,107 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
         { id: 'locale', label: 'Language & Region', icon: <Language />, path: '/client/settings/locale' }
       ]
     }
-  ];
+  ], [isOrganization, profileChildren]);
 
-  // Update selected item based on current route
-  useEffect(() => {
-    const currentPath = location.pathname;
-
-    const findMenuItemByPath = (items, path) => {
-      for (const item of items) {
-        if (item.path === path) {
-          return item.id;
-        }
-        if (item.children) {
-          const childMatch = findMenuItemByPath(item.children, path);
-          if (childMatch) return childMatch;
-        }
+  // Helper function to find menu item by path (works with both exact and partial matches)
+  const findMenuItemByPath = (items, path) => {
+    let bestMatch = null;
+    let longestMatch = 0;
+    
+    // First, try to find exact matches (highest priority)
+    for (const item of items) {
+      if (item.path === path) {
+        return { itemId: item.id, parentId: null };
       }
-      return null;
-    };
-
-    const matchingItemId = findMenuItemByPath(menuItems, currentPath);
-    if (matchingItemId) {
-      setSelectedItem(matchingItemId);
-
-      const findParentMenu = (items, childId) => {
-        for (const item of items) {
-          if (item.children && item.children.some(child => child.id === childId)) {
-            return item.id;
-          }
-          if (item.children) {
-            const deepParent = findParentMenu(item.children, childId);
-            if (deepParent) return deepParent;
+      if (item.children) {
+        for (const child of item.children) {
+          if (child.path === path) {
+            return { itemId: child.id, parentId: item.id };
           }
         }
-        return null;
-      };
-
-      const parentMenuId = findParentMenu(menuItems, matchingItemId);
-      if (parentMenuId) {
-        setOpenMenus(prev => ({ ...prev, [parentMenuId]: true }));
-      }
-    } else {
-      if (currentPath.includes('client-dashboard')) {
-        setSelectedItem('dashboard');
       }
     }
-  }, [location.pathname]);
+    
+    // Then, find the longest matching path (prioritize child items over parent)
+    for (const item of items) {
+      if (item.children) {
+        for (const child of item.children) {
+          if (child.path && path.startsWith(child.path)) {
+            const matchLength = child.path.length;
+            if (matchLength > longestMatch) {
+              longestMatch = matchLength;
+              bestMatch = { itemId: child.id, parentId: item.id };
+            }
+          }
+        }
+      }
+      // Check parent items only if no child match found
+      if (!bestMatch && item.path && path.startsWith(item.path)) {
+        const matchLength = item.path.length;
+        if (matchLength > longestMatch) {
+          longestMatch = matchLength;
+          bestMatch = { itemId: item.id, parentId: null };
+        }
+      }
+    }
+    
+    if (bestMatch) {
+      return bestMatch;
+    }
+    
+    // Default to dashboard if path includes 'client-dashboard'
+    if (path.includes('client-dashboard') || path === '/client-dashboard') {
+      return { itemId: 'dashboard', parentId: null };
+    }
+    
+    return null;
+  };
+
+  // Initialize and update selected item based on current route
+  useEffect(() => {
+    const currentPath = location.pathname;
+    const match = findMenuItemByPath(menuItems, currentPath);
+    
+    if (match) {
+      // Only update if different to prevent unnecessary re-renders
+      setSelectedItem(prev => prev !== match.itemId ? match.itemId : prev);
+      
+      // Update open menus
+      if (match.parentId) {
+        setOpenMenus(prev => {
+          // Only update if different to avoid unnecessary re-renders
+          if (prev[match.parentId]) return prev;
+          return { ...prev, [match.parentId]: true };
+        });
+      } else {
+        // Close other menus if a top-level item is selected
+        setOpenMenus(prev => {
+          const hasOpenMenus = Object.keys(prev).length > 0;
+          return hasOpenMenus ? {} : prev;
+        });
+      }
+    } else {
+      // Fallback to dashboard
+      if (currentPath.includes('client-dashboard') || currentPath === '/client-dashboard') {
+        setSelectedItem(prev => prev !== 'dashboard' ? 'dashboard' : prev);
+        setOpenMenus(prev => {
+          const hasOpenMenus = Object.keys(prev).length > 0;
+          return hasOpenMenus ? {} : prev;
+        });
+      }
+    }
+  }, [location.pathname, menuItems]);
 
   const DrawerContent = () => (
     <Box sx={{
-      height: `calc(100vh - ${topOffset}px)`,
+      height: '100%',
       display: 'flex',
       flexDirection: 'column',
       background: '#fff',
       color: '#2d3748',
       borderTopLeftRadius: 0,
       borderTopRightRadius: 0,
-      boxShadow: { xs: 3, md: 6 },
+      boxShadow: 'none',
       mt: 0,
       pt: 0,
       overflow: 'auto',
@@ -283,7 +329,8 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
         display: 'flex',
         alignItems: 'center',
         gap: 2,
-        backgroundColor: alpha('#fff', 0.05)
+        backgroundColor: alpha('#fff', 0.05),
+        transition: 'background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       }}>
         <Avatar sx={{
           width: 44,
@@ -291,14 +338,31 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
           border: '2px solid #e2e8f0',
           bgcolor: '#edf2f7',
           color: '#2d3748',
+          transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+          '&:hover': {
+            transform: 'scale(1.05)',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+          }
         }}>
           <AccountCircle />
         </Avatar>
         <Box sx={{ flex: 1 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+          <Typography 
+            variant="subtitle2" 
+            sx={{ 
+              fontWeight: 600,
+              transition: 'color 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+          >
            {user?.firstName ? `${user.firstName} ${user?.lastName || ''}`.trim() : (user?.name || 'Welcome')}
           </Typography>
-          <Typography variant="caption" sx={{ opacity: 0.8 }}>
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              opacity: 0.8,
+              transition: 'opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+          >
             {isOrganization ? 'Organization' : 'Individual'}
           </Typography>
         </Box>
@@ -308,7 +372,12 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
           sx={{
             backgroundColor: '#e2e8f0',
             color: '#2d3748',
-            fontWeight: 600
+            fontWeight: 600,
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            '&:hover': {
+              backgroundColor: '#cbd5e0',
+              transform: 'scale(1.05)',
+            }
           }}
         />
       </Box>
@@ -316,7 +385,7 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
       <Divider sx={{ borderColor: '#e2e8f0' }} />
 
       <Box sx={{ flex: 1, overflow: 'auto', py: 1 }}>
-        <List sx={{ px: 1 }}>
+        <List sx={{ px: 1, transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
           {menuItems.map((item) => (
             <Box key={item.id}>
               <ListItem disablePadding sx={{ mb: 0.5 }}>
@@ -329,21 +398,56 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
                     px: 2,
                     py: 1,
                     color: '#2d3748',
-                    '& .MuiListItemIcon-root': { color: '#667eea' },
+                    position: 'relative',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '& .MuiListItemIcon-root': { 
+                      color: '#667eea',
+                      transition: 'color 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    },
+                    '& .MuiTypography-root': {
+                      transition: 'color 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    },
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 0,
+                      backgroundColor: '#1976d2',
+                      borderRadius: '0 4px 4px 0',
+                      transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    },
                     '&.Mui-selected': {
                       backgroundColor: '#e3f2fd',
                       color: '#1976d2',
-                      borderLeft: '4px solid #1976d2',
-                      '& .MuiListItemIcon-root': { color: '#1976d2' },
-                      '&:hover': { backgroundColor: '#bbdefb' }
+                      '&::before': {
+                        width: '4px',
+                      },
+                      '& .MuiListItemIcon-root': { 
+                        color: '#1976d2',
+                      },
+                      '&:hover': { 
+                        backgroundColor: '#bbdefb',
+                      }
                     },
-                    '&:hover': { backgroundColor: '#f3f6fa' }
+                    '&:hover': { 
+                      backgroundColor: '#f3f6fa',
+                      transform: 'translateX(2px)',
+                    },
+                    '&:active': {
+                      transform: 'translateX(1px) scale(0.98)',
+                    }
                   }}
                 >
                   <ListItemIcon sx={{
-                    color: '#667eea',
+                    color: 'inherit',
                     minWidth: 40,
-                    '& .MuiSvgIcon-root': { fontSize: '1.3rem' }
+                    transition: 'color 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '& .MuiSvgIcon-root': { 
+                      fontSize: '1.3rem',
+                      transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    }
                   }}>
                     {item.icon}
                   </ListItemIcon>
@@ -353,21 +457,44 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
                       '& .MuiTypography-root': {
                         fontSize: '0.9rem',
                         fontWeight: 500,
-                        color: '#2d3748'
+                        color: 'inherit',
+                        transition: 'color 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       }
                     }}
                   />
                   {item.children && (
-                    openMenus[item.id] ? <ExpandLess /> : <ExpandMore />
+                    <Box
+                      sx={{
+                        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        transform: openMenus[item.id] ? 'rotate(180deg)' : 'rotate(0deg)',
+                        display: 'flex',
+                        alignItems: 'center',
+                      }}
+                    >
+                      {openMenus[item.id] ? <ExpandLess /> : <ExpandMore />}
+                    </Box>
                   )}
                 </ListItemButton>
               </ListItem>
 
               {item.children && (
-                <Collapse in={openMenus[item.id]} timeout="auto" unmountOnExit>
+                <Collapse 
+                  in={openMenus[item.id]} 
+                  timeout={300}
+                  unmountOnExit
+                  sx={{
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  }}
+                >
                   <List component="div" disablePadding>
                     {item.children.map((child) => (
-                      <ListItem key={child.id} disablePadding sx={{ mb: 0.2 }}>
+                      <ListItem 
+                        key={child.id} 
+                        disablePadding 
+                        sx={{ 
+                          mb: 0.2,
+                        }}
+                      >
                         <ListItemButton
                           onClick={() => handleItemClick(child.id, child.path)}
                           selected={selectedItem === child.id}
@@ -378,21 +505,56 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
                             py: 0.8,
                             pl: 3,
                             color: '#2d3748',
-                            '& .MuiListItemIcon-root': { color: '#667eea' },
+                            position: 'relative',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '& .MuiListItemIcon-root': { 
+                              color: '#667eea',
+                              transition: 'color 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            },
+                            '& .MuiTypography-root': {
+                              transition: 'color 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            },
+                            '&::before': {
+                              content: '""',
+                              position: 'absolute',
+                              left: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: 0,
+                              backgroundColor: '#1976d2',
+                              borderRadius: '0 4px 4px 0',
+                              transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            },
                             '&.Mui-selected': {
                               backgroundColor: '#e3f2fd',
                               color: '#1976d2',
-                              borderLeft: '4px solid #1976d2',
-                              '& .MuiListItemIcon-root': { color: '#1976d2' },
-                              '&:hover': { backgroundColor: '#bbdefb' }
+                              '&::before': {
+                                width: '4px',
+                              },
+                              '& .MuiListItemIcon-root': { 
+                                color: '#1976d2',
+                              },
+                              '&:hover': { 
+                                backgroundColor: '#bbdefb',
+                              }
                             },
-                            '&:hover': { backgroundColor: '#f3f6fa' }
+                            '&:hover': { 
+                              backgroundColor: '#f3f6fa',
+                              transform: 'translateX(2px)',
+                            },
+                            '&:active': {
+                              transform: 'translateX(1px) scale(0.98)',
+                            }
                           }}
                         >
                           <ListItemIcon sx={{
-                            color: '#667eea',
+                            color: 'inherit',
                             minWidth: 32,
-                            '& .MuiSvgIcon-root': { fontSize: '1.1rem' }
+                            transition: 'color 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '& .MuiSvgIcon-root': { 
+                              fontSize: '1.1rem',
+                              transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                            }
                           }}>
                             {child.icon}
                           </ListItemIcon>
@@ -402,7 +564,8 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
                               '& .MuiTypography-root': {
                                 fontSize: '0.85rem',
                                 fontWeight: 400,
-                                color: '#2d3748'
+                                color: 'inherit',
+                                transition: 'color 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                               }
                             }}
                           />
@@ -422,30 +585,63 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
   return (
     <>
       {isMobile && (
-        <IconButton
-          color="inherit"
-          aria-label="open drawer"
-          edge="start"
-          onClick={handleDrawerToggle}
+        <Box
           sx={{
             position: 'fixed',
-            top: 16,
-            left: 16,
-            zIndex: 1300,
-            backgroundColor: 'white',
-            boxShadow: 2,
-            '&:hover': { backgroundColor: '#f5f5f5' }
+            top: { xs: '20px', sm: '26px' },
+            left: { xs: '16px', sm: '20px' },
+            zIndex: 1301,
+            display: { xs: 'block', md: 'none' },
           }}
         >
-          <Menu />
-        </IconButton>
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            edge="start"
+            onClick={handleDrawerToggle}
+            sx={{
+              bgcolor: 'transparent',
+              border: '0px solid #e2e8f0',
+              borderRadius: 2.5,
+              p: { xs: 0.75, sm: 1 },
+              width: { xs: 42, sm: 46 },
+              height: { xs: 42, sm: 46 },
+              transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': {
+                bgcolor: 'rgba(0, 0, 0, 0.04)',
+                transform: 'translateX(2px)',
+              },
+              '&:active': {
+                transform: 'scale(0.95)',
+                bgcolor: 'rgba(0, 0, 0, 0.06)',
+              }
+            }}
+          >
+            <Menu 
+              sx={{ 
+                fontSize: { xs: '1.3rem', sm: '1.5rem' },
+                color: '#2d3748',
+              }} 
+            />
+          </IconButton>
+        </Box>
       )}
 
       <Drawer
         variant={isMobile ? 'temporary' : 'permanent'}
         open={isMobile ? mobileOpen : true}
         onClose={handleDrawerToggle}
-        ModalProps={{ keepMounted: true }}
+        ModalProps={{ 
+          keepMounted: true,
+          BackdropProps: {
+            sx: {
+              backdropFilter: 'blur(8px)',
+              backgroundColor: 'rgba(0,0,0,0.4)',
+              transition: 'opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), backdrop-filter 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            }
+          },
+          transitionDuration: { enter: 300, exit: 200 },
+        }}
         sx={{
           width: CLIENT_SIDEBAR_WIDTH,
           flexShrink: 0,
@@ -453,14 +649,17 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
             width: CLIENT_SIDEBAR_WIDTH,
             boxSizing: 'border-box',
             border: 'none',
-            boxShadow: isMobile ? 3 : '4px 0 20px rgba(0,0,0,0.1)',
-            top: { xs: `${topOffset + 8}px`, md: `${topOffset + 8}px` },
-            height: `calc(100vh - ${topOffset}px)`,
+            boxShadow: isMobile 
+              ? '4px 0 32px rgba(0, 0, 0, 0.15)' 
+              : '2px 0 12px rgba(0, 0, 0, 0.05)',
+            top: isMobile ? '84px' : '70px',
+            height: isMobile ? 'calc(100vh - 84px)' : 'calc(100vh - 70px)',
             borderTopLeftRadius: 0,
             borderTopRightRadius: 0,
             background: '#fff',
-            color: 'white',
+            color: '#2d3748',
             overflow: 'auto',
+            transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           },
         }}
       >

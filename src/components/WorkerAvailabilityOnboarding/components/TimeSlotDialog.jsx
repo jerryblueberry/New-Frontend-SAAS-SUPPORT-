@@ -327,6 +327,25 @@ const TimeSlotDialog = ({
               );
             })}
           </Box>
+
+          {/* Consolidated Error Display - Right below days for better visibility */}
+          {(errors.time || errors.startTime || errors.endTime) && (
+            <Alert 
+              severity={errors.time?.includes('Skipped') ? 'warning' : 'error'} 
+              sx={{ 
+                mt: 2,
+                mb: 0,
+                borderRadius: '10px',
+                fontSize: '0.8125rem',
+                '& .MuiAlert-icon': {
+                  fontSize: '1.125rem',
+                },
+              }}
+            >
+              {/* Prioritize: time errors > startTime > endTime */}
+              {errors.time || errors.startTime || errors.endTime}
+            </Alert>
+          )}
         </Box>
 
         {/* Time Selection - Responsive Layout */}
@@ -372,11 +391,6 @@ const TimeSlotDialog = ({
                 maxTime={endTime || undefined}
                 compact={!isMobile}
               />
-              {errors.startTime && (
-                <Alert severity="error" sx={{ mt: 1, fontSize: '0.75rem', py: 0.5 }}>
-                  {errors.startTime}
-                </Alert>
-              )}
             </Box>
 
             {/* End Time - Timer Picker */}
@@ -411,30 +425,8 @@ const TimeSlotDialog = ({
                 disabled={!startTime}
                 compact={!isMobile}
               />
-              {errors.endTime && (
-                <Alert severity="error" sx={{ mt: 1, fontSize: '0.75rem', py: 0.5 }}>
-                  {errors.endTime}
-                </Alert>
-              )}
             </Box>
           </Box>
-
-          {/* Validation Error Display */}
-          {errors.time && (
-            <Alert 
-              severity="error" 
-              sx={{ 
-                mb: 2,
-                borderRadius: '10px',
-                fontSize: '0.8125rem',
-                '& .MuiAlert-icon': {
-                  fontSize: '1.125rem',
-                },
-              }}
-            >
-              {errors.time}
-            </Alert>
-          )}
 
           {/* Duration Preview - Enhanced */}
           {duration && !errors.time && (
@@ -842,15 +834,6 @@ const TimeSlotDialog = ({
                 </Box>
               )}
             </Box>
-          )}
-
-          {errors.time && (
-            <Alert 
-              severity={errors.time.includes('Skipped') ? 'warning' : 'error'} 
-              sx={{ mt: 2, borderRadius: '8px', py: 0.25 }}
-            >
-              {errors.time}
-            </Alert>
           )}
         </Box>
       </DialogContent>

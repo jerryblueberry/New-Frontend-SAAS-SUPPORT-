@@ -260,7 +260,10 @@ const DrawerSuburbSelector = React.memo(function DrawerSuburbSelector({
             borderRadius: { xs: 1.5, sm: 2 },
             transition: 'all 0.2s',
             minHeight: { xs: 40, sm: 44 },
-            fontSize: { xs: '0.8rem', sm: '0.875rem' },
+            fontSize: { xs: '1rem', sm: '0.875rem' }, // 16px on mobile to prevent zoom
+            '& input': {
+              fontSize: { xs: '1rem', sm: '0.875rem' }, // Ensure input itself is 16px on mobile
+            },
             '&:hover': {
               '& .MuiOutlinedInput-notchedOutline': {
                 borderColor: theme.palette.primary.main,
@@ -268,7 +271,7 @@ const DrawerSuburbSelector = React.memo(function DrawerSuburbSelector({
             }
           },
           '& .MuiInputLabel-root': {
-            fontSize: { xs: '0.8rem', sm: '0.875rem' }
+            fontSize: { xs: '1rem', sm: '0.875rem' } // 16px on mobile to prevent zoom
           }
         }}
       />
@@ -501,7 +504,11 @@ const DrawerSuburbSelector = React.memo(function DrawerSuburbSelector({
                                 sx={{
                                   '& .MuiOutlinedInput-root': {
                                     borderRadius: 1,
-                                    background: theme.palette.background.paper
+                                    background: theme.palette.background.paper,
+                                    fontSize: { xs: '1rem', sm: '0.875rem' }, // 16px on mobile to prevent zoom
+                                    '& input': {
+                                      fontSize: { xs: '1rem', sm: '0.875rem' }, // Ensure input itself is 16px on mobile
+                                    }
                                   }
                                 }}
                               />

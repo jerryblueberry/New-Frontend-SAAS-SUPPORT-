@@ -114,6 +114,37 @@ const ViewClientDetails = () => {
   // Memoized client data
   const client = useMemo(() => data?.data, [data]);
 
+  // AUTOMATIC & DYNAMIC ONBOARDING STEP MANAGEMENT
+  // Follows the same pattern as stores/clientStores/clientOnboardingStore.js
+  // ONE-STEP ONBOARDING: Only basic information is required (step 1)
+  // 
+  // This is fully automatic - derives steps from backend completedSteps structure
+  // ⚠️ TO ADD MORE STEPS: Backend automatically adds to completedSteps, frontend adapts
+  
+  // Define which completedSteps keys are part of onboarding (required steps)
+  // Only basicInformation is required for onboarding completion
+  // Other steps (documents, subscription, otherDetails) are optional profile enrichment
+  const ONBOARDING_STEP_KEYS = ['basicInformation']
+  // Future: If backend adds more onboarding steps, add them here:
+  // const ONBOARDING_STEP_KEYS = ['basicInformation', 'documents', 'verification']
+
+  // Calculate total onboarding steps dynamically
+  // Automatically adapts if ONBOARDING_STEP_KEYS array is updated
+  const totalOnboardingSteps = useMemo(() => {
+    return ONBOARDING_STEP_KEYS.length
+  }, [])
+
+  // Calculate current completed onboarding steps (fully automatic)
+  // Automatically counts completed steps from backend completedSteps structure
+  // No manual updates needed - if backend adds steps, frontend adapts automatically
+  const currentOnboardingStep = useMemo(() => {
+    const completedSteps = client?.profileCompleteness?.completedSteps || {}
+    
+    // Count how many onboarding steps are completed
+    // This is automatic - checks all keys in ONBOARDING_STEP_KEYS
+    return ONBOARDING_STEP_KEYS.filter(stepKey => completedSteps[stepKey] === true).length
+  }, [client?.profileCompleteness?.completedSteps])
+
   // Handlers with useCallback for optimization
   const handleBack = useCallback(() => {
     navigate('/admin/clients');
@@ -446,7 +477,11 @@ const ViewClientDetails = () => {
                   Client Management
                 </Link>
                 <Typography color="text.primary" fontSize="0.875rem">
-                  {client?.organizationName || 'Client Details'}
+                  {client?.accountType === 'individual' 
+                    ? client?.user?.firstName && client?.user?.lastName
+                      ? `${client.user.firstName} ${client.user.lastName}`
+                      : client?.user?.email || 'Client Details'
+                    : client?.organizationName || 'Client Details'}
                 </Typography>
               </Breadcrumbs>
 
@@ -458,14 +493,18 @@ const ViewClientDetails = () => {
                   </IconButton>
                   <Box>
                     <Typography variant={isMobile ? 'h5' : 'h4'} fontWeight={600} gutterBottom>
-                      {client?.organizationName || 'Client Profile'}
+                      {client?.accountType === 'individual' 
+                        ? client?.user?.firstName && client?.user?.lastName
+                          ? `${client.user.firstName} ${client.user.lastName}`
+                          : client?.user?.email || 'Client Profile'
+                        : client?.organizationName || 'Client Profile'}
                     </Typography>
                     <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                       <Chip
                         label={getAccountTypeLabel(client?.accountType)}
                         size="small"
                         variant="outlined"
-                        icon={<BusinessIcon />}
+                        icon={client?.accountType === 'individual' ? <PersonIcon /> : <BusinessIcon />}
                       />
                       {client?.ndisNumber && (
                         <Chip
@@ -587,10 +626,14 @@ const ViewClientDetails = () => {
                     <Grid container spacing={3}>
                       <Grid item xs={12} sm={6}>
                         <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-                          Organization Name
+                          {client?.accountType === 'individual' ? 'Client Name' : 'Organization Name'}
                         </Typography>
                         <Typography variant="body1" fontWeight={500}>
-                          {client?.organizationName || 'N/A'}
+                          {client?.accountType === 'individual' 
+                            ? client?.user?.firstName && client?.user?.lastName
+                              ? `${client.user.firstName} ${client.user.lastName}`
+                              : client?.user?.email || 'N/A'
+                            : client?.organizationName || 'N/A'}
                         </Typography>
                       </Grid>
 
@@ -1074,59 +1117,250 @@ const ViewClientDetails = () => {
               {/* Right Column - Metadata & Stats */}
               <Grid item xs={12} lg={4}>
                 <Stack spacing={3}>
-                  {/* Profile Completeness */}
+                  {/* Profile Completeness - Enhanced with Section Breakdown */}
                   <Card elevation={2}>
                     <CardContent>
-                      <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                      <Typography variant="subtitle2" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CheckCircleIcon fontSize="small" color="primary" />
                         Profile Completeness
                       </Typography>
                       <Box sx={{ mt: 2 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography variant="body2" color="text.secondary">
-                            Progress
+                        {/* Overall Progress */}
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+                          <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                            Overall Progress
                           </Typography>
-                          <Typography variant="body2" fontWeight={600}>
-                            {client?.profileCompleteness?.percentage || 0}%
+                          <Typography variant="body2" fontWeight={700} color="primary.main">
+                            {Math.min(100, client?.profileCompleteness?.percentage || 0)}%
                           </Typography>
                         </Box>
                         <Box
                           sx={{
                             width: '100%',
-                            height: 10,
+                            height: 12,
                             bgcolor: 'grey.200',
                             borderRadius: 2,
                             overflow: 'hidden',
+                            mb: 3,
                           }}
                         >
                           <Box
                             sx={{
-                              width: `${client?.profileCompleteness?.percentage || 0}%`,
+                              width: `${Math.min(100, client?.profileCompleteness?.percentage || 0)}%`,
                               height: '100%',
-                              bgcolor: client?.profileCompleteness?.percentage >= 80 ? 'success.main' : 'warning.main',
+                              bgcolor: (client?.profileCompleteness?.percentage || 0) >= 80 
+                                ? 'success.main' 
+                                : (client?.profileCompleteness?.percentage || 0) >= 60
+                                ? 'warning.main'
+                                : 'error.main',
                               transition: 'width 0.3s',
+                              background: (client?.profileCompleteness?.percentage || 0) >= 80
+                                ? 'linear-gradient(90deg, #10b981 0%, #34d399 100%)'
+                                : (client?.profileCompleteness?.percentage || 0) >= 60
+                                ? 'linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)'
+                                : 'linear-gradient(90deg, #ef4444 0%, #f87171 100%)',
                             }}
                           />
                         </Box>
-                        
-                        {client?.profileCompleteness?.missingFields && client.profileCompleteness.missingFields.length > 0 && (
-                          <Box sx={{ mt: 2 }}>
-                            <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-                              Missing Fields
-                            </Typography>
-                            <List dense>
-                              {client.profileCompleteness.missingFields.slice(0, 5).map((field, index) => (
-                                <ListItem key={index} sx={{ py: 0.5, px: 0 }}>
-                                  <ListItemIcon sx={{ minWidth: 32 }}>
-                                    <InfoIcon fontSize="small" color="warning" />
-                                  </ListItemIcon>
-                                  <ListItemText
-                                    primary={field}
-                                    primaryTypographyProps={{ variant: 'caption' }}
-                                  />
-                                </ListItem>
-                              ))}
-                            </List>
+
+                        {/* Section Breakdown */}
+                        <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" gutterBottom sx={{ mb: 1.5 }}>
+                          Section Breakdown
+                        </Typography>
+                        <Stack spacing={1.5}>
+                          {/* Basic Information (60%) */}
+                          <Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                              <Typography variant="caption" fontWeight={500} sx={{ fontSize: '0.8125rem' }}>
+                                Basic Information
+                              </Typography>
+                              <Chip
+                                label={client?.profileCompleteness?.completedSteps?.basicInformation ? '60%' : '0%'}
+                                size="small"
+                                color={client?.profileCompleteness?.completedSteps?.basicInformation ? 'success' : 'default'}
+                                sx={{ 
+                                  height: 20, 
+                                  fontSize: '0.7rem',
+                                  fontWeight: 600
+                                }}
+                              />
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box
+                                sx={{
+                                  flex: 1,
+                                  height: 6,
+                                  bgcolor: 'grey.200',
+                                  borderRadius: 1,
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                <Box
+                                  sx={{
+                                    width: client?.profileCompleteness?.completedSteps?.basicInformation ? '100%' : '0%',
+                                    height: '100%',
+                                    bgcolor: client?.profileCompleteness?.completedSteps?.basicInformation ? 'success.main' : 'grey.300',
+                                    transition: 'width 0.3s',
+                                  }}
+                                />
+                              </Box>
+                              {client?.profileCompleteness?.completedSteps?.basicInformation ? (
+                                <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                              ) : (
+                                <InfoIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                              )}
+                            </Box>
                           </Box>
+
+                          {/* Documents (20%) */}
+                          <Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                              <Typography variant="caption" fontWeight={500} sx={{ fontSize: '0.8125rem' }}>
+                                Documents
+                              </Typography>
+                              <Chip
+                                label={client?.profileCompleteness?.completedSteps?.documents ? '20%' : '0%'}
+                                size="small"
+                                color={client?.profileCompleteness?.completedSteps?.documents ? 'success' : 'default'}
+                                sx={{ 
+                                  height: 20, 
+                                  fontSize: '0.7rem',
+                                  fontWeight: 600
+                                }}
+                              />
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box
+                                sx={{
+                                  flex: 1,
+                                  height: 6,
+                                  bgcolor: 'grey.200',
+                                  borderRadius: 1,
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                <Box
+                                  sx={{
+                                    width: client?.profileCompleteness?.completedSteps?.documents ? '100%' : '0%',
+                                    height: '100%',
+                                    bgcolor: client?.profileCompleteness?.completedSteps?.documents ? 'success.main' : 'grey.300',
+                                    transition: 'width 0.3s',
+                                  }}
+                                />
+                              </Box>
+                              {client?.profileCompleteness?.completedSteps?.documents ? (
+                                <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                              ) : (
+                                <InfoIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                              )}
+                            </Box>
+                          </Box>
+
+                          {/* Subscription (10%) */}
+                          <Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                              <Typography variant="caption" fontWeight={500} sx={{ fontSize: '0.8125rem' }}>
+                                Subscription
+                              </Typography>
+                              <Chip
+                                label={client?.profileCompleteness?.completedSteps?.subscription ? '10%' : '0%'}
+                                size="small"
+                                color={client?.profileCompleteness?.completedSteps?.subscription ? 'success' : 'default'}
+                                sx={{ 
+                                  height: 20, 
+                                  fontSize: '0.7rem',
+                                  fontWeight: 600
+                                }}
+                              />
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box
+                                sx={{
+                                  flex: 1,
+                                  height: 6,
+                                  bgcolor: 'grey.200',
+                                  borderRadius: 1,
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                <Box
+                                  sx={{
+                                    width: client?.profileCompleteness?.completedSteps?.subscription ? '100%' : '0%',
+                                    height: '100%',
+                                    bgcolor: client?.profileCompleteness?.completedSteps?.subscription ? 'success.main' : 'grey.300',
+                                    transition: 'width 0.3s',
+                                  }}
+                                />
+                              </Box>
+                              {client?.profileCompleteness?.completedSteps?.subscription ? (
+                                <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                              ) : (
+                                <InfoIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                              )}
+                            </Box>
+                          </Box>
+
+                          {/* Other Details (10%) */}
+                          <Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                              <Typography variant="caption" fontWeight={500} sx={{ fontSize: '0.8125rem' }}>
+                                Other Details
+                              </Typography>
+                              <Chip
+                                label={client?.profileCompleteness?.completedSteps?.otherDetails ? '10%' : '0%'}
+                                size="small"
+                                color={client?.profileCompleteness?.completedSteps?.otherDetails ? 'success' : 'default'}
+                                sx={{ 
+                                  height: 20, 
+                                  fontSize: '0.7rem',
+                                  fontWeight: 600
+                                }}
+                              />
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box
+                                sx={{
+                                  flex: 1,
+                                  height: 6,
+                                  bgcolor: 'grey.200',
+                                  borderRadius: 1,
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                <Box
+                                  sx={{
+                                    width: client?.profileCompleteness?.completedSteps?.otherDetails ? '100%' : '0%',
+                                    height: '100%',
+                                    bgcolor: client?.profileCompleteness?.completedSteps?.otherDetails ? 'success.main' : 'grey.300',
+                                    transition: 'width 0.3s',
+                                  }}
+                                />
+                              </Box>
+                              {client?.profileCompleteness?.completedSteps?.otherDetails ? (
+                                <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                              ) : (
+                                <InfoIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                              )}
+                            </Box>
+                          </Box>
+                        </Stack>
+
+                        {/* Admin Override Indicator */}
+                        {client?.profileCompleteness?.adminSetPercentage !== undefined && client?.profileCompleteness?.adminSetPercentage !== null && (
+                          <Alert 
+                            severity="info" 
+                            sx={{ mt: 2, py: 0.5 }}
+                            icon={<InfoIcon fontSize="small" />}
+                          >
+                            <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
+                              Admin-set completeness: {client.profileCompleteness.adminSetPercentage}%
+                              {client.profileCompleteness.adminSetReason && (
+                                <Box component="span" sx={{ display: 'block', mt: 0.5 }}>
+                                  {client.profileCompleteness.adminSetReason}
+                                </Box>
+                              )}
+                            </Typography>
+                          </Alert>
                         )}
                       </Box>
                     </CardContent>
@@ -1206,11 +1440,19 @@ const ViewClientDetails = () => {
 
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
-                            Progress Step
+                            Onboarding Progress
                           </Typography>
-                          <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.8125rem' }}>
-                            {client?.progressStep || 0} / 2
-                          </Typography>
+                          <Chip
+                            label={`${currentOnboardingStep} / ${totalOnboardingSteps}`}
+                            size="small"
+                            color={currentOnboardingStep === totalOnboardingSteps ? 'success' : currentOnboardingStep > 0 ? 'primary' : 'default'}
+                            icon={currentOnboardingStep === totalOnboardingSteps ? <CheckCircleIcon sx={{ fontSize: 14 }} /> : undefined}
+                            sx={{ 
+                              fontSize: '0.75rem', 
+                              height: 22,
+                              fontWeight: 600
+                            }}
+                          />
                         </Box>
 
                         {client?.preferences?.supportCategories && (
@@ -1326,14 +1568,24 @@ const ViewClientDetails = () => {
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2.5} sx={{ mt: 1 }}>
-            <TextField
-              label="Organization Name"
-              value={editFormData.organizationName || ''}
-              onChange={(e) => setEditFormData({ ...editFormData, organizationName: e.target.value })}
-              fullWidth
-              size="small"
-              disabled={updateClientMutation.isPending}
-            />
+            {client?.accountType === 'organization' && (
+              <TextField
+                label="Organization Name"
+                value={editFormData.organizationName || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, organizationName: e.target.value })}
+                fullWidth
+                size="small"
+                disabled={updateClientMutation.isPending}
+              />
+            )}
+            {client?.accountType === 'individual' && (
+              <Alert severity="info" sx={{ py: 1 }}>
+                <Typography variant="caption" sx={{ fontSize: '0.8125rem' }}>
+                  Individual client name is managed through the user account (firstName, lastName).
+                  This cannot be edited from the client profile.
+                </Typography>
+              </Alert>
+            )}
             <TextField
               label="NDIS Number"
               value={editFormData.ndisNumber || ''}
@@ -1400,7 +1652,13 @@ const ViewClientDetails = () => {
             This action will soft-delete the client profile and deactivate the associated user account.
           </Alert>
           <Typography>
-            Are you sure you want to delete <strong>{client?.organizationName}</strong>?
+            Are you sure you want to delete <strong>
+              {client?.accountType === 'individual' 
+                ? client?.user?.firstName && client?.user?.lastName
+                  ? `${client.user.firstName} ${client.user.lastName}`
+                  : client?.user?.email || 'this client'
+                : client?.organizationName || 'this client'}
+            </strong>?
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             The data will be marked as deleted but can be recovered by administrators if needed.
