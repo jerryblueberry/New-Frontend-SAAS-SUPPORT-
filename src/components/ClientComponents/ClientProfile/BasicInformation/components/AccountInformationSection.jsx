@@ -5,7 +5,7 @@
 
 import React from 'react'
 import { Box, Grid, TextField, MenuItem, Typography, Chip, Stack, Alert, useTheme, alpha } from '@mui/material'
-import { Person as PersonIcon } from '@mui/icons-material'
+import { Person as PersonIcon, Business as BusinessIcon } from '@mui/icons-material'
 import { ACCOUNT_TYPES, ACCOUNT_TYPE_LABELS } from '../utils/constants'
 
 /**
