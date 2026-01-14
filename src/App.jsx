@@ -63,7 +63,7 @@ import CarePlan from './pages/ClientPages/ClientProfile/CarePlan';
 import Communication from './pages/ClientPages/ClientProfile/Communication';
 import BillingPreferences from './pages/ClientPages/BillingAndPayment/BillingPreferences';
 import Invoices from './pages/ClientPages/BillingAndPayment/Invoices';
-
+import ExploreWorkersPage from './pages/ClientWorkerMatching/ClientWorkersExplore/ExploreWorkersPage';
 // Create React Query client with optimized settings    
 const queryClient = new QueryClient({
   defaultOptions: { 
@@ -429,6 +429,14 @@ function AppRoutes() {
         <Route path="/client/profile/preferences" element={
           <ClientRoute>
             <Preferences />
+          </ClientRoute>
+        }
+        />
+
+        {/*  FOr the explore workers page */}
+        <Route path="/client/workforce/explore-workers" element={
+          <ClientRoute>
+            <ExploreWorkersPage />
           </ClientRoute>
         }
         />

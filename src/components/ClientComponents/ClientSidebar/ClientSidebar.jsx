@@ -55,7 +55,9 @@ import {
   VerifiedUser,
   Edit,
   ViewList,
-  TrendingUp
+  TrendingUp,
+  PeopleSharp,
+  PeopleAlt
 } from '@mui/icons-material';
 
 const DEFAULT_TOP_OFFSET = DEFAULT_TOP_OFFSET_CONST; // px
@@ -142,9 +144,10 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
       label: 'Workforce',
       icon: <Group />,
       children: [
-        { id: 'requests', label: 'Job Requests', icon: <AssignmentTurnedIn />, path: '/client/workforce/requests' },
+        { id: 'explore-workers', label: 'Explore Workers', icon: <PeopleAlt />, path: '/client/workforce/explore-workers' },
+        { id: 'schedule-session', label: 'Schedule Session', icon: <Schedule />, path: '/client/workforce/schedule-session' },
         { id: 'messages', label: 'Messages', icon: <Message />, path: '/client/workforce/messages' },
-        { id: 'sessions', label: 'Sessions', icon: <Schedule />, path: '/client/workforce/sessions' }
+        
       ]
     },
     {
