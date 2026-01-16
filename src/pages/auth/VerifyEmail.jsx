@@ -144,25 +144,40 @@ const VerifyEmail = () => {
       setProgress(100);
       setTimeout(() => {
         try {
-          if (response.data?.user?.onboardingStep &&
-              response.data.user.onboardingStep !== 'completed') {
-            handleNavigation('/onboarding');
+          // Navigate to appropriate login page based on user role
+          const userRole = response.data?.user?.role;
+          if (userRole === 'worker') {
+            handleNavigation('/login');
+          } else if (userRole === 'client') {
+            handleNavigation('/client-login');
           } else {
-            handleNavigation('/dashboard');
+            // Fallback to generic login
+            handleNavigation('/login');
           }
         } catch (navError) {
           console.error('Navigation after verification failed:', navError);
-          handleNavigation('/login');
+          handleNavigation('/');
         }
       }, 2000);
     }, [handleNavigation]),
     onError: useCallback((err) => {
       console.error('Verification error:', err);
       const msg = err.response?.data?.message;
+      const userRole = err.response?.data?.user?.role;
+      
       if (msg?.includes('already verified')) {
         setStatus('success');
         setProgress(100);
-        setTimeout(() => handleNavigation('/login'), 2500);
+        // Navigate to role-specific login
+        setTimeout(() => {
+          if (userRole === 'worker') {
+            handleNavigation('/login');
+          } else if (userRole === 'client') {
+            handleNavigation('/client-login');
+          } else {
+            handleNavigation('/login');
+          }
+        }, 2500);
       } else {
         setErrorMessage(msg || 'The verification link is invalid or has expired.');
         setStatus('error');
@@ -200,7 +215,9 @@ const VerifyEmail = () => {
       mutation.mutate(token);
       return () => clearTimeout(timeoutId);
     }
-  }, [token, status, mutation]);
+    // NOTE: 'mutation' is intentionally NOT in dependencies to prevent infinite loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, status]);
 
   // Memoized status configurations
   const statusConfig = useMemo(() => ({
@@ -344,7 +361,7 @@ const VerifyEmail = () => {
                       <Button
                         variant="contained"
                         color="primary"
-                        onClick={() => handleNavigation('/login')}
+                        onClick={() => handleNavigation('/')}
                         startIcon={<ArrowForward />}
                         sx={{
                           borderRadius: 2,
@@ -359,7 +376,7 @@ const VerifyEmail = () => {
                           }
                         }}
                       >
-                        Go to Login
+                        Go to Home
                       </Button>
                       <Button
                         variant="outlined"
