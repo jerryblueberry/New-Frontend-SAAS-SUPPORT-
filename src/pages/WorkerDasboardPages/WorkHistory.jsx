@@ -10,25 +10,14 @@ import {
   useTheme,
   useMediaQuery,
   alpha,
-  Avatar,
-  Breadcrumbs,
-  Link,
-  Chip,
   IconButton,
   Snackbar,
   Alert
 } from '@mui/material';
 import {
   Download,
-  PictureAsPdf,
-  Work,
   Visibility,
-  Home,
-  ChevronRight,
-  Description,
-  CheckCircle,
   Edit,
-  CloudUpload,
   Add
 } from '@mui/icons-material';
 import WorkerNavbar from '../../components/Navbar/WorkerNavbar';
@@ -41,6 +30,7 @@ import { useWorkerReferences } from '../../hooks/useReferences';
 import WorkExperience from '../../components/workerDashboard/components/WorkHistoryComponents/WorkExperience';
 import ProfessionalReferences from '../../components/workerDashboard/components/WorkHistoryComponents/ProfessionalReferences';
 import DynamicEditDrawer from '../../components/workerDashboard/components/WorkHistoryComponents/DynamicEditDrawer';
+import WorkHistoryHeader from '../../components/workerDashboard/components/WorkerDashboardAvailability/Components/WorkHistoryHeader/WorkHistoryHeader';
 
 const WorkHistory = () => {
   const theme = useTheme();
@@ -185,26 +175,114 @@ const WorkHistory = () => {
 
   const displayReferences = mergedReferences;
 
+  // Helper function to detect file type from URL
+  const detectFileType = useCallback((url) => {
+    // Ensure URL is a string
+    if (!url) {
+      return 'image'; // Default to image
+    }
+    
+    // Convert to string if needed
+    const urlString = typeof url === 'string' ? url : String(url);
+    
+    if (!urlString || urlString.trim().length === 0) {
+      return 'image'; // Default to image
+    }
+    
+    try {
+      // Extract file extension from URL (handle query parameters)
+      const urlWithoutQuery = urlString.split('?')[0];
+      const extension = urlWithoutQuery.split('.').pop()?.toLowerCase();
+      
+      // PDF detection
+      if (extension === 'pdf' || urlWithoutQuery.toLowerCase().includes('.pdf')) {
+        return 'application/pdf';
+      }
+      
+      // Image detection
+      const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'];
+      if (extension && imageExtensions.includes(extension)) {
+        return `image/${extension === 'jpg' ? 'jpeg' : extension}`;
+      }
+      
+      // Default to image if unknown
+      return 'image';
+    } catch (error) {
+      console.warn('Error detecting file type:', error);
+      return 'image'; // Default fallback
+    }
+  }, []);
+
   const handleDocumentPreviewClick = useCallback((doc) => {
-    if (!doc || !doc.url) {
-      console.warn('Invalid document provided for preview');
+    if (!doc) {
+      console.warn('Invalid document provided for preview:', doc);
       return;
     }
-    setPreviewDocument(doc);
-  }, []);
+    
+    // Ensure URL is a string
+    let url = doc.url;
+    if (!url) {
+      console.warn('Document URL is missing:', doc);
+      return;
+    }
+    
+    // Convert URL to string if it's not already
+    if (typeof url !== 'string') {
+      if (typeof url === 'object' && url.toString) {
+        url = url.toString();
+      } else {
+        console.error('Document URL is not a valid string:', url, typeof url);
+        return;
+      }
+    }
+    
+    // Ensure document object has all required properties with proper types
+    const documentToPreview = {
+      url: String(url).trim(), // Ensure it's a string
+      fileName: doc.fileName || 'Document',
+      fileType: doc.fileType || detectFileType(url),
+    };
+    
+    // Final validation
+    if (!documentToPreview.url || documentToPreview.url.length === 0) {
+      console.error('Invalid URL after processing:', documentToPreview);
+      return;
+    }
+    
+    console.log('Opening document preview:', documentToPreview);
+    setPreviewDocument(documentToPreview);
+  }, [detectFileType]);
 
   const closeDocumentPreview = useCallback(() => {
     setPreviewDocument(null);
   }, []);
 
   const handleDownload = useCallback((url) => {
-    if (!url || typeof url !== 'string') {
+    if (!url) {
       console.error('Invalid URL provided for download');
       return;
     }
+    
+    // Convert URL to string if needed
+    let urlString = url;
+    if (typeof url !== 'string') {
+      if (typeof url === 'object' && url !== null) {
+        urlString = url.url || url.path || url.link || url.src || String(url);
+      } else {
+        urlString = String(url);
+      }
+    }
+    
+    urlString = String(urlString).trim();
+    
+    if (!urlString || urlString.length === 0) {
+      console.error('Invalid URL after processing:', url);
+      return;
+    }
+    
     try {
       const link = document.createElement('a');
-      link.href = url;
+      link.href = urlString;
       link.download = 'CV-Resume.pdf';
       link.target = '_blank';
       document.body.appendChild(link);
@@ -212,7 +290,7 @@ const WorkHistory = () => {
       document.body.removeChild(link);
     } catch (error) {
       console.error('Error downloading file:', error);
-      window.open(url, '_blank');
+      window.open(urlString, '_blank');
     }
   }, []);
 
@@ -294,7 +372,7 @@ const WorkHistory = () => {
   return (
     <>
       <Box sx={{ 
-        bgcolor: '#F8FAFC',
+      
         minHeight: '100vh',
         position: 'relative'
       }}>
@@ -312,684 +390,489 @@ const WorkHistory = () => {
               mx: 'auto'
             }}
           >
-            {/* Modern Breadcrumb Navigation */}
-            <Fade in timeout={400}>
-              <Breadcrumbs 
-                separator={<ChevronRight sx={{ fontSize: 16, color: '#94A3B8' }} />}
-                sx={{ 
-                  mb: { xs: 2, sm: 3 },
-                  '& .MuiBreadcrumbs-ol': {
-                    flexWrap: 'nowrap'
-                  }
-                }}
-              >
-                <Link
-                  href="/dashboard"
-                  underline="none"
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    color: '#64748B',
-                    fontSize: { xs: '0.8125rem', sm: '0.875rem' },
-                    fontWeight: 500,
-                    transition: 'all 0.2s',
-                    '&:hover': {
-                      color: '#1E293B',
-                    }
-                  }}
-                >
-                  <Home sx={{ fontSize: 16 }} />
-                  Dashboard
-                </Link>
-                <Typography 
-                  sx={{ 
-                    color: '#1E293B',
-                    fontSize: { xs: '0.8125rem', sm: '0.875rem' },
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5
-                  }}
-                >
-                  <Work sx={{ fontSize: 16 }} />
-                  Work History
-                </Typography>
-              </Breadcrumbs>
-            </Fade>
+            {/* Work History Header Component */}
+            <WorkHistoryHeader
+              workHistoryCount={workHistoryCount}
+              referencesCount={referencesCount}
+              hasCV={hasCV}
+              breadcrumbHref="/dashboard"
+            />
 
-            {/* Premium Header Section */}
-            <Fade in timeout={600}>
-              <Box 
-                sx={{ 
-                  mb: { xs: 3, sm: 4, md: 5 },
-                  position: 'relative',
-                  mt: { xs: 4.5, sm: 3, md: 4 },
-                }}
-              >
-                {/* Main Header Card */}
-                <Box
-                  sx={{
-                    bgcolor: 'white',
-                    borderRadius: { xs: 2.5, sm: 3 },
-                    p: { xs: 2.5, sm: 3, md: 4 },
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04)',
-                    border: '1px solid #E2E8F0',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: 4,
-                      background: 'linear-gradient(90deg, #3B82F6 0%, #8B5CF6 50%, #06B6D4 100%)',
-                    }
-                  }}
-                >
-                  <Stack 
-                    direction={{ xs: 'column', sm: 'row' }}
-                    alignItems={{ xs: 'flex-start', sm: 'center' }}
-                    justifyContent="space-between"
-                    spacing={{ xs: 2.5, sm: 3 }}
+            {/* Main Content - Column Layout for All Devices */}
+            <Stack 
+              direction="column"
+              spacing={0}
+              sx={{
+                width: '100%',
+                maxWidth: { xs: '100%', sm: '800px', md: '900px', lg: '1000px' },
+                mx: 'auto',
+              }}
+            >
+              {/* CV/Resume Section - Show when CV exists */}
+              {hasCV && onboardingData?.data?.profile?.CV && (
+                <Fade in timeout={400}>
+                  <Box 
+                    sx={{ 
+                      width: '100%',
+                      position: 'relative',
+                      pt: { xs: 4, sm: 5, md: 6 },
+                      pb: { xs: 4, sm: 5, md: 6 },
+                      px: { xs: 0, sm: 0, md: 0 },
+                      borderTop: `1px solid ${alpha(theme.palette.divider, 0.4)}`,
+                      '&:first-of-type': {
+                        borderTop: 'none',
+                        pt: 0,
+                      },
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        left: 0,
+                        top: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
+                        bottom: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
+                        width: { xs: 0, sm: 0, md: 4 },
+                        borderRadius: '0 3px 3px 0',
+                        background: `linear-gradient(180deg, ${alpha(theme.palette.secondary.main, 0.7)} 0%, ${alpha(theme.palette.secondary.main, 0.4)} 100%)`,
+                        opacity: 0.7,
+                        transition: 'all 0.3s ease',
+                      },
+                      '&:hover::before': {
+                        opacity: 1,
+                        width: { xs: 0, sm: 0, md: 5 },
+                      },
+                      [theme.breakpoints.up('md')]: {
+                        pl: { md: 2, lg: 3 },
+                      }
+                    }}
                   >
-                    {/* Left: Icon + Title + Description */}
-                    <Stack direction="row" alignItems="center" spacing={2.5} sx={{ flex: 1, minWidth: 0 }}>
-                      {/* Modern Icon Container */}
-                      <Box
+                    {/* Section Header */}
+                    <Stack
+                      direction="row"
+                      alignItems="flex-start"
+                      justifyContent="space-between"
+                      spacing={2}
+                      sx={{ mb: { xs: 2, sm: 2.5 } }}
+                    >
+                      <Box sx={{ flex: 1 }}>
+                        <Typography
+                          component="h2"
+                          sx={{
+                            fontSize: {
+                              xs: '1.25rem',
+                              sm: '1.5rem',
+                              md: '1.75rem',
+                            },
+                            fontWeight: 700,
+                            letterSpacing: '-0.02em',
+                            color: theme.palette.text.primary,
+                            lineHeight: 1.2,
+                            mb: 0.5,
+                          }}
+                        >
+                          Resume / CV
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: {
+                              xs: '0.875rem',
+                              sm: '0.9375rem',
+                              md: '1rem',
+                            },
+                            color: theme.palette.text.secondary,
+                            lineHeight: 1.6,
+                          }}
+                        >
+                          Your professional document
+                        </Typography>
+                      </Box>
+
+                      {/* CV Edit Button */}
+                      <Tooltip title="Edit Resume / CV" arrow placement="top">
+                        <IconButton
+                          onClick={() => handleEditClick('Resume / CV')}
+                          sx={{
+                            width: { xs: 36, sm: 40 },
+                            height: { xs: 36, sm: 40 },
+                            bgcolor: alpha(theme.palette.secondary.main, 0.08),
+                            color: theme.palette.secondary.main,
+                            transition: 'all 0.2s ease',
+                            flexShrink: 0,
+                            '&:hover': {
+                              bgcolor: alpha(theme.palette.secondary.main, 0.12),
+                              transform: 'scale(1.05)',
+                            },
+                          }}
+                        >
+                          <Edit sx={{ fontSize: { xs: 18, sm: 20 } }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+
+                    {/* Action Buttons - Flex Layout */}
+                    <Stack 
+                      direction={{ xs: 'column', sm: 'row' }}
+                      spacing={{ xs: 1, sm: 1.5 }}
+                      sx={{ mt: { xs: 1.5, sm: 2 } }}
+                    >
+                      <Button
+                        variant="outlined"
+                        fullWidth={isMobile}
+                        startIcon={<Visibility sx={{ fontSize: 18 }} />}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          try {
+                            const cvData = onboardingData?.data?.profile?.CV;
+                            if (!cvData) {
+                              console.error('CV data is not available');
+                              return;
+                            }
+                            
+                            // Handle CV as string URL or extract URL from object
+                            let cvUrl = cvData;
+                            if (typeof cvData === 'object' && cvData !== null) {
+                              // If CV is an object, try to extract URL
+                              cvUrl = cvData.url || cvData.path || cvData.link || cvData.src || String(cvData);
+                            }
+                            
+                            // Ensure it's a string
+                            cvUrl = String(cvUrl).trim();
+                            
+                            if (!cvUrl || cvUrl.length === 0) {
+                              console.error('CV URL is invalid:', cvData);
+                              return;
+                            }
+                            
+                            const fileType = detectFileType(cvUrl);
+                            console.log('Preview button clicked - CV URL:', cvUrl, 'File Type:', fileType, 'Original CV Data:', cvData);
+                            
+                            handleDocumentPreviewClick({
+                              url: cvUrl,
+                              fileName: 'Resume / CV',
+                              fileType: fileType
+                            });
+                          } catch (error) {
+                            console.error('Error opening document preview:', error);
+                          }
+                        }}
+                        disabled={!onboardingData?.data?.profile?.CV}
                         sx={{
-                          width: { xs: 56, sm: 64 },
-                          height: { xs: 56, sm: 64 },
-                          borderRadius: 2.5,
-                          background: 'linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          boxShadow: '0 10px 25px rgba(59, 130, 246, 0.25), 0 4px 10px rgba(139, 92, 246, 0.15)',
-                          position: 'relative',
-                          flexShrink: 0,
-                          '&::after': {
-                            content: '""',
-                            position: 'absolute',
-                            inset: -2,
-                            borderRadius: 2.5,
-                            background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
-                            opacity: 0.15,
-                            filter: 'blur(8px)',
-                            zIndex: -1,
+                          borderColor: theme.palette.divider,
+                          color: theme.palette.text.primary,
+                          fontWeight: 600,
+                          py: { xs: 1.25, sm: 1.5 },
+                          px: { xs: 2, sm: 3 },
+                          borderRadius: 2,
+                          textTransform: 'none',
+                          fontSize: '0.9375rem',
+                          flex: { xs: 'none', sm: 1 },
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            bgcolor: alpha(theme.palette.primary.main, 0.08),
+                            borderColor: theme.palette.primary.main,
+                            color: theme.palette.primary.main,
+                          },
+                          '&:disabled': {
+                            opacity: 0.5,
+                            cursor: 'not-allowed',
                           }
                         }}
                       >
-                        <Work 
-                          sx={{ 
-                            fontSize: { xs: 28, sm: 32 },
-                            color: 'white',
-                            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))',
-                          }} 
-                        />
-                      </Box>
+                        Preview Document
+                      </Button>
+                      <Button
+                        variant="contained"
+                        fullWidth={isMobile}
+                        startIcon={<Download sx={{ fontSize: 18 }} />}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          try {
+                            const cvData = onboardingData?.data?.profile?.CV;
+                            if (!cvData) {
+                              console.error('CV data is not available for download');
+                              return;
+                            }
+                            
+                            // Handle CV as string URL or extract URL from object
+                            let cvUrl = cvData;
+                            if (typeof cvData === 'object' && cvData !== null) {
+                              cvUrl = cvData.url || cvData.path || cvData.link || cvData.src || String(cvData);
+                            }
+                            
+                            handleDownload(cvUrl);
+                          } catch (error) {
+                            console.error('Error downloading CV:', error);
+                          }
+                        }}
+                        disabled={!onboardingData?.data?.profile?.CV}
+                        sx={{
+                          bgcolor: theme.palette.primary.main,
+                          color: 'white',
+                          fontWeight: 600,
+                          py: { xs: 1.25, sm: 1.5 },
+                          px: { xs: 2, sm: 3 },
+                          borderRadius: 2,
+                          textTransform: 'none',
+                          fontSize: '0.9375rem',
+                          flex: { xs: 'none', sm: 1 },
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            bgcolor: theme.palette.primary.dark,
+                          },
+                          '&:disabled': {
+                            opacity: 0.5,
+                            cursor: 'not-allowed',
+                          }
+                        }}
+                      >
+                        Download Resume
+                      </Button>
+                    </Stack>
+                  </Box>
+                </Fade>
+              )}
 
-                      {/* Title & Description */}
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                      
-                          <Typography 
-                            component="h1"
-                            sx={{
-                              fontSize: { 
-                                xs: '1.5rem',
-                                sm: '1.875rem',
-                                md: '2.25rem'
-                              },
-                              fontWeight: 700,
-                              lineHeight: 1.2,
-                              letterSpacing: '-0.02em',
-                              color: '#0F172A',
-                            }}
-                          >
-                            Work History
-                          </Typography>
-                          {/* Compact Edit Button */}
-                        
-                        <Typography 
-                          sx={{ 
-                            fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
-                            color: '#64748B',
-                            fontWeight: 400,
-                            lineHeight: 1.5,
-                            maxWidth: '500px',
+              {/* CV/Resume Section - Show when CV doesn't exist */}
+              {!hasCV && (
+                <Fade in timeout={400}>
+                  <Box 
+                    sx={{ 
+                      width: '100%',
+                      position: 'relative',
+                      pt: { xs: 4, sm: 5, md: 6 },
+                      pb: { xs: 4, sm: 5, md: 6 },
+                      px: { xs: 0, sm: 0, md: 0 },
+                      borderTop: `1px solid ${alpha(theme.palette.divider, 0.4)}`,
+                      '&:first-of-type': {
+                        borderTop: 'none',
+                        pt: 0,
+                      },
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        left: 0,
+                        top: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
+                        bottom: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
+                        width: { xs: 0, sm: 0, md: 4 },
+                        borderRadius: '0 3px 3px 0',
+                        background: `linear-gradient(180deg, ${alpha(theme.palette.secondary.main, 0.7)} 0%, ${alpha(theme.palette.secondary.main, 0.4)} 100%)`,
+                        opacity: 0.7,
+                        transition: 'all 0.3s ease',
+                      },
+                      '&:hover::before': {
+                        opacity: 1,
+                        width: { xs: 0, sm: 0, md: 5 },
+                      },
+                      [theme.breakpoints.up('md')]: {
+                        pl: { md: 2, lg: 3 },
+                      }
+                    }}
+                  >
+                    {/* Section Header */}
+                    <Stack
+                      direction="row"
+                      alignItems="flex-start"
+                      justifyContent="space-between"
+                      spacing={2}
+                      sx={{ mb: { xs: 2, sm: 2.5 } }}
+                    >
+                      <Box sx={{ flex: 1 }}>
+                        <Typography
+                          component="h2"
+                          sx={{
+                            fontSize: {
+                              xs: '1.25rem',
+                              sm: '1.5rem',
+                              md: '1.75rem',
+                            },
+                            fontWeight: 700,
+                            letterSpacing: '-0.02em',
+                            color: theme.palette.text.primary,
+                            lineHeight: 1.2,
+                            mb: 0.5,
                           }}
                         >
-                          Manage your professional experience, references, and documents
+                          Resume / CV
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: {
+                              xs: '0.875rem',
+                              sm: '0.9375rem',
+                              md: '1rem',
+                            },
+                            color: theme.palette.text.secondary,
+                            lineHeight: 1.6,
+                          }}
+                        >
+                          Upload your professional document
                         </Typography>
                       </Box>
                     </Stack>
 
-                    {/* Right: Quick Stats */}
-                    <Stack 
-                      direction="row" 
-                      spacing={{ xs: 1.5, sm: 2 }}
+                    {/* Empty State */}
+                    <Box
                       sx={{
-                        width: { xs: '100%', sm: 'auto' },
-                        justifyContent: { xs: 'flex-start', sm: 'flex-end' }
+                        textAlign: 'center',
+                        py: { xs: 4, sm: 5, md: 6 },
+                        px: 2,
                       }}
                     >
-                      {/* Work History Count */}
-                      <Chip
-                        icon={<Work sx={{ fontSize: 16, color: '#3B82F6 !important' }} />}
-                        label={`${workHistoryCount} ${workHistoryCount === 1 ? 'Position' : 'Positions'}`}
+                      <Typography
+                        component="h3"
                         sx={{
-                          bgcolor: alpha('#3B82F6', 0.08),
-                          color: '#1E40AF',
-                          fontWeight: 600,
-                          fontSize: { xs: '0.8125rem', sm: '0.875rem' },
-                          height: { xs: 32, sm: 36 },
-                          borderRadius: 2,
-                          border: `1px solid ${alpha('#3B82F6', 0.15)}`,
-                          '& .MuiChip-label': {
-                            px: 1.5
-                          }
+                          fontSize: {
+                            xs: '1.125rem',
+                            sm: '1.25rem',
+                            md: '1.375rem',
+                          },
+                          fontWeight: 700,
+                          color: theme.palette.text.primary,
+                          mb: 1,
+                          letterSpacing: '-0.01em',
                         }}
-                      />
-
-                      {/* References Count */}
-                      <Chip
-                        icon={<CheckCircle sx={{ fontSize: 16, color: '#10B981 !important' }} />}
-                        label={`${referencesCount} ${referencesCount === 1 ? 'Reference' : 'References'}`}
+                      >
+                        No Resume / CV Added
+                      </Typography>
+                      <Typography
                         sx={{
-                          bgcolor: alpha('#10B981', 0.08),
-                          color: '#065F46',
-                          fontWeight: 600,
-                          fontSize: { xs: '0.8125rem', sm: '0.875rem' },
-                          height: { xs: 32, sm: 36 },
-                          borderRadius: 2,
-                          border: `1px solid ${alpha('#10B981', 0.15)}`,
-                          '& .MuiChip-label': {
-                            px: 1.5
-                          }
+                          fontSize: {
+                            xs: '0.9375rem',
+                            sm: '1rem',
+                            md: '1.0625rem',
+                          },
+                          color: theme.palette.text.secondary,
+                          lineHeight: 1.6,
+                          maxWidth: 500,
+                          mx: 'auto',
+                          mb: { xs: 2, sm: 2.5 },
                         }}
-                      />
+                      >
+                        Upload your resume or CV to showcase your professional
+                        experience and qualifications
+                      </Typography>
 
-                      {/* CV Status */}
-                      {hasCV && (
-                        <Chip
-                          icon={<Description sx={{ fontSize: 16, color: '#8B5CF6 !important' }} />}
-                          label="CV Added"
-                          sx={{
-                            bgcolor: alpha('#8B5CF6', 0.08),
-                            color: '#6D28D9',
-                            fontWeight: 600,
-                            fontSize: { xs: '0.8125rem', sm: '0.875rem' },
-                            height: { xs: 32, sm: 36 },
-                            borderRadius: 2,
-                            border: `1px solid ${alpha('#8B5CF6', 0.15)}`,
-                            display: { xs: 'none', md: 'inline-flex' },
-                            '& .MuiChip-label': {
-                              px: 1.5
-                            }
-                          }}
-                        />
-                      )}
-                    </Stack>
-                  </Stack>
-                </Box>
-              </Box>
-            </Fade>
+                      {/* Add CV Button */}
+                      <Button
+                        variant="contained"
+                        fullWidth
+                        startIcon={<Add sx={{ fontSize: 20 }} />}
+                        onClick={() => handleEditClick('Resume / CV')}
+                        sx={{
+                          bgcolor: theme.palette.primary.main,
+                          color: 'white',
+                          fontWeight: 600,
+                          py: { xs: 1.25, sm: 1.5 },
+                          borderRadius: 2,
+                          textTransform: 'none',
+                          fontSize: '0.9375rem',
+                          maxWidth: 400,
+                          mx: 'auto',
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            bgcolor: theme.palette.primary.dark,
+                          },
+                        }}
+                      >
+                        Add Resume / CV
+                      </Button>
 
-            {/* Main Content Grid */}
-            <Box sx={{ 
-              display: 'grid', 
-              gridTemplateColumns: { 
-                xs: '1fr', 
-                lg: hasCV ? '1fr 340px' : '1fr'
-              },
-              gap: { xs: 2.5, sm: 3, md: 3.5 },
-              alignItems: 'start',
-              width: '100%',
-              mx: { xs: 0, sm: 'auto' },
-              px: { xs: 0, sm: 0 }
-            }}>
+                      {/* File Format Info */}
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: theme.palette.text.disabled,
+                          fontSize: '0.8125rem',
+                          mt: 2,
+                          display: 'block',
+                        }}
+                      >
+                        Supported formats: PDF, JPG, PNG (Max 5MB)
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Fade>
+              )}
+
               {/* Work Experience Section */}
-              <WorkExperience 
-                workHistory={onboardingData?.data?.profile?.workHistory || []}
-                isLoading={!onboardingData}
-                onEditClick={() => handleEditClick('Work Experience')}
-                onItemEdit={(item) => handleEditClick('Work Experience', item)}
-              />
+              <Box
+                sx={{
+                  width: '100%',
+                  position: 'relative',
+                  pt: { xs: 4, sm: 5, md: 6 },
+                  pb: { xs: 4, sm: 5, md: 6 },
+                  px: { xs: 0, sm: 0, md: 0 },
+                  borderTop: `1px solid ${alpha(theme.palette.divider, 0.4)}`,
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    left: 0,
+                    top: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
+                    bottom: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
+                    width: { xs: 0, sm: 0, md: 4 },
+                    borderRadius: '0 3px 3px 0',
+                    background: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.7)} 0%, ${alpha(theme.palette.primary.main, 0.4)} 100%)`,
+                    opacity: 0.7,
+                    transition: 'all 0.3s ease',
+                  },
+                  '&:hover::before': {
+                    opacity: 1,
+                    width: { xs: 0, sm: 0, md: 5 },
+                  },
+                  [theme.breakpoints.up('md')]: {
+                    pl: { md: 2, lg: 3 },
+                  }
+                }}
+              >
+                <WorkExperience 
+                  workHistory={onboardingData?.data?.profile?.workHistory || []}
+                  isLoading={!onboardingData}
+                  onEditClick={() => handleEditClick('Work Experience')}
+                  onItemEdit={(item) => handleEditClick('Work Experience', item)}
+                />
+              </Box>
 
-              {/* Premium CV/Resume Card - Show when CV exists */}
-              {hasCV && onboardingData?.data?.profile?.CV && (
-                <Fade in timeout={800}>
-                  <Box
-                    sx={{
-                      position: { lg: 'sticky' },
-                      top: { lg: 24 },
-                      alignSelf: 'start'
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        bgcolor: 'white',
-                        borderRadius: { xs: 3.5, sm: 3.5 },
-                        overflow: 'hidden',
-                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04)',
-                        border: '1px solid #E2E8F0',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        '&:hover': {
-                          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.04)',
-                          transform: 'translateY(-2px)',
-                          borderColor: alpha('#8B5CF6', 0.3)
-                        }
-                      }}
-                    >
-                      {/* Gradient Header Bar */}
-                      <Box
-                        sx={{
-                          height: 4,
-                          background: 'linear-gradient(90deg, #8B5CF6 0%, #06B6D4 100%)',
-                        }}
-                      />
-
-                      <Box sx={{ p: { xs: 1.5, sm: 2.4 } }}>
-                        {/* Section Header */}
-                        <Stack 
-                          direction="row" 
-                          alignItems="center" 
-                          justifyContent="space-between"
-                          sx={{ mb: 2.5 }}
-                        >
-                          <Stack direction="row" alignItems="center" spacing={1.5}>
-                            <Box
-                              sx={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: 2,
-                                background: 'linear-gradient(135deg, #8B5CF6 0%, #06B6D4 100%)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                boxShadow: `0 4px 14px ${alpha('#8B5CF6', 0.25)}`
-                              }}
-                            >
-                              <PictureAsPdf sx={{ color: 'white', fontSize: 22 }} />
-                            </Box>
-                            <Box>
-                              <Typography 
-                                variant="h6"
-                                sx={{
-                                  fontWeight: 700,
-                                  fontSize: '1.125rem',
-                                  color: '#0F172A',
-                                  lineHeight: 1.3
-                                }}
-                              >
-                                Resume / CV
-                              </Typography>
-                              <Typography 
-                                variant="caption"
-                                sx={{
-                                  color: '#64748B',
-                                  fontSize: '0.8125rem'
-                                }}
-                              >
-                                Your professional document
-                              </Typography>
-                            </Box>
-                          </Stack>
-                          {/* CV Edit Button */}
-                          <Tooltip title="Edit Resume / CV" arrow placement="top">
-                            <IconButton
-                              onClick={() => handleEditClick('Resume / CV')}
-                              sx={{
-                                width: 36,
-                                height: 36,
-                                bgcolor: alpha('#8B5CF6', 0.1),
-                                color: '#8B5CF6',
-                                border: `1px solid ${alpha('#8B5CF6', 0.2)}`,
-                                transition: 'all 0.2s ease',
-                                '&:hover': {
-                                  bgcolor: alpha('#8B5CF6', 0.15),
-                                  borderColor: alpha('#8B5CF6', 0.3),
-                                  transform: 'scale(1.05)',
-                                  boxShadow: `0 4px 12px ${alpha('#8B5CF6', 0.2)}`
-                                },
-                                '&:active': {
-                                  transform: 'scale(0.95)'
-                                }
-                              }}
-                            >
-                              <Edit sx={{ fontSize: 18 }} />
-                            </IconButton>
-                          </Tooltip>
-                        </Stack>
-                        
-                        {/* Document Preview Card */}
-                        <Box
-                          sx={{
-                            border: '1px solid #E2E8F0',
-                            borderRadius: 2,
-                            p: 2,
-                            mb: 2.5,
-                            bgcolor: alpha('#F8FAFC', 0.5),
-                            transition: 'all 0.25s ease',
-                            '&:hover': {
-                              borderColor: alpha('#8B5CF6', 0.3),
-                              bgcolor: alpha('#8B5CF6', 0.03),
-                              transform: 'translateX(2px)'
-                            }
-                          }}
-                        >
-                          <Stack direction="row" alignItems="center" spacing={1.75}>
-                            <Avatar 
-                              sx={{ 
-                                bgcolor: 'linear-gradient(135deg, #8B5CF6 0%, #06B6D4 100%)',
-                                width: 48,
-                                height: 48,
-                                boxShadow: `0 4px 12px ${alpha('#8B5CF6', 0.2)}`
-                              }}
-                            >
-                              <PictureAsPdf sx={{ color: 'white', fontSize: 24 }} />
-                            </Avatar>
-                            <Box sx={{ flex: 1, minWidth: 0 }}>
-                              <Typography 
-                                variant="body2" 
-                                fontWeight={600}
-                                noWrap
-                                sx={{ 
-                                  color: '#0F172A',
-                                  mb: 0.25,
-                                  fontSize: '0.9375rem'
-                                }}
-                              >
-                                Resume.pdf
-                              </Typography>
-                              <Stack direction="row" alignItems="center" spacing={0.75}>
-                                <Box
-                                  sx={{
-                                    width: 6,
-                                    height: 6,
-                                    borderRadius: '50%',
-                                    bgcolor: '#10B981'
-                                  }}
-                                />
-                                <Typography 
-                                  variant="caption"
-                                  sx={{
-                                    color: '#64748B',
-                                    fontSize: '0.8125rem',
-                                    fontWeight: 500
-                                  }}
-                                >
-                                  PDF Document
-                                </Typography>
-                              </Stack>
-                            </Box>
-                          </Stack>
-                        </Box>
-
-                        {/* Action Buttons */}
-                        <Stack spacing={1.5}>
-                          <Button
-                            variant="outlined"
-                            fullWidth
-                            startIcon={<Visibility sx={{ fontSize: 18 }} />}
-                            onClick={() => handleDocumentPreviewClick({
-                              url: onboardingData.data.profile.CV,
-                              fileName: 'CV/Resume',
-                              fileType: onboardingData.data.profile.CV.endsWith('.pdf') ? 'application/pdf' : 'image'
-                            })}
-                            sx={{
-                              borderColor: '#CBD5E1',
-                              color: '#475569',
-                              fontWeight: 600,
-                              py: 1.25,
-                              borderRadius: 2,
-                              textTransform: 'none',
-                              fontSize: '0.9375rem',
-                              transition: 'all 0.2s ease',
-                              '&:hover': { 
-                                bgcolor: alpha('#3B82F6', 0.06),
-                                borderColor: '#3B82F6',
-                                color: '#3B82F6',
-                                transform: 'translateY(-1px)',
-                                boxShadow: `0 4px 12px ${alpha('#3B82F6', 0.15)}`
-                              }
-                            }}
-                          >
-                            Preview Document
-                          </Button>
-                          <Button
-                            variant="contained"
-                            fullWidth
-                            startIcon={<Download sx={{ fontSize: 18 }} />}
-                            onClick={() => handleDownload(onboardingData.data.profile.CV)}
-                            sx={{
-                              background: 'linear-gradient(135deg, #8B5CF6 0%, #06B6D4 100%)',
-                              color: 'white',
-                              fontWeight: 600,
-                              py: 1.25,
-                              borderRadius: 2,
-                              textTransform: 'none',
-                              fontSize: '0.9375rem',
-                              boxShadow: `0 4px 14px ${alpha('#8B5CF6', 0.3)}`,
-                              transition: 'all 0.2s ease',
-                              '&:hover': { 
-                                background: 'linear-gradient(135deg, #7C3AED 0%, #0891B2 100%)',
-                                transform: 'translateY(-1px)',
-                                boxShadow: `0 6px 20px ${alpha('#8B5CF6', 0.4)}`
-                              }
-                            }}
-                          >
-                            Download Resume
-                          </Button>
-                        </Stack>
-                      </Box>
-                    </Box>
-                  </Box>
-                </Fade>
-              )}
-
-              {/* Add CV Section - Show when CV doesn't exist */}
-              {!hasCV && (
-                <Fade in timeout={800}>
-                  <Box
-                    sx={{
-                      position: { lg: 'sticky' },
-                      top: { lg: 24 },
-                      alignSelf: 'start'
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        bgcolor: 'white',
-                        borderRadius: { xs: 2.5, sm: 3 },
-                        overflow: 'hidden',
-                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04)',
-                        border: `2px dashed ${alpha('#8B5CF6', 0.3)}`,
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        '&:hover': {
-                          boxShadow: '0 10px 30px rgba(139, 92, 246, 0.12), 0 4px 8px rgba(0, 0, 0, 0.04)',
-                          transform: 'translateY(-2px)',
-                          borderColor: alpha('#8B5CF6', 0.5),
-                          bgcolor: alpha('#8B5CF6', 0.02)
-                        }
-                      }}
-                    >
-                      {/* Gradient Header Bar */}
-                      <Box
-                        sx={{
-                          height: 4,
-                          background: 'linear-gradient(90deg, #8B5CF6 0%, #06B6D4 100%)',
-                        }}
-                      />
-
-                      <Box sx={{ p: { xs: 3, sm: 4 } }}>
-                        {/* Section Header */}
-                        <Stack 
-                          direction="row" 
-                          alignItems="center" 
-                          spacing={1.5}
-                          sx={{ mb: 3 }}
-                        >
-                          <Box
-                            sx={{
-                              width: 44,
-                              height: 44,
-                              borderRadius: 2,
-                              background: `linear-gradient(135deg, ${alpha('#8B5CF6', 0.15)} 0%, ${alpha('#06B6D4', 0.15)} 100%)`,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              border: `1px solid ${alpha('#8B5CF6', 0.25)}`
-                            }}
-                          >
-                            <PictureAsPdf sx={{ color: '#8B5CF6', fontSize: 22 }} />
-                          </Box>
-                          <Box>
-                            <Typography 
-                              variant="h6"
-                              sx={{
-                                fontWeight: 700,
-                                fontSize: '1.125rem',
-                                color: '#0F172A',
-                                lineHeight: 1.3
-                              }}
-                            >
-                              Resume / CV
-                            </Typography>
-                            <Typography 
-                              variant="caption"
-                              sx={{
-                                color: '#64748B',
-                                fontSize: '0.8125rem'
-                              }}
-                            >
-                              Upload your professional document
-                            </Typography>
-                          </Box>
-                        </Stack>
-                        
-                        {/* Empty State Content */}
-                        <Box
-                          sx={{
-                            textAlign: 'center',
-                            py: { xs: 3, sm: 4 }
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              width: { xs: 80, sm: 96 },
-                              height: { xs: 80, sm: 96 },
-                              borderRadius: '50%',
-                              bgcolor: alpha('#8B5CF6', 0.1),
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              mx: 'auto',
-                              mb: 2.5,
-                              border: `2px dashed ${alpha('#8B5CF6', 0.3)}`,
-                              transition: 'all 0.3s ease',
-                              '&:hover': {
-                                bgcolor: alpha('#8B5CF6', 0.15),
-                                borderColor: alpha('#8B5CF6', 0.5),
-                                transform: 'scale(1.05)'
-                              }
-                            }}
-                          >
-                            <CloudUpload sx={{ 
-                              fontSize: { xs: 40, sm: 48 }, 
-                              color: '#8B5CF6' 
-                            }} />
-                          </Box>
-                          
-                          <Typography 
-                            variant="h6"
-                            sx={{
-                              fontWeight: 700,
-                              fontSize: { xs: '1.125rem', sm: '1.25rem' },
-                              color: '#0F172A',
-                              mb: 1,
-                              lineHeight: 1.3
-                            }}
-                          >
-                            No Resume / CV Added
-                          </Typography>
-                          
-                          <Typography 
-                            variant="body2"
-                            sx={{
-                              color: '#64748B',
-                              fontSize: { xs: '0.875rem', sm: '0.9375rem' },
-                              lineHeight: 1.6,
-                              maxWidth: 280,
-                              mx: 'auto',
-                              mb: 3
-                            }}
-                          >
-                            Upload your resume or CV to showcase your professional experience and qualifications
-                          </Typography>
-
-                          {/* Add CV Button */}
-                          <Button
-                            variant="contained"
-                            fullWidth
-                            startIcon={<Add sx={{ fontSize: 20 }} />}
-                            onClick={() => handleEditClick('Resume / CV')}
-                            sx={{
-                              background: 'linear-gradient(135deg, #8B5CF6 0%, #06B6D4 100%)',
-                              color: 'white',
-                              fontWeight: 600,
-                              py: 1.5,
-                              borderRadius: 2,
-                              textTransform: 'none',
-                              fontSize: '0.9375rem',
-                              boxShadow: `0 4px 14px ${alpha('#8B5CF6', 0.3)}`,
-                              transition: 'all 0.2s ease',
-                              '&:hover': { 
-                                background: 'linear-gradient(135deg, #7C3AED 0%, #0891B2 100%)',
-                                transform: 'translateY(-2px)',
-                                boxShadow: `0 6px 20px ${alpha('#8B5CF6', 0.4)}`
-                              },
-                              '&:active': {
-                                transform: 'translateY(0)'
-                              }
-                            }}
-                          >
-                            Add Resume / CV
-                          </Button>
-
-                          {/* File Format Info */}
-                          <Typography 
-                            variant="caption"
-                            sx={{
-                              color: '#94A3B8',
-                              fontSize: '0.75rem',
-                              mt: 2,
-                              display: 'block'
-                            }}
-                          >
-                            Supported formats: PDF, JPG, PNG (Max 5MB)
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </Box>
-                  </Box>
-                </Fade>
-              )}
-            </Box>
-
-            {/* Professional References Section */}
-            <Box sx={{ mt: { xs: 2.5, sm: 3, md: 3.5 } }}>
-              <ProfessionalReferences
-                references={displayReferences}
-                isLoading={isRefsLoading && onboardingRefs.length === 0}
-                isError={isRefsError && !displayReferences.length}
-                error={refsError}
-                onRetry={() => refetchRefs()}
-                onEditClick={() => handleEditClick('Professional References')}
-                onItemEdit={(item) => handleEditClick('Professional References', item)}
-              />
-            </Box>
+              {/* Professional References Section */}
+              <Box
+                sx={{
+                  width: '100%',
+                  position: 'relative',
+                  pt: { xs: 4, sm: 5, md: 6 },
+                  pb: { xs: 4, sm: 5, md: 6 },
+                  px: { xs: 0, sm: 0, md: 0 },
+                  borderTop: `1px solid ${alpha(theme.palette.divider, 0.4)}`,
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    left: 0,
+                    top: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
+                    bottom: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
+                    width: { xs: 0, sm: 0, md: 4 },
+                    borderRadius: '0 3px 3px 0',
+                    background: `linear-gradient(180deg, ${alpha(theme.palette.success.main, 0.7)} 0%, ${alpha(theme.palette.success.main, 0.4)} 100%)`,
+                    opacity: 0.7,
+                    transition: 'all 0.3s ease',
+                  },
+                  '&:hover::before': {
+                    opacity: 1,
+                    width: { xs: 0, sm: 0, md: 5 },
+                  },
+                  [theme.breakpoints.up('md')]: {
+                    pl: { md: 2, lg: 3 },
+                  }
+                }}
+              >
+                <ProfessionalReferences
+                  references={displayReferences}
+                  isLoading={isRefsLoading && onboardingRefs.length === 0}
+                  isError={isRefsError && !displayReferences.length}
+                  error={refsError}
+                  onRetry={() => refetchRefs()}
+                  onEditClick={() => handleEditClick('Professional References')}
+                  onItemEdit={(item) => handleEditClick('Professional References', item)}
+                />
+              </Box>
+            </Stack>
           </Container>
         </Box>
         
