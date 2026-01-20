@@ -340,7 +340,7 @@ const DashboardCertification = ({ onboardingData }) => {
         </Box>
       </Fade>
 
-      {/* Document Preview Modal */}
+      {/* Document Preview Modal - Rendered via Portal, always on top */}
       {previewOpen && selectedDocument && (
         <DocumentPreview
           document={selectedDocument}

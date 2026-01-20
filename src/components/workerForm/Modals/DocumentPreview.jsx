@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import './DocumentPreview.css';
 import { useMediaQuery } from '@mui/material';
 
@@ -8,6 +9,7 @@ const DocumentPreview = ({ document, onClose, certificateData }) => {
   const [rotation, setRotation] = useState(0);
   const [pageNumber, setPageNumber] = useState(1);
   const [pdfViewerFailed, setPdfViewerFailed] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const modalRef = useRef(null);
   const pdfIframeRef = useRef(null);
   const pdfLoadTimeoutRef = useRef(null);
@@ -16,6 +18,12 @@ const DocumentPreview = ({ document, onClose, certificateData }) => {
   const isImage = document?.fileType?.includes('image');
   const encodedUrl = document?.url?.replace(/\(/g, '%28').replace(/\)/g, '%29').replace(/ /g, '%20');
   const isDesktop = useMediaQuery('(min-width:768px)');
+
+  // Ensure component is mounted and DOM is ready before using Portal
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
   
   console.log('DocumentPreview - Document:', document);
   console.log('DocumentPreview - isPdf:', isPdf);
@@ -94,14 +102,30 @@ const DocumentPreview = ({ document, onClose, certificateData }) => {
     setIsLoading(false);
   };
   
-  // Zoom control functions
-  const zoomIn = () => setZoomLevel(prev => Math.min(prev + 0.25, 3));
-  const zoomOut = () => setZoomLevel(prev => Math.max(prev - 0.25, 0.5));
-  const resetZoom = () => setZoomLevel(1);
-  const rotateClockwise = () => setRotation(prev => (prev + 90) % 360);
-  const changePage = (offset) => setPageNumber(prev => Math.max(1, prev + offset));
+  // Zoom control functions with event handling
+  const zoomIn = (e) => {
+    if (e) e.stopPropagation();
+    setZoomLevel(prev => Math.min(prev + 0.25, 3));
+  };
+  const zoomOut = (e) => {
+    if (e) e.stopPropagation();
+    setZoomLevel(prev => Math.max(prev - 0.25, 0.5));
+  };
+  const resetZoom = (e) => {
+    if (e) e.stopPropagation();
+    setZoomLevel(1);
+  };
+  const rotateClockwise = (e) => {
+    if (e) e.stopPropagation();
+    setRotation(prev => (prev + 90) % 360);
+  };
+  const changePage = (offset, e) => {
+    if (e) e.stopPropagation();
+    setPageNumber(prev => Math.max(1, prev + offset));
+  };
 
-  const retryPdfLoad = () => {
+  const retryPdfLoad = (e) => {
+    if (e) e.stopPropagation();
     setPdfViewerFailed(false);
     setIsLoading(true);
     
@@ -242,14 +266,34 @@ const DocumentPreview = ({ document, onClose, certificateData }) => {
     );
   };
 
+  // Handle close with proper event handling
+  const handleClose = (e) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    onClose();
+  };
+
+  // Handle container click - prevent propagation
+  const handleContainerClick = (e) => {
+    e.stopPropagation();
+  };
+
+  // Handle overlay click
+  const handleOverlayClick = (e) => {
+    e.stopPropagation();
+    handleClose(e);
+  };
+
   if (!document) {
     return null;
   }
 
-  return (
-    <div className="doc-preview">
-      <div className="doc-preview__overlay" onClick={onClose}></div>
-      <div className="doc-preview__container" ref={modalRef}>
+  const modalContent = (
+    <div className="doc-preview" onClick={handleOverlayClick}>
+      <div className="doc-preview__overlay" onClick={handleOverlayClick}></div>
+      <div className="doc-preview__container" ref={modalRef} onClick={handleContainerClick}>
         <div className="doc-preview__header">
           <div className="doc-preview__title">
             <span className="doc-preview__icon">
@@ -330,7 +374,7 @@ const DocumentPreview = ({ document, onClose, certificateData }) => {
             <button 
               type="button" 
               className="doc-preview__action-btn doc-preview__close-btn" 
-              onClick={onClose} 
+              onClick={handleClose} 
               aria-label="Close"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -470,6 +514,15 @@ const DocumentPreview = ({ document, onClose, certificateData }) => {
       </div>
     </div>
   );
+
+  // Render using Portal to ensure it's above all other elements (drawers, modals, etc.)
+  // Only use Portal if component is mounted and document.body exists
+  if (isMounted && typeof document !== 'undefined' && document.body) {
+    return createPortal(modalContent, document.body);
+  }
+  
+  // Fallback: render normally if Portal is not available (SSR or initial render)
+  return modalContent;
 };
 
 export default DocumentPreview;

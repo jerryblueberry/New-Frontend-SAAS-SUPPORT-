@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { Drawer, Form, Input, DatePicker, Select, Button, Alert, Space, Upload, Tooltip, Typography, message, Skeleton, Spin, Tag } from 'antd';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
-import { EyeOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { EyeOutlined, DeleteOutlined, PlusOutlined, FileTextOutlined, FileImageOutlined, FilePdfOutlined } from '@ant-design/icons';
 import { fetchCertificationByType, updateCertificationByType, deleteCertificationDocument } from '../../api/axios';
 import RenderEducationFields from '../WorkerCertificateOnboarding/RenderEducationFields';
 import RenderInsuranceField from '../WorkerCertificateOnboarding/RenderInsuranceField';
@@ -243,7 +243,8 @@ export default function CertificationEditorDrawer({
   });
 
   const handleBeforeUpload = async (file, fileList) => {
-    const current = form.getFieldValue('documents') || cert?.documents || [];
+    const formDocs = form.getFieldValue('documents');
+    const current = (Array.isArray(formDocs) ? formDocs : null) || (Array.isArray(cert?.documents) ? cert?.documents : []) || [];
     const remaining = maxFiles - current.length;
     if (fileList.length > remaining) {
       message.error(`You can only upload ${remaining} more document(s)`);
@@ -286,7 +287,8 @@ export default function CertificationEditorDrawer({
     }
     if (file?.publicId && deletingIds.has(file.publicId)) return;
     if (file?.publicId) setDeletingIds(prev => new Set(prev).add(file.publicId));
-    const current = form.getFieldValue('documents') || cert?.documents || [];
+    const formDocs = form.getFieldValue('documents');
+    const current = (Array.isArray(formDocs) ? formDocs : null) || (Array.isArray(cert?.documents) ? cert?.documents : []) || [];
     const next = current.filter((d) => d.uid !== file.uid && d.publicId !== file.publicId);
     form.setFieldsValue({ documents: next });
     // Immediately remove from localStorage tracking if present
@@ -431,11 +433,19 @@ export default function CertificationEditorDrawer({
       )}
       width={600}
       open={open}
-      onClose={onClose}
+      onClose={() => {
+        setPreviewOpen(false);
+        setPreviewDoc(null);
+        onClose();
+      }}
       destroyOnClose
       footer={
         <div style={{ textAlign: 'right' }}>
-          <Button onClick={onClose} style={{ marginRight: 8 }}>
+          <Button onClick={() => {
+            setPreviewOpen(false);
+            setPreviewDoc(null);
+            onClose();
+          }} style={{ marginRight: 8 }}>
             Cancel
           </Button>
           <Button type="primary" onClick={handleSave} loading={saving} disabled={isLoadingComputed}>
@@ -555,7 +565,16 @@ export default function CertificationEditorDrawer({
 
         {documentRequired && (
           <Form.Item
-            label="Documents"
+            label={
+              <span style={{ 
+                fontSize: '14px', 
+                fontWeight: 600, 
+                color: '#1f2937',
+                letterSpacing: '-0.01em'
+              }}>
+                Documents
+              </span>
+            }
             name="documents"
             rules={[{
               validator: (_, value) => {
@@ -567,58 +586,341 @@ export default function CertificationEditorDrawer({
               }
             }]}
           >
-            <Upload
-              accept=".pdf,.jpg,.jpeg,.png"
-              fileList={form.getFieldValue('documents') || cert?.documents || []}
-              beforeUpload={handleBeforeUpload}
-              onRemove={onRemove}
-              multiple
-              listType="picture-card"
-              disabled={uploading || isDeletingAny}
-              onPreview={(file) => {
-                const list = form.getFieldValue('documents') || cert?.documents || [];
-                const found = list.find((d) => d.uid === file.uid || d.publicId === file.publicId);
-                if (found) {
-                  setPreviewDoc(found);
-                  setPreviewOpen(true);
+            <div style={{
+            }}>
+              {/* Custom Document List with Thumbnails */}
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
+                gap: '12px',
+                marginBottom: '16px',
+                '@media (max-width: 480px)': {
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
+                  gap: '10px'
                 }
-              }}
-              showUploadList={{
-                showPreviewIcon: true,
-                showRemoveIcon: true,
-                previewIcon: () => (
-                  <Tooltip title="Preview Document">
-                    <button type="button" style={{ border: 'none', background: '#1890ff', color: '#fff', borderRadius: '50%', width: 28, height: 28 }}>
-                      <EyeOutlined />
-                    </button>
-                  </Tooltip>
-                ),
-                removeIcon: () => (
-                  <Tooltip title={isDeletingAny ? 'Deletion in progress' : 'Delete Document'}>
-                    <button type="button" disabled={isDeletingAny} aria-disabled={isDeletingAny} style={{ border: 'none', background: isDeletingAny ? '#ffccc7' : '#ff4d4f', color: '#fff', borderRadius: '50%', width: 28, height: 28, cursor: isDeletingAny ? 'not-allowed' : 'pointer' }}>
-                      <DeleteOutlined />
-                    </button>
-                  </Tooltip>
-                ),
-              }}
-            >
-              {(form.getFieldValue('documents')?.length || cert?.documents?.length || 0) >= maxFiles ? null : (
-                <div>
-                  <PlusOutlined />
-                  <div style={{ marginTop: 8 }}>Upload</div>
-                </div>
-              )}
-            </Upload>
-            <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-              Accepted formats: PDF, JPG, PNG (Max 5MB each, up to 2)
-            </Text>
+              }}>
+                {(() => {
+                  const formDocs = form.getFieldValue('documents');
+                  const certDocs = cert?.documents;
+                  return Array.isArray(formDocs) ? formDocs : (Array.isArray(certDocs) ? certDocs : []);
+                })().map((doc, index) => {
+                  const isPdf = doc?.fileType === 'application/pdf' || doc?.url?.includes('.pdf');
+                  const isImage = doc?.fileType?.includes('image') || /\.(jpg|jpeg|png|gif)$/i.test(doc?.url || '');
+                  const isDeleting = doc?.publicId && deletingIds.has(doc.publicId);
+                  
+                  return (
+                    <div
+                      key={doc.uid || doc.publicId || index}
+                      style={{
+                        position: 'relative',
+                        border: '1px solid #e8e8e8',
+                        borderRadius: '12px',
+                        overflow: 'hidden',
+                        background: '#fff',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        aspectRatio: '1',
+                        cursor: 'pointer',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = '#1890ff';
+                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(24, 144, 255, 0.15), 0 2px 8px rgba(24, 144, 255, 0.1)';
+                        e.currentTarget.style.transform = 'translateY(-3px) scale(1.02)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = '#e8e8e8';
+                        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                        e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                      }}
+                    >
+                      {/* Thumbnail or File Icon */}
+                      <div style={{
+                        width: '100%',
+                        height: '100%',
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: isImage ? 'transparent' : (isPdf ? '#fff5f5' : '#f0f7ff'),
+                        overflow: 'hidden'
+                      }}>
+                        {isImage ? (
+                          <img
+                            src={doc.url}
+                            alt="Document thumbnail"
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              display: 'block'
+                            }}
+                          />
+                        ) : (
+                          <div style={{
+                            fontSize: '36px',
+                            color: isPdf ? '#ff4d4f' : '#1890ff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            {isPdf ? <FilePdfOutlined /> : <FileTextOutlined />}
+                          </div>
+                        )}
+                        
+                        {/* Overlay with Action Buttons */}
+                        <div style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          background: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.5) 100%)',
+                          display: 'flex',
+                          alignItems: 'flex-end',
+                          justifyContent: 'center',
+                          padding: '8px',
+                          gap: '6px',
+                          opacity: 0,
+                          transition: 'opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          backdropFilter: 'blur(2px)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.opacity = '1';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.opacity = '0';
+                        }}
+                        >
+                          <Tooltip title="Preview" placement="top">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPreviewDoc(doc);
+                                setPreviewOpen(true);
+                              }}
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              background: 'rgba(24, 144, 255, 0.95)',
+                              color: '#fff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                              backdropFilter: 'blur(8px)',
+                              boxShadow: '0 2px 12px rgba(24, 144, 255, 0.4)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'rgba(24, 144, 255, 1)';
+                              e.currentTarget.style.transform = 'scale(1.15)';
+                              e.currentTarget.style.boxShadow = '0 4px 16px rgba(24, 144, 255, 0.5)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'rgba(24, 144, 255, 0.95)';
+                              e.currentTarget.style.transform = 'scale(1)';
+                              e.currentTarget.style.boxShadow = '0 2px 12px rgba(24, 144, 255, 0.4)';
+                            }}
+                            >
+                              <EyeOutlined style={{ fontSize: '16px' }} />
+                            </button>
+                          </Tooltip>
+                          <Tooltip title={isDeleting ? 'Deleting...' : 'Delete'} placement="top">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (isDeletingAny && !isDeleting) {
+                                  message.info('Please wait for the current deletion to complete');
+                                  return;
+                                }
+                                if (isDeleting) return;
+                                onRemove(doc);
+                              }}
+                              disabled={isDeletingAny}
+                              style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '8px',
+                                border: 'none',
+                                background: isDeleting ? 'rgba(255, 204, 199, 0.95)' : 'rgba(255, 77, 79, 0.95)',
+                                color: '#fff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: isDeletingAny ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                                backdropFilter: 'blur(8px)',
+                                boxShadow: '0 2px 12px rgba(255, 77, 79, 0.4)'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isDeletingAny) {
+                                  e.currentTarget.style.background = 'rgba(255, 77, 79, 1)';
+                                  e.currentTarget.style.transform = 'scale(1.15)';
+                                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(255, 77, 79, 0.5)';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = isDeleting ? 'rgba(255, 204, 199, 0.95)' : 'rgba(255, 77, 79, 0.95)';
+                                e.currentTarget.style.transform = 'scale(1)';
+                                e.currentTarget.style.boxShadow = '0 2px 12px rgba(255, 77, 79, 0.4)';
+                              }}
+                            >
+                              {isDeleting ? (
+                                <Spin size="small" style={{ color: '#fff' }} />
+                              ) : (
+                                <DeleteOutlined style={{ fontSize: '16px' }} />
+                              )}
+                            </button>
+                          </Tooltip>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                {/* Premium Upload Section */}
+                {(
+                  (
+                    (Array.isArray(form.getFieldValue('documents')) ? form.getFieldValue('documents') : [])?.length ||
+                    (Array.isArray(cert?.documents) ? cert?.documents : [])?.length ||
+                    0
+                  ) < maxFiles
+                ) && (
+                  <Upload
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    beforeUpload={handleBeforeUpload}
+                    multiple
+                    showUploadList={false}
+                    disabled={uploading || isDeletingAny}
+                  >
+                    <div
+                      style={{
+                        position: 'relative',
+                        aspectRatio: '1',
+                        borderRadius: 14,
+                        background: uploading || isDeletingAny ? '#f3f4f6' : '#ffffff',
+                        border: '1.5px dashed #d1d5db',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        padding: '12px',
+                        cursor: uploading || isDeletingAny ? 'not-allowed' : 'pointer',
+                        transition: 'all 220ms cubic-bezier(0.4, 0, 0.2, 1)',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                        color: '#374151'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!uploading && !isDeletingAny) {
+                          e.currentTarget.style.borderColor = '#2563eb';
+                          e.currentTarget.style.background = '#f8fafc';
+                          e.currentTarget.style.boxShadow =
+                            '0 8px 28px rgba(37, 99, 235, 0.12)';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = '#d1d5db';
+                        e.currentTarget.style.background = '#ffffff';
+                        e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }}
+                    >
+                      {/* Icon - Clean, no background */}
+                      {uploading ? (
+                        <Spin size="small" style={{ color: '#6b7280' }} />
+                      ) : (
+                        <PlusOutlined 
+                          style={{ 
+                            fontSize: 24, 
+                            color: uploading || isDeletingAny ? '#9ca3af' : '#2563eb', 
+                            lineHeight: 1,
+                            transition: 'all 200ms ease'
+                          }} 
+                        />
+                      )}
+
+                      {/* Text Container */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 4,
+                          width: '100%',
+                          flex: 1,
+                          minHeight: 0
+                        }}
+                      >
+                        {/* Text */}
+                        <div
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 500,
+                            color: uploading || isDeletingAny ? '#9ca3af' : '#374151',
+                            letterSpacing: '-0.01em',
+                            textAlign: 'center',
+                            lineHeight: 1.3,
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {uploading ? 'Uploading…' : 'Add document'}
+                        </div>
+
+                        {/* Subtle helper */}
+                        <div
+                          style={{
+                            fontSize: 10,
+                            color: '#9ca3af',
+                            textAlign: 'center',
+                            lineHeight: 1.3,
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          PDF, JPG or PNG
+                        </div>
+                      </div>
+                    </div>
+                  </Upload>
+                )}
+              </div>
+              
+              <Text 
+                type="secondary" 
+                style={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '12px', 
+                  marginTop: '12px',
+                  paddingTop: '12px',
+                  borderTop: '1px solid #e5e7eb',
+                  color: '#6b7280',
+                  lineHeight: '1.5',
+                  fontWeight: 400
+                }}
+              >
+                <span style={{ fontSize: '11px' }}>📄</span>
+                <span>Accepted: PDF, JPG, PNG (Max 5MB each, up to {maxFiles})</span>
+              </Text>
+            </div>
           </Form.Item>
         )}
       </Form>
-      <DocumentPreview
-        document={previewDoc}
-        visible={!!previewOpen}
-        onClose={() => setPreviewOpen(false)}
+      {previewOpen && previewDoc && (
+        <DocumentPreview
+          document={previewDoc}
+          onClose={() => {
+            setPreviewOpen(false);
+            setPreviewDoc(null);
+          }}
+          certificateData={cert}
         onDelete={async () => {
           if (!previewDoc) return;
           if (isDeletingAny && !(previewDoc?.publicId && deletingIds.has(previewDoc.publicId))) {
@@ -627,10 +929,12 @@ export default function CertificationEditorDrawer({
           }
           if (previewDoc?.publicId && deletingIds.has(previewDoc.publicId)) return;
           if (previewDoc?.publicId) setDeletingIds(prev => new Set(prev).add(previewDoc.publicId));
-          const current = form.getFieldValue('documents') || cert?.documents || [];
+          const formDocs = form.getFieldValue('documents');
+    const current = (Array.isArray(formDocs) ? formDocs : null) || (Array.isArray(cert?.documents) ? cert?.documents : []) || [];
           const next = current.filter((d) => d.publicId !== previewDoc.publicId);
           form.setFieldsValue({ documents: next });
           setPreviewOpen(false);
+          setPreviewDoc(null);
           // Immediately remove from localStorage tracking if present
           if (previewDoc?.publicId) removeDocumentFromLocalStorage(previewDoc.publicId);
           try {
@@ -667,7 +971,8 @@ export default function CertificationEditorDrawer({
             if (previewDoc?.publicId) setDeletingIds(prev => { const s = new Set(prev); s.delete(previewDoc.publicId); return s; });
           }
         }}
-      />
+        />
+      )}
     </Drawer>
   );
 }
