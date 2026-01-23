@@ -38,33 +38,15 @@ const CertificationHeader = ({
         borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
       }}
     >
-      <Stack spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }}>
+      <Stack spacing={{ xs: 1.25, sm: 1.5, md: 0.5 }}>
         {/* Title Section - Compact & Premium */}
         <Box>
           <Stack
-            direction="row"
-            alignItems="center"
-            spacing={1.25}
+            
+            
             sx={{ mb: { xs: 0.75, sm: 0.875 } }}
           >
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: { xs: 32, sm: 34, md: 36 },
-                height: { xs: 32, sm: 34, md: 36 },
-                borderRadius: 1.5,
-                bgcolor: alpha(theme.palette.primary.main, 0.08),
-                color: theme.palette.primary.main,
-              }}
-            >
-              <WorkspacePremium
-                sx={{
-                  fontSize: { xs: 18, sm: 19, md: 20 },
-                }}
-              />
-            </Box>
+            
             <Typography
               component="h1"
               sx={{
