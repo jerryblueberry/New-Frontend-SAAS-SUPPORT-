@@ -1,605 +1,40 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
+  alpha,
   Box,
   Button,
-  Checkbox,
+  Card,
+  CardActions,
+  CardContent,
   Chip,
+  Container,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControl,
-  FormControlLabel,
-  FormGroup,
-  Grid,
-  InputAdornment,
-  InputLabel,
-  MenuItem,
+  IconButton,
   Paper,
-  Select,
   Snackbar,
+  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
+  Tooltip,
   Typography,
   useMediaQuery,
-  useTheme
+  useTheme,
 } from '@mui/material';
+import { Add, Delete, Edit } from '@mui/icons-material';
 import { LoadingButton } from '@mui/lab';
 import api from '../../../api/axios';
-import Alert from '../../../components/common/Alert';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
-import Autocomplete from '@mui/material/Autocomplete';
-
-const CATEGORY_OPTIONS = [
-  'Identity', 'Education', 'Professional', 'Background Check', 'Training', 'Insurance', 'Visa', 'Citizenship', 'Other'
-];
-
-const ACCEPTABLE_FOR_OPTIONS = [
-  { value: 'Citizens', label: 'Citizens' },
-  { value: 'PermanentResidents', label: 'Permanent Residents' },
-  { value: 'AllResidents', label: 'All Residents' },
-  { value: 'Foreigners', label: 'Foreigners' },
-  { value: 'NZCitizens', label: 'NZ Citizens' }
-];
-
-const REQUIRED_FIELDS_ENUM = [
-  { value: 'number', label: 'Number' },
-  { value: 'issuedDate', label: 'Issued Date' },
-  { value: 'expiryDate', label: 'Expiry Date' },
-  { value: 'issuer', label: 'Issuer' },
-  { value: 'state', label: 'State' },
-  { value: 'subclass', label: 'Subclass' },
-  { value: 'visaConditions', label: 'Visa Conditions' },
-  { value: 'workRights', label: 'Work Rights' },
-  { value: 'country', label: 'Country' },
-  { value: 'degree', label: 'Degree' },
-  { value: 'licenseNo', label: 'Driving License Number ' },
-  { value: 'workerScreeningId', label: 'NDIS Worker Screning ID' },
-  { value: 'Insurance Type', label: 'Insurance Type' },
-  { value: 'dateOfCompletion', label: 'NDIS Certificate of Completion Completion Date' },
-  { value: 'policeRefNo', label: 'Australian Federal Police Reference Id' },
-
-];
-
-const INITIAL_FORM_STATE = {
-  name: '',
-  requiredFields: [],
-  numberPattern: '',
-  hasExpiryDate: true,
-  defaultExpiryPeriod: '',
-  documentRequired: true,
-  category: '',
-  isVisa: false,
-  visaSettings: { 
-    subclassOptions: [], 
-    requiresWorkRights: true, 
-    requiresConditions: true, 
-    allowedCountries: [] 
-  },
-  isEducation: false,
-  educationSetting: { degreeOptions: [] },
-  isCitizenshipProof: false,
-  acceptableFor: 'AllResidents',
-  description: '',
-  instructions: '',
-  insuranceTypeOptions: [] // Add this line
-};
-
-// Modal for Add/Edit Certification Type
-function CertificationTypeFormModal({ open, onClose, onSubmit, initialData }) {
-  const theme = useTheme();
-  const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
-  const isEdit = Boolean(initialData && initialData._id);
-  const [form, setForm] = useState(INITIAL_FORM_STATE);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (open) {
-      setForm({
-        ...INITIAL_FORM_STATE,
-        ...initialData,
-        visaSettings: initialData?.visaSettings || INITIAL_FORM_STATE.visaSettings,
-        educationSetting: initialData?.educationSetting || INITIAL_FORM_STATE.educationSetting,
-      });
-      setError('');
-    }
-  }, [open, initialData]);
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setForm(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-  };
-
-  const handleNestedChange = (e, parent, key) => {
-    const { value, type, checked } = e.target;
-    setForm(prev => ({
-      ...prev,
-      [parent]: {
-        ...prev[parent],
-        [key]: type === 'checkbox' ? checked : value
-      }
-    }));
-  };
-
-  const handleArrayChange = (e, parent, key) => {
-    const arr = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-    setForm(prev => ({
-      ...prev,
-      [parent]: {
-        ...prev[parent],
-        [key]: arr
-      }
-    }));
-  };
-
-  const handleRequiredFieldsCheckbox = (e) => {
-    const { value, checked } = e.target;
-    setForm(prev => {
-      let updatedFields = prev.requiredFields;
-      if (checked) {
-        updatedFields = [...updatedFields, value];
-      } else {
-        updatedFields = updatedFields.filter(f => f !== value);
-      }
-      
-      if (prev.isEducation && !updatedFields.includes('degree')) {
-        updatedFields = [...updatedFields, 'degree'];
-      }
-      
-      if (!prev.isEducation) {
-        updatedFields = updatedFields.filter(f => f !== 'degree');
-      }
-      
-      return { ...prev, requiredFields: Array.from(new Set(updatedFields)) };
-    });
-  };
-
-  const handleDegreeOptionsChange = (e) => {
-    const arr = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-    setForm(prev => ({
-      ...prev,
-      educationSetting: {
-        ...prev.educationSetting,
-        degreeOptions: arr
-      }
-    }));
-  };
-
-  const handleCategoryChange = (e) => {
-    const value = e.target.value;
-    setForm(prev => {
-      let newForm = { ...prev, category: value };
-      
-      if (value !== 'Education') {
-        newForm.requiredFields = prev.requiredFields.filter(f => f !== 'degree');
-        newForm.educationSetting = { degreeOptions: [] };
-        newForm.isEducation = false;
-      }
-      
-      if (value !== 'Visa') {
-        newForm.requiredFields = newForm.requiredFields.filter(
-          f => !['subclass', 'workRights', 'visaConditions'].includes(f)
-        );
-        newForm.visaSettings = INITIAL_FORM_STATE.visaSettings;
-        newForm.isVisa = false;
-      }
-      
-      return newForm;
-    });
-  };
-
-  const handleIsEducationChange = (e) => {
-    const checked = e.target.checked;
-    setForm(prev => {
-      let newFields = checked
-        ? Array.from(new Set([...prev.requiredFields, 'degree']))
-        : prev.requiredFields.filter(f => f !== 'degree');
-      
-      return {
-        ...prev,
-        isEducation: checked,
-        requiredFields: newFields,
-        educationSetting: checked ? prev.educationSetting : { degreeOptions: [] },
-      };
-    });
-  };
-
-  const handleIsVisaChange = (e) => {
-    const checked = e.target.checked;
-    setForm(prev => {
-      let newFields = prev.requiredFields.filter(
-        f => !['subclass', 'workRights', 'visaConditions'].includes(f)
-      );
-      
-      if (checked) {
-        newFields = Array.from(new Set([...newFields, 'subclass', 'workRights', 'visaConditions']));
-      }
-      
-      return {
-        ...prev,
-        isVisa: checked,
-        requiredFields: newFields,
-        visaSettings: checked ? prev.visaSettings : INITIAL_FORM_STATE.visaSettings,
-      };
-    });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    
-    if (!form.name || !form.category) {
-      setError('Name and Category are required');
-      return;
-    }
-    
-    if (form.isEducation && (!form.educationSetting.degreeOptions || form.educationSetting.degreeOptions.length === 0)) {
-      setError('Degree options are optional but recommended for better user experience');
-      return;
-    }
-    
-    if (form.category === 'Insurance' && (!form.insuranceTypeOptions || form.insuranceTypeOptions.length === 0)) {
-      setError('At least one Insurance Type Option is required for Insurance category');
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      await onSubmit({ ...form, insuranceTypeOptions: form.insuranceTypeOptions });
-      onClose();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Operation failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      fullScreen={fullScreen}
-      maxWidth="md"
-      fullWidth
-    >
-      <DialogTitle>{isEdit ? 'Edit' : 'Add'} Certification Type</DialogTitle>
-      <form onSubmit={handleSubmit}>
-        <DialogContent dividers>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Name"
-                name="name"
-                value={form.name}
-                onChange={handleChange}
-                required
-                margin="normal"
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth margin="normal" required>
-                <InputLabel>Category</InputLabel>
-                <Select
-                  name="category"
-                  value={form.category}
-                  onChange={handleCategoryChange}
-                  label="Category"
-                >
-                  {CATEGORY_OPTIONS.map(opt => (
-                    <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12}>
-              <Typography variant="subtitle1" gutterBottom>Required Fields</Typography>
-              <FormGroup row>
-                {REQUIRED_FIELDS_ENUM.map(opt => (
-                  <FormControlLabel
-                    key={opt.value}
-                    control={
-                      <Checkbox
-                        checked={form.requiredFields.includes(opt.value)}
-                        onChange={handleRequiredFieldsCheckbox}
-                        value={opt.value}
-                        disabled={form.isEducation && opt.value === 'degree'}
-                      />
-                    }
-                    label={opt.label}
-                  />
-                ))}
-              </FormGroup>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Number Pattern"
-                name="numberPattern"
-                value={form.numberPattern || ''}
-                onChange={handleChange}
-                margin="normal"
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Default Expiry Period (months)"
-                name="defaultExpiryPeriod"
-                type="number"
-                value={form.defaultExpiryPeriod || ''}
-                onChange={handleChange}
-                margin="normal"
-                InputProps={{
-                  endAdornment: <InputAdornment position="end">months</InputAdornment>,
-                }}
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    name="hasExpiryDate"
-                    checked={form.hasExpiryDate}
-                    onChange={handleChange}
-                  />
-                }
-                label="Has Expiry Date"
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    name="documentRequired"
-                    checked={form.documentRequired}
-                    onChange={handleChange}
-                  />
-                }
-                label="Document Required"
-              />
-            </Grid>
-            
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Description"
-                name="description"
-                value={form.description || ''}
-                onChange={handleChange}
-                margin="normal"
-                multiline
-                rows={3}
-              />
-            </Grid>
-            
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Instructions"
-                name="instructions"
-                value={form.instructions || ''}
-                onChange={handleChange}
-                margin="normal"
-                multiline
-                rows={3}
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Acceptable For</InputLabel>
-                <Select
-                  name="acceptableFor"
-                  value={form.acceptableFor}
-                  onChange={handleChange}
-                  label="Acceptable For"
-                >
-                  {ACCEPTABLE_FOR_OPTIONS.map(opt => (
-                    <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    name="isCitizenshipProof"
-                    checked={form.isCitizenshipProof}
-                    onChange={handleChange}
-                  />
-                }
-                label="Is Citizenship Proof?"
-              />
-            </Grid>
-            
-            <Grid item xs={12}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    name="isVisa"
-                    checked={form.isVisa}
-                    onChange={handleIsVisaChange}
-                  />
-                }
-                label="Is Visa?"
-              />
-            </Grid>
-            
-            {form.isVisa && (
-              <Grid item xs={12}>
-                <Paper elevation={2} sx={{ p: 2 }}>
-                  <Typography variant="subtitle1" gutterBottom>Visa Settings</Typography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} md={6}>
-                      <TextField
-                        fullWidth
-                        label="Subclass Options (comma separated)"
-                        value={form.visaSettings.subclassOptions.join(', ')}
-                        onChange={e => handleArrayChange(e, 'visaSettings', 'subclassOptions')}
-                        margin="normal"
-                      />
-                    </Grid>
-                    
-                    <Grid item xs={12} md={6}>
-                      <TextField
-                        fullWidth
-                        label="Allowed Countries (comma separated)"
-                        value={form.visaSettings.allowedCountries.join(', ')}
-                        onChange={e => handleArrayChange(e, 'visaSettings', 'allowedCountries')}
-                        margin="normal"
-                      />
-                    </Grid>
-                    
-                    <Grid item xs={12} md={6}>
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={form.visaSettings.requiresWorkRights}
-                            onChange={e => handleNestedChange(e, 'visaSettings', 'requiresWorkRights')}
-                          />
-                        }
-                        label="Requires Work Rights"
-                      />
-                    </Grid>
-                    
-                    <Grid item xs={12} md={6}>
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={form.visaSettings.requiresConditions}
-                            onChange={e => handleNestedChange(e, 'visaSettings', 'requiresConditions')}
-                          />
-                        }
-                        label="Requires Conditions"
-                      />
-                    </Grid>
-                  </Grid>
-                </Paper>
-              </Grid>
-            )}
-            
-            <Grid item xs={12}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    name="isEducation"
-                    checked={form.isEducation}
-                    onChange={handleIsEducationChange}
-                  />
-                }
-                label="Is Education?"
-              />
-            </Grid>
-            
-            {form.isEducation && (
-              <Grid item xs={12}>
-                <Paper elevation={2} sx={{ p: 2 }}>
-                  <Typography variant="subtitle1" gutterBottom>Education Settings</Typography>
-                  <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                    Add common degree options for better user experience. Users can still add custom degrees not in this list.
-                  </Typography>
-                  <Autocomplete
-                    multiple
-                    freeSolo
-                    options={[]}
-                    value={form.educationSetting.degreeOptions}
-                    onChange={(event, newValue) => {
-                      setForm(prev => ({
-                        ...prev,
-                        educationSetting: {
-                          ...prev.educationSetting,
-                          degreeOptions: newValue
-                        }
-                      }));
-                    }}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Degree Options (Optional)"
-                        placeholder="Type and press Enter to add common degrees"
-                        margin="normal"
-                        fullWidth
-                        helperText="These are suggested options. Users can add custom degrees."
-                      />
-                    )}
-                  />
-                </Paper>
-              </Grid>
-            )}
-
-            {form.category === 'Insurance' && (
-              <Grid item xs={12}>
-                <Paper elevation={2} sx={{ p: 2 }}>
-                  <Typography variant="subtitle1" gutterBottom>Insurance Type Settings</Typography>
-                  <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                    Add all allowed insurance types for this certification. Users can still add custom types.
-                  </Typography>
-                  <Autocomplete
-                    multiple
-                    freeSolo
-                    options={[]}
-                    value={form.insuranceTypeOptions}
-                    onChange={(event, newValue) => {
-                      setForm(prev => ({
-                        ...prev,
-                        insuranceTypeOptions: newValue
-                      }));
-                    }}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Insurance Type Options"
-                        placeholder="Type and press Enter to add"
-                        margin="normal"
-                        fullWidth
-                        helperText="Add all allowed insurance types for this certification"
-                        required={form.category === 'Insurance'}
-                      />
-                    )}
-                  />
-                </Paper>
-              </Grid>
-            )}
-            
-            {error && (
-              <Grid item xs={12}>
-                <Alert severity="error">{error}</Alert>
-              </Grid>
-            )}
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={onClose} disabled={loading}>Cancel</Button>
-          <LoadingButton
-            type="submit"
-            variant="contained"
-            loading={loading}
-          >
-            {isEdit ? 'Update' : 'Add'}
-          </LoadingButton>
-        </DialogActions>
-      </form>
-    </Dialog>
-  );
-}
+import WorkerNavbar from '../../../components/Navbar/WorkerNavbar';
+import AdminSidebar from '../../../components/adminSidebar/AdminSidebar';
+import CertificationTypeFormModal from '../../../components/AdminCertificationTypesComponents/CertTypesModal/CertTypesModal';
 
 // Modal for Delete Confirmation
 function DeleteConfirmModal({ open, onClose, onConfirm, name }) {
@@ -640,8 +75,15 @@ function DeleteConfirmModal({ open, onClose, onConfirm, name }) {
   );
 }
 
-// Main Admin Page
+const SIDEBAR_WIDTH = 260; // Match AdminSidebar DRAWER_WIDTH for alignment
+const NAVBAR_TOP = 64;
+const MAX_VISIBLE_CHIPS = 2; // Required-fields overflow before "+N"
+
 export default function CertificationTypes() {
+  const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
   const [types, setTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -741,148 +183,339 @@ export default function CertificationTypes() {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">Certification Types</Typography>
-        <Button variant="contained" onClick={handleAdd} sx={{ minWidth: 200 }}>
-          Add Certification Type
-        </Button>
-      </Box>
-      
-      {loading ? (
-        <LoadingSpinner />
-      ) : (
-        <TableContainer component={Paper} elevation={3}>
-          <Table>
-            <TableHead>
-              <TableRow sx={{ backgroundColor: 'background.default' }}>
-                <TableCell>Name</TableCell>
-                <TableCell>Category</TableCell>
-                <TableCell>Required Fields</TableCell>
-                <TableCell>Visa</TableCell>
-                <TableCell>Education</TableCell>
-                <TableCell>Citizenship</TableCell>
-                <TableCell>Document</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {types.map(type => (
-                <TableRow key={type._id} hover>
-                  <TableCell>{type.name}</TableCell>
-                  <TableCell>{type.category}</TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {(type.requiredFields || []).map(field => (
-                        <Chip key={field} label={field} size="small" />
-                      ))}
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    {type.isVisa ? (
-                      <Chip label="Yes" color="success" size="small" />
-                    ) : (
-                      <Chip label="No" color="default" size="small" />
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {type.isEducation ? (
-                      <Chip label="Yes" color="success" size="small" />
-                    ) : (
-                      <Chip label="No" color="default" size="small" />
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {type.isCitizenshipProof ? (
-                      <Chip label="Yes" color="success" size="small" />
-                    ) : (
-                      <Chip label="No" color="default" size="small" />
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {type.documentRequired ? (
-                      <Chip label="Required" color="info" size="small" />
-                    ) : (
-                      <Chip label="Not Required" color="default" size="small" />
-                    )}
-                  </TableCell>
-                  <TableCell align="right">
-                    <Button
-                      size="small"
-                      onClick={() => handleEdit(type)}
-                      sx={{ mr: 1 }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      size="small"
-                      color="error"
-                      onClick={() => handleDelete(type)}
-                    >
-                      Delete
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {types.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} align="center">
+    <>
+      <WorkerNavbar />
+      <Box
+        sx={{
+          display: 'flex',
+          minHeight: '100vh',
+          backgroundColor: theme.palette.background.default,
+        }}
+      >
+        {/* Sidebar - aligned with AdminSidebar DRAWER_WIDTH */}
+        <Box
+          sx={{
+            width: { xs: 0, md: SIDEBAR_WIDTH },
+            flexShrink: 0,
+            zIndex: theme.zIndex.drawer,
+            position: 'fixed',
+            top: { xs: 56, md: NAVBAR_TOP },
+            left: 0,
+            height: `calc(100vh - ${NAVBAR_TOP}px)`,
+            transition: theme.transitions.create('width', {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.leavingScreen,
+            }),
+          }}
+        >
+          <AdminSidebar topOffset={NAVBAR_TOP} navigate={navigate} />
+        </Box>
+
+        {/* Main Content - adaptive padding for laptop/desktop */}
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            width: '100%',
+            ml: { md: `${SIDEBAR_WIDTH}px` },
+            mt: { xs: 8, md: 10 },
+            minHeight: '100vh',
+            p: { xs: 2, sm: 2, md: 2.5, lg: 3 },
+            transition: theme.transitions.create(['margin', 'padding'], {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.leavingScreen,
+            }),
+          }}
+        >
+          <Container
+            maxWidth="xl"
+            disableGutters
+            sx={{
+              py: { xs: 1, sm: 1.5, md: 2, lg: 2.5 },
+              px: { xs: 0, sm: 1.5, md: 2, lg: 2 },
+            }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mb: { xs: 1.5, sm: 2, md: 2, lg: 2.5 },
+                gap: 2,
+                flexWrap: 'wrap',
+              }}
+            >
+              <Typography
+                variant={isMobile ? 'h5' : 'h4'}
+                fontWeight={600}
+                sx={{ fontSize: { xs: '1.15rem', sm: '1.25rem', md: '1.35rem', lg: '1.5rem' } }}
+              >
+                Certification Types
+              </Typography>
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<Add />}
+                onClick={handleAdd}
+                sx={{
+                  minWidth: { xs: 'auto', sm: 140, md: 152, lg: 160 },
+                  px: { xs: 1.5, sm: 1.75, md: 2 },
+                  py: 0.75,
+                  fontSize: { xs: '0.8rem', sm: '0.8125rem' },
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  boxShadow: (t) => `0 1px 3px ${alpha(t.palette.primary.main, 0.25)}`,
+                  '&:hover': { boxShadow: (t) => `0 2px 6px ${alpha(t.palette.primary.main, 0.35)}` },
+                }}
+              >
+                {isSmall ? 'Add' : 'Add type'}
+              </Button>
+            </Box>
+
+            {loading ? (
+              <LoadingSpinner />
+            ) : isSmall ? (
+              /* Mobile: compact, adaptive cards */
+              <Stack spacing={1.5}>
+                {types.length === 0 ? (
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 4,
+                      textAlign: 'center',
+                      borderRadius: 2,
+                      borderColor: (t) => alpha(t.palette.divider, 0.6),
+                      bgcolor: (t) => alpha(t.palette.grey[500], 0.02),
+                    }}
+                  >
                     <Typography variant="body2" color="text.secondary">
                       No certification types found
                     </Typography>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
-      
-      <CertificationTypeFormModal
-        open={modalOpen}
-        onClose={handleModalClose}
-        onSubmit={handleFormSubmit}
-        initialData={editData}
-      />
-      
-      <DeleteConfirmModal
-        open={deleteModalOpen}
-        onClose={handleDeleteClose}
-        onConfirm={handleDeleteConfirm}
-        name={deleteTarget?.name}
-      />
-      
-      <Snackbar
-        open={toast.open}
-        autoHideDuration={6000}
-        onClose={handleToastClose}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <Box
-          sx={{
-            width: '100%',
-            p: 2,
-            bgcolor:
-              toast.severity === 'success'
-                ? 'success.main'
-                : toast.severity === 'error'
-                ? 'error.main'
-                : toast.severity === 'warning'
-                ? 'warning.main'
-                : 'info.main',
-            color: 'white',
-            borderRadius: 1,
-            boxShadow: 2,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-          }}
-        >
-          <Typography variant="body1" sx={{ flex: 1 }}>
-            {toast.message}
-          </Typography>
+                  </Paper>
+                ) : (
+                  types.map((type) => {
+                    const fields = type.requiredFields || [];
+                    const visible = fields.slice(0, MAX_VISIBLE_CHIPS);
+                    const extra = fields.length - MAX_VISIBLE_CHIPS;
+                    return (
+                      <Card
+                        key={type._id}
+                        elevation={0}
+                        sx={{
+                          border: '1px solid',
+                          borderColor: (t) => alpha(t.palette.divider, 0.5),
+                          borderRadius: 2,
+                          overflow: 'hidden',
+                          transition: 'border-color 0.2s, box-shadow 0.2s',
+                          '&:active': {
+                            borderColor: (t) => alpha(t.palette.primary.main, 0.3),
+                            boxShadow: (t) => `0 2px 8px ${alpha(t.palette.primary.main, 0.12)}`,
+                          },
+                        }}
+                      >
+                        <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
+                          <Stack spacing={1}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+                              <Typography variant="subtitle2" fontWeight={600} noWrap sx={{ flex: 1 }}>
+                                {type.name}
+                              </Typography>
+                              <Chip label={type.category} size="small" sx={{ height: 22, fontSize: '0.7rem', flexShrink: 0 }} />
+                            </Box>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+                              {visible.map((f) => (
+                                <Chip key={f} label={f} size="small" sx={{ height: 20, fontSize: '0.7rem' }} />
+                              ))}
+                              {extra > 0 && (
+                                <Chip label={`+${extra}`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
+                              )}
+                            </Box>
+                            <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                              {type.isVisa && <Chip label="Visa" size="small" sx={{ height: 20, fontSize: '0.65rem' }} color="success" />}
+                              {type.isEducation && <Chip label="Edu" size="small" sx={{ height: 20, fontSize: '0.65rem' }} color="success" />}
+                              {type.isCitizenshipProof && <Chip label="Citz" size="small" sx={{ height: 20, fontSize: '0.65rem' }} />}
+                              {type.documentRequired && <Chip label="Doc" size="small" sx={{ height: 20, fontSize: '0.65rem' }} color="info" variant="outlined" />}
+                            </Stack>
+                          </Stack>
+                        </CardContent>
+                        <CardActions sx={{ px: 2, py: 0.5, justifyContent: 'flex-end', minHeight: 40 }}>
+                          <Tooltip title="Edit" placement="top">
+                            <IconButton size="small" color="primary" onClick={() => handleEdit(type)} aria-label="Edit">
+                              <Edit fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete" placement="top">
+                            <IconButton size="small" color="error" onClick={() => handleDelete(type)} aria-label="Delete">
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </CardActions>
+                      </Card>
+                    );
+                  })
+                )}
+              </Stack>
+            ) : (
+              /* Desktop/tablet: compact, adaptive table — hide Citz/Doc on sm for laptops */
+              <TableContainer
+                component={Paper}
+                elevation={0}
+                sx={{
+                  border: '1px solid',
+                  borderColor: (t) => alpha(t.palette.divider, 0.5),
+                  borderRadius: { sm: 2, md: 2, lg: 2.5 },
+                  overflowX: 'auto',
+                  boxShadow: { sm: 'none', lg: (t) => `0 1px 4px ${alpha(t.palette.common.black, 0.06)}` },
+                  transition: 'box-shadow 0.2s, border-radius 0.2s',
+                }}
+              >
+                <Table
+                  size="small"
+                  sx={{
+                    minWidth: { sm: 560, md: 640, lg: 720 },
+                    '& .MuiTableCell-root': { borderBottom: (t) => `1px solid ${alpha(t.palette.divider, 0.06)}` },
+                  }}
+                >
+                  <TableHead>
+                    <TableRow
+                      sx={{
+                        bgcolor: (t) => alpha(t.palette.primary.main, 0.04),
+                        '& .MuiTableCell-root': { borderBottom: (t) => `1px solid ${alpha(t.palette.divider, 0.12)}` },
+                      }}
+                    >
+                      <TableCell sx={{ fontWeight: 600, py: { sm: 1.1, md: 1.25, lg: 1.5 }, fontSize: { sm: '0.75rem', md: '0.8rem' } }}>Name</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: { sm: 1.1, md: 1.25, lg: 1.5 }, fontSize: { sm: '0.75rem', md: '0.8rem' } }}>Category</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: { sm: 1.1, md: 1.25, lg: 1.5 }, fontSize: { sm: '0.75rem', md: '0.8rem' } }}>Required</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: { sm: 1.1, md: 1.25, lg: 1.5 }, fontSize: { sm: '0.75rem', md: '0.8rem' }, width: 52 }}>Visa</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: { sm: 1.1, md: 1.25, lg: 1.5 }, fontSize: { sm: '0.75rem', md: '0.8rem' }, width: 52 }}>Edu</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: { sm: 1.1, md: 1.25, lg: 1.5 }, fontSize: { sm: '0.75rem', md: '0.8rem' }, width: 52, display: { sm: 'none', md: 'table-cell' } }}>Citz</TableCell>
+                      <TableCell sx={{ fontWeight: 600, py: { sm: 1.1, md: 1.25, lg: 1.5 }, fontSize: { sm: '0.75rem', md: '0.8rem' }, width: 56, display: { sm: 'none', md: 'table-cell' } }}>Doc</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600, py: { sm: 1.1, md: 1.25, lg: 1.5 }, fontSize: { sm: '0.75rem', md: '0.8rem' }, width: 88 }}>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {types.map((type, idx) => {
+                      const fields = type.requiredFields || [];
+                      const visible = fields.slice(0, MAX_VISIBLE_CHIPS);
+                      const extra = fields.length - MAX_VISIBLE_CHIPS;
+                      return (
+                        <TableRow
+                          key={type._id}
+                          hover
+                          sx={{
+                            bgcolor: (t) => (idx % 2 === 1 ? alpha(t.palette.grey[500], 0.02) : 'transparent'),
+                            transition: 'background-color 0.15s ease',
+                            '&:hover': { bgcolor: (t) => alpha(t.palette.primary.main, 0.06) },
+                          }}
+                        >
+                          <TableCell sx={{ py: { sm: 1.1, md: 1.25, lg: 1.5 } }}>
+                            <Typography variant="body2" fontWeight={500} noWrap sx={{ maxWidth: { sm: 120, md: 160, lg: 200 } }}>
+                              {type.name}
+                            </Typography>
+                          </TableCell>
+                          <TableCell sx={{ py: { sm: 1.1, md: 1.25, lg: 1.5 } }}>
+                            <Chip label={type.category} size="small" sx={{ fontSize: { sm: '0.7rem', md: '0.75rem' }, height: { sm: 20, lg: 22 } }} />
+                          </TableCell>
+                          <TableCell sx={{ py: { sm: 1.1, md: 1.25, lg: 1.5 } }}>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+                              {visible.map((f) => (
+                                <Chip key={f} label={f} size="small" sx={{ fontSize: '0.7rem', height: 20 }} />
+                              ))}
+                              {extra > 0 && (
+                                <Chip label={`+${extra}`} size="small" variant="outlined" sx={{ fontSize: '0.7rem', height: 20 }} />
+                              )}
+                            </Box>
+                          </TableCell>
+                          <TableCell sx={{ py: { sm: 1.1, md: 1.25, lg: 1.5 } }}>
+                            {type.isVisa ? <Chip label="Y" color="success" size="small" sx={{ fontSize: '0.7rem', height: 20, minWidth: 24 }} /> : <Typography variant="caption" color="text.secondary">—</Typography>}
+                          </TableCell>
+                          <TableCell sx={{ py: { sm: 1.1, md: 1.25, lg: 1.5 } }}>
+                            {type.isEducation ? <Chip label="Y" color="success" size="small" sx={{ fontSize: '0.7rem', height: 20, minWidth: 24 }} /> : <Typography variant="caption" color="text.secondary">—</Typography>}
+                          </TableCell>
+                          <TableCell sx={{ py: { sm: 1.1, md: 1.25, lg: 1.5 }, display: { sm: 'none', md: 'table-cell' } }}>
+                            {type.isCitizenshipProof ? <Chip label="Y" color="success" size="small" sx={{ fontSize: '0.7rem', height: 20, minWidth: 24 }} /> : <Typography variant="caption" color="text.secondary">—</Typography>}
+                          </TableCell>
+                          <TableCell sx={{ py: { sm: 1.1, md: 1.25, lg: 1.5 }, display: { sm: 'none', md: 'table-cell' } }}>
+                            {type.documentRequired ? <Chip label="Req" color="info" size="small" sx={{ fontSize: '0.7rem', height: 20 }} /> : <Typography variant="caption" color="text.secondary">—</Typography>}
+                          </TableCell>
+                          <TableCell align="right" sx={{ py: { sm: 1.1, md: 1.25, lg: 1.5 } }}>
+                            <Stack direction="row" spacing={0.25} justifyContent="flex-end">
+                              <Tooltip title="Edit">
+                                <IconButton size="small" color="primary" onClick={() => handleEdit(type)} aria-label="Edit" sx={{ '&:hover': { bgcolor: (t) => alpha(t.palette.primary.main, 0.1) } }}>
+                                  <Edit fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Delete">
+                                <IconButton size="small" color="error" onClick={() => handleDelete(type)} aria-label="Delete" sx={{ '&:hover': { bgcolor: (t) => alpha(t.palette.error.main, 0.1) } }}>
+                                  <Delete fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {types.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={8} align="center" sx={{ py: 5 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            No certification types found
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Container>
+
+          <CertificationTypeFormModal
+            open={modalOpen}
+            onClose={handleModalClose}
+            onSubmit={handleFormSubmit}
+            initialData={editData}
+          />
+
+          <DeleteConfirmModal
+            open={deleteModalOpen}
+            onClose={handleDeleteClose}
+            onConfirm={handleDeleteConfirm}
+            name={deleteTarget?.name}
+          />
+
+          <Snackbar
+            open={toast.open}
+            autoHideDuration={6000}
+            onClose={handleToastClose}
+            anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+          >
+            <Box
+              sx={{
+                width: '100%',
+                p: 2,
+                bgcolor:
+                  toast.severity === 'success'
+                    ? 'success.main'
+                    : toast.severity === 'error'
+                    ? 'error.main'
+                    : toast.severity === 'warning'
+                    ? 'warning.main'
+                    : 'info.main',
+                color: 'white',
+                borderRadius: 1,
+                boxShadow: 2,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}
+            >
+              <Typography variant="body1" sx={{ flex: 1 }}>
+                {toast.message}
+              </Typography>
+            </Box>
+          </Snackbar>
         </Box>
-      </Snackbar>
-    </Box>
+      </Box>
+    </>
   );
 }

@@ -15,7 +15,7 @@ import React, { Suspense } from 'react';
 const ClientOnboarding = React.lazy(() => import('./pages/ClientPages/OnboardingPages/ClientOnboarding'));
 import { useAuth } from './context/AuthContext';
 import VerifyEmail from './pages/auth/VerifyEmail';
-
+import AddClients from './pages/AdminPages/ClientManagement/AddClients';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastContainer, toast } from 'react-toastify';
@@ -478,6 +478,14 @@ function AppRoutes() {
             <ViewClientDetails/>
           </AdminRoute>
         }
+        />
+        {/*  Add the client by the admin */}
+        <Route path = '/admin/clients/add'
+          element = {
+            <AdminRoute>
+              <AddClients />
+            </AdminRoute>
+          }
         />
       </Routes>
   );

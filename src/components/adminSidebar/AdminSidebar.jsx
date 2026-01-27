@@ -135,7 +135,7 @@ const AdminSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
       icon: <People />,
       children: [
         { id: 'all-clients', label: 'All Clients', icon: <Group />, path: '/admin/clients' },
-        { id: 'add-client', label: 'Add Client', icon: <PersonAdd />, path: '/clients/add' },
+        { id: 'add-client', label: 'Add Client', icon: <PersonAdd />, path: '/admin/clients/add' },
         { id: 'client-roles', label: 'Roles & Permissions', icon: <AdminPanelSettings />, path: '/clients/roles' },
       ],
     },
