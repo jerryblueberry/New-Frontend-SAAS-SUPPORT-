@@ -104,7 +104,10 @@ const Communication = () => {
     () => ({
       preferredMethod: communication?.preferredMethod || 'email',
       preferredLanguage: communication?.preferredLanguage || 'English',
-      accessibilityNeeds: communication?.accessibilityNeeds || [],
+      // Ensure accessibilityNeeds is always an array (best practice)
+      accessibilityNeeds: Array.isArray(communication?.accessibilityNeeds) 
+        ? communication.accessibilityNeeds.filter(need => need && need.trim()) // Filter out empty/null values
+        : [],
       communicationNotes: communication?.communicationNotes || '',
     }),
     [communication]
@@ -134,17 +137,23 @@ const Communication = () => {
 
   const handleAddAccessibilityNeed = useCallback(() => {
     if (accessibilityInput.trim()) {
-      const current = watchedAccessibilityNeeds || []
-      if (!current.includes(accessibilityInput.trim())) {
-        setValue('accessibilityNeeds', [...current, accessibilityInput.trim()], { shouldValidate: true })
+      const current = Array.isArray(watchedAccessibilityNeeds) ? watchedAccessibilityNeeds : []
+      const trimmedInput = accessibilityInput.trim()
+      
+      // Prevent duplicates (case-insensitive)
+      const normalizedCurrent = current.map(need => need.toLowerCase())
+      if (!normalizedCurrent.includes(trimmedInput.toLowerCase())) {
+        setValue('accessibilityNeeds', [...current, trimmedInput], { shouldValidate: true })
         setAccessibilityInput('')
+      } else {
+        toast.error('This accessibility need is already added', { id: 'duplicate-accessibility' })
       }
     }
   }, [accessibilityInput, watchedAccessibilityNeeds, setValue])
 
   const handleRemoveAccessibilityNeed = useCallback(
     (need) => {
-      const current = watchedAccessibilityNeeds || []
+      const current = Array.isArray(watchedAccessibilityNeeds) ? watchedAccessibilityNeeds : []
       setValue('accessibilityNeeds', current.filter((n) => n !== need), { shouldValidate: true })
     },
     [watchedAccessibilityNeeds, setValue]
@@ -152,7 +161,25 @@ const Communication = () => {
 
   const onSubmit = useCallback(
     (values) => {
-      update(values, {
+      // Ensure accessibilityNeeds is always an array (best practice)
+      const normalizedValues = {
+        ...values,
+        accessibilityNeeds: Array.isArray(values.accessibilityNeeds) 
+          ? values.accessibilityNeeds.filter(need => need && typeof need === 'string' && need.trim()) // Remove empty/invalid values
+          : [],
+      }
+
+      // Backend accepts both flat and nested structures (best practice for flexibility)
+      // Send flat structure for consistency with other profile updates
+      // Backend will normalize and validate: { preferredMethod, preferredLanguage, accessibilityNeeds: string[], communicationNotes }
+      const payload = {
+        preferredMethod: normalizedValues.preferredMethod,
+        preferredLanguage: normalizedValues.preferredLanguage,
+        accessibilityNeeds: normalizedValues.accessibilityNeeds, // Array of strings - properly handled
+        communicationNotes: normalizedValues.communicationNotes,
+      }
+
+      update(payload, {
         onSuccess: () => {
           setIsEditMode(false)
           toast.success('Communication preferences updated successfully')
@@ -426,7 +453,7 @@ const Communication = () => {
                             fullWidth
                             size={isMobile ? 'small' : 'medium'}
                             label="Add Accessibility Need"
-                            placeholder="e.g., Large print, Sign language"
+                            placeholder="e.g., Large print, Sign language, Screen reader"
                             value={accessibilityInput}
                             onChange={(e) => setAccessibilityInput(e.target.value)}
                             onKeyPress={(e) => {
@@ -435,6 +462,7 @@ const Communication = () => {
                                 handleAddAccessibilityNeed()
                               }
                             }}
+                            helperText="Press Enter or click Add to include an accessibility need"
                             sx={{
                               '& .MuiOutlinedInput-root': {
                                 borderRadius: 2,
@@ -451,28 +479,47 @@ const Communication = () => {
                             Add
                           </Button>
                         </Stack>
-                        {watchedAccessibilityNeeds && watchedAccessibilityNeeds.length > 0 && (
+                        {Array.isArray(watchedAccessibilityNeeds) && watchedAccessibilityNeeds.length > 0 ? (
                           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                             {watchedAccessibilityNeeds.map((need, idx) => (
                               <Chip
-                                key={idx}
+                                key={`${need}-${idx}`} // Better key using value + index
                                 label={need}
                                 onDelete={() => handleRemoveAccessibilityNeed(need)}
                                 size="small"
                                 variant="outlined"
+                                sx={{
+                                  '&:hover': {
+                                    backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                                  },
+                                }}
                               />
                             ))}
                           </Box>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                            No accessibility needs added yet
+                          </Typography>
                         )}
                       </Stack>
                     ) : (
                       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                        {communication?.accessibilityNeeds && communication.accessibilityNeeds.length > 0 ? (
+                        {Array.isArray(communication?.accessibilityNeeds) && communication.accessibilityNeeds.length > 0 ? (
                           communication.accessibilityNeeds.map((need, idx) => (
-                            <Chip key={idx} label={need} size="small" variant="outlined" />
+                            <Chip 
+                              key={`${need}-${idx}`} 
+                              label={need} 
+                              size="small" 
+                              variant="outlined"
+                              sx={{
+                                '&:hover': {
+                                  backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                                },
+                              }}
+                            />
                           ))
                         ) : (
-                          <Typography variant="body2" color="text.secondary">
+                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
                             No accessibility needs specified
                           </Typography>
                         )}

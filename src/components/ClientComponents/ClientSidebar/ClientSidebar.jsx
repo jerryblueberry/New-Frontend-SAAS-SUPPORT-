@@ -191,6 +191,12 @@ const ClientSidebar = ({ topOffset = DEFAULT_TOP_OFFSET, navigate }) => {
       ]
     },
     {
+      id: 'notifications',
+      label: 'Notifications',
+      icon: <Notifications />,
+      path: '/client/notifications'
+    },
+    {
       id: 'settings',
       label: 'Settings',
       icon: <Settings />,
