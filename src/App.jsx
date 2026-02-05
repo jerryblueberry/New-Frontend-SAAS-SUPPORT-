@@ -64,6 +64,7 @@ import Communication from './pages/ClientPages/ClientProfile/Communication';
 import BillingPreferences from './pages/ClientPages/BillingAndPayment/BillingPreferences';
 import Invoices from './pages/ClientPages/BillingAndPayment/Invoices';
 import ExploreWorkersPage from './pages/ClientWorkerMatching/ClientWorkersExplore/ExploreWorkersPage';
+import ClientNotification from './pages/ClientPages/ClientNotification/ClientNotification';
 // Create React Query client with optimized settings    
 const queryClient = new QueryClient({
   defaultOptions: { 
@@ -452,6 +453,11 @@ function AppRoutes() {
           </ClientRoute>
         }
         />
+        <Route path="/client/notifications" element={
+          <ClientRoute>
+            <ClientNotification />
+          </ClientRoute>
+        } />
         {/*  For the client billing and payment preferences */}
         <Route path="/client/billing/preferences" element={
           <ClientRoute>

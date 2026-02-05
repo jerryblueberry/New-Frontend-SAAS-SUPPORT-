@@ -149,7 +149,7 @@ const VerifyEmail = () => {
           if (userRole === 'worker') {
             handleNavigation('/login');
           } else if (userRole === 'client') {
-            handleNavigation('/client-login');
+            handleNavigation('/client/login');
           } else {
             // Fallback to generic login
             handleNavigation('/login');
@@ -173,7 +173,7 @@ const VerifyEmail = () => {
           if (userRole === 'worker') {
             handleNavigation('/login');
           } else if (userRole === 'client') {
-            handleNavigation('/client-login');
+            handleNavigation('/client/login');
           } else {
             handleNavigation('/login');
           }
