@@ -10,6 +10,7 @@ export const clientKeys = {
   details: () => [...clientKeys.all, 'detail'],
   detail: (id) => [...clientKeys.details(), id],
 };
+console.log("CHECK");
 
 /**
  * Hook for fetching clients list with filters, pagination, sorting
