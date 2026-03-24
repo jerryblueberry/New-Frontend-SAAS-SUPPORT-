@@ -7,7 +7,7 @@ let isOnline = navigator.onLine;
 let connectionRetryCount = 0;
 const MAX_CONNECTION_RETRIES = 3;
 const RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff
-
+console.log("isOnline", isOnline);
 // Listen for online/offline events
 window.addEventListener('online', () => {
   isOnline = true;
@@ -23,7 +23,7 @@ window.addEventListener('offline', () => {
 // Create API instance with enhanced settings
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',               
-  // baseURL: import.meta.env.VITE_API_URL || 'https://backend-for-the-saas-short-job-finder.vercel.app/api/v1',
+ 
   withCredentials: true,
   timeout: 30000, // Increased timeout for better reliability
   headers: {
